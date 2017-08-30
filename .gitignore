@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+*.bgrid
+build/c++-build/*
+!build/c++-build/Makefile
+build/em-build/*
+!build/em-build/Makefile
+build/intel-build/*
+!build/intel-build/Makefile
+build/matlab-build/*.mex*
+
