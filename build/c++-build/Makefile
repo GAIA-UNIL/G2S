@@ -8,7 +8,7 @@
 
 
 
-all: server echo test
+all: server echo test qs nds ds ds-l
 
 depend: .depend Makefile
 
@@ -33,7 +33,19 @@ echo: echo.o dataManagement.o
 test: test.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
+qs: qs.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
+nds: nds.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
+ds: ds.o dataManagement.o sharedMemoryManager.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
+ds-l: ds-l.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
 clean:
 	rm -rf *.o
-	rm -rf server echo test
+	rm -rf server echo test qs nds ds ds-l
 	rm -rf .depend

@@ -1,10 +1,10 @@
 
 export SRCS=$(shell pwd)/../src
-export CFLAGS=-O3 -std=c++11
+export CFLAGS=-O3 -std=c++11 -g
 export CXXFLAGS=
 export INC=-I$(shell pwd)/../include
 export LIBINC=-I/usr/include -I/opt/local/include
-export LDFLAGS=-lzmq -lz -ljsoncpp
+export LDFLAGS=-lzmq -lz -ljsoncpp -lfftw3f -lfftw3f_threads
 export LIB_PATH= -L/usr/lib -L/opt/local/lib
 
 .DEFAULT:

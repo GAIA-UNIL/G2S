@@ -1,12 +1,13 @@
 #include "status.hpp"
 #include <regex>
 #include <iostream>
+#include "jobManager.hpp"
 
 int lookForStatus(void* data, size_t dataSize){
-	if(dataSize==sizeof(long long)){
-		long long id=*((long long*)data);
+	if(dataSize==sizeof(jobIdType)){
+		jobIdType id=*((jobIdType*)data);
 		char filename[4096];
-		sprintf(filename,"logs/%ld.log",id);
+		sprintf(filename,"logs/%u.log",id);
 
 		FILE *fd;
 
@@ -23,7 +24,6 @@ int lookForStatus(void* data, size_t dataSize){
 			while(fgets(lineHeader,2048,fd)!= NULL){
 
 				std::regex_search(lineHeader, base_search, base_regex);
-				//fprintf(stderr, "matchs: %d\n", base_search.size());
 				if (base_search.size() >= 1) {
 					sscanf(base_search[0].str().c_str(),"%f%",&truePourcentage);
 				}else{
@@ -35,6 +35,8 @@ int lookForStatus(void* data, size_t dataSize){
 			}
 			fclose(fd);
 			return int(truePourcentage*1000.);
+		}else{
+			fprintf(stderr, "can not open file : %s\n",filename );
 		}
 	}
 	return -1;

@@ -28,3 +28,6 @@ end
 
 source=imread('source.png');
 
+%%
+
+data=g2s('-a','echo','-ti',single(source));

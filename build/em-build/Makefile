@@ -1,8 +1,9 @@
 LIB_PATH=-L$(EM_PATH)/lib/
 LIBINC=-I$(EM_PATH)/include/
 
-EMFLAGS=-s USE_ZLIB=1 -s ASYNCIFY=1 -s ASSERTIONS=1
+EMFLAGS=-s USE_ZLIB=1 -s ASYNCIFY=1 -s ASSERTIONS=1 -s SIMD=1
 CFLAGS=-O3 -std=c++11
+CXXFLAGS+=-msse2
 LDFLAGS=-lzmq -ljsoncpp -lwszmq
 
 
@@ -24,7 +25,7 @@ include .depend
 %.o: $(SRCS)/%.cpp 
 	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(EMFLAGS)
 
-server.html: server.o dataManagement.o jobManager.o jobTasking.o status.o $(ALGO)
+server.html: server.o dataManagement.o sharedMemoryManager.o jobManager.o jobTasking.o status.o CPUThreadDevice.o $(ALGO)
 	$(CXX) -o $@ $(subst $(ALGOS),,$^) $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS) -s MAIN_MODULE=1 -s TOTAL_MEMORY=268435456 --preload-file $(ALGOS) -s LINKABLE=1 --bind -s DISABLE_EXCEPTION_CATCHING=0
 	sed -ie "s/var Module = {/var Module = {arguments: ['-mT', '-fM'],/" server.html
 
@@ -32,13 +33,37 @@ echo.js: echo.o
 	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS)
 
 echo:echo.js
-	cp echo.js echo
+	cp $^ $@
 
 test.js: test.o
 	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
 
 test:test.js
-	cp test.js test
+	cp $^ $@
+
+qs.js: qs.o
+	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+
+qs: qs.js
+	cp $^ $@
+
+nds.js: nds.o
+	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+
+nds: nds.js
+	cp $^ $@
+
+ds.js: ds.o
+	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+
+ds: ds.js
+	cp $^ $@
+
+ds-l.js: ds-l.o
+	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+
+ds-l: ds-l.js
+	cp $^ $@
 
 clean:
 	rm -rf *.o *.js

@@ -27,7 +27,7 @@
 
 #include "matrix.h"
 
-typedef int jobIdType;
+typedef unsigned jobIdType;
 
 inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	infoContainer task;
@@ -362,15 +362,15 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 
 	int saP1_Index=-1;
 	int dimP1_Index=-1;
-	int jP1_Index=-1;
+	int aP1_Index=-1;
 
 	for (int i = 0; i < inputArray.size(); ++i)
 	{
 		if(!inputArray[i].compare("-sa")){
 			saP1_Index=inputArrayIndex[i]+1;
 		}
-		if(!inputArray[i].compare("-j")){
-			jP1_Index=inputArrayIndex[i]+1;
+		if(!inputArray[i].compare("-a")){
+			aP1_Index=inputArrayIndex[i]+1;
 		}
 		if(!inputArray[i].compare("-dim")){
 			dimP1_Index=inputArrayIndex[i]+1;
@@ -453,7 +453,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		infoContainer task;
 		task.version=1;
 		char algo[2048];
-		mxGetString(prhs[jP1_Index], algo, 2048);
+		mxGetString(prhs[aP1_Index], algo, 2048);
 
 		Json::Value object(Json::objectValue);
 		if(!strcmp(algo,"echo") || !strcmp(algo,"Echo") ){
@@ -507,7 +507,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 				if(!inputArray[i].compare("-sa") ||
 				   !inputArray[i].compare("-ti") ||
 				   !inputArray[i].compare("-di") ||
-				   !inputArray[i].compare("-j")){
+				   !inputArray[i].compare("-a")){
 					managed=true;
 				}
 
@@ -549,7 +549,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(reply.size()!=sizeof(jobIdType)) printf( "%s\n", "wrong answer !");
 		id=*((jobIdType*)reply.data());
 		if(id<0) printf( "%s\n", "error in job distribution!");
-		printf("job Id is: %lld\n",id );
+		printf("job Id is: %u\n",id );
 		mexEvalString("drawnow");
 
 		if(done) {
@@ -563,11 +563,11 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 
 	char nameFile[65]={0};
 	char nameFile_id[65]={0};
-	sprintf(nameFile,"%d",id);
-	sprintf(nameFile_id,"id_%d",id);
+	sprintf(nameFile,"%u",id);
+	sprintf(nameFile_id,"id_%u",id);
 	
 	while(!stop) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		std::this_thread::sleep_for(std::chrono::milliseconds(600));
 		if(done) {
 			sendKill(socket, id);
 			stop=true;

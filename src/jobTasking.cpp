@@ -74,7 +74,7 @@ jobIdType echo_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 		if(param.isMember("-ti")){
 			
 			char* argv[100];
-			argv[0]="./echo";
+			argv[0]=(char*)"./echo";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -100,11 +100,11 @@ jobIdType echo_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 				}
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -151,7 +151,7 @@ jobIdType test_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 		if(param.isMember("-ti")){
 			
 			char* argv[100];
-			argv[0]="./test";
+			argv[0]=(char*)"./test";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -169,11 +169,11 @@ jobIdType test_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 				index++;
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -215,7 +215,10 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]="./qs";
+			char tempMemory[100][100];
+			unsigned tempMemIndex=0;
+			memset(tempMemory,0,100*100);
+			argv[0]=(char*)"./qs";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -228,16 +231,37 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 				argv[index]=(char *)member[i].c_str();
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
-				argv[index]=(char *)param[member[i]].asCString();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
+
+				if(param[member[i]].isString())
+				{
+					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
+					argv[index]=tempMemory[tempMemIndex];
+					tempMemIndex++;
+					//fprintf(stderr, "%s\n", argv[index]);
+					index++;
+				}
+				if(param[member[i]].isArray())
+				{
+					//fprintf(stderr, "%s\n", "is array");
+					Json::Value arrayData=param[member[i]];
+					for (int j = 0; j < arrayData.size(); ++j)
+					{
+						if(arrayData[j].isString()){
+							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
+							argv[index]=tempMemory[tempMemIndex];
+							tempMemIndex++;
+							//fprintf(stderr, "%s\n", argv[index]);
+							index++;
+						}
+					}
+				}
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -245,13 +269,18 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 
 			// add specific
 
+			/*for (int i = 0; i < index; ++i)
+			{
+				fprintf(stderr, "%s ",argv[i] );
+			}*/
+
 			//Execute
 			if(functionMode)
 			{
 				call_functionMode(jobIds, singleTask,  uniqueId, "qs",index, argv);
 				
 			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
+				pid_t pid=fork(); // fork, to be crash resistant !!
 				if (pid==0) { // child process //
 					
 					execv("./qs", argv);
@@ -279,7 +308,7 @@ jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]="./ds";
+			argv[0]=(char*)"./ds";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -297,11 +326,11 @@ jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 				index++;
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -343,7 +372,7 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]="./dsl";
+			argv[0]=(char*)"./dsl";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -361,11 +390,11 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 				index++;
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -407,7 +436,7 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]="nds";
+			argv[0]=(char*)"nds";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -425,11 +454,11 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 				index++;
 			}
 			{
-				argv[index]="-r";
+				argv[index]=(char*)"-r";
 				fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%ld.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				fprintf(stderr, "%s\n", argv[index]);
 				index++;

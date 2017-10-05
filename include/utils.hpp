@@ -9,6 +9,8 @@
 #include <map>
 #include <string>
 #include <sys/stat.h>
+#include <vector>
+ 
 #if _OPENMP
 	#include <omp.h>
 #endif
@@ -17,6 +19,27 @@
 #define G2S_UTILS
 
 namespace g2s {
+
+	enum DistanceType{
+		KERNEL,
+		EUCLIDIEN,
+		MANAHTTAN
+	};
+
+	enum KernelType{
+		UNIFORM,
+		TRIANGULAR,
+		EXPONENTIAL,
+		EPANECHNIKOV,
+		QUARTIC,
+		TRIWEIGHT,
+		TRICUBE,
+		GAUSSIAN,
+		COSINE,
+		LOGISTIC,
+		SIGMOID,
+		SILVERMAN
+	};
 
 	#define clamp( x,  a,  b) ( (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 

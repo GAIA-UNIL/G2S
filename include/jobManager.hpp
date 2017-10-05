@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-typedef int jobIdType;
+typedef unsigned jobIdType;
 
 struct jobArray{
 	std::map<jobIdType, pid_t> pids;

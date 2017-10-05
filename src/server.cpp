@@ -66,7 +66,6 @@ int main(int argc, char const *argv[]) {
 		if(requesSize>=sizeof(infoContainer)){
 			infoContainer infoRequest;
 			memcpy(&infoRequest,request.data(),sizeof(infoContainer));
-			fprintf(stderr, "receive %d\n",infoRequest.task);
 			if(infoRequest.version<=0) continue;
 			switch(infoRequest.task)
 			{
@@ -95,11 +94,9 @@ int main(int argc, char const *argv[]) {
 				case JOB :
 					{
 						int id=recieveJob(jobIds,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer),singleTask, functionMode);
-						//fprintf(stderr, "send answer job\n");
 						zmq::message_t reply(sizeof(id));
 						memcpy (reply.data (), &id, sizeof(id));
 						receiver.send(reply);
-						//fprintf(stderr, "answer job sended\n");
 						break;
 					}
 				case STATUS :
