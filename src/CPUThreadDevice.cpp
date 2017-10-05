@@ -12,7 +12,7 @@
 #include "utils.hpp"
 #include "complexMulti.hpp"
 
-//#define PARTIAL_FFT
+#define PARTIAL_FFT
 
 #define FFTW_PLAN_OPTION FFTW_PATIENT
 
@@ -80,18 +80,30 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpace, _frenquencySpaceInput, FFTW_PLAN_OPTION);
+
+		unsigned reducedSize=1;
+
+		for (int i = 0; i < _fftSize.size()-2; ++i)
+		{
+			reducedSize*=_fftSize[i];
+		}
+		
+		unsigned reducedFftSize=reducedSize*(_fftSize[_fftSize.size()-2]/2+1);
+		unsigned reducedRealSize=reducedSize*(_fftSize[_fftSize.size()-2]);
+
 		for (int i = 0; i < _fftSize.back(); ++i)
 		{
-			_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*_realSpaceSize/_fftSize.back(), _frenquencySpaceInput+i*_fftSpaceSize/_fftSize.back(), FFTW_PLAN_OPTION);
+			_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 		}
 
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
-			_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),_realSpaceSize/_fftSize.back(),
-							 _frenquencySpaceInput, reverseFftSize.data(),
-							 _realSpaceSize/_fftSize.back(), 1,
-							 _frenquencySpaceInput, reverseFftSize.data(),
-							 _realSpaceSize/_fftSize.back(), 1,
-							 FFTW_FORWARD, FFTW_PLAN_OPTION);
+		_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
+						 _frenquencySpaceInput, reverseFftSize.data(),
+						 reducedFftSize, 1,
+						 _frenquencySpaceInput, reverseFftSize.data(),
+						 reducedFftSize, 1,
+						 FFTW_FORWARD, FFTW_PLAN_OPTION);
+
 	}
 }
 
@@ -249,16 +261,15 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		for (int var = 0; var <neighborValueArrayVector[0].size() ; ++var)
 		{
-			memset(lines,false,sizeof(bool) * _fftSize.back() );
+			
 			memset(_realSpace,0,sizeof(dataType) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 			for (int i = 0; i < neighborArray.size(); ++i)
 			{
 				_realSpace[ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
-				lines[neighborArray[i].back()-_min.back()]=true;
+				lines[neighborArray[i].back()]=true;
 			}
-
 		#ifdef PARTIAL_FFT
 			for (int i = 0; i < _fftSize.back(); ++i)
 			{
