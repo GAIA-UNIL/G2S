@@ -7,9 +7,9 @@ CXXFLAGS+=-msse2
 LDFLAGS=-lzmq -ljsoncpp -lwszmq
 
 
-ALGOS=echo
+ALGOS=echo qs test
 
-all: echo test server.html 
+all: $(ALGOS) server.html
 
 depend: .depend Makefile
 
@@ -25,8 +25,8 @@ include .depend
 %.o: $(SRCS)/%.cpp 
 	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(EMFLAGS)
 
-server.html: server.o dataManagement.o sharedMemoryManager.o jobManager.o jobTasking.o status.o CPUThreadDevice.o $(ALGO)
-	$(CXX) -o $@ $(subst $(ALGOS),,$^) $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS) -s MAIN_MODULE=1 -s TOTAL_MEMORY=268435456 --preload-file $(ALGOS) -s LINKABLE=1 --bind -s DISABLE_EXCEPTION_CATCHING=0
+server.html: server.o dataManagement.o sharedMemoryManager.o jobManager.o jobTasking.o status.o CPUThreadDevice.o $(ALGOS)
+	$(CXX) -o $@ $(subst $(ALGOS),,$^) $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS) -s MAIN_MODULE=1 -s TOTAL_MEMORY=268435456 $(addprefix --preload-file , $(ALGOS)) -s LINKABLE=1 --bind -s DISABLE_EXCEPTION_CATCHING=0
 	sed -ie "s/var Module = {/var Module = {arguments: ['-mT', '-fM'],/" server.html
 
 echo.js: echo.o
@@ -42,7 +42,7 @@ test:test.js
 	cp $^ $@
 
 qs.js: qs.o
-	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS)
 
 qs: qs.js
 	cp $^ $@

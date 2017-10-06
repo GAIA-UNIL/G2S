@@ -499,7 +499,12 @@ int main(int argc, char const *argv[]) {
 
 	// init QS
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
-	std::vector<ComputeDeviceModule*> computeDeviceModuleArray[nbThreads];
+	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=(std::vector<ComputeDeviceModule*> *)malloc(sizeof(std::vector<ComputeDeviceModule*>)*nbThreads);
+
+	for (int i = 0; i < nbThreads; ++i)
+	{
+		computeDeviceModuleArray[i]=std::vector<ComputeDeviceModule*>(0);
+	}
 
 	for (int i = 0; i < TIs.size(); ++i)
 	{
@@ -648,6 +653,8 @@ int main(int argc, char const *argv[]) {
 			computeDeviceModuleArray[i][j]=nullptr;
 		}
 	}
+
+	free(computeDeviceModuleArray);
 
 	DI.write(outputFilename);
 

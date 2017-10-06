@@ -1,6 +1,6 @@
 
 export SRCS=$(shell pwd)/../src
-export CFLAGS=-O3 -std=c++11 -g
+export CFLAGS=-O3 -std=c++11
 export CXXFLAGS=
 export INC=-I$(shell pwd)/../include
 export LIBINC=-I/usr/include -I/opt/local/include
