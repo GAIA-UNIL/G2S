@@ -507,6 +507,8 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 				if(!inputArray[i].compare("-sa") ||
 				   !inputArray[i].compare("-ti") ||
 				   !inputArray[i].compare("-di") ||
+				   !inputArray[i].compare("-sp") ||
+				   !inputArray[i].compare("-ki") ||
 				   !inputArray[i].compare("-a")){
 					managed=true;
 				}

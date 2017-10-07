@@ -498,6 +498,16 @@ int main(int argc, char const *argv[]) {
 	std::sort(simulationPathIndex, simulationPathIndex+simulationPath.dataSize(),
 		[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
 
+	//Search begin path
+
+	unsigned beginPath=0;
+
+	for ( beginPath=0 ; beginPath < simulationPath.dataSize(); ++beginPath)
+	{
+		float value=simulationPathData[simulationPathIndex[beginPath]];
+		if((!std::isinf(value))||(value>0)) break;
+	}
+
 	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
 	memset(importDataIndex,0,sizeof(unsigned)*simulationPath.dataSize());
 	float* seedForIndex=( float* )malloc( sizeof(float) * DI.dataSize()/DI._nbVariable );
@@ -655,7 +665,7 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex, simulationPath.dataSize(),
+	simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
 	 seedForIndex, importDataIndex, nbNeighbors, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-9 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
