@@ -364,6 +364,7 @@ jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 	return uniqueId;
 }
 
+
 jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
 {
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -372,7 +373,10 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]=(char*)"./dsl";
+			char tempMemory[100][100];
+			unsigned tempMemIndex=0;
+			memset(tempMemory,0,100*100);
+			argv[0]=(char*)"./ds-l";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -385,9 +389,30 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 				argv[index]=(char *)member[i].c_str();
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
-				argv[index]=(char *)param[member[i]].asCString();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
+
+				if(param[member[i]].isString())
+				{
+					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
+					argv[index]=tempMemory[tempMemIndex];
+					tempMemIndex++;
+					//fprintf(stderr, "%s\n", argv[index]);
+					index++;
+				}
+				if(param[member[i]].isArray())
+				{
+					//fprintf(stderr, "%s\n", "is array");
+					Json::Value arrayData=param[member[i]];
+					for (int j = 0; j < arrayData.size(); ++j)
+					{
+						if(arrayData[j].isString()){
+							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
+							argv[index]=tempMemory[tempMemIndex];
+							tempMemIndex++;
+							//fprintf(stderr, "%s\n", argv[index]);
+							index++;
+						}
+					}
+				}
 			}
 			{
 				argv[index]=(char*)"-r";
@@ -402,16 +427,21 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 
 			// add specific
 
+			/*for (int i = 0; i < index; ++i)
+			{
+				fprintf(stderr, "%s ",argv[i] );
+			}*/
+
 			//Execute
 			if(functionMode)
 			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "dsl",index, argv);
+				call_functionMode(jobIds, singleTask,  uniqueId, "ds-l",index, argv);
 				
 			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
+				pid_t pid=fork(); // fork, to be crash resistant !!
 				if (pid==0) { // child process //
 					
-					execv("./dsl", argv);
+					execv("./ds-l", argv);
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //

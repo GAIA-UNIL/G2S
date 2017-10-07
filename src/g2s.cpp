@@ -353,7 +353,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		}
 		if(mxIsScalar(prhs[i])){
 			if(mxIsNumeric(prhs[i]))
-				inputArray.push_back(std::to_string(int(mxGetScalar(prhs[i]))));
+				inputArray.push_back(std::to_string(float(mxGetScalar(prhs[i]))));
 			else
 				inputArray.push_back(std::to_string((mxGetScalar(prhs[i]))));
 			inputArrayIndex.push_back(i);

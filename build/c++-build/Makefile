@@ -32,16 +32,16 @@ test: test.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 qs: qs.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) 
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
-nds: nds.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+nds: nds.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
 ds: ds.o dataManagement.o sharedMemoryManager.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-ds-l: ds-l.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+ds-l: ds-l.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
 clean:
 	rm -rf *.o

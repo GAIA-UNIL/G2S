@@ -8,12 +8,7 @@
 
 
 class QuantileSamplingModule: public SamplingModule {
-public:
-	enum convertionType{
-		P0=0,
-		P1=1,
-		P2=2
-	};
+
 private:
 	float _k;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;

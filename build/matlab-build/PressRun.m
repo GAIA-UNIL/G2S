@@ -80,3 +80,9 @@ data=(g2s('-a','qs','-ti',single(source3),'-di',single(nan.*ones(200,200,3)),'-k
 imshow(data)
 
 
+%% ds mode
+
+data=(g2s('-a','ds-l','-ti',single(source),'-di',single(nan.*ones(200)),'-th',10,'-f',0.3,'-n',50,'-s',100)/255);
+
+
+

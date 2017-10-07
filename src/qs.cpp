@@ -309,6 +309,9 @@ int main(int argc, char const *argv[]) {
 		run=false;
 		fprintf(reportFile, "%s\n", "maximum exploration ratio or numer of candidate need to be seted" );
 	}
+	if(std::isnan(nbCandidate)){
+		nbCandidate=1/mer;
+	}
 	/*if(std::isnan(narrowness)){
 		run=false;
 		fprintf(reportFile, "%s\n", "narrowness need to be seted" );
@@ -639,17 +642,17 @@ int main(int argc, char const *argv[]) {
 	}
 
 	std::vector<std::vector<float> > variablesCoeficientMainVector;
-	std::vector<std::vector<QuantileSamplingModule::convertionType> > convertionTypeVectorMainVector;
+	std::vector<std::vector<SamplingModule::convertionType> > convertionTypeVectorMainVector;
 
 	for (int i = 0; i < TIs[0]._nbVariable; ++i)
 	{
 
 		std::vector<float> variablesCoeficient;
-		std::vector<QuantileSamplingModule::convertionType> convertionTypeVector;
+		std::vector<SamplingModule::convertionType> convertionTypeVector;
 		variablesCoeficient.push_back(1.0f);
-		convertionTypeVector.push_back(QuantileSamplingModule::convertionType::P0);
+		convertionTypeVector.push_back(SamplingModule::convertionType::P0);
 		variablesCoeficient.push_back(-2.0f);
-		convertionTypeVector.push_back(QuantileSamplingModule::convertionType::P1);
+		convertionTypeVector.push_back(SamplingModule::convertionType::P1);
 
 		// for delta
 		variablesCoeficient.push_back(1.0f);

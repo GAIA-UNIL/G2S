@@ -7,6 +7,11 @@ public:
 		unsigned TI;
 		unsigned index;
 	};
+	enum convertionType{
+		P0=0,
+		P1=1,
+		P2=2
+	};
 protected:
 	std::vector<ComputeDeviceModule*> *_cdmV;
 	g2s::DataImage* _kernel;
