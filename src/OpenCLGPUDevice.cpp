@@ -7,7 +7,7 @@
  *
  */
 #include <cstring>
-#include "CPUThreadDevice.hpp"
+#include "OpenCLGPUDevice.hpp"
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
 #include "complexMulti.hpp"
@@ -22,9 +22,49 @@
 	#define fillVectorized(name, begin, amount, value) std::fill(name+begin,name+begin+amount-1,value);
 #endif
 
+std::vector<unsigned> OpenCLGPUDevice::DeviceWithHostUnifiedMemory(unsigned platform_id){
 
-CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
-	_deviceType=DT_cpuThreads;
+	std::vector<unsigned> result;
+
+	cl_int err;
+	cl_uint deviceCount;
+	cl_uint platformCount;
+
+	cl_platform_id selectedPlatform;
+	cl_device_id selectedDevice;
+
+	/* Setup OpenCL environment. */
+	clGetPlatformIDs(0, NULL, &platformCount);
+
+	//fprintf(stderr, "we have %d platforms\n", platformCount);
+	cl_platform_id* platforms = (cl_platform_id*) malloc(sizeof(cl_platform_id) * platformCount);
+	clGetPlatformIDs(platformCount, platforms, NULL);
+	//for (int i = 0; i < platformCount; ++i)
+	
+	int i=platform_id;
+	{
+		cl_device_id* devices;
+		clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, 0, NULL, &deviceCount);
+		devices = (cl_device_id*) malloc(sizeof(cl_device_id) * deviceCount);
+		clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, deviceCount, devices, NULL);
+
+		for (int j = 0; j < deviceCount; j++) {
+			cl_bool value=false;
+			clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(value), &value, NULL);
+			if(value){
+				result.push_back(j);
+			}
+		}
+		free(devices);
+	}
+	free(platforms);
+
+	return result;
+}
+
+
+OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, unsigned int platformIndex, unsigned int deviceIndex, bool withCrossMesurement){
+	_deviceType=DT_gpuOpenCL;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
 	_crossMesurement=withCrossMesurement;
@@ -71,14 +111,11 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 	std::reverse(reverseFftSize.begin(),reverseFftSize.end());
 	#pragma omp critical (initPlan)
 	{
-		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 		_pInv=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceOutput, _realSpace, FFTW_PLAN_OPTION);
 		if(_crossMesurement){
-			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 			_pInvCross=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceCrossOutput, _realCrossSpace, FFTW_PLAN_OPTION);
 		}
 
-		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpace, _frenquencySpaceInput, FFTW_PLAN_OPTION);
 
 		unsigned reducedSize=1;
@@ -96,7 +133,6 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 			_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 		}
 
-		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 		_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
 						 _frenquencySpaceInput, reverseFftSize.data(),
 						 reducedFftSize, 1,
@@ -104,11 +140,123 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 						 reducedFftSize, 1,
 						 FFTW_FORWARD, FFTW_PLAN_OPTION);
 
+		//OpenCl part
+		cl_int err;
+		cl_uint deviceCount;
+		cl_uint platformCount;
+
+		cl_platform_id selectedPlatform;
+		cl_device_id selectedDevice;
+
+		/* Setup OpenCL environment. */
+		clGetPlatformIDs(0, NULL, &platformCount);
+
+		fprintf(stderr, "we have %d platforms\n", platformCount);
+		cl_platform_id* platforms = (cl_platform_id*) malloc(sizeof(cl_platform_id) * platformCount);
+		clGetPlatformIDs(platformCount, platforms, NULL);
+		
+		int i=platformIndex;
+		{
+			cl_device_id* devices;
+			clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, 0, NULL, &deviceCount);
+			devices = (cl_device_id*) malloc(sizeof(cl_device_id) * deviceCount);
+			clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, deviceCount, devices, NULL);
+
+			selectedPlatform=platforms[platformIndex];
+			selectedDevice=devices[deviceIndex];
+			free(devices);
+		}
+		free(platforms);
+
+		cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
+
+		props[1] = (cl_context_properties)selectedPlatform;
+		ctx = clCreateContext( props, 1, &selectedDevice, NULL, NULL, &err );
+		queue = clCreateCommandQueue( ctx, selectedDevice, 0, &err );
+
+		unsigned erroid=0;
+		// Setup clFFT.
+		clfftSetupData fftSetup;
+		err = clfftInitSetupData(&fftSetup);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+		err = clfftSetup(&fftSetup);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+
+		frenquencySpaceOutput_d = clCreateBuffer( ctx, CL_MEM_USE_HOST_PTR , _fftSpaceSize * sizeof(FFTW_PRECISION(complex)), _frenquencySpaceOutput, &err );
+		realSpace_d = clCreateBuffer( ctx, CL_MEM_USE_HOST_PTR , _realSpaceSize*sizeof(float), _realSpace, &err );
+
+
+		/* FFT library realted declarations */
+		clfftDim dim;
+		size_t clLengths[_fftSize.size()];
+		for (int i = 0; i < _fftSize.size(); ++i)
+		{
+			clLengths[i]=_fftSize[i];
+			if(i==0)dim=CLFFT_1D;
+			if(i==1)dim=CLFFT_2D;
+			if(i==2)dim=CLFFT_3D;
+		}
+
+		err = clfftCreateDefaultPlan(&planHandle, ctx, dim, clLengths);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+
+		err = clfftSetPlanPrecision(planHandle, CLFFT_SINGLE_FAST); //CLFFT_SINGLE , Is not a big improuvement.
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+		err = clfftSetLayout(planHandle, CLFFT_HERMITIAN_INTERLEAVED, CLFFT_REAL);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+		err = clfftSetResultLocation(planHandle, CLFFT_OUTOFPLACE);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+
+		size_t clInStride[3]={1,101,1};
+		size_t clOutStride[3]={1,200,1};
+
+		for (int i = 1; i < _fftSize.size()-1; ++i)
+		{
+			for (int j = i; j < _fftSize.size(); ++j)
+			{
+				clInStride[j]=_fftSize[i-1];
+				clOutStride[j]=_fftSize[i-1];
+			}
+		}
+
+		clInStride[_fftSize.size()-1]=_fftSize[_fftSize.size()-2]/2+1;
+		clOutStride[_fftSize.size()-1]=_fftSize[_fftSize.size()-2];
+
+		err = clfftSetPlanInStride(planHandle, dim, clInStride);
+ 		err = clfftSetPlanOutStride(planHandle, dim, clOutStride);
+
+
+		//Bake the plan.
+		err = clfftBakePlan(planHandle, 1, &queue, NULL, NULL);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
+
+		int status = 0;
+		size_t tmpBufferSize = 0;
+ 		status = clfftGetTmpBufSize(planHandle, &tmpBufferSize);
+ 		if ((status == 0) && (tmpBufferSize > 0)) {
+  			tmpBuffer_d = clCreateBuffer(ctx, CL_MEM_READ_WRITE, tmpBufferSize, 0, &err);
+  		}
+
 	}
 }
 
-CPUThreadDevice::~CPUThreadDevice(){
+OpenCLGPUDevice::~OpenCLGPUDevice(){
 	_sharedMemoryManager->removeDevice(this);
+	cl_int err;
+	clReleaseMemObject(frenquencySpaceOutput_d);
+	clReleaseMemObject(realSpace_d);
+	clReleaseMemObject(tmpBuffer_d);
+
+	//Release the plan.
+	err = clfftDestroyPlan( &planHandle );
+
+	//Release clFFT library.
+	clfftTeardown( );
+
+	//Release OpenCL working objects.
+	clReleaseCommandQueue( queue );
+	clReleaseContext( ctx );
+
 	FFTW_PRECISION(destroy_plan)(_pInv);
 	FFTW_PRECISION(destroy_plan)(_pPatchM);
 	FFTW_PRECISION(destroy_plan)(_p);
@@ -116,20 +264,17 @@ CPUThreadDevice::~CPUThreadDevice(){
 	{
 		FFTW_PRECISION(destroy_plan)(_pPatchL[i]);
 	}
-
 	if(_crossMesurement){
 		FFTW_PRECISION(destroy_plan)(_pInvCross);
 		free(_frenquencySpaceCrossOutput);
 		free(_realCrossSpace);
 	}
-
-	free(_pPatchL);
 	free(_frenquencySpaceInput);
 	free(_frenquencySpaceOutput);
 	free(_realSpace);
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
+std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
 	
 	//fprintf(stderr, "alloc shared memory CPU\n");
 
@@ -171,7 +316,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
+std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
 	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
 	{
 		free(sharedMemoryAdress[i].space);
@@ -183,27 +328,27 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(
 
 //compute function
 
-dataType* CPUThreadDevice::getErrorsArray(){
+dataType* OpenCLGPUDevice::getErrorsArray(){
 	return _realSpace;
 }
 
-float CPUThreadDevice::gerErrorAtPosition(unsigned index){
+float OpenCLGPUDevice::gerErrorAtPosition(unsigned index){
 	return _realSpace[index];
 }
 
-dataType* CPUThreadDevice::getCossErrorArray(){
+dataType* OpenCLGPUDevice::getCossErrorArray(){
 	return _realCrossSpace;
 }
-float CPUThreadDevice::gerCroossErrorAtPosition(unsigned index){
+float OpenCLGPUDevice::gerCroossErrorAtPosition(unsigned index){
 	if(_realCrossSpace==nullptr) return std::nanf("0");
 	return _realCrossSpace[index];
 }
 
-unsigned CPUThreadDevice::getErrorsArraySize(){
+unsigned OpenCLGPUDevice::getErrorsArraySize(){
 	return _realSpaceSize;
 }
 
-unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
+unsigned OpenCLGPUDevice::cvtIndexToPosition(unsigned index){
 	
 	unsigned position=0;
 	unsigned divFactor=_realSpaceSize;
@@ -216,11 +361,11 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 	return position;
 }
 
-void CPUThreadDevice::setTrueMismatch(bool value){
+void OpenCLGPUDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }
 
-bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
+bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
 	for (int i = 0; i < _min.size(); ++i)
 	{
 		_min[i]=0;
@@ -288,7 +433,16 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 		}
 
-		FFTW_PRECISION(execute)(_pInv);
+		//FFTW_PRECISION(execute)(_pInv);
+		cl_int err;
+		//Execute the plan.
+		err = clfftEnqueueTransform(planHandle, CLFFT_BACKWARD, 1, &queue, 0, NULL, NULL, &frenquencySpaceOutput_d, &realSpace_d, tmpBuffer_d);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", 1001);
+		//Wait for calculations to be finished.
+		err = clFinish(queue);
+		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", 1002);
+
+
 		//Remove fobidden/wrong value
 		for (int i = 0; i < _fftSize.size(); ++i)
 		{
@@ -319,7 +473,8 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			#pragma omp simd
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
-				_realSpace[i]=_realSpace[i]/(_realSpaceSize)+delta0;
+				_realSpace[i]=_realSpace[i]+delta0;
+				//fprintf(stderr, "%f\n",_realSpace[i]);
 			}
 
 		#endif	

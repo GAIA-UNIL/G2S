@@ -11,6 +11,9 @@
 
 #include "sharedMemoryManager.hpp"
 #include "CPUThreadDevice.hpp"
+#ifdef WITH_OPENCL
+#include "OpenCLGPUDevice.hpp"
+#endif
 
 #include "simulation.hpp"
 #include "quantileSamplingModule.hpp"
@@ -281,6 +284,15 @@ int main(int argc, char const *argv[]) {
 		alpha=atof((arg.find("-alpha")->second).c_str());
 	}
 	arg.erase("-alpha");
+
+
+	arg.erase("-ks");
+	bool withGPU=false;
+	if (arg.count("-W_GPU") == 1)
+	{
+		withGPU=true;//atof((arg.find("-W_GPU")->second).c_str());
+	}
+	arg.erase("-W_GPU");
 
 
 	// precheck | check what is mandatory
@@ -573,18 +585,29 @@ int main(int argc, char const *argv[]) {
 			smm->addVaraible(varaibleBands[2*i+1]);
 		}
 		// alloc module
+		#ifdef WITH_OPENCL
+		std::vector<unsigned> gpuHostUnifiedMemory=OpenCLGPUDevice::DeviceWithHostUnifiedMemory(0);
+
+		#endif
+
 		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm,nbThreads)
 		for (int i = 0; i < nbThreads; ++i)
 		{
 			#pragma omp critical (createDevices)
 			{
-				switch(i){
-					default:
-					{
-						CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio);
-						computeDeviceModuleArray[i].push_back(signleThread);
-						break;
-					}
+				bool deviceCreated=false;
+
+				#ifdef WITH_OPENCL
+				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i]);
+					computeDeviceModuleArray[i].push_back(signleThread);
+					deviceCreated=true;
+				}
+				#endif
+				if(!deviceCreated){
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio);
+					computeDeviceModuleArray[i].push_back(signleThread);
+					deviceCreated=true;
 				}
 			}
 		}

@@ -40,3 +40,5 @@ build/intel-build/*
 !build/intel-build/Makefile
 build/matlab-build/*.mex*
 
+
+build/matlab-build/test.png
