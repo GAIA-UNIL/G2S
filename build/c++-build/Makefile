@@ -40,6 +40,9 @@ nds: nds.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDev
 ds: ds.o dataManagement.o sharedMemoryManager.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
+dsk: dsk.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
+
 ds-l: ds-l.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 

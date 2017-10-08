@@ -1,7 +1,8 @@
 LIB_PATH=-L$(EM_PATH)/lib/
 LIBINC=-I$(EM_PATH)/include/
 
-EMFLAGS=-s USE_ZLIB=1 -s ASYNCIFY=1 -s ASSERTIONS=1 -s SIMD=1
+EMFLAGS=-s USE_ZLIB=1 -s ASYNCIFY=1 -s ASSERTIONS=1
+# -s SIMD=1 -s ASM_JS=2
 CFLAGS=-O3 -std=c++11
 CXXFLAGS+=-msse2
 LDFLAGS=-lzmq -ljsoncpp -lwszmq
@@ -43,6 +44,8 @@ test:test.js
 
 qs.js: qs.o
 	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS)
+	sed -i -e 's/shiftRightArithmeticByScalar/shiftRightByScalar/g' qs.js
+	sed -i -e 's/shiftRightLogicalByScalar/shiftRightByScalar/g' qs.js
 
 qs: qs.js
 	cp $^ $@
@@ -61,6 +64,8 @@ ds: ds.js
 
 ds-l.js: ds-l.o
 	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
+	sed -i -e 's/shiftRightArithmeticByScalar/shiftRightByScalar/g' ds-l.js
+	sed -i -e 's/shiftRightLogicalByScalar/shiftRightByScalar/g' ds-l.js
 
 ds-l: ds-l.js
 	cp $^ $@

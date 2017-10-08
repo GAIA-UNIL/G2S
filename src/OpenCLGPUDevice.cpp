@@ -6,6 +6,8 @@
  * without the explicit accord from the author : Mathieu Gravey, gravey.mathieu@gmail.com
  *
  */
+
+#ifdef WITH_OPENCL
 #include <cstring>
 #include "OpenCLGPUDevice.hpp"
 #include "sharedMemoryManager.hpp"
@@ -522,3 +524,4 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 	return true;
 }
 
+#endif
