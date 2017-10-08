@@ -46,7 +46,8 @@ imshow(data)
 
 %% simple non conditional simulation with multi TI of differente size
 
-data=(g2s('-sa',serverAddress,'-a','qs','-ti',single(source(:,1:150)),single(rot90(source,1)),single(rot90(source(:,1:175),2)),single(rot90(source(:,1:150),3)),'-di',single(dest),'-k',1.5,'-n',50,'-s',100)/255);
+%data=(g2s('-sa',serverAddress,'-a','qs','-ti',single(source(:,1:150)),single(rot90(source,1)),single(rot90(source(:,1:175),2)),single(rot90(source(:,1:150),3)),'-di',single(dest),'-k',1.5,'-n',50,'-s',100)/255);
+data=(g2s('-sa',serverAddress,'-a','qs','-ti',single(source),single(rot90(source,1)),single(rot90(source,2)),single(rot90(source,3)),'-di',single(dest),'-k',1.5,'-n',50,'-s',100)/255);
 imshow(data)
 
 %% simulation with a fixed path
@@ -85,6 +86,6 @@ imshow(data)
 %% ds mode
 
 data=(g2s('-sa',serverAddress,'-a','ds-l','-ti',single(source),'-di',single(nan.*ones(200)),'-th',10,'-f',0.3,'-n',50,'-s',100)/255);
-
+imshow(data)
 
 
