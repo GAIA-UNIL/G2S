@@ -10,7 +10,7 @@
 class ThresholdSamplingModule: public SamplingModule {
 
 private:
-	float _threshold;
+	float _threshold2;
 	float _f;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
@@ -18,9 +18,9 @@ private:
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient):SamplingModule(cdmV,kernel)
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient):SamplingModule(cdmV,kernel)
 	{
-		_threshold=threshold;
+		_threshold2=threshold2;
 		_f=f;
 		_convertionTypeVector=convertionTypeVector;
 		_variablesCoeficient=variablesCoeficient;
@@ -151,7 +151,7 @@ public:
 		unsigned bestPosition=0;
 		unsigned bestImage=0;
 
-		while((bestValue>_threshold) && (cpt<=_maxNumberOfElement[moduleID]*_f)){
+		while((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)){
 			unsigned index=uniformDis(_randgen);
 			unsigned imageID=0;
 			unsigned numberElementCumul=0;

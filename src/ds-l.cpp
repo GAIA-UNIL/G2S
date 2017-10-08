@@ -662,7 +662,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector);
 
 	// run QS
 
