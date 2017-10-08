@@ -14,7 +14,9 @@
 #include <future>
 #include <algorithm>
 
+#ifdef WITH_WEB_SUPPORT
 #include "cvtZMQ2WS.hpp"
+#endif 
 
 #ifdef __cplusplus 
 	extern "C" bool utIsInterruptPending();
@@ -327,10 +329,12 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 	}
 	return result;
 }
-
+#ifdef WITH_WEB_SUPPORT
 void cvtServerCall(std::string from, std::string to, std::atomic<bool> &serverRun, std::atomic<bool> &done){
 	cvtServer((char*)from.c_str(),(char*)to.c_str(),serverRun, done);
 }
+
+#endif 
 
 void mexFunctionWork(int nlhs, mxArray *plhs[],
 				 int nrhs, const mxArray *prhs[],std::atomic<bool> &done){
@@ -386,6 +390,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	if((saP1_Index!=-1)){
 		std::string adress=mxArrayToString(prhs[saP1_Index]);
 		std::transform(adress.begin(), adress.end(), adress.begin(),::tolower);
+		#ifdef WITH_WEB_SUPPORT
 		if(!adress.compare("web")||!adress.compare("browser")){
 			//printf("use browser server\n");
 			serverRun=false;
@@ -403,6 +408,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			mexEvalString("drawnow");
 
 		}
+		#endif
 
 	}
 
