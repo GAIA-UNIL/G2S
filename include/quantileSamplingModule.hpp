@@ -14,24 +14,41 @@ private:
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
-	float* _errors=nullptr;
-	unsigned* _encodedPosition=nullptr;
+	std::vector<float*> _errors;
+	std::vector<unsigned*> _encodedPosition;
 public:
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient):SamplingModule(cdmV,kernel)
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, unsigned nbThread):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
 		_variablesCoeficient=variablesCoeficient;
-		_errors=(float*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(float));
-		_encodedPosition=(unsigned*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(unsigned));
+		_errors.resize(nbThread,nullptr);
+		_encodedPosition.resize(nbThread,nullptr);
+		for (int i = 0; i < nbThread; ++i)
+		{
+			_errors[i]=(float*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(float));
+			_encodedPosition[i]=(unsigned*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(unsigned));
+		}
+		
 	}
 	~QuantileSamplingModule(){
-		free(_errors);
-		free(_encodedPosition);
+		for (int i = 0; i < _errors.size(); ++i)
+		{
+			free(_errors[i]);
+			_errors[i]=nullptr;
+		}
+		
+		for (int i = 0; i < _encodedPosition.size(); ++i)
+		{
+			free(_encodedPosition[i]);
+			_encodedPosition[i]=nullptr;
+		}
 	};
 
 	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
 		unsigned vectorSize=_cdmV[moduleID].size();
+		float *errors=_errors[moduleID];
+		unsigned* encodedPosition=_encodedPosition[moduleID];
 		bool updated[vectorSize];
 		memset(updated,false,vectorSize);
 
@@ -112,20 +129,20 @@ public:
 		}
 
 		int extendK=int(ceil(_k));
-		std::fill(_errors,_errors+vectorSize*extendK,INFINITY);
+		std::fill(errors,errors+vectorSize*extendK,INFINITY);
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
 			{
-				fKst::findKSmallest(_cdmV[moduleID][i]->getErrorsArray(),_cdmV[moduleID][i]->getErrorsArraySize(),extendK, _errors+i*extendK, _encodedPosition+i*extendK);
+				fKst::findKSmallest(_cdmV[moduleID][i]->getErrorsArray(),_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
 			}
 		}
 
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
-		float *errors=_errors;
-		std::sort(localPosition,localPosition+extendK*vectorSize,[&errors](unsigned a, unsigned b){
+		
+		std::sort(localPosition,localPosition+extendK*vectorSize-1,[errors](unsigned a, unsigned b){
 			return errors[a] < errors[b];
 		});
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
@@ -133,7 +150,7 @@ public:
 		unsigned slectedIndex=int(floor(seed*_k));
 		unsigned selectedTI=localPosition[slectedIndex]/extendK;
 		//fprintf(stderr, "%d %d %d %d\n", selectedTI,localPosition[slectedIndex],slectedIndex,extendK);
-		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(_encodedPosition[localPosition[slectedIndex]]);
+		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
 
 		matchLocation result;
 		result.TI=selectedTI;

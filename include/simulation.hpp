@@ -41,22 +41,21 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				unsigned dataIndex;
 				if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
 				{
-					std::vector<float> data(di._nbVariable);
-					memcpy(data.data(),di._data+dataIndex*di._nbVariable,di._nbVariable * sizeof(float));
-					if(posterioryPath[dataIndex]<indexPath+1)
-					{
+					if(posterioryPath[dataIndex]<indexPath+1){
+						std::vector<float> data(di._nbVariable);
 						unsigned numberOfNaN=0;
-						for (int i = 0; i < di._nbVariable; ++i)
-						{
-							numberOfNaN+=std::isnan(data[i]);
-						}
-						while(numberOfNaN!=0) {
-							unsigned numberOfNaN=0;
-							std::this_thread::sleep_for(std::chrono::milliseconds(25));
+						float val;
+						while(true) {
+							numberOfNaN=0;
 							for (int i = 0; i < di._nbVariable; ++i)
 							{
-								numberOfNaN+=std::isnan(data[i]);
+								#pragma omp atomic read
+								val=di._data[dataIndex*di._nbVariable+i];
+								numberOfNaN+=std::isnan(val);
+								data[i]=val;
 							}
+							if(numberOfNaN==0)break;
+							std::this_thread::sleep_for(std::chrono::milliseconds(25));
 						}
 						neighborValueArrayVector.push_back(data);
 						neighborArrayVector.push_back(pathPosition[positionSearch]);
@@ -96,7 +95,10 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
 		for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
-			if(std::isnan(di._data[currentCell*di._nbVariable+j]))di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
+				#pragma omp atomic write
+				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+			}
 		}
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
