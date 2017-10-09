@@ -2,6 +2,7 @@
 #define SIMULATION_HPP
 
 #include "samplingModule.hpp"
+#include <thread>
 
 //template<class randGen>
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
@@ -12,7 +13,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
    	memset(posterioryPath,0,sizeof(unsigned) * di.dataSize()/di._nbVariable);
    	for (int i = 0; i < numberOfPointToSimulate; ++i)
    	{
-   		posterioryPath[solvingPath[i]]=i;
+   		posterioryPath[solvingPath[i]]=i+1;
    	}
 	
    	unsigned numberOfVariable=di._nbVariable;
@@ -42,12 +43,21 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				{
 					std::vector<float> data(di._nbVariable);
 					memcpy(data.data(),di._data+dataIndex*di._nbVariable,di._nbVariable * sizeof(float));
-					unsigned numberOfNaN=0;
-					for (int i = 0; i < di._nbVariable; ++i)
+					if(posterioryPath[dataIndex]<indexPath+1)
 					{
-						numberOfNaN+=std::isnan(data[i]);
-					}
-					if(numberOfNaN==0){
+						unsigned numberOfNaN=0;
+						for (int i = 0; i < di._nbVariable; ++i)
+						{
+							numberOfNaN+=std::isnan(data[i]);
+						}
+						while(numberOfNaN!=0) {
+							unsigned numberOfNaN=0;
+							std::this_thread::sleep_for(std::chrono::milliseconds(25));
+							for (int i = 0; i < di._nbVariable; ++i)
+							{
+								numberOfNaN+=std::isnan(data[i]);
+							}
+						}
 						neighborValueArrayVector.push_back(data);
 						neighborArrayVector.push_back(pathPosition[positionSearch]);
 					}
@@ -83,7 +93,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			}
 		}
 		// import data
-		memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+		{
+			if(std::isnan(di._data[currentCell*di._nbVariable+j]))di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+		}
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
