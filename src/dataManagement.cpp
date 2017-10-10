@@ -171,7 +171,7 @@ float* loadData(const char * hash, int &sizeX, int &sizeY, int &sizeZ, int &dim,
 
 char* writeData(float* data, int sizeX, int sizeY, int sizeZ, int dim, int nbVariable){
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+nbVariable*sizeZ*sizeY*sizeX*sizeof(float), hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+(nbVariable*sizeZ*sizeY*sizeX-1)*sizeof(float), hash.begin(), hash.end());
 
 	char* hashInHexa=(char*)malloc(65);
 	memset(hashInHexa,0,65);

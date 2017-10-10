@@ -45,7 +45,7 @@
 		}
 		_fftSize[j]=currentSize;
 	}
-
+	_memoryAddress.push_back(std::vector<g2s::spaceFrequenceMemoryAddress >());
 }
 
 void SharedMemoryManager::addVaraible(void* memoryAdress){

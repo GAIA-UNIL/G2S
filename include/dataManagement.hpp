@@ -115,6 +115,7 @@ class DataImage{
 		sprintf(fullFilename,"./data/%s.bgrid",filename.c_str());
 		sprintf(outputFullFilename,"./%s.bgrid",outputName);
 		symlink(outputFullFilename, fullFilename);
+		free(outputName);
 	}
 
 	inline DataImage emptyCopy(bool singleVariableOnly=false){

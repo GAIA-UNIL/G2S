@@ -672,11 +672,6 @@ int main(int argc, char const *argv[]) {
 	fprintf(reportFile,"compuattion time: %7.2f\n", time);
 
 	// free memory
-	for (int i = 0; i < sharedMemoryManagerVector.size(); ++i)
-	{
-		delete sharedMemoryManagerVector[i];
-		sharedMemoryManagerVector[i]=nullptr;
-	}
 
 	for (int i = 0; i < nbThreads; ++i)
 	{
@@ -685,6 +680,12 @@ int main(int argc, char const *argv[]) {
 			delete computeDeviceModuleArray[i][j];
 			computeDeviceModuleArray[i][j]=nullptr;
 		}
+	}
+
+	for (int i = 0; i < sharedMemoryManagerVector.size(); ++i)
+	{
+		delete sharedMemoryManagerVector[i];
+		sharedMemoryManagerVector[i]=nullptr;
 	}
 
 	delete[] computeDeviceModuleArray;
