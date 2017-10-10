@@ -7,16 +7,26 @@
 //template<class randGen>
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,
-   unsigned nbThreads=1){
+  unsigned nbThreads=1){
 
-   	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
-   	memset(posterioryPath,0,sizeof(unsigned) * di.dataSize()/di._nbVariable);
-   	for (int i = 0; i < numberOfPointToSimulate; ++i)
-   	{
-   		posterioryPath[solvingPath[i]]=i+1;
-   	}
+	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
+	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
+	for (int i = 0; i < di.dataSize()/di._nbVariable; ++i)
+	{
+		bool isPureNan=true;
+		for (int j = 0; j < di._nbVariable; ++j)
+		{
+			isPureNan&=std::isnan(di._data[i*di._nbVariable+j]);
+		}
+		if(!isPureNan)
+			posterioryPath[i]=0;
+	}
+	for (int i = 0; i < numberOfPointToSimulate; ++i)
+	{
+		posterioryPath[solvingPath[i]]=i+1;
+	}
 	
-   	unsigned numberOfVariable=di._nbVariable;
+	unsigned numberOfVariable=di._nbVariable;
 	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
 	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
