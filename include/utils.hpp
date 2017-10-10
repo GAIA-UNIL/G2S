@@ -61,12 +61,12 @@ namespace g2s {
 
 	inline unsigned long rdtscp(int *chip, int *core)
 	{
-	#if XEON
+	#ifdef XEON
 		unsigned a, d, c;
 		__asm__ volatile("rdtscp" : "=a" (a), "=d" (d), "=c" (c));
 		*chip = (c & 0xFFF000)>>12;
 		*core = c & 0xFFF;
-		#if _OPENMP
+		#ifdef _OPENMP
 			//*core=omp_get_thread_num();
 		#else
 			*core=0;
@@ -74,7 +74,7 @@ namespace g2s {
 		return ((unsigned long)a) | (((unsigned long)d) << 32);
 	#else
 		*chip=0;
-		#if _OPENMP
+		#ifdef _OPENMP
 			*core=omp_get_thread_num();
 		#else
 			*core=0;
@@ -87,7 +87,7 @@ namespace g2s {
 	{
 		int maxCores=0;
 		int maxNodes=0;
-		#if DS_OMP
+		#ifdef _OPENMP
 			#pragma omp parallel default(none) reduction(max:maxCores,maxNodes)
 			{
 				rdtscp(&maxNodes,&maxCores);
