@@ -83,9 +83,15 @@ data=(g2s('-sa',serverAddress,'-a','qs','-ti',single(source3),'-di',single(nan.*
 imshow(data)
 
 
+%% multithreaded if suported
+nbThreads=4;
+data=(g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',single(nan.*ones(200)),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads)/255);
+imshow(data)
+
+
 %% ds mode
 
-data=(g2s('-sa',serverAddress,'-a','ds-l','-ti',single(source),'-di',single(nan.*ones(200)),'-th',10,'-f',0.3,'-n',50,'-s',100)/255);
+data=(g2s('-sa',serverAddress,'-a','ds-l','-ti',single(source),'-di',single(nan.*ones(200)),'-th',20,'-f',0.3,'-n',50,'-s',100)/255);
 imshow(data)
 
 

@@ -55,7 +55,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 								data[i]=val;
 							}
 							if(numberOfNaN==0)break;
-							std::this_thread::sleep_for(std::chrono::milliseconds(25));
+							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
 						neighborValueArrayVector.push_back(data);
 						neighborArrayVector.push_back(pathPosition[positionSearch]);
