@@ -88,14 +88,14 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, unsig
 	_min=std::vector<int>(_fftSize.size());
 	_max=std::vector<int>(_fftSize.size());
 
-	for (int i = 0; i < _fftSize.size()-1; ++i)
+	_fftSpaceSize*=_fftSize.front()/2+1;
+	_realSpaceSize*=_fftSize.front();
+
+	for (int i = 1; i < _fftSize.size(); ++i)
 	{
 		_fftSpaceSize*=_fftSize[i];
 		_realSpaceSize*=_fftSize[i];
 	}
-
-	_fftSpaceSize*=_fftSize.back()/2+1;
-	_realSpaceSize*=_fftSize.back();
 
 	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
@@ -122,13 +122,13 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, unsig
 
 		unsigned reducedSize=1;
 
-		for (int i = 0; i < _fftSize.size()-2; ++i)
+		unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
+		unsigned reducedRealSize=reducedSize*(_fftSize.front());
+
+		for (int i = 1; i < _fftSize.size()-1; ++i)
 		{
 			reducedSize*=_fftSize[i];
 		}
-		
-		unsigned reducedFftSize=reducedSize*(_fftSize[_fftSize.size()-2]/2+1);
-		unsigned reducedRealSize=reducedSize*(_fftSize[_fftSize.size()-2]);
 
 		for (int i = 0; i < _fftSize.back(); ++i)
 		{
@@ -283,14 +283,14 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitShare
 	unsigned fftSpaceSize=1;
 	unsigned realSpaceSize=1;
 
-	for (int i = 0; i < fftSize.size()-1; ++i)
+	fftSpaceSize*=fftSize.front()/2+1;
+	realSpaceSize*=fftSize.front();
+
+	for (int i = 1; i < fftSize.size(); ++i)
 	{
 		fftSpaceSize*=fftSize[i];
 		realSpaceSize*=fftSize[i];
 	}
-
-	fftSpaceSize*=fftSize.back()/2+1;
-	realSpaceSize*=fftSize.back();
 
 	std::vector<int> reverseFftSize(fftSize.begin(),fftSize.end());
 	std::reverse(reverseFftSize.begin(),reverseFftSize.end());
