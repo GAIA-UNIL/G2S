@@ -120,27 +120,30 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, unsig
 
 		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpace, _frenquencySpaceInput, FFTW_PLAN_OPTION);
 
-		unsigned reducedSize=1;
+		if(_fftSize.size()>1){
+			unsigned reducedSize=1;
 
-		unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
-		unsigned reducedRealSize=reducedSize*(_fftSize.front());
+			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
+			unsigned reducedRealSize=reducedSize*(_fftSize.front());
 
-		for (int i = 1; i < _fftSize.size()-1; ++i)
-		{
-			reducedSize*=_fftSize[i];
+			for (int i = 1; i < _fftSize.size()-1; ++i)
+			{
+				reducedSize*=_fftSize[i];
+			}
+
+			for (int i = 0; i < _fftSize.back(); ++i)
+			{
+				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
+			}
+
+			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
+			_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
+				_frenquencySpaceInput, reverseFftSize.data(),
+				reducedFftSize, 1,
+				_frenquencySpaceInput, reverseFftSize.data(),
+				reducedFftSize, 1,
+				FFTW_FORWARD, FFTW_PLAN_OPTION);
 		}
-
-		for (int i = 0; i < _fftSize.back(); ++i)
-		{
-			_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
-		}
-
-		_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
-						 _frenquencySpaceInput, reverseFftSize.data(),
-						 reducedFftSize, 1,
-						 _frenquencySpaceInput, reverseFftSize.data(),
-						 reducedFftSize, 1,
-						 FFTW_FORWARD, FFTW_PLAN_OPTION);
 
 		//OpenCl part
 		cl_int err;
@@ -260,11 +263,14 @@ OpenCLGPUDevice::~OpenCLGPUDevice(){
 	clReleaseContext( ctx );
 
 	FFTW_PRECISION(destroy_plan)(_pInv);
-	FFTW_PRECISION(destroy_plan)(_pPatchM);
 	FFTW_PRECISION(destroy_plan)(_p);
-	for (int i = 0; i < _fftSize.back(); ++i)
-	{
-		FFTW_PRECISION(destroy_plan)(_pPatchL[i]);
+	
+	if(_fftSize.size()>1){
+		FFTW_PRECISION(destroy_plan)(_pPatchM);
+		for (int i = 0; i < _fftSize.back(); ++i)
+		{
+			FFTW_PRECISION(destroy_plan)(_pPatchL[i]);
+		}
 	}
 	if(_crossMesurement){
 		FFTW_PRECISION(destroy_plan)(_pInvCross);
