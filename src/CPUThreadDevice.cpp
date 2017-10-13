@@ -81,28 +81,30 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
 		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpace, _frenquencySpaceInput, FFTW_PLAN_OPTION);
 
-		unsigned reducedSize=1;
+		if(_fftSize.size()>1){
+			unsigned reducedSize=1;
 
-		unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
-		unsigned reducedRealSize=reducedSize*(_fftSize.front());
+			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
+			unsigned reducedRealSize=reducedSize*(_fftSize.front());
 
-		for (int i = 1; i < _fftSize.size()-1; ++i)
-		{
-			reducedSize*=_fftSize[i];
+			for (int i = 1; i < _fftSize.size()-1; ++i)
+			{
+				reducedSize*=_fftSize[i];
+			}
+
+			for (int i = 0; i < _fftSize.back(); ++i)
+			{
+				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
+			}
+
+			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
+			_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
+				_frenquencySpaceInput, reverseFftSize.data(),
+				reducedFftSize, 1,
+				_frenquencySpaceInput, reverseFftSize.data(),
+				reducedFftSize, 1,
+				FFTW_FORWARD, FFTW_PLAN_OPTION);
 		}
-
-		for (int i = 0; i < _fftSize.back(); ++i)
-		{
-			_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
-		}
-
-		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
-		_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
-						 _frenquencySpaceInput, reverseFftSize.data(),
-						 reducedFftSize, 1,
-						 _frenquencySpaceInput, reverseFftSize.data(),
-						 reducedFftSize, 1,
-						 FFTW_FORWARD, FFTW_PLAN_OPTION);
 
 	}
 }
@@ -110,11 +112,14 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 CPUThreadDevice::~CPUThreadDevice(){
 	_sharedMemoryManager->removeDevice(this);
 	FFTW_PRECISION(destroy_plan)(_pInv);
-	FFTW_PRECISION(destroy_plan)(_pPatchM);
 	FFTW_PRECISION(destroy_plan)(_p);
-	for (int i = 0; i < _fftSize.back(); ++i)
-	{
-		FFTW_PRECISION(destroy_plan)(_pPatchL[i]);
+
+	if(_fftSize.size()>1){
+		FFTW_PRECISION(destroy_plan)(_pPatchM);
+		for (int i = 0; i < _fftSize.back(); ++i)
+		{
+			FFTW_PRECISION(destroy_plan)(_pPatchL[i]);
+		}
 	}
 
 	if(_crossMesurement){
@@ -155,7 +160,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType));
 		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
 		sharedMemoryAdress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	
+		
 		sharedMemory.push_back(sharedMemoryAdress);
 
 		FFTW_PRECISION(plan) p;
@@ -271,17 +276,25 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				_realSpace[ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
 				lines[neighborArray[i].back()]=true;
 			}
-		#ifdef PARTIAL_FFT
-			for (int i = 0; i < _fftSize.back(); ++i)
-			{
-				if(lines[i]){
-					FFTW_PRECISION(execute)(_pPatchL[i]);
+
+			bool patialFFT=false;
+
+			#ifdef PARTIAL_FFT
+			patialFFT=true;
+			#endif
+
+			if(patialFFT && (_fftSize.size()>1)){
+				
+				for (int i = 0; i < _fftSize.back(); ++i)
+				{
+					if(lines[i]){
+						FFTW_PRECISION(execute)(_pPatchL[i]);
+					}
 				}
+				FFTW_PRECISION(execute)(_pPatchM);
+			}else{
+				FFTW_PRECISION(execute)(_p);
 			}
-			FFTW_PRECISION(execute)(_pPatchM);
-		#else
-			FFTW_PRECISION(execute)(_p);
-		#endif
 			g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceOutput, (dataType*)_srcCplx[var].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
 			if(_crossMesurement && var==0){
 				g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceCrossOutput, (dataType*)_srcCplx[variablesCoeficient.size()-1].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
@@ -351,7 +364,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 					fillVectorized(_realCrossSpace,j,blockSize,0.0f);
 				}
 			}
-		
+			
 		#if __cilk
 			_realCrossSpace[0:_realSpaceSize]/=(_realSpaceSize);
 		#else
