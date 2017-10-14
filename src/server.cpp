@@ -107,6 +107,14 @@ int main(int argc, char const *argv[]) {
 						receiver.send(reply);
 						break;
 					}
+				case DURATION :
+					{
+						int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
+						zmq::message_t reply(sizeof(progess));
+						memcpy (reply.data (), &progess, sizeof(progess));
+						receiver.send(reply);
+						break;
+					}
 				case KILL :
 					{
 						fprintf(stderr, "%s\n", "recieve KILL");

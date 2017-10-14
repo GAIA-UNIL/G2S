@@ -169,6 +169,7 @@ int main(int argc, char const *argv[]) {
 		run=false;
 	}else{
 		outputFilename=std::to_string(uniqueID);
+		outputIndexFilename=std::string("id_")+std::to_string(uniqueID);
 	}
 	arg.erase("-o");
 
@@ -668,8 +669,9 @@ int main(int argc, char const *argv[]) {
 	simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
 	 seedForIndex, importDataIndex, nbNeighbors, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
-	double time = 1.0e-9 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
-	fprintf(reportFile,"compuattion time: %7.2f\n", time);
+	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
+	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
+	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
 
 	// free memory
 
@@ -691,6 +693,9 @@ int main(int argc, char const *argv[]) {
 	delete[] computeDeviceModuleArray;
 
 	DI.write(outputFilename);
+	g2s::DataImage id=DI.emptyCopy(true);
+	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
+	id.write(outputIndexFilename);
 
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;
