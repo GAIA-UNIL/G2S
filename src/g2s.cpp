@@ -775,18 +775,46 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			data+=dim*sizeof(int);
 
 
-			mxArray *array=mxCreateNumericArray(dim+1, sizeDim, mxSINGLE_CLASS, mxREAL);
-			float* arrayPtr=(float*)mxGetPr(array);
+			mxArray *array=mxCreateNumericArray(dim+1, sizeDim, mxUINT32_CLASS, mxREAL);
+			memcpy(mxGetPr(array),data,dataSize/nbVariable*sizeof(unsigned int));
+			/*float* arrayPtr=(float*)mxGetPr(array);
 			for (int j = 0; j < nbVariable; ++j)
 			{
 				for (int i = 0; i < dataSize/nbVariable; ++i)
 				{
 					arrayPtr[i+dataSize/nbVariable*j]=((float*)data)[j+i*nbVariable];
 				}
-			}
+			}*/
 			plhs[1]=array;
 			stop=true;
 			free(sizeDim);
+		}
+	}
+	if(!noOutput && nlhs>2){
+		// download data
+
+		{
+			infoContainer task;
+			task.version=1;
+			task.task=DURATION;
+			
+			zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
+			memcpy(request.data (), &task, sizeof(infoContainer));
+			memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
+			if(!socket.send (request)){
+				mexErrMsgIdAndTxt("gss:error", "timeout asking for data");
+			}
+			zmq::message_t reply;
+			if(!socket.recv (&reply) && withTimeout){
+				mexErrMsgIdAndTxt("gss:error", "timeout : get data dont answer");
+			}
+			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer !");
+			else{
+				int duration=*((int*)reply.data());
+				int one=1;
+				plhs[2]=mxCreateNumericArray(1, &one, mxSINGLE_CLASS, mxREAL);
+				*(float*)mxGetPr(plhs[2])=duration/(1000.f);
+			}	
 		}
 	}
 	done=true;
