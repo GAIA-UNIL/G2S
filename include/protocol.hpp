@@ -4,7 +4,8 @@ enum taskType{
     DOWNLOAD=3,
     EXIST=4,
     STATUS=5,
-    KILL=6,
+    DURATION=6,
+    KILL=7,
     SHUTDOWN=10
 };
 

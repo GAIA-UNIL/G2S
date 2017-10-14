@@ -4,5 +4,6 @@
 #include <iostream>
 
 int lookForStatus(void* data, size_t dataSize);
+int lookForDuration(void* data, size_t dataSize);
 
 #endif // STATUS_HPP

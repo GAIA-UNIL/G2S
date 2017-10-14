@@ -41,3 +41,61 @@ int lookForStatus(void* data, size_t dataSize){
 	}
 	return -1;
 }
+
+
+int lookForDuration(void* data, size_t dataSize){
+	if(dataSize==sizeof(jobIdType)){
+		jobIdType id=*((jobIdType*)data);
+		char filename[4096];
+		sprintf(filename,"logs/%u.log",id);
+
+		FILE *fd;
+
+		if ((fd = fopen(filename, "r")) != NULL) // open file
+		{
+			char lineHeader[2048];
+			char endOfline[2048];
+			float pourcentage;
+			float duration;
+
+			std::regex base_regex1("(([0-9]|\\.)+ms)");
+			std::regex base_regex2("(([0-9]|\\.)+s)");
+			std::regex base_regex3("(([0-9]|\\.)+\\sms)");
+			std::regex base_regex4("(([0-9]|\\.)+\\ss)");
+			std::cmatch base_search1;
+			std::cmatch base_search2;
+			std::cmatch base_search3;
+			std::cmatch base_search4;
+			while(fgets(lineHeader,2048,fd)!= NULL){
+				std::regex_search(lineHeader, base_search1, base_regex1);
+				std::regex_search(lineHeader, base_search2, base_regex2);
+				std::regex_search(lineHeader, base_search3, base_regex3);
+				std::regex_search(lineHeader, base_search4, base_regex4);
+				bool done=false;
+				if (!done && (base_search1.size() >= 1)){
+					done=true;
+					sscanf(base_search1[0].str().c_str(),"%fms",&duration);
+				}
+				if (!done && (base_search3.size() >= 1)){
+					done=true;
+					sscanf(base_search3[0].str().c_str(),"%f ms",&duration);
+				}
+				if (!done && (base_search2.size() >= 1)){
+					done=true;
+					sscanf(base_search2[0].str().c_str(),"%fs",&duration);
+					duration*=1000; //---> convert in milisecond
+				}
+				if (!done && (base_search4.size() >= 1)){
+					done=true;
+					sscanf(base_search4[0].str().c_str(),"%f s",&duration);
+					duration*=1000; //---> convert in milisecond
+				}
+			}
+			fclose(fd);
+			return int(duration);
+		}else{
+			fprintf(stderr, "can not open file : %s\n",filename );
+		}
+	}
+	return -1;
+}
