@@ -473,7 +473,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 		}
 
-		if(_trueMismatch) // correct value needed
+		if(_trueMismatch && !_crossMesurement) // correct value needed
 		{
 		#if __cilk
 			_realSpace[0:_realSpaceSize]=_realSpace[0:_realSpaceSize]/(_realSpaceSize)+delta0;
@@ -523,8 +523,13 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			{
 				_realCrossSpace[i]/=(_realSpaceSize);
 			}
+		#endif
 
-		#endif	
+			#pragma omp simd
+			for (int i = 0; i < _realSpaceSize; ++i)
+			{
+				_realCrossSpace[i]+=(std::isnan(((dataType*)_srcCplx[var].src)[i])+(_realSpaceSize[i]==0))*INFINITY;
+			}
 		}
 	}
 	return true;

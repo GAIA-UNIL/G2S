@@ -11,19 +11,21 @@ class QuantileSamplingModule: public SamplingModule {
 
 private:
 	float _k;
+	bool _completeTIs=true;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
 public:
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, unsigned nbThread):SamplingModule(cdmV,kernel)
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
 		_variablesCoeficient=variablesCoeficient;
 		_errors.resize(nbThread,nullptr);
 		_encodedPosition.resize(nbThread,nullptr);
+		_completeTIs=completeTIs;
 		for (int i = 0; i < nbThread; ++i)
 		{
 			_errors[i]=(float*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(float));
@@ -109,23 +111,25 @@ public:
 		}
 
 		float delta=0;
-		for (int i = 0; i < _variablesCoeficient.size(); ++i)
+		if(_completeTIs)
 		{
-			if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
-				float coef=_variablesCoeficient[i].back();
-				for (int k = 0; k < neighborArrayVector.size(); ++k)
-				{
-					unsigned indexInKernel;
-					if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]))
-						delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
+			for (int i = 0; i < _variablesCoeficient.size(); ++i)
+			{
+				if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
+					float coef=_variablesCoeficient[i].back();
+					for (int k = 0; k < neighborArrayVector.size(); ++k)
+					{
+						unsigned indexInKernel;
+						if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]))
+							delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
+					}
 				}
 			}
 		}
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
-			_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
-			updated[i]=true;
+			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
 		}
 
 		int extendK=int(ceil(_k));
@@ -135,7 +139,18 @@ public:
 		{
 			if(updated[i])
 			{
-				fKst::findKSmallest(_cdmV[moduleID][i]->getErrorsArray(),_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
+				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
+				float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
+
+				if(!_completeTIs)
+				{
+					#pragma omp simd
+					for (int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
+					{
+						errosArray[j]=std::fabs(errosArray[j]/crossErrosArray[j]);
+					}
+				}
+				fKst::findKSmallest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
 			}
 		}
 
@@ -149,8 +164,11 @@ public:
 
 		unsigned slectedIndex=int(floor(seed*_k));
 		unsigned selectedTI=localPosition[slectedIndex]/extendK;
-		//fprintf(stderr, "%d %d %d %d\n", selectedTI,localPosition[slectedIndex],slectedIndex,extendK);
+		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
+		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
+		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[slectedIndex]] );
 		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
+		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[slectedIndex],slectedIndex,extendK, errors[localPosition[slectedIndex]]);
 
 		matchLocation result;
 		result.TI=selectedTI;
