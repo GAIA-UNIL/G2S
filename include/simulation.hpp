@@ -100,6 +100,53 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 					cumulated+=TIs[i].dataSize();
 				}
 			}
+
+			bool hasNaN=false;
+
+			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			{
+				if(std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j])){
+					hasNaN=true;
+				}
+			}
+		
+			if(hasNaN){ // nan safe, much slower
+				unsigned cumulated=0;
+				for (int i = 0; i < TIs.size(); ++i)
+				{
+					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					{
+						bool locHasNan=false;
+						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						{
+							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
+						}
+						cumulated+=!locHasNan;
+					}
+				}
+				unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)))*TIs[0]._nbVariable;
+
+				cumulated=0;
+
+				for (int i = 0; i < TIs.size(); ++i)
+				{
+					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					{
+						bool locHasNan=false;
+						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						{
+							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
+						}
+						cumulated+=!locHasNan;
+						if(position>=cumulated){
+							importIndex.TI=i;
+							importIndex.index=k;
+							break;
+						}
+					}
+					if(position>=cumulated)break;
+				}
+			}
 		}
 		// import data
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
