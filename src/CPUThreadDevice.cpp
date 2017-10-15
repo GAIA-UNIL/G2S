@@ -200,7 +200,7 @@ dataType* CPUThreadDevice::getCossErrorArray(){
 	return _realCrossSpace;
 }
 float CPUThreadDevice::gerCroossErrorAtPosition(unsigned index){
-	if(_realCrossSpace==nullptr) return std::nanf("0");
+	if(_realCrossSpace==nullptr) return 0;
 	return _realCrossSpace[index];
 }
 
@@ -255,6 +255,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 		bool lines[_fftSize.back()];
 		memset(_frenquencySpaceOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 		std::vector<std::vector<int> > neighborArray=neighborArrayVector;
+		if(_crossMesurement)memset(_frenquencySpaceCrossOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 		//update coordonate
 		for (int j = 0; j < neighborArray.size(); ++j)
@@ -324,7 +325,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 		}
 
-		if(_trueMismatch) // correct value needed
+		if(_trueMismatch && !_crossMesurement) // correct value needed
 		{
 		#if __cilk
 			_realSpace[0:_realSpaceSize]=_realSpace[0:_realSpaceSize]/(_realSpaceSize)+delta0;
@@ -343,8 +344,14 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		if(_crossMesurement){
 			FFTW_PRECISION(execute)(_pInvCross);
+			int deltaCross=0;
+			for (int k = _min.size()-1; k >=0; k--)
+			{
+				deltaCross=deltaCross*_fftSize[k]+_min[k];
+			}
+			//fprintf(stderr, "delta --> %d \n", deltaCross);
 			//Remove fobidden/wrong value
-			for (int i = _fftSize.size()-1; i>=0; --i)
+			/*for (int i = _fftSize.size()-1; i>=0; --i)
 			{
 				unsigned blockSize=1;
 				for (int j = 0; j < i-1; ++j)
@@ -363,9 +370,9 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				{
 					fillVectorized(_realCrossSpace,j,blockSize,0.0f);
 				}
-			}
+			}*/
 			
-		#if __cilk
+		/*#if __cilk
 			_realCrossSpace[0:_realSpaceSize]/=(_realSpaceSize);
 		#else
 			#pragma omp simd
@@ -374,7 +381,13 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				_realCrossSpace[i]/=(_realSpaceSize);
 			}
 
-		#endif	
+		#endif*/
+			unsigned nbVariable=neighborValueArrayVector[0].size();
+			#pragma omp simd
+			for (int i = 0; i < _realSpaceSize; ++i)
+			{
+				_realCrossSpace[i]*=((dataType*)_srcCplx[nbVariable-1].space)[(i+deltaCross)%_realSpaceSize];
+			}
 		}
 	}
 	return true;
