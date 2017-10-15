@@ -38,8 +38,8 @@ public:
 	dataType* getErrorsArray();
 	unsigned getErrorsArraySize();
 	dataType* getCossErrorArray();
-	float gerErrorAtPosition(unsigned);
-	float gerCroossErrorAtPosition(unsigned);
+	float getErrorAtPosition(unsigned);
+	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	void setTrueMismatch(bool value);
 

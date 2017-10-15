@@ -49,8 +49,8 @@ public:
 	virtual dataType* getErrorsArray()=0;
 	virtual unsigned getErrorsArraySize()=0;
 	virtual dataType* getCossErrorArray()=0;
-	virtual float gerErrorAtPosition(unsigned)=0;
-	virtual float gerCroossErrorAtPosition(unsigned)=0;
+	virtual float getErrorAtPosition(unsigned)=0;
+	virtual float getCroossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
 
 	unsigned _memoryID=UINT_MAX;

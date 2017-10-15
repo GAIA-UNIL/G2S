@@ -105,14 +105,14 @@ dataType* FullMeasureCPUThreadDevice::getErrorsArray(){
 	return _realSpace;
 }
 
-float FullMeasureCPUThreadDevice::gerErrorAtPosition(unsigned index){
+float FullMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 	return _realSpace[index];
 }
 
 dataType* FullMeasureCPUThreadDevice::getCossErrorArray(){
 	return _realCrossSpace;
 }
-float FullMeasureCPUThreadDevice::gerCroossErrorAtPosition(unsigned index){
+float FullMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 	if(_realCrossSpace==nullptr) return std::nanf("0");
 	return _realCrossSpace[index];
 }

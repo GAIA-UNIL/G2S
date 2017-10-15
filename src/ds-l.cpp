@@ -527,6 +527,18 @@ int main(int argc, char const *argv[]) {
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
+	bool needCrossMesuremnt=false;
+
+	for (int i = 0; i < TIs.size(); ++i)
+	{
+		#pragma omp simd reduction(|:needCrossMesuremnt)
+		for (int j = 0; j < TIs[i].dataSize(); ++j)
+		{
+			needCrossMesuremnt|=std::isnan(TIs[i]._data[j]);
+		}
+	}
+
+
 	for (int i = 0; i < TIs.size(); ++i)
 	{
 		std::vector<unsigned> srcSize;
@@ -549,19 +561,26 @@ int main(int argc, char const *argv[]) {
 		if(smm->_fftSize.size()>2)fftSizeZ=smm->_fftSize[2];
 		unsigned srcVariable=TIs[i]._nbVariable;
 
-		float** varaibleBands=(float**)malloc( 2 * srcVariable * sizeof(float*));
+		float** varaibleBands=(float**)malloc( 3 * srcVariable * sizeof(float*));
 	
 		// init Data
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			varaibleBands[2*i+0]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			varaibleBands[2*i+1]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			memset(varaibleBands[2*i],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			varaibleBands[3*i+0]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			varaibleBands[3*i+1]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			memset(varaibleBands[3*i+0],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			memset(varaibleBands[3*i+1],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			if(needCrossMesuremnt){
+				varaibleBands[3*i+2]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+				memset(varaibleBands[3*i+2],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+				std::fill(varaibleBands[3*i+1],varaibleBands[3*i+1]+fftSizeX * fftSizeY * fftSizeZ -1, std::nanf("0"));
+			}
 		}
 
 		for (int v = 0; v < srcVariable; ++v)
 		{
-			float* A=varaibleBands[2*v+1];
+			float* A=varaibleBands[3*v+1];
+			float* A0=varaibleBands[3*v+2];
 			for (int l = 0; l < fftSizeZ; ++l)
 			{
 				if(l<(fftSizeZ-srcSizeZ))continue;
@@ -579,19 +598,43 @@ int main(int argc, char const *argv[]) {
 
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			float* A=varaibleBands[2*i+1];
-			float* A2=varaibleBands[2*i+0];
+			float* A=varaibleBands[3*i+1];
+			float* A2=varaibleBands[3*i+0];
+			#pragma omp simd
 			for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
 			{
 				A2[index]=A[index]*A[index];
 			}
 		}
 
+		if(needCrossMesuremnt){
+			for (int i = 0; i < srcVariable; ++i)
+			{
+				float* A2=varaibleBands[3*i+0];
+				float* A =varaibleBands[3*i+1];
+				float* A0=varaibleBands[3*i+2];
+				#pragma omp simd
+				for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
+				{
+					A0[index]=!std::isnan(A[index]);
+				}
+				#pragma omp simd
+				for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
+				{
+					if(std::isnan(A[index]))A[index]=0;
+					if(std::isnan(A2[index]))A2[index]=0;
+				}
+			}
+		}
+
 		// add sources : inputData
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			smm->addVaraible(varaibleBands[2*i+0]);
-			smm->addVaraible(varaibleBands[2*i+1]);
+			smm->addVaraible(varaibleBands[3*i+0]);
+			smm->addVaraible(varaibleBands[3*i+1]);
+			if(needCrossMesuremnt){
+				smm->addVaraible(varaibleBands[3*i+2]);
+			}
 		}
 		// alloc module
 		#ifdef WITH_OPENCL
@@ -599,7 +642,7 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm,nbThreads)
+		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm, nbThreads, needCrossMesuremnt)
 		for (int i = 0; i < nbThreads; ++i)
 		{
 			#pragma omp critical (createDevices)
@@ -608,13 +651,15 @@ int main(int argc, char const *argv[]) {
 
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i]);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesuremnt);
+					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesuremnt);
+					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
@@ -627,10 +672,12 @@ int main(int argc, char const *argv[]) {
 
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			free(varaibleBands[2*i+0]);
-			varaibleBands[2*i+0]=nullptr;
-			free(varaibleBands[2*i+1]);
-			varaibleBands[2*i+1]=nullptr;
+			free(varaibleBands[3*i+0]);
+			free(varaibleBands[3*i+1]);
+			if(needCrossMesuremnt)free(varaibleBands[3*i+2]);
+			varaibleBands[3*i+0]=nullptr;
+			varaibleBands[3*i+1]=nullptr;
+			varaibleBands[3*i+2]=nullptr;
 		}
 
 		free(varaibleBands);
@@ -649,16 +696,20 @@ int main(int argc, char const *argv[]) {
 		convertionTypeVector.push_back(SamplingModule::convertionType::P0);
 		variablesCoeficient.push_back(-2.0f);
 		convertionTypeVector.push_back(SamplingModule::convertionType::P1);
-
-		// for delta
-		variablesCoeficient.push_back(1.0f);
+		if(needCrossMesuremnt){
+			convertionTypeVector.push_back(SamplingModule::convertionType::P2);
+			variablesCoeficient.push_back(1.0f);
+		}else{
+			// for delta
+			variablesCoeficient.push_back(1.0f);
+		}
 
 		variablesCoeficientMainVector.push_back(variablesCoeficient);
 		convertionTypeVectorMainVector.push_back(convertionTypeVector);
 	}
 
 
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector,!needCrossMesuremnt);
 
 	// run QS
 

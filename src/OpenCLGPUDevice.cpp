@@ -340,14 +340,14 @@ dataType* OpenCLGPUDevice::getErrorsArray(){
 	return _realSpace;
 }
 
-float OpenCLGPUDevice::gerErrorAtPosition(unsigned index){
+float OpenCLGPUDevice::getErrorAtPosition(unsigned index){
 	return _realSpace[index];
 }
 
 dataType* OpenCLGPUDevice::getCossErrorArray(){
 	return _realCrossSpace;
 }
-float OpenCLGPUDevice::gerCroossErrorAtPosition(unsigned index){
+float OpenCLGPUDevice::getCroossErrorAtPosition(unsigned index){
 	if(_realCrossSpace==nullptr) return std::nanf("0");
 	return _realCrossSpace[index];
 }

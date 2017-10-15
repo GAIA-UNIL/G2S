@@ -96,7 +96,7 @@ dataType* DirectMeasureCPUThreadDevice::getErrorsArray(){
 	return nullptr;
 }
 
-float DirectMeasureCPUThreadDevice::gerErrorAtPosition(unsigned index){
+float DirectMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 
 	std::vector<unsigned> position(_fftSize.size(),0);
 
@@ -133,7 +133,7 @@ float DirectMeasureCPUThreadDevice::gerErrorAtPosition(unsigned index){
 dataType* DirectMeasureCPUThreadDevice::getCossErrorArray(){
 	return nullptr;
 }
-float DirectMeasureCPUThreadDevice::gerCroossErrorAtPosition(unsigned index){
+float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 	std::vector<unsigned> position(_fftSize.size(),0);
 
 	unsigned val=index;

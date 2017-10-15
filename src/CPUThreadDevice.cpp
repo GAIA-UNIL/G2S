@@ -192,14 +192,14 @@ dataType* CPUThreadDevice::getErrorsArray(){
 	return _realSpace;
 }
 
-float CPUThreadDevice::gerErrorAtPosition(unsigned index){
+float CPUThreadDevice::getErrorAtPosition(unsigned index){
 	return _realSpace[index];
 }
 
 dataType* CPUThreadDevice::getCossErrorArray(){
 	return _realCrossSpace;
 }
-float CPUThreadDevice::gerCroossErrorAtPosition(unsigned index){
+float CPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 	if(_realCrossSpace==nullptr) return 0;
 	return _realCrossSpace[index];
 }

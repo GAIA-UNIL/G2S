@@ -12,14 +12,16 @@ class ThresholdSamplingModule: public SamplingModule {
 private:
 	float _threshold2;
 	float _f;
+	bool _completeTIs;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient):SamplingModule(cdmV,kernel)
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs):SamplingModule(cdmV,kernel)
 	{
+		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
 		_convertionTypeVector=convertionTypeVector;
@@ -110,16 +112,19 @@ public:
 
 		float delta=0;
 		float deltaKernel=0.f;
-		for (int i = 0; i < _variablesCoeficient.size(); ++i)
+		if(_completeTIs)
 		{
-			if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
-				float coef=_variablesCoeficient[i].back();
-				for (int k = 0; k < neighborArrayVector.size(); ++k)
-				{
-					unsigned indexInKernel;
-					if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k])){
-						delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
-						deltaKernel+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i];
+			for (int i = 0; i < _variablesCoeficient.size(); ++i)
+			{
+				if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
+					float coef=_variablesCoeficient[i].back();
+					for (int k = 0; k < neighborArrayVector.size(); ++k)
+					{
+						unsigned indexInKernel;
+						if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k])){
+							delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
+							deltaKernel+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i];
+						}
 					}
 				}
 			}
@@ -129,8 +134,7 @@ public:
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
-			_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
-			updated[i]=true;
+			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
 		}
 
 		unsigned numberElement=0;
@@ -151,25 +155,50 @@ public:
 		unsigned bestPosition=0;
 		unsigned bestImage=0;
 
-		while((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)){
-			unsigned index=uniformDis(_randgen);
-			unsigned imageID=0;
-			unsigned numberElementCumul=0;
-			for (imageID = 0; imageID < vectorSize; ++imageID)
-			{
-				numberElementCumul+=_cdmV[moduleID][imageID]->getErrorsArraySize();
-				if(index<numberElementCumul) break;
-			}
+		if(_completeTIs){
+			while((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)){
+				cpt++;
+				unsigned index=uniformDis(_randgen);
+				unsigned imageID=0;
+				unsigned numberElementCumul=0;
+				for (imageID = 0; imageID < vectorSize; ++imageID)
+				{
+					numberElementCumul+=_cdmV[moduleID][imageID]->getErrorsArraySize();
+					if(index<numberElementCumul) break;
+				}
 
-			unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-			float loaclError=_cdmV[moduleID][imageID]->gerErrorAtPosition(positionInImage)/deltaKernel;
+				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
+				float loaclError=_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
 
-			if(loaclError<bestValue){
-				bestValue=loaclError;
-				bestPosition=positionInImage;
-				bestImage=imageID;
+				if(loaclError<bestValue){
+					bestValue=loaclError;
+					bestPosition=positionInImage;
+					bestImage=imageID;
+				}
 			}
-			cpt++;
+		}else{
+			while(((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)) || (bestValue==INFINITY)){
+				cpt++;
+				unsigned index=uniformDis(_randgen);
+				unsigned imageID=0;
+				unsigned numberElementCumul=0;
+				for (imageID = 0; imageID < vectorSize; ++imageID)
+				{
+					numberElementCumul+=_cdmV[moduleID][imageID]->getErrorsArraySize();
+					if(index<numberElementCumul) break;
+				}
+
+				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
+				float loaclError=(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
+
+				if(std::isnan(loaclError))continue;
+
+				if(loaclError<bestValue){
+					bestValue=loaclError;
+					bestPosition=positionInImage;
+					bestImage=imageID;
+				}
+			}
 		}
 
 		matchLocation result;
