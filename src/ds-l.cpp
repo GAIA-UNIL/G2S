@@ -652,14 +652,14 @@ int main(int argc, char const *argv[]) {
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
 					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesuremnt);
-					signleThread->setTrueMismatch(false);
+					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
 					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesuremnt);
-					signleThread->setTrueMismatch(false);
+					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
