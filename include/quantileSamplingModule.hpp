@@ -3,7 +3,6 @@
 
 #include "samplingModule.hpp"
 #include "fKst.hpp"
-#include <functional>
 
 
 

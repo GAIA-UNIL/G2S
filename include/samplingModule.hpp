@@ -1,6 +1,8 @@
 #ifndef SAMPLING_MODULE_HPP
 #define SAMPLING_MODULE_HPP
 
+#include <functional>
+
 class SamplingModule {
 public:
 	struct matchLocation{
