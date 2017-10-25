@@ -2,9 +2,9 @@
 #define SIMULATION_HPP
 
 #include "samplingModule.hpp"
+#include "fKst.hpp"
 #include <thread>
 
-//template<class randGen>
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,
   unsigned nbThreads=1){
@@ -162,6 +162,136 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 
 	free(posterioryPath);
+}
+
+
+
+
+
+void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernel, SamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
+  unsigned nbThreads=1){
+
+	std::fill(solvingPath,solvingPath+di.dataSize()/di._nbVariable-1,UINT_MAX);
+	std::fill(ni._data,ni._data+ni.dataSize()/ni._nbVariable-1,std::nanf("0"));
+
+	SamplingModule::matchLocation* candidates=(SamplingModule::matchLocation*) malloc( sizeof(SamplingModule::matchLocation) * ni.dataSize()/ni._nbVariable);
+
+	std::vector<unsigned> placeToUpdate;
+	placeToUpdate.reserve(di.dataSize()/di._nbVariable);
+
+	for (unsigned i = 0; i < di.dataSize()/di._nbVariable; ++i)
+	{
+		bool hasNaN=false;
+		for (int j = 0; j < di._nbVariable; ++j)
+		{
+			hasNaN|=std::isnan(di._data[i*di._nbVariable+j]);
+		}
+		if(!hasNaN){
+			solvingPath[i]=0;
+			ni._data[i]=0.f;
+		}else{
+			placeToUpdate.push_back(i);
+		}
+	}
+	unsigned sizeSimulation=placeToUpdate.size();
+	unsigned fullSize=sizeSimulation;
+	unsigned indicationSize=1000*nbThreads;
+	unsigned lastDisplay=UINT_MAX;
+
+	unsigned solvingPathIndex=0;
+	while((sizeSimulation>0)){
+	
+		unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
+		//update all needed place to //
+		#pragma omp parallel for schedule(dynamic,bunchSize) default(none)
+		for (int i = 0; i < placeToUpdate.size(); ++i)
+		{
+			unsigned moduleID=0;
+			#if _OPENMP
+				moduleID=omp_get_thread_num();
+			#endif
+			fprintf(logFile, "start : %d\n",i);
+
+			unsigned currentCell=placeToUpdate[i];
+			float localSeed=seedAray[currentCell];
+
+			std::vector<std::vector<int> > neighborArrayVector;
+			std::vector<std::vector<float> > neighborValueArrayVector;
+			{
+				unsigned positionSearch=0;
+				while((positionSearch<pathPosition.size())){
+					unsigned dataIndex;
+					if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
+					{
+						std::vector<float> data(di._nbVariable);
+						unsigned numberOfNaN=0;
+						for (int i = 0; i < di._nbVariable; ++i)
+						{
+							data[i]=di._data[dataIndex*di._nbVariable+i];
+						}
+						neighborValueArrayVector.push_back(data);
+						neighborArrayVector.push_back(pathPosition[positionSearch]);
+						
+					}
+					positionSearch++;
+				}
+			}
+
+			SamplingModule::narrownessMeasurment currentNarrowness;
+			currentNarrowness=samplingModule.narrowness(neighborArrayVector,neighborValueArrayVector,localSeed,moduleID);
+			ni._data[currentCell]=currentNarrowness.narrowness;
+			candidates[currentCell]=currentNarrowness.candidate;
+			if((i)%(fullSize/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(i)/fullSize*100);
+		
+		}
+		placeToUpdate.clear();
+
+		unsigned bestPlaces[chunkSize];
+		float usedNarrowness[chunkSize];
+
+		unsigned maxAutorisedChunkSize=std::min(chunkSize,sizeSimulation);
+		//DISPLAY(rapportFile, "%d, %d \n", maxAutorisedChunkSize,sizeSimulation);
+
+		fKst::findKSmallest<float>(ni._data, ni.dataSize()/ni._nbVariable, maxAutorisedChunkSize, usedNarrowness, bestPlaces);
+		solvingPathIndex++;
+		for (int i = 0; i < maxAutorisedChunkSize; ++i)
+		{
+			unsigned simulatedPlace=bestPlaces[i];
+			solvingPath[simulatedPlace]=solvingPathIndex;
+
+			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
+
+			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			{
+				if(std::isnan(di._data[simulatedPlace*di._nbVariable+j])){
+					#pragma omp atomic write
+					di._data[simulatedPlace*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+				}
+			}
+			importDataIndex[simulatedPlace]=importIndex.index*TIs.size()+importIndex.TI;
+		}
+
+		for (int i = 0; i < maxAutorisedChunkSize; ++i)
+		{
+			unsigned simulatingPlace=bestPlaces[i];
+			unsigned dataIndex;
+			for (int i = 0; i < std::min(unsigned(pathPosition.size()),maxUpdate); ++i)
+			{
+				if(di.indexWithDelta(dataIndex, simulatingPlace, pathPosition[i])){
+					if(solvingPath[dataIndex]>solvingPathIndex) placeToUpdate.push_back(dataIndex);
+				}
+			}
+		}
+		sizeSimulation-=maxAutorisedChunkSize;
+		std::sort(placeToUpdate.begin(), placeToUpdate.end());
+		auto last = std::unique(placeToUpdate.begin(), placeToUpdate.end());
+		placeToUpdate.erase(last, placeToUpdate.end()); 
+		if((sizeSimulation)%(fullSize/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(fullSize-sizeSimulation)/fullSize*100);
+
+	}
+
+	free(candidates);
 }
 
 #endif // SIMULATION_HPP

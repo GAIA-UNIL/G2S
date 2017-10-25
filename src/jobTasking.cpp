@@ -466,7 +466,10 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
-			argv[0]=(char*)"nds";
+			char tempMemory[100][100];
+			unsigned tempMemIndex=0;
+			memset(tempMemory,0,100*100);
+			argv[0]=(char*)"./nds";
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -477,24 +480,50 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 			for (int i = 0; i < member.size(); ++i)
 			{
 				argv[index]=(char *)member[i].c_str();
-				fprintf(stderr, "%s\n", argv[index]);
+				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
-				argv[index]=(char *)param[member[i]].asCString();
-				fprintf(stderr, "%s\n", argv[index]);
-				index++;
+
+				if(param[member[i]].isString())
+				{
+					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
+					argv[index]=tempMemory[tempMemIndex];
+					tempMemIndex++;
+					//fprintf(stderr, "%s\n", argv[index]);
+					index++;
+				}
+				if(param[member[i]].isArray())
+				{
+					//fprintf(stderr, "%s\n", "is array");
+					Json::Value arrayData=param[member[i]];
+					for (int j = 0; j < arrayData.size(); ++j)
+					{
+						if(arrayData[j].isString()){
+							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
+							argv[index]=tempMemory[tempMemIndex];
+							tempMemIndex++;
+							//fprintf(stderr, "%s\n", argv[index]);
+							index++;
+						}
+					}
+				}
 			}
 			{
 				argv[index]=(char*)"-r";
-				fprintf(stderr, "%s\n", argv[index]);
+				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
 				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
 				argv[index]=buffer;
-				fprintf(stderr, "%s\n", argv[index]);
+				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 			}
 
 			// add specific
+
+			/*for (int i = 0; i < index; ++i)
+			{
+				fprintf(stderr, "%s ",argv[i] );
+			}*/
 
 			//Execute
 			if(functionMode)
@@ -502,7 +531,7 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 				call_functionMode(jobIds, singleTask,  uniqueId, "nds",index, argv);
 				
 			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
+				pid_t pid=fork(); // fork, to be crash resistant !!
 				if (pid==0) { // child process //
 					
 					execv("./nds", argv);
@@ -564,7 +593,7 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
 			algoFounded=true;
 			id=dsl_call(jobIds, job,singleTask,functionMode);
 		}
-		if(!strcmp(job["Algorithm"].asCString(),"NarrowDistributionSelection")) // NDS
+		if(!strcmp(job["Algorithm"].asCString(),"NarrawDistributionSelection")) // NDS
 		{
 			algoFounded=true;
 			id=nds_call(jobIds, job,singleTask,functionMode);
