@@ -196,6 +196,8 @@ int main(int argc, char const *argv[]) {
 	float narrowness=std::nanf("0");		// narrowness for NDS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	unsigned chunkSize=1;
+	unsigned updateRadius=10;
+	float maxProgression=1;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 
 	if (arg.count("-f") == 1)
@@ -224,9 +226,21 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-cs") == 1)
 	{
-		narrowness=atoi((arg.find("-cs")->second).c_str());
+		chunkSize=atoi((arg.find("-cs")->second).c_str());
 	}
 	arg.erase("-cs");
+
+	if (arg.count("-uds") == 1)
+	{
+		updateRadius=atoi((arg.find("-uds")->second).c_str());
+	}
+	arg.erase("-uds");
+
+	if (arg.count("-mp") == 1)
+	{
+		maxProgression=atof((arg.find("-mp")->second).c_str());
+	}
+	arg.erase("-mp");
 
 	if (arg.count("-s") == 1)
 	{
@@ -374,7 +388,7 @@ int main(int argc, char const *argv[]) {
 	for (int i = 0; i < kernel._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i])/2;
+		int sizeInThisDim=(kernel._dims[i])/2+1;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (int k = 0; k < originalSize; ++k)
 		{
@@ -426,23 +440,28 @@ int main(int argc, char const *argv[]) {
 		
 	}
 
-	unsigned center=wieghtKernel.dataSize()/wieghtKernel._nbVariable/2;
+	unsigned center=0;
 	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
+	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+	{
+		center=center*wieghtKernelPtr->_dims[i]+wieghtKernelPtr->_dims[i]/2;
+	}
+
 
 	//TODO
-	/*std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
-		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
-	});*/
-
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
 		wieghtKernelPtr->indexWithDelta(l1, center, a);
 		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return a[0]*a[0]+a[1]*a[1] < b[0]*b[0]+b[1]*b[1] ;
+		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
 	});
+
+	/*std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+		unsigned l1,l2;
+		wieghtKernelPtr->indexWithDelta(l1, center, a);
+		wieghtKernelPtr->indexWithDelta(l2, center, b);
+		return a[0]*a[0]+a[1]*a[1] < b[0]*b[0]+b[1]*b[1] ;
+	});*/
 
 	simulationPath=DI.emptyCopy(true);
 
@@ -674,7 +693,7 @@ int main(int argc, char const *argv[]) {
 
 		for (int j = 0; j < nbVariable; ++j)
 		{
-			narrowness+=fabs(values[localPosition[int(ceil(nb/4.f))]*nbVariable+j]-values[localPosition[int(floor(nb-nb/4.f))]*nbVariable+j]);;
+			narrowness+=fabs(values[localPosition[int(ceil(nb/4.f))]*nbVariable+j]-values[localPosition[int(floor(nb-nb/4.f))]*nbVariable+j]);
 		}
 		return narrowness/nbVariable;
 
@@ -684,7 +703,7 @@ int main(int argc, char const *argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	narrowPathSimulation(reportFile, DI, NI, TIs, kernel, QSM, pathPosition, (unsigned*)simulationPath._data,
-	 seedForIndex, importDataIndex, chunkSize,1000, nbThreads);
+		seedForIndex, importDataIndex, chunkSize, updateRadius,maxProgression, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);

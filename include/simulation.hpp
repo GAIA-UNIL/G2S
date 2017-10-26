@@ -170,12 +170,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernel, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
-  unsigned nbThreads=1){
-
-	std::fill(solvingPath,solvingPath+di.dataSize()/di._nbVariable-1,UINT_MAX);
-	std::fill(ni._data,ni._data+ni.dataSize()/ni._nbVariable-1,std::nanf("0"));
+   float maxProgression=1.f, unsigned nbThreads=1){
 
 	SamplingModule::matchLocation* candidates=(SamplingModule::matchLocation*) malloc( sizeof(SamplingModule::matchLocation) * ni.dataSize()/ni._nbVariable);
+	float* narrownessArray=(float*) malloc( sizeof(float) * ni.dataSize()/ni._nbVariable);
+	std::fill(narrownessArray,narrownessArray+ni.dataSize()/ni._nbVariable-1,std::nanf("0"));
+	std::fill(solvingPath,solvingPath+di.dataSize()/di._nbVariable-1,UINT_MAX);
 
 	std::vector<unsigned> placeToUpdate;
 	placeToUpdate.reserve(di.dataSize()/di._nbVariable);
@@ -190,28 +190,28 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		if(!hasNaN){
 			solvingPath[i]=0;
 			ni._data[i]=0.f;
+			narrownessArray[i]=0.f;
 		}else{
 			placeToUpdate.push_back(i);
 		}
 	}
 	unsigned sizeSimulation=placeToUpdate.size();
 	unsigned fullSize=sizeSimulation;
-	unsigned indicationSize=1000*nbThreads;
+	unsigned indicationSize=100*nbThreads;
 	unsigned lastDisplay=UINT_MAX;
 
 	unsigned solvingPathIndex=0;
-	while((sizeSimulation>0)){
+	while((sizeSimulation>0) && ((float(sizeSimulation)/fullSize)>(1.f-maxProgression))){
 	
 		unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
-		#pragma omp parallel for schedule(dynamic,1) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize) shared(di, samplingModule ,ni)
+		#pragma omp parallel for schedule(dynamic,bunchSize) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
 		for (int i = 0; i < placeToUpdate.size(); ++i)
 		{
 			unsigned moduleID=0;
 			#if _OPENMP
 				moduleID=omp_get_thread_num();
 			#endif
-			fprintf(logFile, "start : %d\n",i);
 
 			unsigned currentCell=placeToUpdate[i];
 			float localSeed=seedAray[currentCell];
@@ -237,12 +237,13 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 					positionSearch++;
 				}
 			}
+			if(neighborValueArrayVector.empty()) continue;
 
 			SamplingModule::narrownessMeasurment currentNarrowness;
 			currentNarrowness=samplingModule.narrowness(neighborArrayVector,neighborValueArrayVector,localSeed,moduleID);
-			ni._data[currentCell]=currentNarrowness.narrowness;
+			narrownessArray[currentCell]=currentNarrowness.narrowness;
 			candidates[currentCell]=currentNarrowness.candidate;
-			if((i)%(fullSize/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(i)/fullSize*100);
+			if((i+1)%(fullSize/100)==0)fprintf(logFile, "progress init: %.2f%%\n",float(i)/fullSize*100);
 		
 		}
 		placeToUpdate.clear();
@@ -251,21 +252,21 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		float usedNarrowness[chunkSize];
 
 		unsigned maxAutorisedChunkSize=std::min(chunkSize,sizeSimulation);
-		//DISPLAY(rapportFile, "%d, %d \n", maxAutorisedChunkSize,sizeSimulation);
 
-		fKst::findKSmallest<float>(ni._data, ni.dataSize()/ni._nbVariable, maxAutorisedChunkSize, usedNarrowness, bestPlaces);
+		fKst::findKSmallest<float>(narrownessArray, ni.dataSize()/ni._nbVariable, maxAutorisedChunkSize, usedNarrowness, bestPlaces);
 		solvingPathIndex++;
 		for (int i = 0; i < maxAutorisedChunkSize; ++i)
 		{
 			unsigned simulatedPlace=bestPlaces[i];
-			solvingPath[simulatedPlace]=solvingPathIndex;
+			if(simulatedPlace<0 || simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(usedNarrowness[i])) continue;
 
 			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
 
+			ni._data[simulatedPlace]=narrownessArray[simulatedPlace];
+			narrownessArray[simulatedPlace]=INFINITY;
 			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 			{
 				if(std::isnan(di._data[simulatedPlace*di._nbVariable+j])){
-					#pragma omp atomic write
 					di._data[simulatedPlace*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 				}
 			}
@@ -276,9 +277,9 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		{
 			unsigned simulatingPlace=bestPlaces[i];
 			unsigned dataIndex;
-			for (int i = 0; i < std::min(unsigned(pathPosition.size()),maxUpdate); ++i)
+			for (int j = 0; j < std::min(unsigned(pathPosition.size()),maxUpdate); ++j)
 			{
-				if(di.indexWithDelta(dataIndex, simulatingPlace, pathPosition[i])){
+				if(di.indexWithDelta(dataIndex, simulatingPlace, pathPosition[j])){
 					if(solvingPath[dataIndex]>solvingPathIndex) placeToUpdate.push_back(dataIndex);
 				}
 			}
@@ -291,7 +292,29 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 
 	}
 
+	for (int i = 0; i < di.dataSize()/di._nbVariable; ++i)
+	{
+		if(!std::isnan(narrownessArray[i]) && (solvingPath[i]>solvingPathIndex)){
+
+			unsigned simulatedPlace=i;
+			if(simulatedPlace<0 || simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(narrownessArray[i])) continue;
+			solvingPath[simulatedPlace]=solvingPathIndex;
+
+			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
+			ni._data[simulatedPlace]=narrownessArray[simulatedPlace];
+			narrownessArray[simulatedPlace]=INFINITY;
+			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			{
+				if(std::isnan(di._data[simulatedPlace*di._nbVariable+j])){
+					di._data[simulatedPlace*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+				}
+			}
+			importDataIndex[simulatedPlace]=importIndex.index*TIs.size()+importIndex.TI;
+		}
+	}
+
 	free(candidates);
+	free(narrownessArray);
 }
 
 #endif // SIMULATION_HPP
