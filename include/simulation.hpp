@@ -261,7 +261,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 			if(simulatedPlace<0 || simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(usedNarrowness[i])) continue;
 
 			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
-
+			solvingPath[simulatedPlace]=solvingPathIndex;
 			ni._data[simulatedPlace]=narrownessArray[simulatedPlace];
 			narrownessArray[simulatedPlace]=INFINITY;
 			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
