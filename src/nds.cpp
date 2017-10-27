@@ -193,7 +193,7 @@ int main(int argc, char const *argv[]) {
 
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS
-	float narrowness=std::nanf("0");		// narrowness for NDS
+	float narrownessRange=0.5;			 		// narrowness for NDS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	unsigned chunkSize=1;
 	unsigned updateRadius=10;
@@ -220,7 +220,7 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-nw") == 1)
 	{
-		narrowness=atof((arg.find("-nw")->second).c_str());
+		narrownessRange=atof((arg.find("-nw")->second).c_str());
 	}
 	arg.erase("-nw");
 
@@ -317,7 +317,7 @@ int main(int argc, char const *argv[]) {
 	if(std::isnan(nbCandidate)){
 		nbCandidate=1/mer;
 	}
-	if(std::isnan(narrowness)){
+	if(std::isnan(narrownessRange)){
 		run=false;
 		fprintf(reportFile, "%s\n", "narrowness need to be seted" );
 	}
@@ -667,7 +667,7 @@ int main(int argc, char const *argv[]) {
 
 
 	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesuremnt, nbThreads);
-	QSM.setNarrownessFunction([&TIs](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
+	QSM.setNarrownessFunction([&TIs,narrownessRange](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];
 		float *values_ptr=values;;
@@ -693,7 +693,7 @@ int main(int argc, char const *argv[]) {
 
 		for (int j = 0; j < nbVariable; ++j)
 		{
-			narrowness+=fabs(values[localPosition[int(ceil(nb/4.f))]*nbVariable+j]-values[localPosition[int(floor(nb-nb/4.f))]*nbVariable+j]);
+			narrowness+=fabs(values[localPosition[int(ceil((0.5f-narrownessRange/2.f)*nb))]*nbVariable+j]-values[localPosition[int(floor((0.5f+narrownessRange/2.f)*nb))]*nbVariable+j]);
 		}
 		return narrowness/nbVariable;
 
