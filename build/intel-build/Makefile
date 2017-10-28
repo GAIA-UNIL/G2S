@@ -8,8 +8,8 @@ ifeq ($(UNAME_S),Darwin)
     OS =mac
 endif
 
-CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I/opt/intel/compilers_and_libraries/$(OS)/mkl/include/fftw -mkl
-LDFLAGS+=-fopenmp -mkl
+CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I/opt/intel/compilers_and_libraries/$(OS)/mkl/include/fftw -mkl
+LDFLAGS+=-fopenmp -mkl -lirc
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
 all: server echo test qs nds ds ds-l

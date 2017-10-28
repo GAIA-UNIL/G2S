@@ -570,9 +570,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	float lastProgression=-1.f;
 
 	char nameFile[65]={0};
-	char nameFile_id[65]={0};
 	sprintf(nameFile,"%u",id);
-	sprintf(nameFile_id,"id_%u",id);
 	
 	while(!stop) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(600));
@@ -707,90 +705,110 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			free(sizeDim);
 		}
 	}
-	if(!noOutput && nlhs>1){
-		// download data
 
-		{
+	char nameFile_local[65]={0};
+	std::vector<std::string> prefix;
+	std::vector<float> isInteger;
+	prefix.push_back("id_");
+	isInteger.push_back(true);
+	prefix.push_back("nw_");
+	isInteger.push_back(false);
+	prefix.push_back("path_");
+	isInteger.push_back(true);
+
+
+
+	if(!noOutput && nlhs>1){
+		int downloadInformation=1;
+		int positionInOutput=0;
+		while (nlhs-1>downloadInformation){
+			// download data
+			sprintf(nameFile_local,"%s%u",prefix[positionInOutput].c_str(),id);
+
+			{
+				infoContainer task;
+				task.version=1;
+				task.task=EXIST;
+
+				zmq::message_t request( sizeof(infoContainer) + 64 * sizeof(unsigned char));
+				char * positionInTheStream=(char*)request.data();
+
+				memcpy (positionInTheStream, &task, sizeof(infoContainer));
+				positionInTheStream+=sizeof(infoContainer);
+				memcpy (positionInTheStream, nameFile_local, 64 * sizeof(unsigned char));
+				positionInTheStream+=64 * sizeof(unsigned char);
+
+				if(!socket.send (request) && withTimeout){
+					mexErrMsgIdAndTxt("gss:error", "timeout sending data");
+				}
+
+				zmq::message_t reply;
+				if(!socket.recv (&reply) && withTimeout){
+					mexErrMsgIdAndTxt("gss:error", "timeout receive data");
+				}
+				if(reply.size()!=sizeof(int)) mexErrMsgIdAndTxt("gss:error", "wrong answer if data exist!");
+				int isPresent=*((int*)reply.data());
+				if (!isPresent) return;
+			}
+
 			infoContainer task;
 			task.version=1;
-			task.task=EXIST;
+			task.task=DOWNLOAD;
 
-			zmq::message_t request( sizeof(infoContainer) + 64 * sizeof(unsigned char));
-			char * positionInTheStream=(char*)request.data();
-
-			memcpy (positionInTheStream, &task, sizeof(infoContainer));
-			positionInTheStream+=sizeof(infoContainer);
-			memcpy (positionInTheStream, nameFile_id, 64 * sizeof(unsigned char));
-			positionInTheStream+=64 * sizeof(unsigned char);
-
-			if(!socket.send (request) && withTimeout){
-				mexErrMsgIdAndTxt("gss:error", "timeout sending data");
+			//printf("%s\n", nameFile);
+			zmq::message_t request (sizeof(infoContainer)+64);
+			memcpy (request.data(), &task, sizeof(infoContainer));
+			memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_local, 64);
+			//std::cout << "ask for data" << std::endl;
+			if(!socket.send (request) && withTimeout ){
+				mexErrMsgIdAndTxt("gss:error", "timeout asking for data");
 			}
-
 			zmq::message_t reply;
 			if(!socket.recv (&reply) && withTimeout){
-				mexErrMsgIdAndTxt("gss:error", "timeout receive data");
+				mexErrMsgIdAndTxt("gss:error", "timeout : get data dont answer");
 			}
-			if(reply.size()!=sizeof(int)) mexErrMsgIdAndTxt("gss:error", "wrong answer if data exist!");
-			int isPresent=*((int*)reply.data());
-			if (!isPresent) return;
-		}
-
-		infoContainer task;
-		task.version=1;
-		task.task=DOWNLOAD;
-
-		//printf("%s\n", nameFile);
-		zmq::message_t request (sizeof(infoContainer)+64);
-		memcpy (request.data(), &task, sizeof(infoContainer));
-		memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_id, 64);
-		//std::cout << "ask for data" << std::endl;
-		if(!socket.send (request) && withTimeout ){
-			mexErrMsgIdAndTxt("gss:error", "timeout asking for data");
-		}
-		zmq::message_t reply;
-		if(!socket.recv (&reply) && withTimeout){
-			mexErrMsgIdAndTxt("gss:error", "timeout : get data dont answer");
-		}
-		
-		if(reply.size()!=0){
-			printf("progres %.3f%%\n",100.0f );
-			mexEvalString("drawnow");
-			//printf( "recive\n");
-
-			size_t inSize=reply.size();
-			char* data=(char*)reply.data();
 			
-			int dim=((int*)data)[0];
-			int nbVariable=((int*)data)[1];
-			size_t dataSize=nbVariable;
-			data+=2*sizeof(int);
-			int* sizeDim=(int*)malloc((dim+1)*sizeof(int));
-			for (int i = 0; i < dim; ++i)
-			{
-				dataSize*=((int*)data)[i];
-				sizeDim[i]=((int*)data)[i];
-			}
-			sizeDim[dim]=nbVariable;
-			data+=dim*sizeof(int);
+			if(reply.size()!=0){
+				printf("progres %.3f%%\n",100.0f );
+				mexEvalString("drawnow");
+				//printf( "recive\n");
 
-
-			mxArray *array=mxCreateNumericArray(dim+1, sizeDim, mxUINT32_CLASS, mxREAL);
-			memcpy(mxGetPr(array),data,dataSize/nbVariable*sizeof(unsigned int));
-			/*float* arrayPtr=(float*)mxGetPr(array);
-			for (int j = 0; j < nbVariable; ++j)
-			{
-				for (int i = 0; i < dataSize/nbVariable; ++i)
+				size_t inSize=reply.size();
+				char* data=(char*)reply.data();
+				
+				int dim=((int*)data)[0];
+				int nbVariable=((int*)data)[1];
+				size_t dataSize=nbVariable;
+				data+=2*sizeof(int);
+				int* sizeDim=(int*)malloc((dim+1)*sizeof(int));
+				for (int i = 0; i < dim; ++i)
 				{
-					arrayPtr[i+dataSize/nbVariable*j]=((float*)data)[j+i*nbVariable];
+					dataSize*=((int*)data)[i];
+					sizeDim[i]=((int*)data)[i];
 				}
-			}*/
-			plhs[1]=array;
-			stop=true;
-			free(sizeDim);
+				sizeDim[dim]=nbVariable;
+				data+=dim*sizeof(int);
+
+
+				mxArray *array=mxCreateNumericArray(dim+1, sizeDim, isInteger[positionInOutput] ? mxUINT32_CLASS : mxSINGLE_CLASS , mxREAL);
+				memcpy(mxGetPr(array),data,dataSize/nbVariable*sizeof(unsigned int));
+				/*float* arrayPtr=(float*)mxGetPr(array);
+				for (int j = 0; j < nbVariable; ++j)
+				{
+					for (int i = 0; i < dataSize/nbVariable; ++i)
+					{
+						arrayPtr[i+dataSize/nbVariable*j]=((float*)data)[j+i*nbVariable];
+					}
+				}*/
+				plhs[downloadInformation]=array;
+				stop=true;
+				free(sizeDim);
+				downloadInformation++;
+			}
+			positionInOutput++;
 		}
 	}
-	if(!noOutput && nlhs>2){
+	if(!noOutput && nlhs>1){
 		// download data
 
 		{
@@ -812,8 +830,8 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			else{
 				int duration=*((int*)reply.data());
 				int one=1;
-				plhs[2]=mxCreateNumericArray(1, &one, mxSINGLE_CLASS, mxREAL);
-				*(float*)mxGetPr(plhs[2])=duration/(1000.f);
+				plhs[nlhs-1]=mxCreateNumericArray(1, &one, mxSINGLE_CLASS, mxREAL);
+				*(float*)mxGetPr(plhs[nlhs-1])=duration/(1000.f);
 			}	
 		}
 	}

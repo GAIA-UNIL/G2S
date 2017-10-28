@@ -206,6 +206,15 @@ public:
 		result.index=_cdmV[moduleID][bestImage]->cvtIndexToPosition(bestPosition);
 		return result;
 	}
+
+	narrownessMeasurment narrowness(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+		
+		narrownessMeasurment result;
+		result.narrowness=0.f;
+		result.candidate.TI=0;
+		result.candidate.index=0;
+		return result;
+	}
 };
 
 #endif // QUANTILE_SAMPLING_MODULE_HPP
