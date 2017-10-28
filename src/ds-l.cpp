@@ -442,21 +442,12 @@ int main(int argc, char const *argv[]) {
 	unsigned center=wieghtKernel.dataSize()/wieghtKernel._nbVariable/2;
 	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
 
-	//TODO
-	/*std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
-		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
-	});*/
-
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
 		wieghtKernelPtr->indexWithDelta(l1, center, a);
 		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return a[0]*a[0]+a[1]*a[1] < b[0]*b[0]+b[1]*b[1] ;
+		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
 	});
-
 
 	/*for (int i = 0; i < pathPosition.size(); ++i)
 	{
