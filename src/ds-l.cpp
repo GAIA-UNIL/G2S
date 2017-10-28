@@ -327,7 +327,10 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile, "simulation interupted !!\n");
 		return 0;
 	}
-
+	
+#if _OPENMP
+	omp_set_num_threads(nbThreads);
+#endif
 	std::mt19937 randomGenerator(seed);
 
 	std::vector<g2s::DataImage > TIs;
