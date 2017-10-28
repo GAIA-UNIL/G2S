@@ -43,7 +43,7 @@
 namespace  g2s{
 
 	template<typename T>
-	inline void complexAddAlphaxCxD_32(T* dst, const T* C, const T* D, const T Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_32(T* restrict dst, const T* C, const T* D, const T Alpha, const unsigned int size){
 
 		#pragma omp simd
 		for (int i = 0; i < size; i++)
@@ -54,11 +54,11 @@ namespace  g2s{
 	}
 	
 #if __SSE3__
-	inline void complexAddAlphaxCxD_128(float* dst,  const float* C, const float* D, const float Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_128(float* restrict dst,  const float* C, const float* D, const float Alpha, const unsigned int size){
 
 
 		__m128 alphaVect=_mm_set1_ps(Alpha);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/4; i++)
 		{
 
@@ -79,7 +79,7 @@ namespace  g2s{
 	
 			_mm_storeu_ps(dst+i*4,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -88,11 +88,11 @@ namespace  g2s{
 	}
 
 	
-	inline void complexAddAlphaxCxD_128(double* dst,  const double* C, const double* D, const double Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_128(double* restrict dst,  const double* C, const double* D, const double Alpha, const unsigned int size){
 
 
 		__m128d alphaVect=_mm_set1_pd(Alpha);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/2; i++)
 		{
 
@@ -113,7 +113,7 @@ namespace  g2s{
 	
 			_mm_storeu_pd(dst+i*2,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/2)*2; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -126,11 +126,11 @@ namespace  g2s{
 #endif
 
 #if __AVX__
-	inline void complexAddAlphaxCxD_256(float* dst, const float* C, const float* D, const float Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_256(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size){
 
 
 		__m256 alphaVect=_mm256_set1_ps(Alpha);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/8; i++)
 		{
 			
@@ -150,7 +150,7 @@ namespace  g2s{
 		#endif
 			_mm256_storeu_ps(dst+i*8,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -159,11 +159,11 @@ namespace  g2s{
 	}
 
 
-	inline void complexAddAlphaxCxD_256(double* dst, const double* C, const double* D, const double Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_256(double* restrict dst, const double* C, const double* D, const double Alpha, const unsigned int size){
 
 
 		__m256d alphaVect=_mm256_set1_pd(Alpha);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/4; i++)
 		{
 			
@@ -183,7 +183,7 @@ namespace  g2s{
 		#endif
 			_mm256_storeu_pd(dst+i*4,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -195,12 +195,12 @@ namespace  g2s{
 #endif
 
 #if __AVX512F__
-	inline void complexAddAlphaxCxD_512(float* dst, const float* C, const float* D, const float Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_512(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size){
 
 
 		__m512 alphaVect=_mm512_set1_ps(Alpha);
 		__m512 onesVect=_mm512_set1_ps(1.f);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/16; i++)
 		{
 			
@@ -222,7 +222,7 @@ namespace  g2s{
 	
 			_mm512_storeu_ps(dst+i*16,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/16)*16; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -230,12 +230,12 @@ namespace  g2s{
 		}
 	}
 
-	inline void complexAddAlphaxCxD_512(double* dst, const double* C, const double* D, const double Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD_512(double* restrict dst, const double* C, const double* D, const double Alpha, const unsigned int size){
 
 
 		__m512d alphaVect=_mm512_set1_pd(Alpha);
 		__m512d onesVect=_mm512_set1_pd(1.f);
-
+		#pragma omp simd
 		for (int i = 0; i < 2*size/8; i++)
 		{
 			
@@ -257,7 +257,7 @@ namespace  g2s{
 	
 			_mm512_storeu_pd(dst+i*8,val);
 		}
-
+		#pragma omp simd
 		for (int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -267,7 +267,7 @@ namespace  g2s{
 
 #endif
 template<typename T>
-	inline void complexAddAlphaxCxD(T* dst, const T* C, const T* D, const T Alpha, const unsigned int size){
+	inline void complexAddAlphaxCxD(T* restrict dst, const T* C, const T* D, const T Alpha, const unsigned int size){
 
 	#if __AVX512F__
 		complexAddAlphaxCxD_512(dst, C, D, Alpha, size);
