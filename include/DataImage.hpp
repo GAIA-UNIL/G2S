@@ -4,6 +4,7 @@
 #include <cmath>
 #include <unistd.h>
 #include <iostream>
+#include <cstring>
 #include <vector>
 #include "utils.hpp"
 

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <chrono>
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
