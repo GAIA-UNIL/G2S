@@ -31,22 +31,22 @@ include .depend
 server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-echo: echo.o dataManagement.o
+echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 test: test.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-qs: qs.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-nds: nds.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-ds: ds.o dataManagement.o sharedMemoryManager.o
+ds: ds.o DataImage.o sharedMemoryManager.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-ds-l: ds-l.o dataManagement.o sharedMemoryManager.o CPUThreadDevice.o
+ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 clean:

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include "utils.hpp"
-#include "dataManagement.hpp"
+#include "DataImage.hpp"
 #include "jobManager.hpp"
 
 void printHelp(){
