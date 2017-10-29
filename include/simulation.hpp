@@ -13,12 +13,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	for (int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 	{
-		bool isPureNan=true;
+		bool withNan=false;
 		for (int j = 0; j < di._nbVariable; ++j)
 		{
-			isPureNan&=std::isnan(di._data[i*di._nbVariable+j]);
+			withNan|=std::isnan(di._data[i*di._nbVariable+j]);
 		}
-		if(!isPureNan)
+		if(!withNan)
 			posterioryPath[i]=0;
 	}
 	for (int i = 0; i < numberOfPointToSimulate; ++i)
