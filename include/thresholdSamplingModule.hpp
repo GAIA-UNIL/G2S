@@ -33,22 +33,22 @@ public:
 	};
 
 	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
-		
+
 		if(moduleID>=_maxNumberOfElement.size()){
-			_maxNumberOfElement.resize(moduleID+1,0);
+			#pragma omp critical  (increaseSize_maxNumberOfElement)
+			{
+			if(moduleID>=_maxNumberOfElement.size())
+				_maxNumberOfElement.resize(moduleID+1,0);
+			}
 		}
 		if(_maxNumberOfElement[moduleID]==0){
 			unsigned numberElement=0;
 			for (int i = 0; i < _cdmV[moduleID].size(); ++i)
 			{
-				
 				numberElement+=_cdmV[moduleID][i]->getErrorsArraySize();
-				
 			}
 			_maxNumberOfElement[moduleID]=numberElement;
 		}
-
-
 
 		unsigned vectorSize=_cdmV[moduleID].size();
 		bool updated[vectorSize];
@@ -208,7 +208,7 @@ public:
 	}
 
 	narrownessMeasurment narrowness(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
-		
+
 		narrownessMeasurment result;
 		result.narrowness=0.f;
 		result.candidate.TI=0;
