@@ -450,21 +450,12 @@ int main(int argc, char const *argv[]) {
 		center=center*wieghtKernelPtr->_dims[i]+wieghtKernelPtr->_dims[i]/2;
 	}
 
-
-	//TODO
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
 		wieghtKernelPtr->indexWithDelta(l1, center, a);
 		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
+		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
 	});
-
-	/*std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
-		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return a[0]*a[0]+a[1]*a[1] < b[0]*b[0]+b[1]*b[1] ;
-	});*/
 
 	simulationPath=DI.emptyCopy(true);
 
