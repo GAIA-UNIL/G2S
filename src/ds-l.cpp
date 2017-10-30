@@ -472,7 +472,7 @@ int main(int argc, char const *argv[]) {
 			bool valueSeted=true;
 			for (int j = 0; j < DI._nbVariable; ++j)
 			{
-				if(std::isnan(DI._data[i*+j]))valueSeted=false;
+				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
 			}
 			if(valueSeted)
 				simulationPath._data[i]=-INFINITY;
