@@ -374,6 +374,8 @@ void OpenCLGPUDevice::setTrueMismatch(bool value){
 }
 
 bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
+	if(neighborValueArrayVector.size()==0)return false;
+
 	for (int i = 0; i < _min.size(); ++i)
 	{
 		_min[i]=0;
@@ -389,16 +391,6 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 		}
 	}
 
-	bool valideData=false;
-	for (int i = 0; i < _min.size(); ++i)
-	{
-		if(_min[i]!=0) valideData=true;
-		if(_max[i]!=0) valideData=true;
-	}
-	if(!valideData){
-		return false;
-	}
-	else
 	{
 		bool lines[_fftSize.back()];
 		memset(_frenquencySpaceOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
