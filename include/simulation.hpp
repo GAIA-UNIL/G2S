@@ -23,7 +23,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 	for (int i = 0; i < numberOfPointToSimulate; ++i)
 	{
-		posterioryPath[solvingPath[i]]=i+1;
+		posterioryPath[solvingPath[i]]=i;
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
@@ -51,7 +51,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				unsigned dataIndex;
 				if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
 				{
-					if(posterioryPath[dataIndex]<indexPath+1){
+					if(posterioryPath[dataIndex]<=indexPath){
 						std::vector<float> data(di._nbVariable);
 						unsigned numberOfNaN=0;
 						float val;
@@ -64,7 +64,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 								numberOfNaN+=std::isnan(val);
 								data[i]=val;
 							}
-							if(numberOfNaN==0)break;
+							if((numberOfNaN==0)||(posterioryPath[dataIndex]==indexPath))break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
 						neighborValueArrayVector.push_back(data);

@@ -387,7 +387,7 @@ int main(int argc, char const *argv[]) {
 	for (int i = 0; i < kernel._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i])/2;
+		int sizeInThisDim=(kernel._dims[i])/2+1;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (int k = 0; k < originalSize; ++k)
 		{
@@ -439,14 +439,18 @@ int main(int argc, char const *argv[]) {
 		
 	}
 
-	unsigned center=wieghtKernel.dataSize()/wieghtKernel._nbVariable/2;
+	unsigned center=0;
 	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
+	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+	{
+		center=center*wieghtKernelPtr->_dims[i]+wieghtKernelPtr->_dims[i]/2;
+	}
 
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
 		wieghtKernelPtr->indexWithDelta(l1, center, a);
 		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
+		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
 	});
 
 	/*for (int i = 0; i < pathPosition.size(); ++i)
@@ -468,7 +472,7 @@ int main(int argc, char const *argv[]) {
 			bool valueSeted=true;
 			for (int j = 0; j < DI._nbVariable; ++j)
 			{
-				if(std::isnan(DI._data[i*+j]))valueSeted=false;
+				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
 			}
 			if(valueSeted)
 				simulationPath._data[i]=-INFINITY;
