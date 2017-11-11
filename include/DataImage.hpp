@@ -8,16 +8,30 @@
 #include <vector>
 #include "utils.hpp"
 
-float* loadData(const char * hash, int &sizeX, int &sizeY, int &sizeZ, int &dim, int &nbVariable);
-char* writeData(float* data, int sizeX, int sizeY, int sizeZ, int dim, int nbVariable);
+char* loadRawData(const char * hash);
+char* writeRawData(char* data, bool compresed=false);
+
 namespace g2s{
 
 class DataImage{
-	
+	public:
+	enum VaraibleType{
+		Continuous,
+		Categorical
+	};
+
+	enum EncodingType{
+		Float,
+		Integer,
+		UInteger
+	};
+
 	public:
 	float* _data=nullptr;
 	std::vector<unsigned> _dims;
 	unsigned _nbVariable;
+	std::vector<VaraibleType> _types;
+	EncodingType _encodingType=EncodingType::Float;
 
 	inline DataImage()
 	{
@@ -36,20 +50,15 @@ class DataImage{
 		}
 		_data=(float*)malloc(sizeof(float)*arraySize);
 		memset(_data,0,sizeof(float)*arraySize);
+		_types.resize(nbVariable,VaraibleType::Continuous);
 	}
 
-	inline DataImage(std::string filename)
+	static DataImage createFromFile(std::string filename)
 	{
-		int srcSizeX;
-		int srcSizeY;
-		int srcSizeZ;
-		int srcDims;
-		int srcVariable;
-		_data=loadData((const char *) filename.c_str(),srcSizeX, srcSizeY, srcSizeZ, srcDims, srcVariable);
-		_nbVariable=srcVariable;
-		if(srcDims>0)_dims.push_back(srcSizeX);
-		if(srcDims>1)_dims.push_back(srcSizeY);
-		if(srcDims>2)_dims.push_back(srcSizeZ);
+		char *raw=loadRawData((const char *) filename.c_str());
+		DataImage toReturn(raw);
+		free(raw);
+		return toReturn; 
 	}
 
 	/*inline DataImage(const DataImage& o){
@@ -77,6 +86,71 @@ class DataImage{
     	*this=std::move(other);
         return *this;
     }*/
+	
+	/**
+	raw:
+		- full size (full size included)
+		- number of dim
+		- size of each dim
+		- number of variable
+		- type of variable
+		- data
+	**/
+
+	char* serialize(){
+
+		size_t fullSize=sizeof(fullSize)+sizeof(unsigned)*(1+_dims.size()+1+_types.size()+1)+dataSize()*sizeof(float);
+		char* raw=(char*)malloc(fullSize);
+		size_t index=0;
+		*((size_t*)(raw+4*index))=fullSize;
+		index+=sizeof(fullSize)/4;
+		*((unsigned*)(raw+4*index))=_dims.size();
+		index++;
+		for (int i = 0; i < _dims.size(); ++i)
+		{
+			*((unsigned*)(raw+4*index))=_dims[i];
+			index++;
+		}
+		*((unsigned*)(raw+4*index))=_types.size();
+		index++;
+		for (int i = 0; i < _types.size(); ++i)
+		{
+			*((VaraibleType*)(raw+4*index))=_types[i];
+			index++;
+		}
+		*((EncodingType*)(raw+4*index))=_encodingType;
+		index++;
+		memcpy(raw+4*index,_data,fullSize-4*index);
+
+		return raw;
+
+	}
+
+	inline DataImage(char* raw){
+		size_t index=0;
+		size_t fullSize=*((size_t*)(raw+4*index));
+		index+=sizeof(fullSize)/4;
+		_dims.resize(*((unsigned*)(raw+4*index)));
+		index++;
+		for (int i = 0; i < _dims.size(); ++i)
+		{
+			_dims[i]=*((unsigned*)(raw+4*index));
+			index++;
+		}
+		_types.resize(*((unsigned*)(raw+4*index)));
+		index++;
+		for (int i = 0; i < _types.size(); ++i)
+		{
+			_types[i]=*((VaraibleType*)(raw+4*index));
+			index++;
+		}
+		_nbVariable=_types.size();
+		_encodingType=*((EncodingType*)(raw+4*index));
+		index++;
+		_data=(float*)malloc(fullSize-4*index);
+		memcpy(_data,raw+4*index,fullSize-4*index);
+		
+	}
 
 	inline DataImage& operator=(DataImage&& o)
 	{
@@ -99,20 +173,28 @@ class DataImage{
 		_data=nullptr;		
 	}
 
-	inline void write(std::string filename){
-		char* outputName=writeData(_data,(_dims.size()>0)?_dims[0]:1, (_dims.size()>1)?_dims[1]:1, (_dims.size()>2)?_dims[2]:1, _dims.size(), _nbVariable);
+	inline void write(std::string filename, bool compresed=true){
+		char* raw=serialize();
+		char* outputName=writeRawData(raw,compresed);
+		free(raw);
 		//fprintf(stderr, "save as %s\n",outputName );
 		//fprintf(stderr, "save as %s\n",filename.c_str() );
 		char fullFilename[2048];
 		char outputFullFilename[2048];
-		sprintf(fullFilename,"./data/%s.bgrid",filename.c_str());
-		sprintf(outputFullFilename,"./%s.bgrid",outputName);
+		char extra[16]={0};
+		if(compresed) strcpy(extra,".gz");
+		sprintf(fullFilename,"./data/%s.bgrid%s",filename.c_str(),extra);
+		sprintf(outputFullFilename,"./%s.bgrid%s",outputName,extra);
 		symlink(outputFullFilename, fullFilename);
 		free(outputName);
 	}
 
 	inline DataImage emptyCopy(bool singleVariableOnly=false){
 		return DataImage(_dims.size(),_dims.data(),( singleVariableOnly ? 1 : _nbVariable));
+	}
+
+	inline void setEncoding(EncodingType enc){
+		_encodingType=enc;
 	}
 
 	inline unsigned dataSize(){

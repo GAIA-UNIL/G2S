@@ -18,10 +18,11 @@ int storeData(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 		//fprintf(stderr, "add file %s\n", hash);
 		data+=64;
 		inSize-=64;
-		int dim=((int*)data)[0];
-		int nbVariable=((int*)data)[1];
+		//int dim=((int*)data)[0];
+		//int nbVariable=((int*)data)[1];
 		//fprintf(stderr, "dim:%d nV:%d \n",dim, nbVariable  );
-		if((dim>0) && (nbVariable>0)){
+		//if((dim>0) && (nbVariable>0))
+		{
 
 			char filename[4096];
 			if(compressed)
@@ -54,7 +55,7 @@ zmq::message_t sendData( char* dataName){
 
 	char filename[4096];
 	void* buffer=nullptr;
-	unsigned size=0;
+	size_t fullSize;
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
@@ -62,11 +63,10 @@ zmq::message_t sendData( char* dataName){
 	if(!buffer &&  fileExist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
-			gzseek (dataFile , 0 , SEEK_END);
-			size = gztell (dataFile);
+			gzread (dataFile, &fullSize, sizeof(fullSize));
 			gzrewind (dataFile);
-			buffer = malloc (sizeof(char)*size);
-			gzread (dataFile, buffer, size);
+			buffer =(char*) malloc (sizeof(char)*fullSize);
+			gzread (dataFile, buffer, fullSize);
 			gzclose(dataFile);
 		}
 	}
@@ -75,23 +75,24 @@ zmq::message_t sendData( char* dataName){
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
-			fseek (dataFile , 0 , SEEK_END);
-			size = ftell (dataFile);
+			fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
-			buffer = malloc (sizeof(char)*size);
-			fread (buffer,1,size,dataFile);
+			buffer = (char*)malloc (sizeof(char)*fullSize);
+			fread (buffer,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}
 
 	if(buffer){
 		//fprintf(stderr, "send file\n");
-		zmq::message_t reply (size);
-		memcpy (reply.data (), buffer, size);
+		zmq::message_t reply (fullSize);
+		memcpy (reply.data (), buffer, fullSize);
+		free(buffer);
 		return reply;
-		//free(buffer);
+		//
 		//fprintf(stderr, "%d\n", size);
 	}
+	fprintf(stderr, "file not fund\n");
 	return zmq::message_t(0);
 }
 

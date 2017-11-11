@@ -337,10 +337,10 @@ int main(int argc, char const *argv[]) {
 
 	for (int i = 0; i < sourceFileNameVector.size(); ++i)
 	{
-		TIs.push_back(std::move(g2s::DataImage(sourceFileNameVector[i])));
+		TIs.push_back(std::move(g2s::DataImage::createFromFile(sourceFileNameVector[i])));
 	}
 
-	g2s::DataImage DI(targetFileName);
+	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
@@ -379,7 +379,7 @@ int main(int argc, char const *argv[]) {
 		kernel=g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas);
 	}
 	else {
-		kernel=g2s::DataImage(kernelFileName);
+		kernel=g2s::DataImage::createFromFile(kernelFileName);
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -479,7 +479,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	else {
-		simulationPath=g2s::DataImage(simuationPathFileName);
+		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
 	}
 
 	bool dimAgree=true;
@@ -739,10 +739,11 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
-	DI.write(outputFilename);
 	g2s::DataImage id=DI.emptyCopy(true);
+	id.setEncoding(g2s::DataImage::UInteger);
 	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
 	id.write(outputIndexFilename);
+	DI.write(outputFilename);
 
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;

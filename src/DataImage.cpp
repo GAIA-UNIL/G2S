@@ -2,7 +2,7 @@
 #include "zlib.h"
 #include "picosha2.h"
 
-float* loadData(const char * hash, int &sizeX, int &sizeY, int &sizeZ, int &dim, int &nbVariable){
+char* loadRawData(const char * hash){
 	char* data=nullptr;
 	char* ptr=nullptr;
 	unsigned size=0;
@@ -15,12 +15,12 @@ float* loadData(const char * hash, int &sizeX, int &sizeY, int &sizeZ, int &dim,
 	if(!data &&   g2s::file_exist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
-			gzseek (dataFile , 0 , SEEK_END);
-			size = gztell (dataFile);
+			size_t fullSize;
+			gzread (dataFile, &fullSize, sizeof(fullSize));
 			gzrewind (dataFile);
-			ptr =(char*) malloc (sizeof(char)*size);
+			ptr =(char*) malloc (sizeof(char)*fullSize);
 			data=ptr;
-			gzread (dataFile, data, size);
+			gzread (dataFile, data, fullSize);
 			gzclose(dataFile);
 		}
 	}
@@ -29,44 +29,27 @@ float* loadData(const char * hash, int &sizeX, int &sizeY, int &sizeZ, int &dim,
 	if(!data &&  g2s::file_exist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
-			fseek (dataFile , 0 , SEEK_END);
-			size = ftell (dataFile);
+			size_t fullSize;
+			fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
-			ptr = (char*)malloc (sizeof(char)*size);
+			ptr = (char*)malloc (sizeof(char)*fullSize);
 			data=ptr;
-			fread (data,1,size,dataFile);
+			fread (data,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}
 
 	if(!data){
 		fprintf(stderr, "file not found\n");
-		return nullptr;
 	}
 
-
-	dim=((int*)data)[0];
-	nbVariable=((int*)data)[1];
-	size_t dataSize=nbVariable;
-	data+=2*sizeof(int);
-	for (int i = 0; i < dim; ++i)
-	{
-		if(i==0)sizeX=((int*)data)[i];
-		if(i==1)sizeY=((int*)data)[i];
-		if(i==2)sizeZ=((int*)data)[i];
-		dataSize*=((int*)data)[i];
-	}
-	data+=dim*sizeof(int);
-	float* image=(float*)malloc(dataSize*sizeof(float));
-	memcpy(image,data,dataSize*sizeof(float));
-	free(ptr);
-
-	return image;
+	return data;
 }
 
-char* writeData(float* data, int sizeX, int sizeY, int sizeZ, int dim, int nbVariable){
+char* writeRawData(char* data, bool compresed){
+	size_t fullSize=*((size_t*)data);
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+(nbVariable*sizeZ*sizeY*sizeX-1)*sizeof(float), hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+fullSize-1, hash.begin(), hash.end());
 
 	char* hashInHexa=(char*)malloc(65);
 	memset(hashInHexa,0,65);
@@ -78,26 +61,23 @@ char* writeData(float* data, int sizeX, int sizeY, int sizeZ, int dim, int nbVar
 
 	char filename[4096];
 
-	sprintf(filename,"./data/%s.bgrid",hashInHexa);
+	if(compresed) {
+		sprintf(filename,"./data/%s.bgrid.gz",hashInHexa);
 
-	FILE* dataFile=fopen(filename,"wb");
-	if(dataFile) {
-
-		fwrite (&dim,1, sizeof(dim),dataFile);
-		fwrite (&nbVariable,1, sizeof(nbVariable),dataFile);
-
-		if(dim>=1){
-			fwrite (&sizeX, 1, sizeof(sizeX),dataFile);
+		gzFile dataFile=gzopen(filename,"wb");
+		if(dataFile) {
+			gzwrite (dataFile, data, fullSize);
+			gzclose(dataFile);
 		}
-		if(dim>=2){
-			fwrite (&sizeY, 1, sizeof(sizeY),dataFile);
-		}
-		if(dim>=3){
-			fwrite (&sizeZ, 1, sizeof(sizeZ),dataFile);
-		}
+	}
+	else {
+			sprintf(filename,"./data/%s.bgrid",hashInHexa);
 
-		fwrite (data, sizeof(float), nbVariable*sizeZ*sizeY*sizeX, dataFile);
-		fclose(dataFile);
+		FILE* dataFile=fopen(filename,"wb");
+		if(dataFile) {
+			fwrite (data, 1, fullSize, dataFile);
+			fclose(dataFile);
+		}
 	}
 	return hashInHexa;
 }

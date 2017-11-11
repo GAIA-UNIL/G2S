@@ -270,7 +270,7 @@ int main(int argc, char const *argv[]) {
 
 	if(!run) return 0;
 
-	g2s::DataImage source(sourceFileNameVector[0]);
+	g2s::DataImage source=g2s::DataImage::createFromFile(sourceFileNameVector[0]);
 	source.write(outputFilename);
 
 	return 0;

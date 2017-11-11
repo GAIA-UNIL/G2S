@@ -258,7 +258,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		for (int i = 0; i < maxAutorisedChunkSize; ++i)
 		{
 			unsigned simulatedPlace=bestPlaces[i];
-			if(simulatedPlace<0 || simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(usedNarrowness[i])) continue;
+			if(/*simulatedPlace<0 ||*/ simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(usedNarrowness[i])) continue;
 
 			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
 			solvingPath[simulatedPlace]=solvingPathIndex;
@@ -297,7 +297,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		if(!std::isnan(narrownessArray[i]) && (solvingPath[i]>solvingPathIndex)){
 
 			unsigned simulatedPlace=i;
-			if(simulatedPlace<0 || simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(narrownessArray[i])) continue;
+			if(/*simulatedPlace<0 || */simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(narrownessArray[i])) continue;
 			solvingPath[simulatedPlace]=solvingPathIndex;
 
 			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];

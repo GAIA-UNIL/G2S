@@ -341,10 +341,10 @@ int main(int argc, char const *argv[]) {
 
 	for (int i = 0; i < sourceFileNameVector.size(); ++i)
 	{
-		TIs.push_back(std::move(g2s::DataImage(sourceFileNameVector[i])));
+		TIs.push_back(std::move(g2s::DataImage::createFromFile(sourceFileNameVector[i])));
 	}
 
-	g2s::DataImage DI(targetFileName);
+	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
@@ -383,7 +383,7 @@ int main(int argc, char const *argv[]) {
 		kernel=g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas);
 	}
 	else {
-		kernel=g2s::DataImage(kernelFileName);
+		kernel=g2s::DataImage::createFromFile(kernelFileName);
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -458,7 +458,7 @@ int main(int argc, char const *argv[]) {
 	});
 
 	simulationPath=DI.emptyCopy(true);
-
+	simulationPath.setEncoding(g2s::DataImage::UInteger);
 	
 	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
 	memset(importDataIndex,0,sizeof(unsigned)*simulationPath.dataSize());
@@ -724,6 +724,7 @@ int main(int argc, char const *argv[]) {
 
 	DI.write(outputFilename);
 	g2s::DataImage id=DI.emptyCopy(true);
+	id.setEncoding(g2s::DataImage::UInteger);
 	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
 	id.write(outputIndexFilename);
 	NI.write(outputNarrownessFilename);

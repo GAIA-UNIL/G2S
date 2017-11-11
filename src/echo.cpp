@@ -78,20 +78,10 @@ int main(int argc, char const *argv[]) {
 
 	if(!run) return 0;
 
-	float* srcIput=loadData((const char *) sourceFileName,srcSizeX, srcSizeY, srcSizeZ, srcDims, srcVariable);
+	g2s::DataImage srcIput=g2s::DataImage::createFromFile(sourceFileName);
 
-	char* outputName=writeData(srcIput,  srcSizeX, srcSizeY, srcSizeZ, srcDims, srcVariable);
-	char fullFilename[2048];
-	char outputFullFilename[2048];
-	sprintf(fullFilename,"./data/%s.bgrid",outputFilename);
-	sprintf(outputFullFilename,"./%s.bgrid",outputName);
-	symlink(outputFullFilename, fullFilename);
+	srcIput.write(outputFilename);
 
-	fprintf(reportFile, "%s\n", outputName);
-
-	// free stuff
-	free(srcIput);
-	srcIput=NULL;
 
 	return 0;
 }
