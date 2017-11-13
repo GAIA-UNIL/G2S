@@ -197,6 +197,7 @@ int main(int argc, char const *argv[]) {
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	unsigned chunkSize=1;
 	unsigned updateRadius=10;
+	unsigned nbBandsForNarrowness=1;
 	float maxProgression=1;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 
@@ -223,6 +224,12 @@ int main(int argc, char const *argv[]) {
 		narrownessRange=atof((arg.find("-nw")->second).c_str());
 	}
 	arg.erase("-nw");
+
+	if (arg.count("-nwb") == 1)
+	{
+		nbBandsForNarrowness=atoi((arg.find("-nwb")->second).c_str());
+	}
+	arg.erase("-nwb");
 
 	if (arg.count("-cs") == 1)
 	{
@@ -661,7 +668,7 @@ int main(int argc, char const *argv[]) {
 
 
 	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesuremnt, nbThreads);
-	QSM.setNarrownessFunction([&TIs,narrownessRange](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
+	QSM.setNarrownessFunction([&TIs,narrownessRange, nbBandsForNarrowness](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];
 		float *values_ptr=values;;
@@ -685,11 +692,11 @@ int main(int argc, char const *argv[]) {
 
 		float narrowness=0;
 
-		for (int j = 0; j < nbVariable; ++j)
+		for (int j = nbVariable-nbBandsForNarrowness; j < nbVariable; ++j)
 		{
 			narrowness+=fabs(values[localPosition[int(ceil((0.5f-narrownessRange/2.f)*nb))]*nbVariable+j]-values[localPosition[int(floor((0.5f+narrownessRange/2.f)*nb))]*nbVariable+j]);
 		}
-		return narrowness/nbVariable;
+		return narrowness/(nbVariable-nbBandsForNarrowness);
 
 	});
 	// run QS
