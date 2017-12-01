@@ -5,6 +5,8 @@
 #include "DataImage.hpp"
 #include "jobManager.hpp"
 
+#include "simulation.hpp"
+
 void printHelp(){
 	printf ("that is the help");
 }
