@@ -218,7 +218,7 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 		position=position*_srcSize[i] + (_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1);
 	}
 
-	return position;
+	return position+1; //TODO check the origine of this 1
 }
 
 void CPUThreadDevice::setTrueMismatch(bool value){
@@ -313,7 +313,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			for (int j = 0; j < _realSpaceSize; j+=delta)
 			{
-				fillVectorized(_realSpace,j,blockSize,INFINITY);
+				fillVectorized(_realSpace,j,blockSize,-INFINITY);
 			}
 		}
 

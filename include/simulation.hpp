@@ -6,10 +6,6 @@
 #include "fKst.hpp"
 #include <thread>
 
-#if __INTEL_COMPILER
-	#undef isnan
-	#undef isinf
-#endif
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,

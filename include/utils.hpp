@@ -18,6 +18,12 @@
 #ifndef G2S_UTILS
 #define G2S_UTILS
 
+#include <cmath>
+#if __INTEL_COMPILER
+	#undef isnan
+	#undef isinf
+#endif
+
 namespace g2s {
 
 	enum DistanceType{

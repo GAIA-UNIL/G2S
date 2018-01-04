@@ -7,6 +7,7 @@
 #include <cstring>
 #include <vector>
 #include "utils.hpp"
+#include "typeDefine.hpp"
 
 char* loadRawData(const char * hash);
 char* writeRawData(char* data, bool compresed=false);
@@ -74,6 +75,7 @@ class DataImage{
 	{
 		_dims=o._dims;
 		_nbVariable=o._nbVariable;
+		_types=o._types;
 		_data=o._data;
 		o._data=nullptr;
 		o._nbVariable=0;
@@ -303,7 +305,124 @@ class DataImage{
 			}
 			return value;
 		}
+
+		std::vector<std::vector<g2s::DataImage> > convertInput4Xcorr( std::vector<unsigned> fftSize, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
+			std::vector<std::vector<g2s::DataImage> > output;
+			unsigned categoriesValuesIndex=0;
+			for (int i = 0; i < _nbVariable; ++i)
+			{
+				if(_types[i]==Continuous){
+					output.push_back(std::vector<g2s::DataImage>());
+					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+					//output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+					memset(output[i][0]._data,0,sizeof(float) * output[i][0].dataSize());
+					memset(output[i][1]._data,0,sizeof(float) * output[i][1].dataSize());
+					//memset(output[i][2]._data,0,sizeof(float) * output[i][2].dataSize());
+
+					for (int j = i; j < dataSize(); j+=_nbVariable)
+					{
+						unsigned newIndex=output[i][0].dataSize()-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
+						output[i][0]._data[newIndex] = (!std::isnan( _data[j] )) * _data[j] * _data[j];
+						output[i][1]._data[newIndex] = (!std::isnan( _data[j] )) * _data[j];
+						//output[i][2]._data[newIndex] = (!std::isnan( _data[j] ));
+					}	
+				}
+
+				if(_types[i]==Categorical){
+					output.push_back(std::vector<g2s::DataImage>());
+					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
+					for (int k = 0; k < numberOfCategorie; ++k)
+					{
+						output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+						memset(output[i][k]._data,0,sizeof(float) * output[i][k].dataSize());
+					}
+
+					for (int j = i; j < dataSize(); j+=_nbVariable)
+					{
+						unsigned newIndex=output[i][0].dataSize()-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
+						for (int k = 0; k < numberOfCategorie; ++k)
+						{
+							//output[i][k]._data[newIndex] = (_data[j] != categoriesValues[categoriesValuesIndex][k])/float(numberOfCategorie);
+							output[i][k]._data[newIndex] = (_data[j] == categoriesValues[categoriesValuesIndex][k]);
+						}
+					}
+				}
+			}
+
+			if(needCrossMesurement){
+				output.push_back(std::vector<g2s::DataImage>());
+				output[_nbVariable].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+				memset(output[_nbVariable][0]._data,0,sizeof(float) * output[_nbVariable][0].dataSize());
+
+				for (int j = 0; j < dataSize(); j++)
+				{
+					unsigned newIndex=output[_nbVariable][0].dataSize()-output[_nbVariable][0].corrd2Index(index2Corrd(j/_nbVariable));
+					if(std::isnan(_data[j])){
+						output[_nbVariable][0]._data[newIndex] = 0.f;
+					}else{
+						output[_nbVariable][0]._data[newIndex] = 1.f;
+					}
+				}
+			}
+			return output;
+		}
+
+		void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
+			unsigned categoriesValuesIndex=0;
+
+			for (int i = 0; i < _nbVariable; ++i)
+			{
+				std::vector<float> coef;
+				std::vector<convertionType> convType;
+				if(_types[i]==Continuous){
+					
+					coef.push_back(-1.f);
+					convType.push_back(P0);
+					coef.push_back(2.f);
+					convType.push_back(P1);
+					coef.push_back(-1.f);
+					if(needCrossMesurement)convType.push_back(P2);
+					
+				}
+
+				if(_types[i]==Categorical){
+					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
+					for (int k = 0; k < numberOfCategorie; ++k)
+					{
+						coef.push_back(1);
+						convType.push_back(P0);
+					}
+				}
+				variablesCoeficientMainVector.push_back(coef);
+				convertionTypeVectorMainVector.push_back(convType);
+			}
+		}
+
+	protected:
+		std::vector<unsigned> index2Corrd(unsigned index){
+			std::vector<unsigned> result(_dims.size());
+			for (int i = 0; i < _dims.size(); ++i)
+			{
+				result[i]=index%_dims[i];
+				index/=_dims[i];
+			}
+			return result;
+		}
+
+		unsigned corrd2Index(std::vector<unsigned> coord){
+			unsigned result=0;
+
+			for (int i = std::min(_dims.size(),coord.size())-1; i >=0 ; i--)
+			{
+				result*=_dims[i];
+				result+=coord[i];
+			}
+			return result;
+		}
 };
+
+
 }
 
 #endif // DATA_IMAGE_HPP
