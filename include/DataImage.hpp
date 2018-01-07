@@ -213,24 +213,26 @@ class DataImage{
 		std::vector<int> dists(_dims.size());
 
 		bool isOk=true;
+
+		std::vector<int> val(_dims.size());
+
 		for (int i = 0; i < _dims.size(); ++i)
 		{
-			int val=position;
-			for (int j = 0; j < i; ++j)
-			{
-				val/=_dims[j];
-			}
-			val%=_dims[i];
-			val+=deltaVect[i];
-			if((val<0)|| (val>= _dims[i])){
+			finalValue*=_dims[i];
+			val[i]=position%_dims[i]+deltaVect[i];
+			if((val[i]<0)|| (val[i] >= _dims[i])){
 				isOk=false;
 			}
-			for (int j = 0; j < i; ++j)
-			{
-				val*=_dims[j];
-			}
-			finalValue+=val;
+			position/=_dims[i];
 		}
+
+		for (int i = _dims.size()-1; i >= 0; i--)
+		{
+			finalValue*=_dims[i];
+			finalValue+=val[i];
+		}
+
+
 		location=finalValue;
 
 		return isOk;
@@ -287,15 +289,11 @@ class DataImage{
 	public:
 		float distance2ToCenter(unsigned index){
 			std::vector<int> dists(_dims.size());
+			int val=index;
 			for (int i = 0; i < _dims.size(); ++i)
 			{
-				int val=index;
-				for (int j = 0; j < i; ++j)
-				{
-					val/=_dims[j];
-				}
-				val%=_dims[i];
-				dists[i]=abs(val-(int(_dims[i])-1)/2);
+				dists[i]=abs(int(val%_dims[i])-(int(_dims[i])-1)/2);
+				val/=_dims[i];
 			}
 
 			float value=0.f;
@@ -373,29 +371,33 @@ class DataImage{
 
 			for (int i = 0; i < _nbVariable; ++i)
 			{
-				std::vector<float> coef;
-				std::vector<convertionType> convType;
+
 				if(_types[i]==Continuous){
-					
+					std::vector<float> coef;
+					std::vector<convertionType> convType;
 					coef.push_back(-1.f);
 					convType.push_back(P0);
 					coef.push_back(2.f);
 					convType.push_back(P1);
 					coef.push_back(-1.f);
 					if(needCrossMesurement)convType.push_back(P2);
-					
+					variablesCoeficientMainVector.push_back(coef);
+					convertionTypeVectorMainVector.push_back(convType);
 				}
 
 				if(_types[i]==Categorical){
 					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
 					for (int k = 0; k < numberOfCategorie; ++k)
 					{
+						std::vector<float> coef;
+						std::vector<convertionType> convType;
 						coef.push_back(1);
-						convType.push_back(P0);
+						convType.push_back(P1);
+						variablesCoeficientMainVector.push_back(coef);
+						convertionTypeVectorMainVector.push_back(convType);
 					}
 				}
-				variablesCoeficientMainVector.push_back(coef);
-				convertionTypeVectorMainVector.push_back(convType);
+				
 			}
 		}
 

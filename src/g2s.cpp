@@ -49,7 +49,16 @@ inline mxArray* convert2MxArray(g2s::DataImage &image){
 	if(image._encodingType==g2s::DataImage::UInteger)
 		array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxUINT32_CLASS , mxREAL);
 
-	memcpy(mxGetPr(array),image._data,image.dataSize()*sizeof(float));
+	float* data=(float*)mxGetPr(array);
+	unsigned nbOfVariable=image._nbVariable;
+	unsigned dataSize=image.dataSize();
+	for (int i = 0; i < dataSize/nbOfVariable; ++i)
+	{
+		for (int j = 0; j < nbOfVariable; ++j)
+		{
+			data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
+		}
+	}
 
 	return array;
 }
@@ -77,14 +86,16 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 	bool withTimeout=false;
 	char sourceName[65]={0};
 	int dataSize=mxGetNumberOfElements(prh);
-	int nbOfVariable=mxGetNumberOfElements(variableTypeArray);
-	int dimData = mxGetNumberOfDimensions(prh);
+	int nbOfVariable=1;
+	if(variableTypeArray)nbOfVariable=mxGetNumberOfElements(variableTypeArray);
+	int dimData = mxGetNumberOfDimensions(prh)-(nbOfVariable>1);
 	const size_t * dim_array = mxGetDimensions(prh);
 	unsigned dimArray[dimData];
 	for (int i = 0; i < dimData; ++i)
 	{
 		dimArray[i]=dim_array[i];
 	}
+
 	g2s::DataImage image(dimData,dimArray,nbOfVariable);
 	float *data=image._data;
 	
@@ -201,7 +212,7 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 			}
 		}
 	}
-	if(mxGetClassID(prh)==mxUINT64_CLASS){
+	if(mxGetClassID(prh)==mxINT64_CLASS){
 		int64_t *matrixData=(int64_t *)mxGetPr(prh);
 		for (int i = 0; i < dataSize/nbOfVariable; ++i)
 		{

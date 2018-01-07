@@ -145,7 +145,7 @@ int main(int argc, char const *argv[]) {
 	{
 		kernelFileName=arg.find("-ki")->second;
 	}else{	
-		fprintf(reportFile,"error kernel\n");
+		fprintf(reportFile,"non critical error : no kernel \n");
 	}
 	arg.erase("-ki");
 
@@ -154,7 +154,7 @@ int main(int argc, char const *argv[]) {
 	{
 		simuationPathFileName=arg.find("-sp")->second;
 	}else{	
-		fprintf(reportFile,"error simulation path\n");
+		fprintf(reportFile,"non critical error : no simulation path\n");
 	}
 	arg.erase("-sp");
 
@@ -342,6 +342,7 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
 
+
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
 
@@ -387,7 +388,7 @@ int main(int argc, char const *argv[]) {
 	for (int i = 0; i < kernel._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i])/2+1;
+		int sizeInThisDim=(kernel._dims[i]+1)/2;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (int k = 0; k < originalSize; ++k)
 		{
@@ -408,15 +409,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	/*for (int i = 0; i < pathPosition.size(); ++i)
-	{
-		fprintf(stderr, "____\n");
-		for (int j = 0; j < pathPosition[i].size(); ++j)
-		{
-			fprintf(stderr, "%d, ",pathPosition[i][j] );
-		}
-		fprintf(stderr, "\n");
-	}*/
+	
 
 	
 
@@ -443,7 +436,7 @@ int main(int argc, char const *argv[]) {
 	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
 	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
 	{
-		center=center*wieghtKernelPtr->_dims[i]+wieghtKernelPtr->_dims[i]/2;
+		center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
 	}
 
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
@@ -453,10 +446,18 @@ int main(int argc, char const *argv[]) {
 		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
 	});
 
-	/*for (int i = 0; i < pathPosition.size(); ++i)
+
+	/*for (int i = 0; i < 10; ++i)
 	{
-		fprintf(stderr, "%d %d\n", pathPosition[i][0], pathPosition[i][1]);
-	}*/
+		for (int k = 0; k < pathPosition[i].size(); ++k)
+		{
+			fprintf(stderr, "%d ", pathPosition[i][k]);
+		}
+		unsigned position;
+		wieghtKernelPtr->indexWithDelta(position, center, pathPosition[i]);
+		fprintf(stderr, " ==> %f\n",wieghtKernelPtr->_data[position]);
+	}
+	fprintf(stderr, "\n\n" );*/
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
@@ -651,7 +652,7 @@ int main(int argc, char const *argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
-	 seedForIndex, importDataIndex, nbNeighbors, nbThreads);
+	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
