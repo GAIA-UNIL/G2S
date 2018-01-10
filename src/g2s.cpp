@@ -13,6 +13,7 @@
 #include <atomic>
 #include <future>
 #include <algorithm>
+#include "DataImage.hpp"
 
 #ifdef WITH_WEB_SUPPORT
 #include "cvtZMQ2WS.hpp"
@@ -30,6 +31,37 @@
 #include "matrix.h"
 
 typedef unsigned jobIdType;
+
+
+inline mxArray* convert2MxArray(g2s::DataImage &image){
+
+	size_t dimsArray[image._dims.size()+1];
+	for (int i = 0; i < image._dims.size(); ++i)
+	{
+		dimsArray[i]=image._dims[i];
+	}
+	dimsArray[image._dims.size()]=image._nbVariable;
+	mxArray *array=nullptr;
+	if(image._encodingType==g2s::DataImage::Float)
+		array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxSINGLE_CLASS , mxREAL);
+	if(image._encodingType==g2s::DataImage::Integer)
+		array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxINT32_CLASS , mxREAL);
+	if(image._encodingType==g2s::DataImage::UInteger)
+		array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxUINT32_CLASS , mxREAL);
+
+	float* data=(float*)mxGetPr(array);
+	unsigned nbOfVariable=image._nbVariable;
+	unsigned dataSize=image.dataSize();
+	for (int i = 0; i < dataSize/nbOfVariable; ++i)
+	{
+		for (int j = 0; j < nbOfVariable; ++j)
+		{
+			data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
+		}
+	}
+
+	return array;
+}
 
 inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	infoContainer task;
@@ -49,17 +81,46 @@ std::string mxGetString(const mxArray *pm){
 	return std::string(result);
 }
 
-inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh){
+inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const mxArray* variableTypeArray=nullptr){
 
 	bool withTimeout=false;
 	char sourceName[65]={0};
 	int dataSize=mxGetNumberOfElements(prh);
 	int nbOfVariable=1;
-	int dimData = mxGetNumberOfDimensions(prh);
-	const int * dim_array = mxGetDimensions(prh);
-	if(dimData!=dim) nbOfVariable=dim_array[dimData-1];
-	float *rawData=(float*)malloc(sizeof(float)*dataSize);
-	memset(rawData,0,sizeof(float)*dataSize);
+	if(variableTypeArray)nbOfVariable=mxGetNumberOfElements(variableTypeArray);
+	int dimData = mxGetNumberOfDimensions(prh)-(nbOfVariable>1);
+	const size_t * dim_array = mxGetDimensions(prh);
+	unsigned dimArray[dimData];
+	for (int i = 0; i < dimData; ++i)
+	{
+		dimArray[i]=dim_array[i];
+	}
+
+	g2s::DataImage image(dimData,dimArray,nbOfVariable);
+	float *data=image._data;
+	
+	
+	if (variableTypeArray && mxIsSingle(variableTypeArray))
+	{
+		float* ptrVarType=(float *)mxGetPr(variableTypeArray);
+		for (int i = 0; i < nbOfVariable; ++i)
+		{
+			if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
+			if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+		}
+	}
+
+	if (variableTypeArray && mxIsDouble(variableTypeArray))
+	{
+		double* ptrVarType=(double *)mxGetPr(variableTypeArray);
+		for (int i = 0; i < nbOfVariable; ++i)
+		{
+			if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
+			if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+		}
+	}
+	
+	memset(data,0,sizeof(float)*dataSize);
 	//manage data
 	if(mxIsDouble(prh)){
 		double *matrixData=(double *)mxGetPr(prh);
@@ -67,7 +128,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -77,7 +138,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -87,7 +148,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -97,7 +158,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -107,7 +168,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -117,7 +178,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -127,7 +188,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -137,7 +198,7 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -147,17 +208,17 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
-	if(mxGetClassID(prh)==mxUINT64_CLASS){
+	if(mxGetClassID(prh)==mxINT64_CLASS){
 		int64_t *matrixData=(int64_t *)mxGetPr(prh);
 		for (int i = 0; i < dataSize/nbOfVariable; ++i)
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
@@ -168,14 +229,16 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		{
 			for (int j = 0; j < nbOfVariable; ++j)
 			{
-				rawData[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
+				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
 			}
 		}
 	}
 	//compute hash
 
+	char* rawData=image.serialize();
+	size_t fullsize=*((size_t*)rawData);
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+dataSize*sizeof(float), hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
 
 	//check existance
 	infoContainer task;
@@ -214,25 +277,16 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 		task.version=1;
 		task.task=UPLOAD;
 
-		zmq::message_t request( sizeof(infoContainer) + 64 * sizeof(unsigned char) + sizeof(dim) + sizeof(nbOfVariable) + dim * sizeof(int) +dataSize*sizeof(float));
+		zmq::message_t request( sizeof(infoContainer) + 64 * sizeof(unsigned char) + fullsize);
 		char * positionInTheStream=(char*)request.data();
 
 		memcpy (positionInTheStream, &task, sizeof(infoContainer));
 		positionInTheStream+=sizeof(infoContainer);
 		memcpy (positionInTheStream, hashInHexa, 64 * sizeof(unsigned char));
 		positionInTheStream+=64 * sizeof(unsigned char);
-		memcpy (positionInTheStream, &dim, sizeof(dim));
-		positionInTheStream+=sizeof(dim);
-		memcpy (positionInTheStream, &nbOfVariable, sizeof(nbOfVariable));
-		positionInTheStream+=sizeof(nbOfVariable);
-
-		for (int j = 0; j < dim; ++j)
-		{
-			memcpy (positionInTheStream, dim_array+j, sizeof(int));
-			positionInTheStream+=sizeof(dim_array[j]);
-		}
-		memcpy(positionInTheStream,rawData,dataSize*sizeof(float));
-		positionInTheStream+=dataSize*sizeof(float);
+		memcpy (positionInTheStream, rawData, fullsize);
+		positionInTheStream+=fullsize;
+		
 
 		if(!socket.send (request) && withTimeout){
 			mexErrMsgIdAndTxt("gss:error", "timeout sending data");
@@ -258,8 +312,14 @@ inline std::string uploadData(zmq::socket_t &socket, int dim, const mxArray* prh
 	return std::string(sourceName);
 }
 
-inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socket, int dim, int nrhs, const mxArray *prhs[]){
+inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socket, int nrhs, const mxArray *prhs[]){
 	std::vector<std::vector<std::string> > result;
+	int dataTypeIndex=-1;
+	for (int i = 0; i < nrhs; ++i)
+	{
+		if(0==strcmp(mxGetString(prhs[i]).c_str(),"-dt"))dataTypeIndex=i+1;
+	}
+
 	for (int i = 0; i < nrhs; ++i)
 	{
 		if(mxIsChar(prhs[i])&& 0==strcmp(mxGetString(prhs[i]).c_str(),"-ti")){
@@ -273,7 +333,8 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(mxIsChar(prhs[j])){
 					localVector.push_back(mxGetString(prhs[j]));
 				}else{
-					localVector.push_back(uploadData(socket, dim, prhs[j]));
+					if(dataTypeIndex<0)mexErrMsgIdAndTxt("gss:error", "-dt wasn't specified");
+					localVector.push_back(uploadData(socket, prhs[j] ,prhs[dataTypeIndex]));
 				}
 			}
 			result.push_back(localVector);
@@ -289,7 +350,8 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(mxIsChar(prhs[j])){
 					localVector.push_back(mxGetString(prhs[j]));
 				}else{
-					localVector.push_back(uploadData(socket, dim, prhs[j]));
+					if(dataTypeIndex<0)mexErrMsgIdAndTxt("gss:error", "-dt wasn't specified");
+					localVector.push_back(uploadData(socket, prhs[j], prhs[dataTypeIndex]));
 				}
 			}
 			result.push_back(localVector);
@@ -305,7 +367,12 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(mxIsChar(prhs[j])){
 					localVector.push_back(mxGetString(prhs[j]));
 				}else{
-					localVector.push_back(uploadData(socket, dim, prhs[j]));
+					mxArray *variable=mxCreateNumericArray(mxGetNumberOfDimensions(prhs[dataTypeIndex]), mxGetDimensions(prhs[dataTypeIndex]), mxSINGLE_CLASS , mxREAL);
+					for (int i = 0; i < mxGetNumberOfElements(variable); ++i)
+					{
+						((float*)mxGetPr(variable))[i]=0.f;
+					}
+					localVector.push_back(uploadData(socket, prhs[j],variable));
 				}
 			}
 			result.push_back(localVector);
@@ -321,7 +388,7 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(mxIsChar(prhs[j])){
 					localVector.push_back(mxGetString(prhs[j]));
 				}else{
-					localVector.push_back(uploadData(socket, dim, prhs[j]));
+					localVector.push_back(uploadData(socket, prhs[j]));
 				}
 			}
 			result.push_back(localVector);
@@ -440,7 +507,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		strcpy(address,"tcp://localhost:8128");
 	socket.connect (address);
 
-	std::vector<std::vector<std::string> > dataString=lookForUpload(socket, dim, nrhs, prhs);
+	std::vector<std::vector<std::string> > dataString=lookForUpload(socket, nrhs, prhs);
 
 
 	/*for (int i = 0; i < dataString.size(); ++i)
@@ -668,41 +735,14 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(!socket.recv (&reply) && withTimeout){
 			mexErrMsgIdAndTxt("gss:error", "timeout : get data dont answer");
 		}
-		
 		if(reply.size()!=0){
 			printf("progres %.3f%%\n",100.0f );
 			mexEvalString("drawnow");
 			//printf( "recive\n");
 
-			size_t inSize=reply.size();
-			char* data=(char*)reply.data();
-			
-			int dim=((int*)data)[0];
-			int nbVariable=((int*)data)[1];
-			size_t dataSize=nbVariable;
-			data+=2*sizeof(int);
-			int* sizeDim=(int*)malloc((dim+1)*sizeof(int));
-			for (int i = 0; i < dim; ++i)
-			{
-				dataSize*=((int*)data)[i];
-				sizeDim[i]=((int*)data)[i];
-			}
-			sizeDim[dim]=nbVariable;
-			data+=dim*sizeof(int);
-
-
-			mxArray *array=mxCreateNumericArray(dim+1, sizeDim, mxSINGLE_CLASS, mxREAL);
-			float* arrayPtr=(float*)mxGetPr(array);
-			for (int j = 0; j < nbVariable; ++j)
-			{
-				for (int i = 0; i < dataSize/nbVariable; ++i)
-				{
-					arrayPtr[i+dataSize/nbVariable*j]=((float*)data)[j+i*nbVariable];
-				}
-			}
-			plhs[0]=array;
+			g2s::DataImage image((char*)reply.data());
+			plhs[0]=convert2MxArray(image);
 			stop=true;
-			free(sizeDim);
 		}
 	}
 
@@ -769,40 +809,9 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			}
 			
 			if(reply.size()!=0){
-				printf("progres %.3f%%\n",100.0f );
-				mexEvalString("drawnow");
-				//printf( "recive\n");
-
-				size_t inSize=reply.size();
-				char* data=(char*)reply.data();
-				
-				int dim=((int*)data)[0];
-				int nbVariable=((int*)data)[1];
-				size_t dataSize=nbVariable;
-				data+=2*sizeof(int);
-				int* sizeDim=(int*)malloc((dim+1)*sizeof(int));
-				for (int i = 0; i < dim; ++i)
-				{
-					dataSize*=((int*)data)[i];
-					sizeDim[i]=((int*)data)[i];
-				}
-				sizeDim[dim]=nbVariable;
-				data+=dim*sizeof(int);
-
-
-				mxArray *array=mxCreateNumericArray(dim+1, sizeDim, isInteger[positionInOutput] ? mxUINT32_CLASS : mxSINGLE_CLASS , mxREAL);
-				memcpy(mxGetPr(array),data,dataSize/nbVariable*sizeof(unsigned int));
-				/*float* arrayPtr=(float*)mxGetPr(array);
-				for (int j = 0; j < nbVariable; ++j)
-				{
-					for (int i = 0; i < dataSize/nbVariable; ++i)
-					{
-						arrayPtr[i+dataSize/nbVariable*j]=((float*)data)[j+i*nbVariable];
-					}
-				}*/
-				plhs[downloadInformation]=array;
+				g2s::DataImage image((char*)reply.data());
+				plhs[downloadInformation]=convert2MxArray(image);
 				stop=true;
-				free(sizeDim);
 				downloadInformation++;
 			}
 			positionInOutput++;
@@ -829,7 +838,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer !");
 			else{
 				int duration=*((int*)reply.data());
-				int one=1;
+				size_t one=1;
 				plhs[nlhs-1]=mxCreateNumericArray(1, &one, mxSINGLE_CLASS, mxREAL);
 				*(float*)mxGetPr(plhs[nlhs-1])=duration/(1000.f);
 			}	

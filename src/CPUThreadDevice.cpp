@@ -16,11 +16,11 @@
 
 #define FFTW_PLAN_OPTION FFTW_PATIENT
 
-#if __cilk
-	#define fillVectorized(name, begin, amount, value) name[begin:amount]=value;
-#else
-	#define fillVectorized(name, begin, amount, value) std::fill(name+begin,name+begin+amount-1,value);
-#endif
+// #if __cilk
+// 	#define fillVectorized(name, begin, amount, value) name[begin:amount]=value;
+// #else
+	#define fillVectorized(name, begin, amount, value) std::fill(name+begin,name+begin+amount,value);
+// #endif
 
 
 CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
@@ -218,7 +218,7 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 		position=position*_srcSize[i] + (_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1);
 	}
 
-	return position;
+	return position+1; //TODO check the origine of this 1
 }
 
 void CPUThreadDevice::setTrueMismatch(bool value){
@@ -267,6 +267,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			for (int i = 0; i < neighborArray.size(); ++i)
 			{
 				_realSpace[ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
+				//fprintf(stderr, "%f\n", neighborValueArrayVector[i][var]);
 				lines[neighborArray[i].back()]=true;
 			}
 
@@ -313,7 +314,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			for (int j = 0; j < _realSpaceSize; j+=delta)
 			{
-				fillVectorized(_realSpace,j,blockSize,INFINITY);
+				fillVectorized(_realSpace,j,blockSize,-INFINITY);
 			}
 		}
 

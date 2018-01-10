@@ -2,6 +2,7 @@
 #define SAMPLING_MODULE_HPP
 
 #include <functional>
+#include "typeDefine.hpp"
 
 class SamplingModule {
 public:
@@ -15,11 +16,7 @@ public:
 		float narrowness;
 	};
 
-	enum convertionType{
-		P0=0,
-		P1=1,
-		P2=2
-	};
+
 protected:
 	std::vector<ComputeDeviceModule*> *_cdmV;
 	g2s::DataImage* _kernel;

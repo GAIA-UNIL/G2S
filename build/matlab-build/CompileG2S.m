@@ -1,7 +1,7 @@
 if ismac
     mex ../../src/g2s.cpp ../../src/cvtZMQ2WS.cpp -I/usr/local/include -lut -I/opt/local/include -I../../include -L/opt/local/lib -lzmq -ljsoncpp
 elseif isunix
-    mex ../../src/g2s.cpp -lut -I/usr/include -I../../include -I/usr/include/jsoncpp -L/usr/lib -lzmq  -jsoncpp
+    mex ../../src/g2s.cpp -lut -I/usr/include -I../../include -I/usr/include/jsoncpp -L/usr/lib -lzmq  -ljsoncpp
 elseif ispc
     if(exist('C:\Program Files\ZeroMQ 4.0.4')==0)
         websave('ZeroMQ-4.0.4~miru1.0-x64.exe','https://miru.hk/archive/ZeroMQ-4.0.4~miru1.0-x64.exe');

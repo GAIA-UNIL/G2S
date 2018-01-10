@@ -145,7 +145,7 @@ int main(int argc, char const *argv[]) {
 	{
 		kernelFileName=arg.find("-ki")->second;
 	}else{	
-		fprintf(reportFile,"error kernel\n");
+		fprintf(reportFile,"non critical error : no kernel \n");
 	}
 	arg.erase("-ki");
 
@@ -154,7 +154,7 @@ int main(int argc, char const *argv[]) {
 	{
 		simuationPathFileName=arg.find("-sp")->second;
 	}else{	
-		fprintf(reportFile,"error simulation path\n");
+		fprintf(reportFile,"non critical error : no simulation path\n");
 	}
 	arg.erase("-sp");
 
@@ -310,8 +310,8 @@ int main(int argc, char const *argv[]) {
 		run=false;
 		fprintf(reportFile, "%s\n", "maximum exploration ratio or numer of candidate need to be seted" );
 	}
-	if(std::isnan(mer)){
-		mer=1/nbCandidate;
+	if(std::isnan(nbCandidate)){
+		nbCandidate=1/mer;
 	}
 	/*if(std::isnan(narrowness)){
 		run=false;
@@ -327,7 +327,7 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile, "simulation interupted !!\n");
 		return 0;
 	}
-	
+
 #if _OPENMP
 	omp_set_num_threads(nbThreads);
 #endif
@@ -337,10 +337,11 @@ int main(int argc, char const *argv[]) {
 
 	for (int i = 0; i < sourceFileNameVector.size(); ++i)
 	{
-		TIs.push_back(std::move(g2s::DataImage(sourceFileNameVector[i])));
+		TIs.push_back(std::move(g2s::DataImage::createFromFile(sourceFileNameVector[i])));
 	}
 
-	g2s::DataImage DI(targetFileName);
+	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
@@ -379,7 +380,7 @@ int main(int argc, char const *argv[]) {
 		kernel=g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas);
 	}
 	else {
-		kernel=g2s::DataImage(kernelFileName);
+		kernel=g2s::DataImage::createFromFile(kernelFileName);
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -387,7 +388,7 @@ int main(int argc, char const *argv[]) {
 	for (int i = 0; i < kernel._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i])/2+1;
+		int sizeInThisDim=(kernel._dims[i]+1)/2;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (int k = 0; k < originalSize; ++k)
 		{
@@ -408,15 +409,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	/*for (int i = 0; i < pathPosition.size(); ++i)
-	{
-		fprintf(stderr, "____\n");
-		for (int j = 0; j < pathPosition[i].size(); ++j)
-		{
-			fprintf(stderr, "%d, ",pathPosition[i][j] );
-		}
-		fprintf(stderr, "\n");
-	}*/
+	
 
 	
 
@@ -438,12 +431,12 @@ int main(int argc, char const *argv[]) {
 		}
 		
 	}
-	
+
 	unsigned center=0;
 	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
 	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
 	{
-		center=center*wieghtKernelPtr->_dims[i]+wieghtKernelPtr->_dims[i]/2;
+		center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
 	}
 
 	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
@@ -453,10 +446,18 @@ int main(int argc, char const *argv[]) {
 		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
 	});
 
-	/*for (int i = 0; i < pathPosition.size(); ++i)
+
+	/*for (int i = 0; i < 10; ++i)
 	{
-		fprintf(stderr, "%d %d\n", pathPosition[i][0], pathPosition[i][1]);
-	}*/
+		for (int k = 0; k < pathPosition[i].size(); ++k)
+		{
+			fprintf(stderr, "%d ", pathPosition[i][k]);
+		}
+		unsigned position;
+		wieghtKernelPtr->indexWithDelta(position, center, pathPosition[i]);
+		fprintf(stderr, " ==> %f\n",wieghtKernelPtr->_data[position]);
+	}
+	fprintf(stderr, "\n\n" );*/
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
@@ -479,7 +480,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	else {
-		simulationPath=g2s::DataImage(simuationPathFileName);
+		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
 	}
 
 	bool dimAgree=true;
@@ -525,113 +526,84 @@ int main(int argc, char const *argv[]) {
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
-	bool needCrossMesuremnt=false;
+
+	bool needCrossMesurement=false;
 
 	for (int i = 0; i < TIs.size(); ++i)
 	{
-		#pragma omp simd reduction(|:needCrossMesuremnt)
+		#pragma omp simd reduction(|:needCrossMesurement)
 		for (int j = 0; j < TIs[i].dataSize(); ++j)
 		{
-			needCrossMesuremnt|=std::isnan(TIs[i]._data[j]);
+			needCrossMesurement|=std::isnan(TIs[i]._data[j]);
 		}
 	}
 
+	bool varaibleTypeAreCompatible=true;
+
 
 	for (int i = 0; i < TIs.size(); ++i)
 	{
-		std::vector<unsigned> srcSize;
-		srcSize.push_back((TIs[i]._dims.size()>0) ?TIs[i]._dims[0]:1);
-		if(TIs[i]._dims.size()>1) srcSize.push_back(TIs[i]._dims[1]);
-		if(TIs[i]._dims.size()>2) srcSize.push_back(TIs[i]._dims[2]);
-		unsigned srcSizeX=1;
-		unsigned srcSizeY=1;
-		unsigned srcSizeZ=1;
-		if(srcSize.size()>0) srcSizeX=srcSize[0];
-		if(srcSize.size()>1) srcSizeY=srcSize[1];
-		if(srcSize.size()>2) srcSizeZ=srcSize[2];
-		float* inputData=TIs[i]._data;
-		SharedMemoryManager* smm=new SharedMemoryManager(srcSize);
-		unsigned fftSizeX=1;
-		unsigned fftSizeY=1;
-		unsigned fftSizeZ=1;
-		if(smm->_fftSize.size()>0)fftSizeX=smm->_fftSize[0];
-		if(smm->_fftSize.size()>1)fftSizeY=smm->_fftSize[1];
-		if(smm->_fftSize.size()>2)fftSizeZ=smm->_fftSize[2];
-		unsigned srcVariable=TIs[i]._nbVariable;
-
-		float** varaibleBands=(float**)malloc( 3 * srcVariable * sizeof(float*));
-	
-		// init Data
-		for (int i = 0; i < srcVariable; ++i)
+		for (int j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			varaibleBands[3*i+0]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			varaibleBands[3*i+1]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			memset(varaibleBands[3*i+0],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			memset(varaibleBands[3*i+1],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			if(needCrossMesuremnt){
-				varaibleBands[3*i+2]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-				memset(varaibleBands[3*i+2],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-				std::fill(varaibleBands[3*i+1],varaibleBands[3*i+1]+fftSizeX * fftSizeY * fftSizeZ -1, std::nanf("0"));
-			}
+			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
+	}
 
-		for (int v = 0; v < srcVariable; ++v)
+	if(!varaibleTypeAreCompatible) {
+
+		fprintf(reportFile, "TI(s) not compatible to gather or/and with the DI ==> simulation interupted !!\n");
+		return 0;
+	}
+
+	for (int i = 0; i < TIs.size(); ++i)
+	{
+		if((TIs[i]._types.size())!=(DI._types.size())){
+			varaibleTypeAreCompatible=false;
+			break;
+		}
+		for (int j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			float* A=varaibleBands[3*v+1];
-			float* A0=varaibleBands[3*v+2];
-			for (int l = 0; l < fftSizeZ; ++l)
+			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
+		}
+	}
+
+	std::vector<std::vector<float> > categoriesValues;
+
+	for (int i = 0; i < DI._types.size(); ++i)
+	{
+		if(DI._types[i]!=g2s::DataImage::VaraibleType::Categorical) continue;
+		std::vector<float> currentVariable;
+		for (int im = 0; im < TIs.size(); ++im)
+		{
+			for (int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
 			{
-				if(l<(fftSizeZ-srcSizeZ))continue;
-				for (int j = 0; j < fftSizeY; ++j)
+				bool isPresent=false;
+				for (int k = 0; k < currentVariable.size(); ++k)
 				{
-					if(j<(fftSizeY-srcSizeY))continue;
-					for (int i = 0; i < fftSizeX; ++i)
-					{
-						if(i<(fftSizeX-srcSizeX))continue;
-						A[i+j*fftSizeX+l*fftSizeY*fftSizeX]=((float*)inputData)[((fftSizeX-i-1)+(fftSizeY-j-1)*srcSizeX+(fftSizeZ-l-1)*srcSizeX*srcSizeY)*srcVariable+v];
-					}
+					isPresent|=((TIs[im]._data[j])==(currentVariable[k]));
+				}
+				if(!isPresent){
+					currentVariable.push_back(TIs[im]._data[j]);
 				}
 			}
 		}
+		categoriesValues.push_back(currentVariable);
+	}
 
-		for (int i = 0; i < srcVariable; ++i)
+
+
+
+	for (int i = 0; i < TIs.size(); ++i)
+	{
+		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
+
+		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
+
+		for (int j = 0; j < variablesImages.size(); ++j)
 		{
-			float* A=varaibleBands[3*i+1];
-			float* A2=varaibleBands[3*i+0];
-			#pragma omp simd
-			for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
+			for (int k = 0; k < variablesImages[j].size(); ++k)
 			{
-				A2[index]=A[index]*A[index];
-			}
-		}
-
-		if(needCrossMesuremnt){
-			for (int i = 0; i < srcVariable; ++i)
-			{
-				float* A2=varaibleBands[3*i+0];
-				float* A =varaibleBands[3*i+1];
-				float* A0=varaibleBands[3*i+2];
-				#pragma omp simd
-				for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
-				{
-					A0[index]=!std::isnan(A[index]);
-				}
-				#pragma omp simd
-				for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
-				{
-					if(std::isnan(A[index]))A[index]=0;
-					if(std::isnan(A2[index]))A2[index]=0;
-				}
-			}
-		}
-
-		// add sources : inputData
-		for (int i = 0; i < srcVariable; ++i)
-		{
-			smm->addVaraible(varaibleBands[3*i+0]);
-			smm->addVaraible(varaibleBands[3*i+1]);
-			if(needCrossMesuremnt){
-				smm->addVaraible(varaibleBands[3*i+2]);
+				smm->addVaraible(variablesImages[j][k]._data);
 			}
 		}
 		// alloc module
@@ -640,7 +612,7 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm, nbThreads, needCrossMesuremnt)
+		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
 			#pragma omp critical (createDevices)
@@ -649,72 +621,36 @@ int main(int argc, char const *argv[]) {
 
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesuremnt);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesurement);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesuremnt);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesurement);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 			}
 		}
-
 		smm->allowNewModule(false);
-
 		sharedMemoryManagerVector.push_back(smm);
-
-		for (int i = 0; i < srcVariable; ++i)
-		{
-			free(varaibleBands[3*i+0]);
-			free(varaibleBands[3*i+1]);
-			if(needCrossMesuremnt)free(varaibleBands[3*i+2]);
-			varaibleBands[3*i+0]=nullptr;
-			varaibleBands[3*i+1]=nullptr;
-			varaibleBands[3*i+2]=nullptr;
-		}
-
-		free(varaibleBands);
-		varaibleBands=nullptr;
 	}
 
 	std::vector<std::vector<float> > variablesCoeficientMainVector;
-	std::vector<std::vector<SamplingModule::convertionType> > convertionTypeVectorMainVector;
+	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 
-	for (int i = 0; i < TIs[0]._nbVariable; ++i)
-	{
+	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
-		std::vector<float> variablesCoeficient;
-		std::vector<SamplingModule::convertionType> convertionTypeVector;
-		variablesCoeficient.push_back(1.0f);
-		convertionTypeVector.push_back(SamplingModule::convertionType::P0);
-		variablesCoeficient.push_back(-2.0f);
-		convertionTypeVector.push_back(SamplingModule::convertionType::P1);
-		if(needCrossMesuremnt){
-			convertionTypeVector.push_back(SamplingModule::convertionType::P2);
-			variablesCoeficient.push_back(1.0f);
-		}else{
-			// for delta
-			variablesCoeficient.push_back(1.0f);
-		}
-
-		variablesCoeficientMainVector.push_back(variablesCoeficient);
-		convertionTypeVectorMainVector.push_back(convertionTypeVector);
-	}
-
-
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector,!needCrossMesuremnt);
-
-	// run QS
+	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector,!needCrossMesurement);
+	// run DS
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
-	 seedForIndex, importDataIndex, nbNeighbors, nbThreads);
+	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
@@ -739,10 +675,12 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
-	DI.write(outputFilename);
+	
 	g2s::DataImage id=DI.emptyCopy(true);
+	id.setEncoding(g2s::DataImage::UInteger);
 	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
 	id.write(outputIndexFilename);
+	DI.write(outputFilename);
 
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;

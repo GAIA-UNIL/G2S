@@ -87,6 +87,7 @@ public:
 						for (int k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
+							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
 								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]);
 							else
@@ -132,7 +133,7 @@ public:
 		}
 
 		int extendK=int(ceil(_k));
-		std::fill(errors,errors+vectorSize*extendK,INFINITY);
+		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
@@ -149,16 +150,17 @@ public:
 						errosArray[j]=std::fabs(errosArray[j]/crossErrosArray[j]);
 					}
 				}
-				fKst::findKSmallest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
+				fKst::findKBigest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
 			}
 		}
 
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
 		
-		std::sort(localPosition,localPosition+extendK*vectorSize-1,[errors](unsigned a, unsigned b){
-			return errors[a] < errors[b];
+		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
+			return errors[a] > errors[b];
 		});
+		//fprintf(stderr, "%f\n", errors[0]);
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
 		unsigned slectedIndex=int(floor(seed*_k));
@@ -261,7 +263,7 @@ public:
 		}
 
 		int extendK=int(ceil(_k));
-		std::fill(errors,errors+vectorSize*extendK,INFINITY);
+		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
@@ -278,14 +280,14 @@ public:
 						errosArray[j]=std::fabs(errosArray[j]/crossErrosArray[j]);
 					}
 				}
-				fKst::findKSmallest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
+				fKst::findKBigest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
 			}
 		}
 
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
-		std::sort(localPosition,localPosition+extendK*vectorSize-1,[errors](unsigned a, unsigned b){
-			return errors[a] < errors[b];
+		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
+			return errors[a] > errors[b];
 		});
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 

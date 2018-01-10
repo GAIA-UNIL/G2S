@@ -79,7 +79,7 @@ int main(int argc, char const *argv[]) {
 					}
 				case UPLOAD :
 					{
-						int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, false);
+						int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
 						zmq::message_t reply(sizeof(error));
 						memcpy (reply.data (), &error, sizeof(error));
 						receiver.send(reply);
