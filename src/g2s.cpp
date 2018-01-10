@@ -367,7 +367,12 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(mxIsChar(prhs[j])){
 					localVector.push_back(mxGetString(prhs[j]));
 				}else{
-					localVector.push_back(uploadData(socket, prhs[j]));
+					mxArray *variable=mxCreateNumericArray(mxGetNumberOfDimensions(prhs[dataTypeIndex]), mxGetDimensions(prhs[dataTypeIndex]), mxSINGLE_CLASS , mxREAL);
+					for (int i = 0; i < mxGetNumberOfElements(variable); ++i)
+					{
+						((float*)mxGetPr(variable))[i]=0.f;
+					}
+					localVector.push_back(uploadData(socket, prhs[j],variable));
 				}
 			}
 			result.push_back(localVector);
