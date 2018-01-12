@@ -22,3 +22,6 @@ em:
 
 intel:
 	$(MAKE) -C intel-build
+
+python:
+	cd python-build && python compile.py build_ext --inplace
