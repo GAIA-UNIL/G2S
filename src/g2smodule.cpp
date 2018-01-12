@@ -652,7 +652,10 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 
     char nameFile[65]={0};
     sprintf(nameFile,"%u",id);
+    setbuf(stdout, NULL);
     
+    printf("progres %.3f%%",0/1000. );
+
     while(!stop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(600));
         if(done) {
@@ -690,7 +693,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
             else{
                 int progress=*((int*)reply.data());
                 if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
-                    printf("progres %.3f%%\n",progress/1000. );
+                    printf("\rprogres %.3f%%",progress/1000. );
                     lastProgression=progress/1000.;
                 }
             }   
@@ -733,6 +736,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
         }
 
     }
+    
 
     if(!noOutput){
         // download data
@@ -755,7 +759,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
                 "%s : %s", "gss:error", "timeout : get data dont answer");
         }
         if(reply.size()!=0){
-            printf("progres %.3f%%\n",100.0f );
+            printf("\rprogres %.3f%%\n",100.0f );
 
             g2s::DataImage image((char*)reply.data());
             plhs.push_back(convert2NDArray(image));
