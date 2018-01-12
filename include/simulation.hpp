@@ -33,7 +33,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(__stderrp, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
 	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		/*if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
