@@ -46,7 +46,8 @@ public:
 		}
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+	inline void sample_complet(matchLocation *result, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector, unsigned moduleID=0, bool fullStationary=false,
+		g2s::DataImage* withSpecificKernel=nullptr, std::vector<unsigned>* exclusionList=nullptr, unsigned sourceImage=-1){
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
@@ -58,12 +59,12 @@ public:
 
 		//if(_convertionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
 		//	fprintf(stderr, "%s %d vs %d\n", "failure",_convertionTypeVector[0].size(),neighborValueArrayVector[0].size());
-
-		unsigned sizeDimsKernel=_kernel->dataSize()/_kernel->_nbVariable;
+		if(withSpecificKernel==nullptr)withSpecificKernel=withSpecificKernel;
+		unsigned sizeDimsKernel=withSpecificKernel->dataSize()/withSpecificKernel->_nbVariable;
 		unsigned indexCenter=0;
-		for (int i =  _kernel->_dims.size()-1; i>=0 ; i--)
+		for (int i =  withSpecificKernel->_dims.size()-1; i>=0 ; i--)
 		{
-			indexCenter=indexCenter*_kernel->_dims[i]+_kernel->_dims[i]/2;
+			indexCenter=indexCenter*withSpecificKernel->_dims[i]+withSpecificKernel->_dims[i]/2;
 		}
 
 		for (int i = 0; i < _convertionTypeVector.size(); ++i)
@@ -76,8 +77,8 @@ public:
 						for (int k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*1.f);
+							if(withSpecificKernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(withSpecificKernel->_data[indexInKernel*withSpecificKernel->_nbVariable+i]*1.f);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -88,8 +89,8 @@ public:
 						{
 							unsigned indexInKernel=indexCenter;
 							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]);
+							if(withSpecificKernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(withSpecificKernel->_data[indexInKernel*withSpecificKernel->_nbVariable+i]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -99,8 +100,8 @@ public:
 						for (int k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+							if(withSpecificKernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(withSpecificKernel->_data[indexInKernel*withSpecificKernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -120,8 +121,8 @@ public:
 					for (int k = 0; k < neighborArrayVector.size(); ++k)
 					{
 						unsigned indexInKernel;
-						if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-							delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
+						if(withSpecificKernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+							delta+=coef*withSpecificKernel->_data[indexInKernel*withSpecificKernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
 					}
 				}
 			}
@@ -137,6 +138,14 @@ public:
 
 		for (int i = 0; i < vectorSize; ++i)
 		{
+			if(sourceImage==i)
+			{
+				int delta=int(_cdmV[moduleID][i]->cvtIndexToPosition(_cdmV[moduleID][i]->getErrorsArraySize()))-int(_cdmV[moduleID][i]->getErrorsArraySize());
+				/*for (int k = 0; k < exclusionList->size(); ++k)
+				{
+					_cdmV[moduleID][i]->getErrorsArraySize()[exclusionList->at(k)+delta]=-INFINITY;
+				}*/
+			}
 			if(updated[i])
 			{
 				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
@@ -160,21 +169,20 @@ public:
 		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
 			return errors[a] > errors[b];
 		});
-		//fprintf(stderr, "%f\n", errors[0]);
-		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
-		unsigned slectedIndex=int(floor(seed*_k));
-		unsigned selectedTI=localPosition[slectedIndex]/extendK;
-		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
-		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
-		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[slectedIndex]] );
-		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
-		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[slectedIndex],slectedIndex,extendK, errors[localPosition[slectedIndex]]);
+		for (int i = 0; i < int(ceil(_k)); ++i)
+		{
+			result[i].TI=localPosition[i]/extendK;
+			result[i].index=_cdmV[moduleID][result[i].TI]->cvtIndexToPosition(encodedPosition[localPosition[i]]);
+		}
+	}
 
-		matchLocation result;
-		result.TI=selectedTI;
-		result.index=indexInTI;
-		return result;
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+		unsigned numberOfCandidate=int(ceil(_k));
+		matchLocation result[numberOfCandidate];
+
+		sample_complet(result, neighborArrayVector, neighborValueArrayVector, moduleID, fullStationary);
+		return result[int(floor(seed*_k))];
 	}
 
 	narrownessMeasurment narrowness(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){

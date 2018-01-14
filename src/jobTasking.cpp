@@ -300,6 +300,92 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 	return uniqueId;
 }
 
+jobIdType ko_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
+{
+	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	if(job.isMember("Parameter")){
+		Json::Value param=job["Parameter"];
+		if(param.isMember("-ti") ){
+			
+			char* argv[100];
+			char tempMemory[100][100];
+			unsigned tempMemIndex=0;
+			memset(tempMemory,0,100*100);
+			argv[0]=(char*)"./ko";
+			for (int i = 1; i < 100; ++i)
+			{
+				argv[i]=nullptr;
+			}
+			//init defualt
+			Json::Value::Members member=param.getMemberNames();
+			int index=1;
+			for (int i = 0; i < member.size(); ++i)
+			{
+				argv[index]=(char *)member[i].c_str();
+				//fprintf(stderr, "%s\n", argv[index]);
+				index++;
+
+				if(param[member[i]].isString())
+				{
+					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
+					argv[index]=tempMemory[tempMemIndex];
+					tempMemIndex++;
+					//fprintf(stderr, "%s\n", argv[index]);
+					index++;
+				}
+				if(param[member[i]].isArray())
+				{
+					//fprintf(stderr, "%s\n", "is array");
+					Json::Value arrayData=param[member[i]];
+					for (int j = 0; j < arrayData.size(); ++j)
+					{
+						if(arrayData[j].isString()){
+							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
+							argv[index]=tempMemory[tempMemIndex];
+							tempMemIndex++;
+							//fprintf(stderr, "%s\n", argv[index]);
+							index++;
+						}
+					}
+				}
+			}
+			{
+				argv[index]=(char*)"-r";
+				//fprintf(stderr, "%s\n", argv[index]);
+				index++;
+				char buffer [128];
+				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
+				argv[index]=buffer;
+				//fprintf(stderr, "%s\n", argv[index]);
+				index++;
+			}
+
+			//Execute
+			if(functionMode)
+			{
+				call_functionMode(jobIds, singleTask,  uniqueId, "ko",index, argv);
+				
+			}else{
+				pid_t pid=fork(); // fork, to be crash resistant !!
+				if (pid==0) { // child process //
+					
+					execv("./ko", argv);
+					exit(127); // only if execv fails //
+				}
+				else { // pid!=0; parent process //
+					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
+				}
+			}
+		}else{
+			fprintf(stderr, "-ti is mandatory for KO\n");
+		}
+	}else{
+		fprintf(stderr, "Parameter is mandatory for KO\n");
+	}
+	return uniqueId;
+}
+
 jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
 {
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -597,6 +683,11 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
 		{
 			algoFounded=true;
 			id=nds_call(jobIds, job,singleTask,functionMode);
+		}
+		if(!strcmp(job["Algorithm"].asCString(),"KernelOptimization")) // NDS
+		{
+			algoFounded=true;
+			id=ko_call(jobIds, job,singleTask,functionMode);
 		}
 		if(!algoFounded)
 			fprintf(stderr, "unknown aglorithm : %s\n", job["Algorithm"].asCString());

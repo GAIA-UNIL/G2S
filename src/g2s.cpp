@@ -554,6 +554,10 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			
 			object["Algorithm"]="NarrawDistributionSelection";
 		}
+		if(!strcmp(algo,"ko") || !strcmp(algo,"KernelOptimization") || !strcmp(algo,"KO") ){
+			
+			object["Algorithm"]="KernelOptimization";
+		}
 		{
 			object["Priority"]="1";
 			
