@@ -58,7 +58,7 @@ namespace  g2s{
 
 
 		__m128 alphaVect=_mm_set1_ps(Alpha);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/4; i++)
 		{
 
@@ -79,7 +79,7 @@ namespace  g2s{
 	
 			_mm_storeu_ps(dst+i*4,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -92,7 +92,7 @@ namespace  g2s{
 
 
 		__m128d alphaVect=_mm_set1_pd(Alpha);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/2; i++)
 		{
 
@@ -113,7 +113,7 @@ namespace  g2s{
 	
 			_mm_storeu_pd(dst+i*2,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/2)*2; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -130,7 +130,7 @@ namespace  g2s{
 
 
 		__m256 alphaVect=_mm256_set1_ps(Alpha);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/8; i++)
 		{
 			
@@ -150,7 +150,7 @@ namespace  g2s{
 		#endif
 			_mm256_storeu_ps(dst+i*8,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -163,7 +163,7 @@ namespace  g2s{
 
 
 		__m256d alphaVect=_mm256_set1_pd(Alpha);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/4; i++)
 		{
 			
@@ -183,7 +183,7 @@ namespace  g2s{
 		#endif
 			_mm256_storeu_pd(dst+i*4,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -200,7 +200,7 @@ namespace  g2s{
 
 		__m512 alphaVect=_mm512_set1_ps(Alpha);
 		__m512 onesVect=_mm512_set1_ps(1.f);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/16; i++)
 		{
 			
@@ -222,7 +222,7 @@ namespace  g2s{
 	
 			_mm512_storeu_ps(dst+i*16,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/16)*16; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
@@ -235,7 +235,7 @@ namespace  g2s{
 
 		__m512d alphaVect=_mm512_set1_pd(Alpha);
 		__m512d onesVect=_mm512_set1_pd(1.f);
-		#pragma omp simd
+		
 		for (int i = 0; i < 2*size/8; i++)
 		{
 			
@@ -257,7 +257,7 @@ namespace  g2s{
 	
 			_mm512_storeu_pd(dst+i*8,val);
 		}
-		#pragma omp simd
+		
 		for (int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );

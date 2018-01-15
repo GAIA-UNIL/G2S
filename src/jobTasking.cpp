@@ -554,10 +554,12 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool singleTask, bool functionMode)
 {
 	jobIdType id=-1;
-	Json::Reader reader;
+	Json::CharReaderBuilder builder;
+  	Json::CharReader * reader = builder.newCharReader();
 	Json::Value job;
-	reader.parse((const char*)data,(const char*)data+sizeBuffer,job,false);
-
+	std::string errors;
+	if(!reader->parse((const char*)data,(const char*)data+sizeBuffer,&job,&errors));
+		fprintf(stderr,"%s\n", errors.c_str());
 	//Json::Value::Members member=job.getMemberNames();
 
 	/*for (int i = 0; i < member.size(); ++i)

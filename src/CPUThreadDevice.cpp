@@ -320,16 +320,11 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		if(_trueMismatch && !_crossMesurement) // correct value needed
 		{
-		#if __cilk
-			_realSpace[0:_realSpaceSize]=_realSpace[0:_realSpaceSize]/(_realSpaceSize)+delta0;
-		#else
 			#pragma omp simd
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
 				_realSpace[i]=_realSpace[i]/(_realSpaceSize)+delta0;
 			}
-
-		#endif	
 		}
 
 
