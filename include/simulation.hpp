@@ -233,7 +233,6 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 	unsigned sizeSimulation=placeToUpdate.size();
 	unsigned fullSize=sizeSimulation;
 	unsigned indicationSize=100*nbThreads;
-	unsigned lastDisplay=UINT_MAX;
 
 	unsigned solvingPathIndex=0;
 	while((sizeSimulation>0) && ((float(sizeSimulation)/fullSize)>(1.f-maxProgression))){
@@ -260,7 +259,6 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 					if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
 					{
 						std::vector<float> data(di._nbVariable);
-						unsigned numberOfNaN=0;
 						for (int i = 0; i < di._nbVariable; ++i)
 						{
 							data[i]=di._data[dataIndex*di._nbVariable+i];

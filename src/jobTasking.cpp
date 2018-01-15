@@ -558,7 +558,7 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
   	Json::CharReader * reader = builder.newCharReader();
 	Json::Value job;
 	std::string errors;
-	if(!reader->parse((const char*)data,(const char*)data+sizeBuffer,&job,&errors));
+	if(!reader->parse((const char*)data,(const char*)data+sizeBuffer,&job,&errors))
 		fprintf(stderr,"%s\n", errors.c_str());
 	//Json::Value::Members member=job.getMemberNames();
 

@@ -14,8 +14,6 @@ int lookForStatus(void* data, size_t dataSize){
 		if ((fd = fopen(filename, "r")) != NULL) // open file
 		{
 			char lineHeader[2048];
-			char endOfline[2048];
-			float pourcentage;
 			float truePourcentage;
 
 			std::regex base_regex("(([0-9]|\\.)+%)");
@@ -54,8 +52,6 @@ int lookForDuration(void* data, size_t dataSize){
 		if ((fd = fopen(filename, "r")) != NULL) // open file
 		{
 			char lineHeader[2048];
-			char endOfline[2048];
-			float pourcentage;
 			float duration;
 
 			std::regex base_regex1("(([0-9]|\\.)+ms)");

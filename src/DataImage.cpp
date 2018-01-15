@@ -11,8 +11,6 @@ void createLink(char* outputFullFilename, char* fullFilename){
 char* loadRawData(const char * hash){
 	char* data=nullptr;
 	char* ptr=nullptr;
-	unsigned size=0;
-
 	char filename[4096];
 
 	//fprintf(stderr, "look For File %s \n",hash);
