@@ -2,7 +2,6 @@
 #define DATA_IMAGE_HPP
 
 #include <cmath>
-#include <unistd.h>
 #include <iostream>
 #include <cstring>
 #include <vector>
@@ -11,6 +10,7 @@
 
 char* loadRawData(const char * hash);
 char* writeRawData(char* data, bool compresed=false);
+void createLink(char* outputFullFilename, char* fullFilename);
 
 namespace g2s{
 
@@ -159,10 +159,11 @@ class DataImage{
 		_dims=o._dims;
 		_nbVariable=o._nbVariable;
 		_data=o._data;
+		_types=o._types;
 		o._data=nullptr;
 		o._nbVariable=0;
 		o._dims.clear();
-		//fprintf(stderr, "%s\n", "use  move assigne ");
+		o._types.clear();
 		return *this;
 	}
 
@@ -187,7 +188,7 @@ class DataImage{
 		if(compresed) strcpy(extra,".gz");
 		sprintf(fullFilename,"./data/%s.bgrid%s",filename.c_str(),extra);
 		sprintf(outputFullFilename,"./%s.bgrid%s",outputName,extra);
-		symlink(outputFullFilename, fullFilename);
+		createLink(outputFullFilename, fullFilename);
 		free(outputName);
 	}
 
