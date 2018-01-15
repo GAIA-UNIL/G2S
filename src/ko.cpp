@@ -388,6 +388,7 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
+	kernel.setEncoding(g2s::DataImage::Float);
 	kernel.write(outputFilename);
 
 	return 0;
