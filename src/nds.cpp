@@ -348,7 +348,7 @@ int main(int argc, char const *argv[]) {
 
 	for (int i = 0; i < sourceFileNameVector.size(); ++i)
 	{
-		TIs.push_back(std::move(g2s::DataImage::createFromFile(sourceFileNameVector[i])));
+		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
 	}
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
