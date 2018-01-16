@@ -44,10 +44,7 @@ private:
 	std::set<ComputeDeviceModule*> _devices;
 	std::vector<std::vector<g2s::spaceFrequenceMemoryAddress > > _memoryAddress;	
 	
-	unsigned _memorySize=0;
-	bool _allowNewModule=true;
-	
-	
+	bool _allowNewModule=true;	
 };
 
 #endif

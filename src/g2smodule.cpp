@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include <iostream>
@@ -7,7 +9,6 @@
 #include "picosha2.h"
 #include <json/json.h>
 #include <numeric>
-#include <cmath>
 #include <chrono>
 #include <thread>
 #include <atomic>

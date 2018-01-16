@@ -1,4 +1,6 @@
 #define MATLAB
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <iostream>
 #include <mex.h>
 #include <zmq.hpp>
@@ -7,7 +9,6 @@
 #include "picosha2.h"
 #include <json/json.h>
 #include <numeric>
-#include <cmath>
 #include <chrono>
 #include <thread>
 #include <atomic>

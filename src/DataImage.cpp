@@ -1,12 +1,16 @@
 #include "DataImage.hpp"
 #include "zlib.h"
 #include "picosha2.h"
+#include <unistd.h>
+
+void createLink(char* outputFullFilename, char* fullFilename){
+	symlink(outputFullFilename, fullFilename);
+}
+
 
 char* loadRawData(const char * hash){
 	char* data=nullptr;
 	char* ptr=nullptr;
-	unsigned size=0;
-
 	char filename[4096];
 
 	//fprintf(stderr, "look For File %s \n",hash);

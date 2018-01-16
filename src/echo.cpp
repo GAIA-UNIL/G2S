@@ -7,10 +7,6 @@ int main(int argc, char const *argv[]) {
 
 	std::multimap<std::string, std::string> arg=g2s::argumentReader(argc,argv);
 
-	int srcSizeX=0,srcSizeY=1,srcSizeZ=1;
-	int srcVariable=0;
-	int srcDims=0;
-
 	char logFileName[2048]={0};
 	char sourceFileName[2048];
 	char outputFilename[2048];
