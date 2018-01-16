@@ -2,7 +2,7 @@
 #define KERNEL_OPTIMIZATION_HPP
 
 #include "computeDeviceModule.hpp"
-#include "QuantileSamplingModule.hpp"
+#include "quantileSamplingModule.hpp"
 #include "fKst.hpp"
 #include <thread>
 #include <random>
