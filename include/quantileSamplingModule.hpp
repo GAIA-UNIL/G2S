@@ -141,10 +141,10 @@ public:
 			if(sourceImage==i)
 			{
 				int delta=int(_cdmV[moduleID][i]->cvtIndexToPosition(_cdmV[moduleID][i]->getErrorsArraySize()))-int(_cdmV[moduleID][i]->getErrorsArraySize());
-				/*for (int k = 0; k < exclusionList->size(); ++k)
+				for (int k = 0; k < exclusionList->size(); ++k)
 				{
-					_cdmV[moduleID][i]->getErrorsArraySize()[exclusionList->at(k)+delta]=-INFINITY;
-				}*/
+					_cdmV[moduleID][i]->getErrorsArray()[exclusionList->at(k)+delta]=-INFINITY;
+				}
 			}
 			if(updated[i])
 			{

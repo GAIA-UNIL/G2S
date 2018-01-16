@@ -167,8 +167,13 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-k");
 
-
+	unsigned kernelSize=-1;
+	if (arg.count("-ks") == 1)
+	{
+		kernelSize=atof((arg.find("-ks")->second).c_str());
+	}
 	arg.erase("-ks");
+
 	bool withGPU=false;
 	if (arg.count("-W_GPU") == 1)
 	{
@@ -236,7 +241,6 @@ int main(int argc, char const *argv[]) {
 		categoriesValues.push_back(currentVariable);
 	}
 
-	unsigned kernelSize=-1;
 	g2s::DataImage kernel;
 	{
 		std::vector<unsigned> maxSize=TIs[0]._dims;
