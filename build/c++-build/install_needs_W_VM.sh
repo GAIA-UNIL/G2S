@@ -1,0 +1,8 @@
+#!/bin/sh
+
+sudo apt update -y
+sudo apt upgarde -y
+sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev -y
+sudo wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O /usr/include/zmq.hpp
+cd ..
+make c++ -j
