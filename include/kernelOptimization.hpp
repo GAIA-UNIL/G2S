@@ -70,25 +70,26 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 	const float mutationRate=0.05f;
 	const float heritageRate=0.5f;
 	const float appearingRate=0.02f;
-	const unsigned randomPatternPoolSize=150;
+	const unsigned randomPatternPoolSize=300;
 	const float k=2.f;
 	const unsigned exclusionRadius=10;
-	const unsigned maxIteration=1000;
+	const unsigned maxIteration=10000;
 
 	std::mt19937 randomGenerator(seed);
 	std::uniform_int_distribution<unsigned > uniformDitributionInPopulation(0,populationSize-1);
 	std::uniform_int_distribution<unsigned > uniformDitributionInSurvivor(0,unsigned(ceil(populationSize*survivingRate))-1);
 	std::uniform_real_distribution<float> uniformDitribution(0.f,1.f);
 
-	g2s::DataImage** population=(g2s::DataImage**)malloc(sizeof(g2s::DataImage*)*populationSize);
+	g2s::DataImage* population=new g2s::DataImage[populationSize];
+	//g2s::DataImage** population=(g2s::DataImage**)malloc(sizeof(g2s::DataImage*)*populationSize);
 	float* kernelQuality=(float*)malloc(sizeof(float)*populationSize);
 	unsigned* kernelsortedIndex=(unsigned*)malloc(sizeof(unsigned)*populationSize);
 
 	// init population
 	for (int i = 0; i < populationSize; ++i)
 	{
-		population[i]= new g2s::DataImage(kernelSource.emptyCopy(false));
-		newKernel(population[i], randomGenerator);
+		population[i]=g2s::DataImage(kernelSource.emptyCopy(false));
+		newKernel(population+i, randomGenerator);
 	}
 
 	unsigned numberOfVariable=TIs[0]._nbVariable;
@@ -116,18 +117,35 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 	std::vector<unsigned>* exclusionList=new std::vector<unsigned>[randomPatternPoolSize];
 	unsigned* sourceImage=new unsigned[randomPatternPoolSize];
 
+	SamplingModule::matchLocation* result[nbThreads]; 
+
+
+	for (int i = 0; i < nbThreads; ++i)
+	{
+		result[i]=(SamplingModule::matchLocation*)malloc(sizeof(SamplingModule::matchLocation)*int(ceil(numberOfCandidate)));
+		for (int j = 0; j < int(ceil(numberOfCandidate)); ++j)
+		{
+			result[i][j].TI=0;
+			result[i][j].index=0;
+		}
+	}
+
+	std::vector<std::vector<float> >* categoriesValuesPtr=&categoriesValues;
+
 	// run optim
 	unsigned iteration=0;
 	while(iteration<maxIteration){
 		iteration++;
-		if(iteration%100==1)
+		if(iteration%10==1)
 		{
 
 			//generatePattern
 
 			std::uniform_int_distribution<unsigned > uniformDitributionInImages(0,TIs.size()-1);
 
-			#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(__stderrp, uniformDitributionInImages, uniformDitribution, pathPosition, numberOfVariable, categoriesValues, exclusionList, sourceImage, randomGenerators, neighborValueArrayVectorList, neighborArrayVectorList, positionList, TIList) shared(TIs)
+			#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( \
+			uniformDitributionInImages, uniformDitribution, pathPosition, numberOfVariable, categoriesValuesPtr, exclusionList,\
+				sourceImage, randomGenerators, neighborValueArrayVectorList, neighborArrayVectorList, positionList, TIList) shared( TIs)
 			for (int rpIndex = 0; rpIndex < randomPatternPoolSize; ++rpIndex)
 			{
 				unsigned moduleID=0;
@@ -136,7 +154,7 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 				#endif
 				bool isOk=false;
 				while (!isOk)
-				{	
+				{
 					//fprintf(stderr, "randomPattern %d\n", rpIndex);
 					std::vector<std::vector<int> > neighborArrayVector;
 					std::vector<std::vector<float> > neighborValueArrayVector;
@@ -155,7 +173,6 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 							std::vector<float> data(numberOfVariable);
 							unsigned numberOfNaN=0;
 							float val;
-							
 							unsigned id=0;
 							unsigned idCategorie=0;
 							for (int i = 0; i < TIs[randomImage]._nbVariable; ++i)
@@ -169,9 +186,9 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 								if(TIs[randomImage]._types[i]==g2s::DataImage::Categorical){
 									#pragma omp atomic read
 									val=TIs[randomImage]._data[dataIndex*TIs[randomImage]._nbVariable+i];
-									for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+									for (int k = 0; k < categoriesValuesPtr->at(idCategorie).size(); ++k)
 									{
-										if(val==categoriesValues[idCategorie][k]){
+										if(val==categoriesValuesPtr->at(idCategorie)[k]){
 											data[id]=1;
 										}else{
 											data[id]=0;
@@ -212,7 +229,7 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 		/////////// do measurement
 
 		std::fill(kernelQuality,kernelQuality+populationSize,0.f);
-		#pragma omp parallel num_threads(nbThreads) default(none) firstprivate( __stderrp,numberOfCandidate, neighborArrayVectorList, neighborValueArrayVectorList, population, exclusionList, sourceImage, kernelQuality) shared(TIs, samplingModule )
+		#pragma omp parallel num_threads(nbThreads) default(none) firstprivate(result, numberOfCandidate, neighborArrayVectorList, neighborValueArrayVectorList, population, exclusionList, sourceImage, kernelQuality) shared(TIs, samplingModule )
 		for (int patternIndex = 0; patternIndex < randomPatternPoolSize; ++patternIndex)
 		{
 			//fprintf(stderr, "%d\n", sourceImage[patternIndex]);
@@ -225,16 +242,16 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 				#endif
 
 				float error=0.f;
-				SamplingModule::matchLocation result[int(ceil(numberOfCandidate))];
-				samplingModule.sample_complet(result, neighborArrayVectorList[patternIndex], neighborValueArrayVectorList[patternIndex],
-					moduleID, false, population[kernelIndex], exclusionList+patternIndex, sourceImage[patternIndex]);
+				
+				samplingModule.sample_complet(result[moduleID], neighborArrayVectorList[patternIndex], neighborValueArrayVectorList[patternIndex],
+					moduleID, false, population+kernelIndex, exclusionList+patternIndex, sourceImage[patternIndex]);
 		
 				for (int i = 0; i < int(ceil(numberOfCandidate)); ++i)
 				{
 					float localError=0.f;
-					for (int j = 0; j < TIs[result[i].TI]._nbVariable; ++j)
+					for (int j = 0; j < TIs[result[moduleID][i].TI]._nbVariable; ++j)
 					{
-						float val=TIs[result[i].TI]._data[TIs[result[i].TI]._nbVariable*result[i].index+j]-
+						float val=TIs[result[moduleID][i].TI]._data[TIs[result[moduleID][i].TI]._nbVariable*result[moduleID][i].index+j]-
 								TIs[sourceImage[patternIndex]]._data[TIs[sourceImage[patternIndex]]._nbVariable*exclusionList[patternIndex][0]+j];
 						localError+=val*val;
 					}
@@ -254,27 +271,26 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 		
 		fprintf(stderr, "best %f \n",kernelQuality[kernelsortedIndex[0]] );
 
-		memcpy(kernelSource._data,population[kernelsortedIndex[0]]->_data,kernelSource.dataSize()*sizeof(float));
+		memcpy(kernelSource._data,(population+kernelsortedIndex[0])->_data,kernelSource.dataSize()*sizeof(float));
 
-		unsigned indexNew=0;
-		#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(indexNew, population, kernelsortedIndex, uniformDitributionInSurvivor,randomGenerators)
-		for ( indexNew = unsigned(ceil(populationSize*survivingRate)); indexNew < populationSize-unsigned(ceil(populationSize*appearingRate)); ++indexNew)
+		#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( population, kernelsortedIndex, uniformDitributionInSurvivor,randomGenerators)
+		for ( unsigned indexNew = unsigned(ceil(populationSize*survivingRate)); indexNew < populationSize-unsigned(ceil(populationSize*appearingRate)); ++indexNew)
 		{
 			unsigned moduleID=0;
 			#if _OPENMP
 				moduleID=omp_get_thread_num();
 			#endif
-			fuseKernels(population[kernelsortedIndex[indexNew]], population[kernelsortedIndex[uniformDitributionInSurvivor(randomGenerators[moduleID])]], population[kernelsortedIndex[uniformDitributionInSurvivor(randomGenerators[moduleID])]], heritageRate, randomGenerators[moduleID]);
+			fuseKernels(population+kernelsortedIndex[indexNew], population+kernelsortedIndex[uniformDitributionInSurvivor(randomGenerators[moduleID])], population+kernelsortedIndex[uniformDitributionInSurvivor(randomGenerators[moduleID])], heritageRate, randomGenerators[moduleID]);
 		}
 
 		#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(population, kernelsortedIndex,randomGenerators)
-		for (indexNew= populationSize-unsigned(ceil(populationSize*appearingRate)); indexNew < populationSize; ++indexNew)
+		for (unsigned indexNew= populationSize-unsigned(ceil(populationSize*appearingRate)); indexNew < populationSize; ++indexNew)
 		{
 			unsigned moduleID=0;
 			#if _OPENMP
 				moduleID=omp_get_thread_num();
 			#endif
-			newKernel(population[kernelsortedIndex[indexNew]], randomGenerators[moduleID]);
+			newKernel(population+kernelsortedIndex[indexNew], randomGenerators[moduleID]);
 		}
 
 		#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(population, uniformDitribution,randomGenerators)
@@ -285,18 +301,19 @@ void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImag
 				moduleID=omp_get_thread_num();
 			#endif
 			if(uniformDitribution(randomGenerators[moduleID])<appearingRate){
-				mutateKernels(population[i], mutationRate, randomGenerators[moduleID]);
+				mutateKernels(population+i, mutationRate, randomGenerators[moduleID]);
 			}
 		}
 		
 		if(iteration%(maxIteration/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(iteration)/maxIteration*100);
 	}
 
-	for (int i = 0; i < populationSize; ++i)
+	for (int i = 0; i < nbThreads; ++i)
 	{
-		delete population[i];
+		free(result[i]);
 	}
-	free(population);
+	
+	delete[] population;
 	free(kernelQuality);
 	delete[] neighborArrayVectorList;
 	delete[] neighborValueArrayVectorList;

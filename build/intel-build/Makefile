@@ -54,5 +54,5 @@ ko: ko.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 
 clean:
 	rm -rf *.o
-	rm -rf server echo test qs nds ds ds-l
+	rm -rf server echo test qs nds ds ds-l ko
 	rm -rf .depend

@@ -9,7 +9,7 @@ OPENCL_LIB=# -framework OpenCL -lOpenCL -lclFFT
 OPENCL_INC=#-DWITH_OPENCL=1
 
 
-all: server echo test qs nds ds ds-l
+all: server echo test qs nds ds ds-l ko
 
 depend: .depend Makefile
 
@@ -46,7 +46,10 @@ dsk: dsk.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
 ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
+ko: ko.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
 clean:
 	rm -rf *.o
-	rm -rf server echo test qs nds ds ds-l
+	rm -rf server echo test qs nds ds ds-l ko
 	rm -rf .depend

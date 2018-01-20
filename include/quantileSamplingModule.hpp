@@ -143,7 +143,8 @@ public:
 				int delta=int(_cdmV[moduleID][i]->cvtIndexToPosition(_cdmV[moduleID][i]->getErrorsArraySize()))-int(_cdmV[moduleID][i]->getErrorsArraySize());
 				for (int k = 0; k < exclusionList->size(); ++k)
 				{
-					_cdmV[moduleID][i]->getErrorsArray()[exclusionList->at(k)+delta]=-INFINITY;
+					if((exclusionList->at(k)+delta>=0) && (exclusionList->at(k)+delta<_cdmV[moduleID][i]->getErrorsArraySize()))
+						_cdmV[moduleID][i]->getErrorsArray()[exclusionList->at(k)+delta]=-INFINITY;
 				}
 			}
 			if(updated[i])
