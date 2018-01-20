@@ -277,7 +277,7 @@ void geneAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &k
 		std::sort(kernelsortedIndex, kernelsortedIndex+populationSize,
 			[kernelQuality](unsigned i1, unsigned i2) {return kernelQuality[i1] < kernelQuality[i2];});
 		
-		fprintf(stderr, "best %f \n",kernelQuality[kernelsortedIndex[0]] );
+		fprintf(logFile, "best %f \n",kernelQuality[kernelsortedIndex[0]] );
 
 		memcpy(kernelSource._data,(population+kernelsortedIndex[0])->_data,kernelSource.dataSize()*sizeof(float));
 
