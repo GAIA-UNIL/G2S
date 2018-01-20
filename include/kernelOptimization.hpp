@@ -61,19 +61,27 @@ void mutateKernels(g2s::DataImage *kernel, float alpha, Engine &randomGenerator)
 	}
 }
 
+struct geneAlgoConfig{
+	unsigned populationSize;
+	float survivingRate;
+	float mutationRate;
+	float heritageRate;
+	float appearingRate;
+	unsigned randomPatternPoolSize;
+	unsigned maxIteration;
+};
 
-void optimization(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernelSource, QuantileSamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned seed, float numberOfCandidate, std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1){
 
-	const unsigned populationSize=200;
-	const float survivingRate=0.2f;
-	const float mutationRate=0.05f;
-	const float heritageRate=0.5f;
-	const float appearingRate=0.02f;
-	const unsigned randomPatternPoolSize=300;
-	const float k=2.f;
-	const unsigned exclusionRadius=10;
-	const unsigned maxIteration=10000;
+void geneAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernelSource, QuantileSamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned seed, float numberOfCandidate, std::vector<std::vector<float> > categoriesValues, geneAlgoConfig config, const unsigned exclusionRadius, unsigned nbThreads=1){
+
+	const unsigned populationSize=config.populationSize;
+	const float survivingRate=config.survivingRate;
+	const float mutationRate=config.mutationRate;
+	const float heritageRate=config.heritageRate;
+	const float appearingRate=config.appearingRate;
+	const unsigned randomPatternPoolSize=config.randomPatternPoolSize;
+	const unsigned maxIteration=config.maxIteration;
 
 	std::mt19937 randomGenerator(seed);
 	std::uniform_int_distribution<unsigned > uniformDitributionInPopulation(0,populationSize-1);

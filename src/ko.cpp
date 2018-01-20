@@ -170,7 +170,7 @@ int main(int argc, char const *argv[]) {
 	unsigned kernelSize=-1;
 	if (arg.count("-ks") == 1)
 	{
-		kernelSize=atof((arg.find("-ks")->second).c_str());
+		kernelSize=atoi((arg.find("-ks")->second).c_str());
 	}
 	arg.erase("-ks");
 
@@ -180,6 +180,63 @@ int main(int argc, char const *argv[]) {
 		withGPU=true;//atof((arg.find("-W_GPU")->second).c_str());
 	}
 	arg.erase("-W_GPU");
+
+
+	//GeneAlgo config
+
+	geneAlgoConfig config;
+
+	config.populationSize=200;
+	config.survivingRate=0.3f;
+	config.mutationRate=0.05f;
+	config.heritageRate=0.5f;
+	config.appearingRate=0.02f;
+	config.randomPatternPoolSize=300;
+	config.maxIteration=10000;
+
+
+	if (arg.count("-ps") == 1)
+	{
+		config.populationSize=atoi((arg.find("-ps")->second).c_str());
+	}
+	arg.erase("-ps");
+
+	if (arg.count("-sr") == 1)
+	{
+		config.survivingRate=atof((arg.find("-sr")->second).c_str());
+	}
+	arg.erase("-sr");
+
+	if (arg.count("-mr") == 1)
+	{
+		config.mutationRate=atof((arg.find("-mr")->second).c_str());
+	}
+	arg.erase("-mr");
+
+	if (arg.count("-hr") == 1)
+	{
+		config.heritageRate=atof((arg.find("-hr")->second).c_str());
+	}
+	arg.erase("-hr");
+
+	if (arg.count("-ar") == 1)
+	{
+		config.appearingRate=atof((arg.find("-ar")->second).c_str());
+	}
+	arg.erase("-ar");
+
+	if (arg.count("-pps") == 1)
+	{
+		config.randomPatternPoolSize=atoi((arg.find("-pps")->second).c_str());
+	}
+	arg.erase("-pps");
+
+	if (arg.count("-maxi") == 1)
+	{
+		config.maxIteration=atoi((arg.find("-maxi")->second).c_str());
+	}
+	arg.erase("-maxi");
+
 
 	// print all ignored parameters
 	for (std::multimap<std::string, std::string>::iterator it=arg.begin(); it!=arg.end(); ++it){
@@ -366,7 +423,7 @@ int main(int argc, char const *argv[]) {
 	// run QS
 
 	auto begin = std::chrono::high_resolution_clock::now();
-	optimization(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, nbThreads);
+	geneAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, config, 10, nbThreads);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
