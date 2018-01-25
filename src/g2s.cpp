@@ -435,6 +435,12 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	int saP1_Index=-1;
 	int dimP1_Index=-1;
 	int aP1_Index=-1;
+	int id_index=-1;
+
+	bool submit=true;
+	bool statusOnly=false;
+	bool waitAndDownload=true;
+	bool kill=false;
 
 	for (int i = 0; i < inputArray.size(); ++i)
 	{
@@ -449,6 +455,31 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		}
 		if(!inputArray[i].compare("-noTO")){
 			withTimeout=false;
+		}
+		if(!inputArray[i].compare("-submitOnly")){
+			waitAndDownload=false;
+			if(nlhs>1){
+				mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+				stop=true;
+			}
+		}
+		if(!inputArray[i].compare("-statusOnly")){
+			statusOnly=true;
+			waitAndDownload=false;
+			submit=false;
+			id_index=inputArrayIndex[i]+1;
+			if(nlhs>1){
+				mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+				stop=true;
+			}
+		}
+		if(!inputArray[i].compare("-waitAndDownload")){
+			submit=false;
+			id_index=inputArrayIndex[i]+1;
+		}
+		if(!inputArray[i].compare("-kill")){
+			kill=true;
+			id_index=inputArrayIndex[i]+1;
 		}
 	}
 
@@ -508,7 +539,8 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		strcpy(address,"tcp://localhost:8128");
 	socket.connect (address);
 
-	std::vector<std::vector<std::string> > dataString=lookForUpload(socket, nrhs, prhs);
+	std::vector<std::vector<std::string> > dataString;
+	if (submit) dataString=lookForUpload(socket, nrhs, prhs);
 
 
 	/*for (int i = 0; i < dataString.size(); ++i)
@@ -523,7 +555,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		stop=true;
 	}
 
-	if(!stop){
+	if(!stop && submit){
 		infoContainer task;
 		task.version=1;
 		char algo[2048];
@@ -633,12 +665,28 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			stop=true;
 		}
 
+	}else if (!submit) {
+		id=*(unsigned*)mxGetPr(prhs[id_index]);
+	}
+
+	if(submit && !waitAndDownload){
+		if(nlhs>0)
+		{
+			size_t one=1;
+			plhs[0]=mxCreateNumericArray(1, &one, mxUINT32_CLASS, mxREAL);
+			*(unsigned*)mxGetPr(plhs[0])=id;
+		}
+		noOutput=true;
+		stop=true;
 	}
 
 	float lastProgression=-1.f;
 
 	char nameFile[65]={0};
 	sprintf(nameFile,"%u",id);
+
+	if(kill) done=true;
+
 	
 	while(!stop) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(600));
@@ -681,9 +729,21 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 					lastProgression=progress/1000.;
 					mexEvalString("drawnow");
 				}
+
+				if(!waitAndDownload && nlhs>0)
+				{
+					size_t one=1;
+					plhs[0]=mxCreateNumericArray(1, &one, mxSINGLE_CLASS, mxREAL);
+					*(float*)mxGetPr(plhs[0])=progress/1000;
+				}
 			}	
 		}
 
+		if(!waitAndDownload){
+			stop=true;
+			noOutput=true;
+			continue;
+		}
 		if(done) {
 			sendKill(socket, id);
 			stop=true;
