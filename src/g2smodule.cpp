@@ -469,6 +469,12 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
     int saP1_Index=-1;
     int dimP1_Index=-1;
     int aP1_Index=-1;
+    int id_index=-1;
+
+    bool submit=true;
+    bool statusOnly=false;
+    bool waitAndDownload=true;
+    bool kill=false;
 
     for (int i = 0; i < inputArray.size(); ++i)
     {
@@ -483,6 +489,31 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
         }
         if(!inputArray[i].compare("-noTO")){
             withTimeout=false;
+        }
+        if(!inputArray[i].compare("-submitOnly")){
+            waitAndDownload=false;
+            if(nlhs>1){
+                mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+                stop=true;
+            }
+        }
+        if(!inputArray[i].compare("-statusOnly")){
+            statusOnly=true;
+            waitAndDownload=false;
+            submit=false;
+            id_index=inputArrayIndex[i]+1;
+            if(nlhs>1){
+                mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+                stop=true;
+            }
+        }
+        if(!inputArray[i].compare("-waitAndDownload")){
+            submit=false;
+            id_index=inputArrayIndex[i]+1;
+        }
+        if(!inputArray[i].compare("-kill")){
+            kill=true;
+            id_index=inputArrayIndex[i]+1;
         }
     }
 
@@ -536,7 +567,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
         stop=true;
     }
 
-    if(!stop){
+    if(!stop && submit){
         infoContainer task;
         task.version=1;
         char algo[2048];
@@ -647,6 +678,19 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
             stop=true;
         }
 
+    }else if (!submit) {
+        id=PyLong_AsUnsignedLong(PyTuple_GetItem(args,id_index));
+    }
+
+
+    if(submit && !waitAndDownload){
+        if(nlhs>0)
+        {
+            size_t one=1;
+            plhs.push_back(PyLong_FromUnsignedLong(id));
+        }
+        noOutput=true;
+        stop=true;
     }
 
     float lastProgression=-1.f;
@@ -656,6 +700,8 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
     setbuf(stdout, NULL);
     
     printf("progres %.3f%%",0/1000. );
+
+    if(kill) done=true;
 
     while(!stop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(600));
@@ -697,7 +743,18 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
                     printf("\rprogres %.3f%%",progress/1000. );
                     lastProgression=progress/1000.;
                 }
+                if(!waitAndDownload && nlhs>0)
+                {
+                    size_t one=1;
+                    plhs.push_back(PyFloat_FromDouble(progress/1000.));
+                }
             }   
+        }
+
+        if(!waitAndDownload){
+            stop=true;
+            noOutput=true;
+            continue;
         }
 
         if(done) {
