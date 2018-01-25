@@ -34,6 +34,8 @@
 *.bgrid
 build/c++-build/*
 !build/c++-build/Makefile
+!build/c++-build/*.sh
+!build/c++-build/*.bat
 build/em-build/*
 !build/em-build/Makefile
 build/intel-build/*
