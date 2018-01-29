@@ -332,4 +332,23 @@ void geneAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &k
 	delete[] randomGenerators;
 }
 
+
+struct greedyAlgoConfig{
+	float precision;
+	unsigned randomPatternPoolSize;
+};
+
+
+void greedyAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernelSource, QuantileSamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned seed, float numberOfCandidate, std::vector<std::vector<float> > categoriesValues, greedyAlgoConfig config, const unsigned exclusionRadius, unsigned nbThreads=1){
+
+	const float precision=config.precision;
+	const unsigned randomPatternPoolSize=config.randomPatternPoolSize;
+
+	std::mt19937 randomGenerator(seed);
+	std::uniform_real_distribution<float> uniformDitribution(0.f,1.f);
+
+	
+}
+
 #endif // KERNEL_OPTIMIZATION_HPP
