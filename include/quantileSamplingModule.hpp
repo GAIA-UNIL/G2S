@@ -157,7 +157,7 @@ public:
 					#pragma omp simd
 					for (int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
 					{
-						errosArray[j]=std::fabs(errosArray[j]/crossErrosArray[j]);
+						errosArray[j]=-std::fabs(errosArray[j]/crossErrosArray[j]);
 					}
 				}
 				fKst::findKBigest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
