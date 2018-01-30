@@ -195,7 +195,7 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-oa");
 
-	if(optimAlgo.compare("genetic"))
+	if(!optimAlgo.compare("genetic"))
 	{
 
 		config.populationSize=200;
@@ -436,7 +436,7 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 	
-	if(optimAlgo.compare("genetic"))
+	if(!optimAlgo.compare("genetic"))
 		geneAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, config, 10, nbThreads);
 
 	auto end = std::chrono::high_resolution_clock::now();
