@@ -473,8 +473,8 @@ int main(int argc, char const *argv[]) {
 	
 	if(!optimAlgo.compare("genetic"))
 		geneAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, configGA, 10, nbThreads);
-	//if(!optimAlgo.compare("greedy"))
-		//greedyAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues,configGreedy, 10, nbThreads);
+	if(!optimAlgo.compare("greedy"))
+		greedyAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues,configGreedy, 10, nbThreads);
 
 
 	auto end = std::chrono::high_resolution_clock::now();

@@ -365,7 +365,7 @@ void greedyAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage 
 
 	const unsigned randomPatternPoolSize=config.randomPatternPoolSize;
 
-/*	std::mt19937 randomGenerator(seed);
+	std::mt19937 randomGenerator(seed);
 	std::uniform_real_distribution<float> uniformDitribution(0.f,1.f);
 
 	unsigned nbFreedom=kernelSource.dataSize();
@@ -616,7 +616,7 @@ void greedyAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage 
 	delete[] randomGenerators;
 	free(indexPathPtr);
 	free(kernelQuality);
-	free(kernelsortedIndex);*/
+	free(kernelsortedIndex);
 	
 }
 
