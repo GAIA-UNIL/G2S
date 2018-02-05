@@ -184,9 +184,10 @@ int main(int argc, char const *argv[]) {
 
 	std::string optimAlgo=std::string("genetic");
 
-	//GeneAlgo config
+	//GeneAlgo configGA
 
-	geneAlgoConfig config;
+	geneAlgoConfig configGA;
+	greedyAlgoConfig configGreedy;
 
 
 	if (arg.count("-oa") == 1)
@@ -198,55 +199,89 @@ int main(int argc, char const *argv[]) {
 	if(!optimAlgo.compare("genetic"))
 	{
 
-		config.populationSize=200;
-		config.survivingRate=0.3f;
-		config.mutationRate=0.05f;
-		config.heritageRate=0.5f;
-		config.appearingRate=0.02f;
-		config.randomPatternPoolSize=300;
-		config.maxIteration=10000;
+		configGA.populationSize=200;
+		configGA.survivingRate=0.3f;
+		configGA.mutationRate=0.05f;
+		configGA.heritageRate=0.5f;
+		configGA.appearingRate=0.02f;
+		configGA.randomPatternPoolSize=300;
+		configGA.maxIteration=10000;
 
 		if (arg.count("-ps") == 1)
 		{
-			config.populationSize=atoi((arg.find("-ps")->second).c_str());
+			configGA.populationSize=atoi((arg.find("-ps")->second).c_str());
 		}
 		arg.erase("-ps");
 
 		if (arg.count("-sr") == 1)
 		{
-			config.survivingRate=atof((arg.find("-sr")->second).c_str());
+			configGA.survivingRate=atof((arg.find("-sr")->second).c_str());
 		}
 		arg.erase("-sr");
 
 		if (arg.count("-mr") == 1)
 		{
-			config.mutationRate=atof((arg.find("-mr")->second).c_str());
+			configGA.mutationRate=atof((arg.find("-mr")->second).c_str());
 		}
 		arg.erase("-mr");
 
 		if (arg.count("-hr") == 1)
 		{
-			config.heritageRate=atof((arg.find("-hr")->second).c_str());
+			configGA.heritageRate=atof((arg.find("-hr")->second).c_str());
 		}
 		arg.erase("-hr");
 
 		if (arg.count("-ar") == 1)
 		{
-			config.appearingRate=atof((arg.find("-ar")->second).c_str());
+			configGA.appearingRate=atof((arg.find("-ar")->second).c_str());
 		}
 		arg.erase("-ar");
 
 		if (arg.count("-pps") == 1)
 		{
-			config.randomPatternPoolSize=atoi((arg.find("-pps")->second).c_str());
+			configGA.randomPatternPoolSize=atoi((arg.find("-pps")->second).c_str());
 		}
 		arg.erase("-pps");
 
 		if (arg.count("-maxi") == 1)
 		{
-			config.maxIteration=atoi((arg.find("-maxi")->second).c_str());
+			configGA.maxIteration=atoi((arg.find("-maxi")->second).c_str());
 		}
 		arg.erase("-maxi");
+	}
+
+	if(!optimAlgo.compare("greedy"))
+	{
+
+		configGreedy.initValue=0.001f;
+		configGreedy.scalefactor=1.5;
+		configGreedy.maxValue=100.f;
+		configGreedy.randomPatternPoolSize=5000;
+
+		if (arg.count("-iv") == 1)
+		{
+			configGreedy.initValue=atof((arg.find("-iv")->second).c_str());
+		}
+		arg.erase("-iv");
+
+		if (arg.count("-sf") == 1)
+		{
+			configGreedy.scalefactor=atof((arg.find("-sf")->second).c_str());
+		}
+		arg.erase("-sf");
+
+		if (arg.count("-mv") == 1)
+		{
+			configGreedy.maxValue=atof((arg.find("-mv")->second).c_str());
+		}
+		arg.erase("-mv");
+
+		if (arg.count("-pps") == 1)
+		{
+			configGreedy.randomPatternPoolSize=atoi((arg.find("-pps")->second).c_str());
+		}
+		arg.erase("-pps");
+
 	}
 
 
@@ -432,12 +467,15 @@ int main(int argc, char const *argv[]) {
 
 	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesurement, nbThreads);
 
-	// run QS
+	// run KO
 
 	auto begin = std::chrono::high_resolution_clock::now();
 	
 	if(!optimAlgo.compare("genetic"))
-		geneAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, config, 10, nbThreads);
+		geneAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues, configGA, 10, nbThreads);
+	//if(!optimAlgo.compare("greedy"))
+		//greedyAlgo(reportFile, TIs, kernel, QSM, pathPosition, seed, nbCandidate, categoriesValues,configGreedy, 10, nbThreads);
+
 
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
