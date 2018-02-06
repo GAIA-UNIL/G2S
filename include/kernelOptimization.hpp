@@ -61,7 +61,6 @@ void mutateKernels(g2s::DataImage *kernel, float alpha, Engine &randomGenerator)
 	}
 }
 
-template<class Engine>
 void normalizeeKernels(g2s::DataImage *kernel){
 	std::uniform_real_distribution<float> uniformDitribution(0.f,1.f);
 	float sum=0.f;
@@ -592,7 +591,7 @@ void greedyAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage 
 		for (int modifIndex = 0; modifIndex < populationSize; ++modifIndex)
 		{
 			population[modifIndex]._data[index]=valueArray[bigestIndex];
-
+			normalizeeKernels(population+modifIndex);
 		}
 
 		if(indexInPath%(nbFreedom/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexInPath)/nbFreedom*100);
