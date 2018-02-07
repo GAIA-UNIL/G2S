@@ -68,6 +68,7 @@ void normalizeeKernels(g2s::DataImage *kernel){
 	{
 		sum+=kernel->_data[i];
 	}
+	if(sum==0.f)return;
 	for (int i = 0; i < kernel->dataSize(); ++i)
 	{
 		kernel->_data[i]/=sum;
