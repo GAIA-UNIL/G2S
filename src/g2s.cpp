@@ -613,6 +613,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 				if(!inputArray[i].compare("-sa") ||
 				   !inputArray[i].compare("-ti") ||
 				   !inputArray[i].compare("-di") ||
+				   !inputArray[i].compare("-dt") ||
 				   !inputArray[i].compare("-sp") ||
 				   !inputArray[i].compare("-ki") ||
 				   !inputArray[i].compare("-a")){
@@ -621,11 +622,14 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 
 				if (!managed)
 				{
-					if((inputArray.size()>i+1) && (inputArray[i+1].at(0)!='-') ){
-						parameter[inputArray[i]]=inputArray[i+1];
-					}else{
-						parameter[inputArray[i]]=Json::Value::null;
+					unsigned i_source=i;
+					Json::Value jsonArray(Json::arrayValue);
+					while((inputArray.size()>i+1) && (inputArray[i+1].at(0)!='-'))
+					{
+						jsonArray.append(inputArray[i+1]);
+						i++;
 					}
+					parameter[inputArray[i_source]]=jsonArray;
 					managed=true;
 				}
 			}

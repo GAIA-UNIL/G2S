@@ -82,18 +82,43 @@ int main(int argc, char const *argv[]) {
 	// LOOK FOR STANDARD PARAMETER
 
 	unsigned nbThreads=1;
-	unsigned threadRatio=1;
+	unsigned nbThreadsOverTi=1;
+	unsigned nbThreadsLastLevel=1;
 	bool verbose=false;
 
-	if (arg.count("-j") == 1)
+	if (arg.count("-j") >= 1)
 	{
-		nbThreads=atoi((arg.find("-j")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+		if(jobsString!=arg.upper_bound("-j")){
+			nbThreads=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+	    if(jobsString!=arg.upper_bound("-j")){
+			nbThreadsOverTi=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("-j")){
+			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
 	}
 	arg.erase("-j");
 
-	if (arg.count("--jobs") == 1)
+	if (arg.count("--jobs") >= 1)
 	{
-		nbThreads=atoi((arg.find("--jobs")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+		if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreads=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+	    if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreadsOverTi=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
 	}
 	arg.erase("--jobs");	
 
@@ -329,7 +354,14 @@ int main(int argc, char const *argv[]) {
 	}
 
 #if _OPENMP
-	omp_set_num_threads(nbThreads);
+	//omp_set_num_threads(nbThreads);
+	omp_set_nested(true);
+	fftwf_init_threads();
+	omp_set_max_active_levels(3);
+	#ifdef WITH_MKL
+	mkl_set_num_threads(nbThreadsLastLevel);
+	mkl_set_dynamic(false);
+	#endif
 #endif
 	std::mt19937 randomGenerator(seed);
 
@@ -611,7 +643,7 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
 			#pragma omp critical (createDevices)
@@ -627,7 +659,7 @@ int main(int argc, char const *argv[]) {
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,nbThreadsLastLevel, needCrossMesurement);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -644,7 +676,7 @@ int main(int argc, char const *argv[]) {
 	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesurement, nbThreads);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesurement, nbThreads, nbThreadsOverTi);
 
 	// run QS
 
@@ -687,6 +719,10 @@ int main(int argc, char const *argv[]) {
 	simulationPathIndex=nullptr;
 	free(importDataIndex);
 	importDataIndex=nullptr;
+
+#if _OPENMP
+	fftw_cleanup_threads();
+#endif
 
 	return 0;
 }

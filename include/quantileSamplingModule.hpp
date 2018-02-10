@@ -11,13 +11,14 @@ class QuantileSamplingModule: public SamplingModule {
 private:
 	float _k;
 	bool _completeTIs=true;
+	unsigned _nbThreadOverTI=1;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
 public:
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread):SamplingModule(cdmV,kernel)
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
@@ -30,7 +31,7 @@ public:
 			_errors[i]=(float*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(float));
 			_encodedPosition[i]=(unsigned*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(unsigned));
 		}
-		
+		_nbThreadOverTI=nbThreadOverTI;
 	}
 	~QuantileSamplingModule(){
 		for (int i = 0; i < _errors.size(); ++i)
@@ -126,6 +127,7 @@ public:
 			}
 		}
 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
@@ -134,6 +136,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) proc_bind(close) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
@@ -255,6 +258,7 @@ public:
 			}
 		}
 
+		#pragma omp parallel for default(none) num_threads(4) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
@@ -263,6 +267,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
+		#pragma omp parallel for default(none) num_threads(4) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])

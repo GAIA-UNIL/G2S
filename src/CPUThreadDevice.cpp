@@ -25,6 +25,7 @@
 
 CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
 	_deviceType=DT_cpuThreads;
+	_threadRatio=threadRatio;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
 	_crossMesurement=withCrossMesurement;
@@ -94,6 +95,7 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 
 			for (int i = 0; i < _fftSize.back(); ++i)
 			{
+				FFTW_PRECISION(plan_with_nthreads)(1);
 				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 			}
 
@@ -279,6 +281,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			if(patialFFT && (_fftSize.size()>1)){
 				
+				#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) shared(lines)
 				for (int i = 0; i < _fftSize.back(); ++i)
 				{
 					if(lines[i]){
