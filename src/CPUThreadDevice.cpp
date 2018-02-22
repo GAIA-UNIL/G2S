@@ -85,13 +85,13 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 		if(_fftSize.size()>1){
 			unsigned reducedSize=1;
 
-			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
-			unsigned reducedRealSize=reducedSize*(_fftSize.front());
-
 			for (int i = 1; i < _fftSize.size()-1; ++i)
 			{
 				reducedSize*=_fftSize[i];
 			}
+
+			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
+			unsigned reducedRealSize=reducedSize*(_fftSize.front());
 
 			for (int i = 0; i < _fftSize.back(); ++i)
 			{
