@@ -12,13 +12,14 @@ private:
 	float _k;
 	bool _completeTIs=true;
 	unsigned _nbThreadOverTI=1;
+	unsigned _threadRatio=1;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
 public:
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1):SamplingModule(cdmV,kernel)
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
@@ -32,6 +33,7 @@ public:
 			_encodedPosition[i]=(unsigned*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(unsigned));
 		}
 		_nbThreadOverTI=nbThreadOverTI;
+		_threadRatio=threadRatio;
 	}
 	~QuantileSamplingModule(){
 		for (int i = 0; i < _errors.size(); ++i)
@@ -136,23 +138,56 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) proc_bind(close) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
 			{
 				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
 				float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
+				unsigned sizeArray=_cdmV[moduleID][i]->getErrorsArraySize();
 
 				if(!_completeTIs)
 				{
-					#pragma omp simd
-					for (int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
+					#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(sizeArray, errosArray, crossErrosArray)
+					for (int j = 0; j < sizeArray; ++j)
 					{
 						errosArray[j]=-std::fabs(errosArray[j]/crossErrosArray[j]);
 					}
 				}
-				fKst::findKBigest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
+				
+				float localError[extendK*_threadRatio];
+				float* localErrorPtr=localError;
+				unsigned localEncodedPosition[extendK*_threadRatio];
+				unsigned* localEncodedPositionPtr=localEncodedPosition;
+				#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
+				{
+					unsigned k=0;
+					#if _OPENMP
+					k=omp_get_thread_num();
+					#endif
+					unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
+					fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK);
+					for (int j = 0; j < extendK; ++j)
+					{
+						localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
+					}
+				}
+				//memcpy(encodedPosition,localEncodedPositionPtr,extendK*sizeof(unsigned));
+				//memcpy(errors,localError,extendK*sizeof(float));
+
+				for (int j = 0; j <extendK ; ++j)
+				{
+					unsigned bestIndex=0;
+					for (int l = 1; l < _threadRatio*extendK; ++l)
+					{
+						if(localError[l] > localError[bestIndex]) bestIndex=l;
+					}
+
+					errors[i*extendK+j]=localError[bestIndex];
+					encodedPosition[i*extendK+j]=localEncodedPosition[bestIndex];
+					localError[bestIndex]=-INFINITY;
+				}
 			}
 		}
 

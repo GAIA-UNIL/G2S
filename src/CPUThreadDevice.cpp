@@ -292,9 +292,26 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}else{
 				FFTW_PRECISION(execute)(_p);
 			}
-			g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceOutput, (dataType*)_srcCplx[var].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
+			//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+			{
+				unsigned k=0;
+				#if _OPENMP
+				//k=omp_get_thread_num();
+				#endif
+				unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
+				g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutput)+shift, ((dataType*)_srcCplx[var].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
+			}
+			
 			if(_crossMesurement && var==0){
-				g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceCrossOutput, (dataType*)_srcCplx[variablesCoeficient.size()-1].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
+				//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+				{
+					unsigned k=0;
+					#if _OPENMP
+					//k=omp_get_thread_num();
+					#endif
+					unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
+					g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceCrossOutput)+shift, ((dataType*)_srcCplx[variablesCoeficient.size()-1].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
+				}
 			}
 		}
 
@@ -315,6 +332,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				delta*=_fftSize[j];
 			}
 
+			#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize)
 			for (int j = 0; j < _realSpaceSize; j+=delta)
 			{
 				fillVectorized(_realSpace,j,blockSize,-INFINITY);
@@ -323,7 +341,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		if(_trueMismatch && !_crossMesurement) // correct value needed
 		{
-			#pragma omp simd
+			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0)
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
 				_realSpace[i]=_realSpace[i]/(_realSpaceSize)+delta0;
@@ -374,7 +392,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		#endif*/
 			unsigned nbVariable=neighborValueArrayVector[0].size();
-			#pragma omp simd
+			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(deltaCross,nbVariable)
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
 				_realCrossSpace[i]*=((dataType*)_srcCplx[nbVariable-1].space)[(i+deltaCross)%_realSpaceSize];
