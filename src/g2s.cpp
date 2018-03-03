@@ -925,16 +925,8 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 
 	std::atomic<bool> done(false);
-	std::thread workThread(testIfInterupted,std::ref(done));
-	workThread.detach();
-
+	auto myFuture = std::async(std::launch::async, testIfInterupted,std::ref(done));
 	mexFunctionWork(nlhs, plhs,  nrhs, prhs,std::ref(done));
-	fprintf(stderr, "test if joinable\n");
-	if(!done && workThread.joinable()){
-		fprintf(stderr, "is joinable\n");
-		done=true;
-		workThread.join();
-	}
-	std::this_thread::sleep_for(std::chrono::milliseconds(600));
+	myFuture.wait();
 	mexEvalString("drawnow");
 }

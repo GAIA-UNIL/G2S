@@ -947,16 +947,9 @@ static PyObject *g2s_run(PyObject *self, PyObject *args)
     
     std::atomic<bool> done(false);
     std::vector<PyObject*> result;
-    std::thread workThread(pyFunctionWork,self, args,std::ref(done),std::ref(result));
-    workThread.detach();
+    auto myFuture = std::async(std::launch::async, pyFunctionWork,self, args,std::ref(done),std::ref(result));
     testIfInterupted(std::ref(done));
-    //fprintf(stderr, "test if joinable\n");
-    if(!done && workThread.joinable()){
-        //printf(stderr, "is joinable\n");
-        done=true;
-        workThread.join();
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    myFuture.wait();
 
     PyObject* pyResult=PyList_New(0);
     for (int i = 0; i < result.size(); ++i)
