@@ -11,6 +11,14 @@
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
 #include "complexMulti.hpp"
+#ifdef HBW_MALLOC
+	#include <hdwmalloc.h>
+	#define mem_malloc hbw_malloc
+	#define mem_free hbw_free
+#else
+	#define mem_malloc malloc
+	#define mem_free free
+#endif
 
 #define PARTIAL_FFT
 
@@ -56,16 +64,16 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 		_realSpaceSize*=_fftSize[i];
 	}
 
-	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_realSpace=(dataType*)malloc(_realSpaceSize* sizeof(dataType));
+	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+	_realSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
 
 	if(_crossMesurement){
-		_frenquencySpaceCrossOutput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-		_realCrossSpace=(dataType*)malloc(_realSpaceSize* sizeof(dataType));
+		_frenquencySpaceCrossOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		_realCrossSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
 	}
 
-	_pPatchL=(FFTW_PRECISION(plan)*)malloc(sizeof(FFTW_PRECISION(plan)) * _fftSize.back());
+	_pPatchL=(FFTW_PRECISION(plan)*)mem_malloc(sizeof(FFTW_PRECISION(plan)) * _fftSize.back());
 
 
 	std::vector<int> reverseFftSize(_fftSize.begin(),_fftSize.end());
@@ -126,14 +134,14 @@ CPUThreadDevice::~CPUThreadDevice(){
 
 	if(_crossMesurement){
 		FFTW_PRECISION(destroy_plan)(_pInvCross);
-		free(_frenquencySpaceCrossOutput);
-		free(_realCrossSpace);
+		mem_free(_frenquencySpaceCrossOutput);
+		mem_free(_realCrossSpace);
 	}
 
-	free(_pPatchL);
-	free(_frenquencySpaceInput);
-	free(_frenquencySpaceOutput);
-	free(_realSpace);
+	mem_free(_pPatchL);
+	mem_free(_frenquencySpaceInput);
+	mem_free(_frenquencySpaceOutput);
+	mem_free(_realSpace);
 }
 
 std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
@@ -159,9 +167,9 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 	for (int i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType));
+		sharedMemoryAdress.space=mem_malloc(realSpaceSize * sizeof(dataType));
 		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
-		sharedMemoryAdress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		sharedMemoryAdress.fft=mem_malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		
 		sharedMemory.push_back(sharedMemoryAdress);
 
@@ -181,8 +189,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
 	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
 	{
-		free(sharedMemoryAdress[i].space);
-		free(sharedMemoryAdress[i].fft);
+		mem_free(sharedMemoryAdress[i].space);
+		mem_free(sharedMemoryAdress[i].fft);
 	}
 	sharedMemoryAdress.clear();
 	return sharedMemoryAdress;
