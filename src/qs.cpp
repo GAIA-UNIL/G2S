@@ -654,7 +654,7 @@ int main(int argc, char const *argv[]) {
 		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
-			#pragma omp critical (createDevices)
+			//#pragma omp critical (createDevices)
 			{
 				bool deviceCreated=false;
 
