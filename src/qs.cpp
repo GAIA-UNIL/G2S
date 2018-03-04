@@ -497,7 +497,7 @@ int main(int argc, char const *argv[]) {
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
-		simulationPathSize=DI.dataSize();
+		simulationPathSize=DI.dataSize()/DI._nbVariable;
 		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
 		for (unsigned i = 0; i < simulationPathSize; ++i)
 		{
