@@ -491,16 +491,20 @@ int main(int argc, char const *argv[]) {
 	}
 	fprintf(stderr, "\n\n" );*/
 
+	unsigned simulationPathSize=0;
+	unsigned* simulationPathIndex=nullptr;
+	unsigned beginPath=0;
+
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
-		simulationPath=DI.emptyCopy(true);
-		for (int i = 0; i < simulationPath.dataSize(); ++i)
+		simulationPathSize=DI.dataSize();
+		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		for (unsigned i = 0; i < simulationPathSize; ++i)
 		{
-			simulationPath._data[i]=i;
+			simulationPathIndex[i]=i;
 		}
-		std::shuffle(simulationPath._data, simulationPath._data + simulationPath.dataSize(), randomGenerator );
-		
-		for (int i = 0; i < simulationPath.dataSize(); ++i)
+
+		for (int i = 0; i < simulationPathSize; ++i)
 		{
 			bool valueSeted=true;
 			for (int j = 0; j < DI._nbVariable; ++j)
@@ -508,42 +512,46 @@ int main(int argc, char const *argv[]) {
 				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
 			}
 			if(valueSeted)
-				simulationPath._data[i]=-INFINITY;
+			{
+				std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+				beginPath++;
+			}
 		}
+		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
+		
+		
 	}
 	else {
 		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
+		simulationPathSize=simulationPath.dataSize();
+		bool dimAgree=true;
+		if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
+		for (int i = 0; i < simulationPath._dims.size(); ++i)
+		{
+			if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
+		}
+		if(!dimAgree){
+			fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
+			return 0;
+		}
+
+		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
+		float* simulationPathData=simulationPath._data;
+		std::sort(simulationPathIndex, simulationPathIndex+simulationPathSize,
+			[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
+
+		//Search begin path
+		for ( beginPath=0 ; beginPath < simulationPathSize; ++beginPath)
+		{
+			float value=simulationPathData[simulationPathIndex[beginPath]];
+			if((!std::isinf(value))||(value>0)) break;
+		}
+
 	}
 
-	bool dimAgree=true;
-	if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
-	for (int i = 0; i < simulationPath._dims.size(); ++i)
-	{
-		if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
-	}
-	if(!dimAgree){
-		fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
-		return 0;
-	}
-
-	unsigned* simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
-	std::iota(simulationPathIndex,simulationPathIndex+simulationPath.dataSize(),0);
-	float* simulationPathData=simulationPath._data;
-	std::sort(simulationPathIndex, simulationPathIndex+simulationPath.dataSize(),
-		[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
-
-	//Search begin path
-
-	unsigned beginPath=0;
-
-	for ( beginPath=0 ; beginPath < simulationPath.dataSize(); ++beginPath)
-	{
-		float value=simulationPathData[simulationPathIndex[beginPath]];
-		if((!std::isinf(value))||(value>0)) break;
-	}
-
-	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
-	memset(importDataIndex,0,sizeof(unsigned)*simulationPath.dataSize());
+	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+	memset(importDataIndex,0,sizeof(unsigned)*simulationPathSize);
 	float* seedForIndex=( float* )malloc( sizeof(float) * DI.dataSize()/DI._nbVariable );
 	
 	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
@@ -680,7 +688,7 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
+	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
 	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();

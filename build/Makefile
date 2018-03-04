@@ -9,7 +9,6 @@ export LIB_PATH= -L/usr/lib -L/opt/local/lib
 
 .DEFAULT:
 	$(MAKE) -C c++-build $@
-	emmake make -C em-build $@
 	$(MAKE) -C intel-build $@
 
 compile_all:all
