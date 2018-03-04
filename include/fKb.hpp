@@ -647,7 +647,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKBigest(data, N, k, output);
+		findKBigest512(data, N, k, output);
 		return;
 	}
 #endif
@@ -683,7 +683,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKbigest(data, N, k, output, positionValue);
+		findKbigest512(data, N, k, output, positionValue);
 		return;
 	}
 #endif

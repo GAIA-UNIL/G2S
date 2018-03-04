@@ -647,7 +647,7 @@ inline void findKSmallest(const T* data,const unsigned int N,const unsigned shor
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKsmallest(data, N, k, output);
+		findKsmallest512(data, N, k, output);
 		return;
 	}
 #endif
@@ -683,7 +683,7 @@ inline void findKSmallest(const T* data,const unsigned int N,const unsigned shor
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKsmallest(data, N, k, output, positionValue);
+		findKsmallest512(data, N, k, output, positionValue);
 		return;
 	}
 #endif
