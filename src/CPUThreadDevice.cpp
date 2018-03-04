@@ -12,7 +12,7 @@
 #include "utils.hpp"
 #include "complexMulti.hpp"
 #ifdef HBW_MALLOC
-	#include <hdwmalloc.h>
+	#include <hbwmalloc.h>
 	#define mem_malloc hbw_malloc
 	#define mem_free hbw_free
 #else
