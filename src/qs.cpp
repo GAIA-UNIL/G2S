@@ -209,7 +209,7 @@ int main(int argc, char const *argv[]) {
 
 
 	// LOOK FOR SETINGS
-
+	bool noVerbatim=false;
 	float threshold=std::nanf("0");			// threshold for DS ...
 	int nbNeighbors=-1;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
@@ -218,11 +218,11 @@ int main(int argc, char const *argv[]) {
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 
-	if (arg.count("-th") == 1)
+	if (arg.count("-nV") == 1)
 	{
-		threshold=atof((arg.find("-th")->second).c_str());
+		noVerbatim=true;
 	}
-	arg.erase("-th");
+	arg.erase("-nV");
 
 	if (arg.count("-f") == 1)
 	{
@@ -684,7 +684,7 @@ int main(int argc, char const *argv[]) {
 	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
 
 	// run QS
 

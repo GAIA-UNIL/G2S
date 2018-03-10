@@ -215,7 +215,7 @@ int main(int argc, char const *argv[]) {
 
 
 	// LOOK FOR SETINGS
-
+	bool noVerbatim=false;
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS
 	float narrownessRange=0.5;			 		// narrowness for NDS
@@ -225,6 +225,12 @@ int main(int argc, char const *argv[]) {
 	unsigned nbBandsForNarrowness=1;
 	float maxProgression=1;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+
+	if (arg.count("-nV") == 1)
+	{
+		noVerbatim=true;
+	}
+	arg.erase("-nV");
 
 	if (arg.count("-f") == 1)
 	{
@@ -632,7 +638,7 @@ int main(int argc, char const *argv[]) {
 	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, !needCrossMesurement, nbThreads);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, noVerbatim, !needCrossMesurement, nbThreads);
 	QSM.setNarrownessFunction([&TIs,narrownessRange, nbBandsForNarrowness](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];

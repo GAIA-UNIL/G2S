@@ -52,6 +52,7 @@ public:
 	virtual float getErrorAtPosition(unsigned)=0;
 	virtual float getCroossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
+	virtual unsigned cvtPositionToIndex(unsigned)=0;
 
 	unsigned _memoryID=UINT_MAX;
 	DeviceType _deviceType=DT_none;

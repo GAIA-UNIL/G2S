@@ -13,13 +13,14 @@ private:
 	bool _completeTIs=true;
 	unsigned _nbThreadOverTI=1;
 	unsigned _threadRatio=1;
+	bool _noVerbatim=false;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
 public:
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1):SamplingModule(cdmV,kernel)
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool noVerbatim, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
@@ -34,6 +35,7 @@ public:
 		}
 		_nbThreadOverTI=nbThreadOverTI;
 		_threadRatio=threadRatio;
+		_noVerbatim=noVerbatim;
 	}
 	~QuantileSamplingModule(){
 		for (int i = 0; i < _errors.size(); ++i)
@@ -49,7 +51,7 @@ public:
 		}
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false){
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
@@ -138,7 +140,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(__stderrp, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
@@ -154,6 +156,10 @@ public:
 					{
 						errosArray[j]=-std::fabs(errosArray[j]/crossErrosArray[j]);
 					}
+				}
+
+				if(_noVerbatim && (verbatimRecord.TI==i)){
+					errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
 				}
 				
 				float localError[extendK*_threadRatio];
@@ -211,6 +217,7 @@ public:
 		matchLocation result;
 		result.TI=selectedTI;
 		result.index=indexInTI;
+
 		return result;
 	}
 

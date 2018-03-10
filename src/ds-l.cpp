@@ -209,7 +209,7 @@ int main(int argc, char const *argv[]) {
 
 
 	// LOOK FOR SETINGS
-
+	bool noVerbatim=false;
 	float threshold=std::nanf("0");			// threshold for DS ...
 	int nbNeighbors=-1;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
@@ -217,6 +217,12 @@ int main(int argc, char const *argv[]) {
 	float narrowness=std::nanf("0");		// narrowness for NDS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+
+	if (arg.count("-nV") == 1)
+	{
+		noVerbatim=true;
+	}
+	arg.erase("-nV");
 
 	if (arg.count("-th") == 1)
 	{
@@ -683,7 +689,7 @@ int main(int argc, char const *argv[]) {
 
 	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector,!needCrossMesurement);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, variablesCoeficientMainVector, noVerbatim, !needCrossMesurement);
 	// run DS
 
 	auto begin = std::chrono::high_resolution_clock::now();

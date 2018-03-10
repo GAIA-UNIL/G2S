@@ -231,6 +231,23 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 	return position;
 }
 
+unsigned CPUThreadDevice::cvtPositionToIndex(unsigned position){
+
+	unsigned index=0;
+	unsigned divFactor=1;
+	for (int i = _fftSize.size()-1; i>=0; --i)
+	{
+	    divFactor*=_srcSize[i];
+	}
+	for (int i = _fftSize.size()-1; i>=0; --i)
+	{
+		divFactor/=_srcSize[i];
+		index=index*_fftSize[i] + (_fftSize[i]-(position/(divFactor)+_min[i])%_srcSize[i]-1);
+	}
+	return index;
+}
+
+
 void CPUThreadDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }

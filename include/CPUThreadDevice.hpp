@@ -41,6 +41,7 @@ public:
 	float getErrorAtPosition(unsigned);
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
+	unsigned cvtPositionToIndex(unsigned);
 	void setTrueMismatch(bool value);
 
 private:
