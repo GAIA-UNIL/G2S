@@ -228,7 +228,7 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 		position=position*_srcSize[i] + (_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1);
 	}
 
-	return position+1; //TODO check the origine of this 1
+	return position;
 }
 
 void CPUThreadDevice::setTrueMismatch(bool value){

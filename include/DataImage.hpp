@@ -321,7 +321,7 @@ class DataImage{
 
 					for (int j = i; j < dataSize(); j+=_nbVariable)
 					{
-						unsigned newIndex=output[i][0].dataSize()-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
+						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 						output[i][0]._data[newIndex] = _data[j] * _data[j];
 						if(std::isnan( _data[j] ))output[i][0]._data[newIndex] = 0.f;
 						output[i][1]._data[newIndex] = _data[j];
@@ -341,7 +341,7 @@ class DataImage{
 
 					for (int j = i; j < dataSize(); j+=_nbVariable)
 					{
-						unsigned newIndex=output[i][0].dataSize()-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
+						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 						for (int k = 0; k < numberOfCategorie; ++k)
 						{
 							//output[i][k]._data[newIndex] = (_data[j] != categoriesValues[categoriesValuesIndex][k])/float(numberOfCategorie);
@@ -360,7 +360,7 @@ class DataImage{
 				for (int j = 0; j < dataSize(); j++)
 				{
 					if(std::isnan(_data[j])){
-						unsigned newIndex=output[_nbVariable][0].dataSize()-output[_nbVariable][0].corrd2Index(index2Corrd(j/_nbVariable));
+						unsigned newIndex=output[_nbVariable][0].dataSize()-1-output[_nbVariable][0].corrd2Index(index2Corrd(j/_nbVariable));
 						output[_nbVariable][0]._data[newIndex] = 0.f;
 					}/*else{
 						output[_nbVariable][0]._data[newIndex] = 1.f;
