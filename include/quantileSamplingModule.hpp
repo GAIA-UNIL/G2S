@@ -140,7 +140,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(__stderrp, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
