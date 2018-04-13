@@ -9,7 +9,7 @@ OPENCL_LIB=# -framework OpenCL -lOpenCL -lclFFT
 OPENCL_INC=#-DWITH_OPENCL=1
 
 
-all: server echo test qs nds ds ds-l
+all: server echo qs nds ds ds-l
 
 depend: .depend Makefile
 
