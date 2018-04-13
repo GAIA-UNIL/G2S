@@ -28,9 +28,6 @@ server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-test: test.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
-
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 

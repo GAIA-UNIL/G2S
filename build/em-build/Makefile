@@ -36,12 +36,6 @@ echo.js: echo.o
 echo:echo.js
 	cp $^ $@
 
-test.js: test.o
-	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(EMFLAGS)
-
-test:test.js
-	cp $^ $@
-
 qs.js: qs.o
 	$(CXX) -o $@ $^ -s SIDE_MODULE=1 $(CFLAGS) $(LIB_PATH) $(LDFLAGS) $(EMFLAGS)
 	sed -i -e 's/shiftRightArithmeticByScalar/shiftRightByScalar/g' qs.js
