@@ -82,18 +82,43 @@ int main(int argc, char const *argv[]) {
 	// LOOK FOR STANDARD PARAMETER
 
 	unsigned nbThreads=1;
-	unsigned threadRatio=1;
+	unsigned nbThreadsOverTi=1;
+	unsigned nbThreadsLastLevel=1;
 	bool verbose=false;
 
-	if (arg.count("-j") == 1)
+	if (arg.count("-j") >= 1)
 	{
-		nbThreads=atoi((arg.find("-j")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+		if(jobsString!=arg.upper_bound("-j")){
+			nbThreads=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+	    if(jobsString!=arg.upper_bound("-j")){
+			nbThreadsOverTi=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("-j")){
+			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
 	}
 	arg.erase("-j");
 
-	if (arg.count("--jobs") == 1)
+	if (arg.count("--jobs") >= 1)
 	{
-		nbThreads=atoi((arg.find("--jobs")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+		if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreads=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+	    if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreadsOverTi=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("--jobs")){
+			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			++jobsString;
+		}
 	}
 	arg.erase("--jobs");	
 
@@ -184,7 +209,7 @@ int main(int argc, char const *argv[]) {
 
 
 	// LOOK FOR SETINGS
-
+	bool noVerbatim=false;
 	float threshold=std::nanf("0");			// threshold for DS ...
 	int nbNeighbors=-1;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
@@ -192,6 +217,12 @@ int main(int argc, char const *argv[]) {
 	float narrowness=std::nanf("0");		// narrowness for NDS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+
+	if (arg.count("-nV") == 1)
+	{
+		noVerbatim=true;
+	}
+	arg.erase("-nV");
 
 	if (arg.count("-th") == 1)
 	{
@@ -329,7 +360,14 @@ int main(int argc, char const *argv[]) {
 	}
 
 #if _OPENMP
-	omp_set_num_threads(nbThreads);
+	//omp_set_num_threads(nbThreads);
+	omp_set_nested(true);
+	fftwf_init_threads();
+	omp_set_max_active_levels(3);
+	#ifdef WITH_MKL
+	mkl_set_num_threads(nbThreadsLastLevel);
+	mkl_set_dynamic(false);
+	#endif
 #endif
 	std::mt19937 randomGenerator(seed);
 
@@ -459,16 +497,20 @@ int main(int argc, char const *argv[]) {
 	}
 	fprintf(stderr, "\n\n" );*/
 
+	unsigned simulationPathSize=0;
+	unsigned* simulationPathIndex=nullptr;
+	unsigned beginPath=0;
+
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
-		simulationPath=DI.emptyCopy(true);
-		for (int i = 0; i < simulationPath.dataSize(); ++i)
+		simulationPathSize=DI.dataSize()/DI._nbVariable;
+		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		for (unsigned i = 0; i < simulationPathSize; ++i)
 		{
-			simulationPath._data[i]=i;
+			simulationPathIndex[i]=i;
 		}
-		std::shuffle(simulationPath._data, simulationPath._data + simulationPath.dataSize(), randomGenerator );
-		
-		for (int i = 0; i < simulationPath.dataSize(); ++i)
+
+		for (int i = 0; i < simulationPathSize; ++i)
 		{
 			bool valueSeted=true;
 			for (int j = 0; j < DI._nbVariable; ++j)
@@ -476,42 +518,46 @@ int main(int argc, char const *argv[]) {
 				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
 			}
 			if(valueSeted)
-				simulationPath._data[i]=-INFINITY;
+			{
+				std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+				beginPath++;
+			}
 		}
+		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
+		
+		
 	}
 	else {
 		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
+		simulationPathSize=simulationPath.dataSize();
+		bool dimAgree=true;
+		if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
+		for (int i = 0; i < simulationPath._dims.size(); ++i)
+		{
+			if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
+		}
+		if(!dimAgree){
+			fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
+			return 0;
+		}
+
+		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
+		float* simulationPathData=simulationPath._data;
+		std::sort(simulationPathIndex, simulationPathIndex+simulationPathSize,
+			[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
+
+		//Search begin path
+		for ( beginPath=0 ; beginPath < simulationPathSize; ++beginPath)
+		{
+			float value=simulationPathData[simulationPathIndex[beginPath]];
+			if((!std::isinf(value))||(value>0)) break;
+		}
+
 	}
 
-	bool dimAgree=true;
-	if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
-	for (int i = 0; i < simulationPath._dims.size(); ++i)
-	{
-		if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
-	}
-	if(!dimAgree){
-		fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
-		return 0;
-	}
-
-	unsigned* simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
-	std::iota(simulationPathIndex,simulationPathIndex+simulationPath.dataSize(),0);
-	float* simulationPathData=simulationPath._data;
-	std::sort(simulationPathIndex, simulationPathIndex+simulationPath.dataSize(),
-		[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
-
-	//Search begin path
-
-	unsigned beginPath=0;
-
-	for ( beginPath=0 ; beginPath < simulationPath.dataSize(); ++beginPath)
-	{
-		float value=simulationPathData[simulationPathIndex[beginPath]];
-		if((!std::isinf(value))||(value>0)) break;
-	}
-
-	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
-	memset(importDataIndex,0,sizeof(unsigned)*simulationPath.dataSize());
+	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+	memset(importDataIndex,0,sizeof(unsigned)*simulationPathSize);
 	float* seedForIndex=( float* )malloc( sizeof(float) * DI.dataSize()/DI._nbVariable );
 	
 	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
@@ -611,10 +657,10 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(threadRatio, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
-			#pragma omp critical (createDevices)
+			//#pragma omp critical (createDevices)
 			{
 				bool deviceCreated=false;
 
@@ -627,7 +673,7 @@ int main(int argc, char const *argv[]) {
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,nbThreadsLastLevel, needCrossMesurement);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -643,12 +689,12 @@ int main(int argc, char const *argv[]) {
 
 	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold*threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector,!needCrossMesurement);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, variablesCoeficientMainVector, noVerbatim, !needCrossMesurement);
 	// run DS
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPath.dataSize()-beginPath,
+	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
 	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
@@ -685,6 +731,10 @@ int main(int argc, char const *argv[]) {
 	simulationPathIndex=nullptr;
 	free(importDataIndex);
 	importDataIndex=nullptr;
+
+#if _OPENMP
+	fftw_cleanup_threads();
+#endif
 
 	return 0;
 }

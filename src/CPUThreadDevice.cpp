@@ -11,6 +11,14 @@
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
 #include "complexMulti.hpp"
+#ifdef HBW_MALLOC
+	#include <hbwmalloc.h>
+	#define mem_malloc hbw_malloc
+	#define mem_free hbw_free
+#else
+	#define mem_malloc malloc
+	#define mem_free free
+#endif
 
 #define PARTIAL_FFT
 
@@ -25,6 +33,7 @@
 
 CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
 	_deviceType=DT_cpuThreads;
+	_threadRatio=threadRatio;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
 	_crossMesurement=withCrossMesurement;
@@ -55,16 +64,16 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 		_realSpaceSize*=_fftSize[i];
 	}
 
-	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_realSpace=(dataType*)malloc(_realSpaceSize* sizeof(dataType));
+	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+	_realSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
 
 	if(_crossMesurement){
-		_frenquencySpaceCrossOutput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-		_realCrossSpace=(dataType*)malloc(_realSpaceSize* sizeof(dataType));
+		_frenquencySpaceCrossOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		_realCrossSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
 	}
 
-	_pPatchL=(FFTW_PRECISION(plan)*)malloc(sizeof(FFTW_PRECISION(plan)) * _fftSize.back());
+	_pPatchL=(FFTW_PRECISION(plan)*)mem_malloc(sizeof(FFTW_PRECISION(plan)) * _fftSize.back());
 
 
 	std::vector<int> reverseFftSize(_fftSize.begin(),_fftSize.end());
@@ -84,16 +93,17 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 		if(_fftSize.size()>1){
 			unsigned reducedSize=1;
 
-			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
-			unsigned reducedRealSize=reducedSize*(_fftSize.front());
-
 			for (int i = 1; i < _fftSize.size()-1; ++i)
 			{
 				reducedSize*=_fftSize[i];
 			}
 
+			unsigned reducedFftSize=reducedSize*(_fftSize.front()/2+1);
+			unsigned reducedRealSize=reducedSize*(_fftSize.front());
+
 			for (int i = 0; i < _fftSize.back(); ++i)
 			{
+				FFTW_PRECISION(plan_with_nthreads)(1);
 				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 			}
 
@@ -124,14 +134,14 @@ CPUThreadDevice::~CPUThreadDevice(){
 
 	if(_crossMesurement){
 		FFTW_PRECISION(destroy_plan)(_pInvCross);
-		free(_frenquencySpaceCrossOutput);
-		free(_realCrossSpace);
+		mem_free(_frenquencySpaceCrossOutput);
+		mem_free(_realCrossSpace);
 	}
 
-	free(_pPatchL);
-	free(_frenquencySpaceInput);
-	free(_frenquencySpaceOutput);
-	free(_realSpace);
+	mem_free(_pPatchL);
+	mem_free(_frenquencySpaceInput);
+	mem_free(_frenquencySpaceOutput);
+	mem_free(_realSpace);
 }
 
 std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
@@ -157,9 +167,9 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 	for (int i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType));
+		sharedMemoryAdress.space=mem_malloc(realSpaceSize * sizeof(dataType));
 		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
-		sharedMemoryAdress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		sharedMemoryAdress.fft=mem_malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		
 		sharedMemory.push_back(sharedMemoryAdress);
 
@@ -179,8 +189,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
 	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
 	{
-		free(sharedMemoryAdress[i].space);
-		free(sharedMemoryAdress[i].fft);
+		mem_free(sharedMemoryAdress[i].space);
+		mem_free(sharedMemoryAdress[i].fft);
 	}
 	sharedMemoryAdress.clear();
 	return sharedMemoryAdress;
@@ -218,8 +228,25 @@ unsigned CPUThreadDevice::cvtIndexToPosition(unsigned index){
 		position=position*_srcSize[i] + (_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1);
 	}
 
-	return position+1; //TODO check the origine of this 1
+	return position;
 }
+
+unsigned CPUThreadDevice::cvtPositionToIndex(unsigned position){
+
+	unsigned index=0;
+	unsigned divFactor=1;
+	for (int i = _fftSize.size()-1; i>=0; --i)
+	{
+	    divFactor*=_srcSize[i];
+	}
+	for (int i = _fftSize.size()-1; i>=0; --i)
+	{
+		divFactor/=_srcSize[i];
+		index=index*_fftSize[i] + (_fftSize[i]-(position/(divFactor)+_min[i])%_srcSize[i]-1);
+	}
+	return index;
+}
+
 
 void CPUThreadDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
@@ -279,6 +306,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			if(patialFFT && (_fftSize.size()>1)){
 				
+				#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) shared(lines)
 				for (int i = 0; i < _fftSize.back(); ++i)
 				{
 					if(lines[i]){
@@ -289,9 +317,26 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}else{
 				FFTW_PRECISION(execute)(_p);
 			}
-			g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceOutput, (dataType*)_srcCplx[var].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
+			//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+			{
+				unsigned k=0;
+				#if _OPENMP
+				//k=omp_get_thread_num();
+				#endif
+				unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
+				g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutput)+shift, ((dataType*)_srcCplx[var].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
+			}
+			
 			if(_crossMesurement && var==0){
-				g2s::complexAddAlphaxCxD((dataType*)_frenquencySpaceCrossOutput, (dataType*)_srcCplx[variablesCoeficient.size()-1].fft, (dataType*)_frenquencySpaceInput, variablesCoeficient[var],_fftSpaceSize);
+				//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+				{
+					unsigned k=0;
+					#if _OPENMP
+					//k=omp_get_thread_num();
+					#endif
+					unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
+					g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceCrossOutput)+shift, ((dataType*)_srcCplx[variablesCoeficient.size()-1].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
+				}
 			}
 		}
 
@@ -312,6 +357,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				delta*=_fftSize[j];
 			}
 
+			#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize)
 			for (int j = 0; j < _realSpaceSize; j+=delta)
 			{
 				fillVectorized(_realSpace,j,blockSize,-INFINITY);
@@ -320,7 +366,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		if(_trueMismatch && !_crossMesurement) // correct value needed
 		{
-			#pragma omp simd
+			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0)
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
 				_realSpace[i]=_realSpace[i]/(_realSpaceSize)+delta0;
@@ -371,7 +417,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 		#endif*/
 			unsigned nbVariable=neighborValueArrayVector[0].size();
-			#pragma omp simd
+			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(deltaCross,nbVariable)
 			for (int i = 0; i < _realSpaceSize; ++i)
 			{
 				_realCrossSpace[i]*=((dataType*)_srcCplx[nbVariable-1].space)[(i+deltaCross)%_realSpaceSize];

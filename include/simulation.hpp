@@ -33,7 +33,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
 	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		/*if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -48,6 +48,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		#endif
 		unsigned currentCell=solvingPath[indexPath];
 		float localSeed=seedAray[indexPath];
+
+		bool withDataInCenter=false;
+
+		for (int i = 0; i < di._nbVariable; ++i)
+		{
+			withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
+		}
 
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
@@ -112,9 +119,25 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		SamplingModule::matchLocation importIndex;
 
-		if(neighborArrayVector.size()>0){
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,moduleID);
+		if(neighborArrayVector.size()>1){
+			unsigned dataIndex;
+			di.indexWithDelta(dataIndex, currentCell, neighborArrayVector[1]);
+			unsigned verbatimIndex=importDataIndex[dataIndex];
+			SamplingModule::matchLocation verbatimRecord;
+			verbatimRecord.TI=verbatimIndex%TIs.size();
+			std::vector<int> reverseVector=neighborArrayVector[1];
+			for (int i = 0; i < reverseVector.size(); ++i)
+			{
+				reverseVector[i]*=-1;
+			}
+			TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID);
+		}else if(withDataInCenter){
+			SamplingModule::matchLocation verbatimRecord;
+			verbatimRecord.TI=TIs.size();
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID);
 		}else{
+
 			// sample from the marginal
 			unsigned cumulated=0;
 			for (int i = 0; i < TIs.size(); ++i)
@@ -185,6 +208,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		}
 		// import data
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
+		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
 		for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
 			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
@@ -192,7 +217,6 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 			}
 		}
-		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 
@@ -239,7 +263,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 	
 		unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
-		#pragma omp parallel for schedule(dynamic,bunchSize) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
+		#pragma omp parallel for schedule(dynamic,bunchSize) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
 		for (int i = 0; i < placeToUpdate.size(); ++i)
 		{
 			unsigned moduleID=0;

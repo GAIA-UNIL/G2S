@@ -41,9 +41,11 @@ public:
 	float getErrorAtPosition(unsigned);
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
+	unsigned cvtPositionToIndex(unsigned);
 	void setTrueMismatch(bool value);
 
 private:
+	unsigned _threadRatio=1;
 
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
 

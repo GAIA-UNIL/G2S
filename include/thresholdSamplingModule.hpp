@@ -13,26 +13,28 @@ private:
 	float _threshold2;
 	float _f;
 	bool _completeTIs;
+	bool _noVerbatim=false;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool completeTIs):SamplingModule(cdmV,kernel)
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
 	{
 		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
 		_convertionTypeVector=convertionTypeVector;
 		_variablesCoeficient=variablesCoeficient;
+		_noVerbatim=noVerbatim;
 
 	}
 	~ThresholdSamplingModule(){
 
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false){
 
 		if(moduleID>=_maxNumberOfElement.size()){
 			#pragma omp critical  (increaseSize_maxNumberOfElement)
