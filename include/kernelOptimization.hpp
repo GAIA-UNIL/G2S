@@ -264,9 +264,10 @@ void geneAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage &k
 				#endif
 
 				float error=0.f;
-				
+				SamplingModule::matchLocation verbatimRecord;
+				verbatimRecord.TI=TIs.size();
 				samplingModule.sample_complet(result[moduleID], neighborArrayVectorList[patternIndex], neighborValueArrayVectorList[patternIndex],
-					moduleID, false, population+kernelIndex, exclusionList+patternIndex, sourceImage[patternIndex]);
+					verbatimRecord, moduleID, false, population+kernelIndex, exclusionList+patternIndex, sourceImage[patternIndex]);
 		
 				for (int i = 0; i < int(ceil(numberOfCandidate)); ++i)
 				{
@@ -552,9 +553,10 @@ void greedyAlgo(FILE *logFile, std::vector<g2s::DataImage> &TIs, g2s::DataImage 
 				#endif
 
 				float error=0.f;
-				
+				SamplingModule::matchLocation verbatimRecord;
+				verbatimRecord.TI=TIs.size();
 				samplingModule.sample_complet(result[moduleID], neighborArrayVectorList[patternIndex], neighborValueArrayVectorList[patternIndex],
-					moduleID, false, population+kernelIndex, exclusionList+patternIndex, sourceImage[patternIndex]);
+					verbatimRecord, moduleID, false, population+kernelIndex, exclusionList+patternIndex, sourceImage[patternIndex]);
 		
 				for (int i = 0; i < int(ceil(numberOfCandidate)); ++i)
 				{

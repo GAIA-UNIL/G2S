@@ -52,7 +52,7 @@ public:
 	};
 
 
-	inline void sample_complet(matchLocation *result, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector, float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false,
+	inline void sample_complet(matchLocation *result, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false,
 		g2s::DataImage* withSpecificKernel=nullptr, std::vector<unsigned>* exclusionList=nullptr, unsigned sourceImage=-1){
 
 		unsigned vectorSize=_cdmV[moduleID].size();
@@ -144,7 +144,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,sourceImage,exclusionList) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			if(sourceImage==i)
@@ -224,11 +224,11 @@ public:
 		}
 	}
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false){
 		unsigned numberOfCandidate=int(ceil(_k));
 		matchLocation result[numberOfCandidate];
 
-		sample_complet(result, neighborArrayVector, neighborValueArrayVector, moduleID, fullStationary);
+		sample_complet(result, neighborArrayVector, neighborValueArrayVector, verbatimRecord, moduleID, fullStationary);
 		return result[int(floor(seed*_k))];
 	}
 

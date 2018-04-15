@@ -8,7 +8,7 @@ CXXFLAGS+=-msse2
 LDFLAGS=-lzmq -ljsoncpp -lwszmq
 
 
-ALGOS=echo qs test
+ALGOS=echo qs
 
 all: $(ALGOS) server.html
 
