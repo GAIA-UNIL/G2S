@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 from scipy import misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
