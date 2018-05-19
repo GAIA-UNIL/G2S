@@ -563,6 +563,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 
 	std::vector<std::vector<std::string> > dataString=lookForUpload(socket, args);
 
+	Py_BEGIN_ALLOW_THREADS
 
 	if(done) {
 		stop=true;
@@ -931,7 +932,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		}
 	}
 	done=true;
-
+	Py_END_ALLOW_THREADS
 };
 
 void testIfInterupted(std::atomic<bool> &done){
