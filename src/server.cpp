@@ -23,11 +23,16 @@ int main(int argc, char const *argv[]) {
 	bool runAsDaemon=false;
 	bool singleTask=false;
 	bool functionMode=false;
+	float timeoutDuration=std::nanf("0");
 
 	
 	for (int i = 1; i < argc; ++i)
 	{
 		if(0==strcmp(argv[i], "-d")) runAsDaemon=true;
+		if((0==strcmp(argv[i], "-To")) && (i+1 < argc))
+		{
+			timeoutDuration=atof(argv[i+1]);
+		}
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 	}
@@ -55,13 +60,28 @@ int main(int argc, char const *argv[]) {
 	zmq::context_t context (1);
 	zmq::socket_t receiver(context,ZMQ_REP);
 #endif
-	receiver.bind ("tcp://*:8128");
+	
+	try {
+		receiver.bind ("tcp://*:8128");
+	}
+	catch(const std::exception& e) {
+		std::cerr << e.what() << '\n';
+		needToStop=true;
+	}
+
+
+	if(!std::isnan(timeoutDuration)) {
+		int timeout=int(timeoutDuration*1000);
+		receiver.setsockopt(ZMQ_LINGER, timeout);
+		receiver.setsockopt(ZMQ_RCVTIMEO, timeout);
+		receiver.setsockopt(ZMQ_SNDTIMEO, timeout);
+	}
 
 	while (!needToStop) {
 		zmq::message_t request;
 
         //  Wait for next request from client
-		receiver.recv (&request);
+		if(! receiver.recv(&request) ) break;
 		size_t requesSize=request.size();
 		if(requesSize>=sizeof(infoContainer)){
 			infoContainer infoRequest;
