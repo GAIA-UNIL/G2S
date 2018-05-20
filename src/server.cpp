@@ -60,7 +60,15 @@ int main(int argc, char const *argv[]) {
 	zmq::context_t context (1);
 	zmq::socket_t receiver(context,ZMQ_REP);
 #endif
-	receiver.bind ("tcp://*:8128");
+	
+	try {
+		receiver.bind ("tcp://*:8128");
+	}
+	catch(const std::exception& e) {
+		std::cerr << e.what() << '\n';
+		needToStop=true;
+	}
+
 
 	if(!std::isnan(timeoutDuration)) {
 		int timeout=int(timeoutDuration*1000);
