@@ -721,11 +721,10 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	char nameFile[65]={0};
 	sprintf(nameFile,"%u",id);
 	setbuf(stdout, NULL);
-	
-	printf("progres %.3f%%",0/1000. );
 
 	if(kill) done=true;
-
+	
+	if(!stop && !done) printf("progres %.3f%%",0/1000. );
 	while(!stop) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(600));
 		if(done) {
