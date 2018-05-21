@@ -23,13 +23,10 @@ echo
 echo "python_host.txt"
 cat python_host.txt
 
-export OMP_PLACES=cores
-export OMP_PROC_BIND=close
 
-mpirun-openmpi-mp -machinefile $PBS_NODEFILE -wdir ~/githubProject/G2S/build/intel-build/ -N 1 -x OMP_PLACES -x OMP_PROC_BIND ./server &
+mpirun -machinefile $PBS_NODEFILE -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
 PID_MPIRUN=$!
-python3 kernelOptimization.py python_host.txt &
-PID_PYTHON_3=$!
+python3 kernelOptimization.py python_host.txt1/
 
 pkill -P $PID_MPIRUN
 

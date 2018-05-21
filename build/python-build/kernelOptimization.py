@@ -90,7 +90,7 @@ for alpha_value in alpha:
 	kernel.append(type)
 
 numberOfSimulation=20
-numberOfThreadProJob=4
+numberOfThreadProJob=2
 
 val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation],numpy.nan);
 if os.path.exists('./simErrorMap.npy') :
