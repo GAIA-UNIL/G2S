@@ -89,7 +89,7 @@ for alpha_value in alpha:
 	#kernel=cat(2,kernel,type);
 	kernel.append(type)
 
-numberOfSimulation=20
+numberOfSimulation=50
 numberOfThreadProJob=2
 
 val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation],numpy.nan);
@@ -117,7 +117,6 @@ import time
 def worker(queue, address):
 	while True:
 		item = queue.get()
-		print("get job")
 		if item is None:
 			print("died")
 			break
@@ -125,7 +124,6 @@ def worker(queue, address):
 		if not numpy.isnan(val[item]):
 			queue.task_done()
 			continue
-		print(item,address)
 		# time.sleep(0.1)
 		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob);
 		val[item]=mesureQualitry(varioRef,variogram(result[0]));
@@ -161,3 +159,9 @@ while not queue.empty():
 
 queue.join()
 saveData()
+# stop workers
+for i in range(len(serverAddressList)):
+    queue.put(None) 
+for t in threads:
+    t.join()
+

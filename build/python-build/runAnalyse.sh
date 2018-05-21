@@ -3,7 +3,7 @@ if [ ! -z "$PBS_O_WORKDIR" ]
 then
 	cd $PBS_O_WORKDIR
 fi
-REPETION=6;
+REPETION=12;
 
 if [ -z "$PBS_NODEFILE" ]
 then
@@ -23,13 +23,10 @@ echo
 echo "python_host.txt"
 cat python_host.txt
 
-
 mpirun -machinefile $PBS_NODEFILE -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
-PID_MPIRUN=$!
-python3 kernelOptimization.py python_host.txt1/
 
-pkill -P $PID_MPIRUN
+python3 kernelOptimization.py python_host.txt
 
-
+wait $!
 
 
