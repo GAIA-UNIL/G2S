@@ -476,6 +476,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	bool statusOnly=false;
 	bool waitAndDownload=true;
 	bool kill=false;
+	bool serverShutdown=false;
 
 	for (int i = 0; i < inputArray.size(); ++i)
 	{
@@ -515,6 +516,11 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		if(!inputArray[i].compare("-kill")){
 			kill=true;
 			id_index=inputArrayIndex[i]+1;
+		}
+		if(!inputArray[i].compare("-shutdown")){
+			serverShutdown=true;
+			waitAndDownload=false;
+			noOutput=true;
 		}
 	}
 
@@ -560,6 +566,21 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	else
 		strcpy(address,"tcp://localhost:8128");
 	socket.connect (address);
+
+	if(serverShutdown){
+		infoContainer task;
+		task.version=1;
+		task.task=SHUTDOWN;
+
+		zmq::message_t request (sizeof(infoContainer));
+		memcpy(request.data (), &task, sizeof(infoContainer));
+		if(!socket.send (request) && withTimeout ){
+			PyErr_Format(PyExc_ValueError,
+				"%s : %s", "gss:error", "fail to shutdown the server");
+		}
+		stop=true;
+		done=true;
+	}
 
 	std::vector<std::vector<std::string> > dataString=lookForUpload(socket, args);
 
