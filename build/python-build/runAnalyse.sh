@@ -4,9 +4,6 @@ then
 	cd $PBS_O_WORKDIR
 fi
 
-3
-
-
 REPETION=12;
 
 if [ -z "$PBS_NODEFILE" ]
