@@ -684,7 +684,6 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		zmq::message_t request (sizeof(infoContainer)+strlen(jsonJob_c));
 		memcpy(request.data (), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer),jsonJob_c,strlen(jsonJob_c));
-		std::cout << "Send job" << std::endl;
 		if(!socket.send (request) && withTimeout ){
 			PyErr_Format(PyExc_ValueError,
 				"%s : %s", "gss:error", "timeout sending job");
@@ -867,8 +866,11 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 				"%s : %s", "gss:error", "timeout : get data dont answer");
 		}
 		if(reply.size()!=0){
-			printf("\rprogres %.3f%%\n",100.0f );
-
+			if(!silentMode){
+				Py_BLOCK_THREADS
+				printf("\rprogres %.3f%%\n",100.0f );
+				Py_UNBLOCK_THREADS
+			}
 			g2s::DataImage image((char*)reply.data());
 			Py_BLOCK_THREADS
 			plhs.push_back(convert2NDArray(image));
