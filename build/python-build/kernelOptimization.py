@@ -125,7 +125,7 @@ def worker(queue, address):
 			queue.task_done()
 			continue
 		# time.sleep(0.1)
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob);
+		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent');
 		val[item]=mesureQualitry(varioRef,variogram(result[0]));
 		queue.task_done()
 
