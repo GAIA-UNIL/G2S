@@ -46,3 +46,4 @@ build/matlab-build/test*
 
 *.m~
 *.DS_Store
+*.pyc
