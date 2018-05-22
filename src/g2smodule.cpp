@@ -477,6 +477,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	bool waitAndDownload=true;
 	bool kill=false;
 	bool serverShutdown=false;
+	bool silentMode=false;
 
 	for (int i = 0; i < inputArray.size(); ++i)
 	{
@@ -521,6 +522,9 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			serverShutdown=true;
 			waitAndDownload=false;
 			noOutput=true;
+		}
+		if(!inputArray[i].compare("-silent")){
+			silentMode=true;
 		}
 	}
 
@@ -691,10 +695,23 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			PyErr_Format(PyExc_ValueError,
 				"%s : %s", "gss:error", "timeout starting job, maybe job run on server !!");
 		}
-		if(reply.size()!=sizeof(jobIdType)) printf( "%s\n", "wrong answer !");
+		if((reply.size()!=sizeof(jobIdType))&& !silentMode){
+			Py_BLOCK_THREADS
+			printf( "%s\n", "wrong answer !");
+			Py_UNBLOCK_THREADS
+		}
 		id=*((jobIdType*)reply.data());
-		if(id<0) printf( "%s\n", "error in job distribution!");
-		printf("job Id is: %u\n",id );
+		if(id<0 && !silentMode)
+		{
+			Py_BLOCK_THREADS
+			printf( "%s\n", "error in job distribution!");
+			Py_UNBLOCK_THREADS
+		}
+		if(!silentMode){
+			Py_BLOCK_THREADS
+			printf("job Id is: %u\n",id );
+			Py_UNBLOCK_THREADS
+		}
 
 		if(done) {
 			sendKill(socket, id);
@@ -724,7 +741,11 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 
 	if(kill) done=true;
 	
-	if(!stop && !done) printf("progres %.3f%%",0/1000. );
+	if(!stop && !done && !silentMode) {
+		Py_BLOCK_THREADS
+		printf("progres %.3f%%",0/1000. );
+		Py_UNBLOCK_THREADS
+	}
 	while(!stop) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(600));
 		if(done) {
@@ -758,11 +779,18 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 				stop=true;
 				continue;
 			}
-			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer !");
+			if(reply.size()!=sizeof(int) && !silentMode)
+				{
+					Py_BLOCK_THREADS
+					printf( "%s\n", "wrong answer !");
+					Py_UNBLOCK_THREADS
+				}
 			else{
 				int progress=*((int*)reply.data());
-				if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
+				if(!silentMode && (progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
+					Py_BLOCK_THREADS
 					printf("\rprogres %.3f%%",progress/1000. );
+					Py_UNBLOCK_THREADS
 					lastProgression=progress/1000.;
 				}
 				if(!waitAndDownload)
@@ -817,7 +845,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 
 	}
 	
-
+	
 	if(!noOutput){
 		// download data
 		infoContainer task;
@@ -842,7 +870,9 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			printf("\rprogres %.3f%%\n",100.0f );
 
 			g2s::DataImage image((char*)reply.data());
+			Py_BLOCK_THREADS
 			plhs.push_back(convert2NDArray(image));
+			Py_UNBLOCK_THREADS
 			stop=true;
 		}
 	}
@@ -916,7 +946,9 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			
 			if(reply.size()!=0){
 				g2s::DataImage image((char*)reply.data());
+				Py_BLOCK_THREADS
 				plhs.push_back(convert2NDArray(image));
+				Py_UNBLOCK_THREADS
 				stop=true;
 				downloadInformation++;
 			}
@@ -947,7 +979,9 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			else{
 				int duration=*((int*)reply.data());
 				size_t one=1;
+				Py_BLOCK_THREADS
 				plhs.push_back(PyFloat_FromDouble(duration/(1000.f)));
+				Py_UNBLOCK_THREADS
 			}   
 		}
 	}
