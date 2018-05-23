@@ -29,7 +29,7 @@ echo
 echo "python_host.txt"
 cat python_host.txt
 
-mpirun -machinefile MPI_host.txt -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
+mpirun -machinefile MPI_host.txt -genv I_MPI_PIN off -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
 
 python3 kernelGAO.py python_host.txt
 
