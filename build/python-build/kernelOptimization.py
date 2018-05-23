@@ -98,15 +98,8 @@ if os.path.exists('./simErrorMap.npy') :
 	print(val)
 varioRef=variogram(source);
 
-# from itertools import product
-# from multiprocessing import Pool
-# def worker(t):
-# 	x, y, z = t
-# 	id=multiprocessing.current_process();
-# 	print(id)
-# 	# result=g2s('-sa',serverAddressList[prosId],'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',numberOfSimulation,'-j',4);
-# 	# val[x,y,z]=mesureQualitry(varioRef,variogram(result[0]));
-	# print(multiprocessing.some)
+
+
 from itertools import product
 from queue import Queue
 from threading import Thread

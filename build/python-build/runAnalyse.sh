@@ -24,8 +24,6 @@ echo
 echo "python_host.txt"
 cat python_host.txt
 
-python3 killAllserver.py $PBS_NODEFILE
-
 mpirun -machinefile $PBS_NODEFILE -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
 
 python3 kernelOptimization.py python_host.txt

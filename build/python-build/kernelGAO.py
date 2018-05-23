@@ -33,15 +33,16 @@ if len(sys.argv)>2 :
 print(serverAddressList)
 
 
-sizeKernel=5;
+sizeKernel=7;
 
 distanceMtrix=numpy.zeros([sizeKernel,sizeKernel]);
 distanceMtrix[int(numpy.ceil(numpy.size(distanceMtrix,0)/2)),int(numpy.ceil(numpy.size(distanceMtrix,1)/2))]=1;
 distanceMtrix=ndimage.distance_transform_edt(distanceMtrix)
 kernels=[];
 
-NumberOfKernel=2;
+NumberOfKernel=128;
 numberOfSimulation=10
+saveRate=20;
 
 def randonKernel():
 	ker=numpy.random.rand(sizeKernel,sizeKernel)
@@ -71,13 +72,18 @@ probPower=1/2
 mixingRatio=0.3
 muationfactor=0.02;
 muationRatio=0.3;
+convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
 if os.path.exists('./kernelSet.npz') :
-	data = np.load('kernelSet.npz')
+	data = numpy.load('kernelSet.npz')
 	kernels=data['kernels']
 	iteration= data['iteration']
 	numberOfSimulation=data['numberOfSimulation']
 	probPower=data['probPower']
+	convergance=data['convergance'];
+
+if maxIteration>convergance.shape[0]:
+	convergance.resize(maxIteration,NumberOfKernel)
 
 numberOfThreadProJob=2
 
@@ -90,6 +96,10 @@ from queue import Queue
 from threading import Thread
 import time
 
+def saveData():
+	print("save")
+	numpy.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance)
+
 #  worker
 def worker(queue, address):
 	while True:
@@ -97,10 +107,7 @@ def worker(queue, address):
 		if item is None:
 			print("died")
 			break
-		x,z = item 
-		if not numpy.isnan(val[item]):
-			queue.task_done()
-			continue
+		x,z = item
 		# time.sleep(0.1)
 		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob);
 		quality[x,z]=mesureQualitry(varioRef,variogram(result[0]));
@@ -116,59 +123,42 @@ for t in threads:
 	t.start()
 
 
-while(maxIteration>iteration){
-	if cpt%(iteration)==0 :
+while maxIteration>iteration :
+	if iteration%(saveRate)==0 :
 		saveData()
-	for t in product(range(0,len(kernels)), range(0, lnumberOfSimulation)):
+	for t in product(range(0,len(kernels)), range(0, numberOfSimulation)):
 		queue.put(t)
 	queue.join()
 
-	meanQualityPosition=quality.mean(1).argsort();
+	meanQuality=quality.mean(1);
+	convergance[iteration,:]=meanQuality
+
+	meanQualityPosition=meanQuality.argsort();
 	newKernels=[];
-	selection=numpy.random.rand(len(kernels),2)*((1-math.power(probPower,len(kernels)+1))/(1-probPower))
-	position=numpy.floor(numpy.log(selection)/math.log(probPower)).astype('int');
-	for _ in range(len(kernels)):
-		newKernels.append(mergeKernel(kernels[position[x][0]],kernels[position[x][0]],mixingRatio))
-	np.random.permutation(len(kernels))
-	for x in range(int(ceil(len(kernels)*muationfactor))):
-		newKernels[x]=mutateKernel(newKernels[x],muationRatio)
-
+	#(p)^k ==> klog(p)
+	position=numpy.empty([1, 1])
+	while position.shape[0]<=len(kernels) :
+		selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
+		position=numpy.floor(numpy.log(selection*(probPower-1)+1)/math.log(probPower)).astype('int');
+		survivor=(numpy.unique(position[numpy.where(position[:len(kernels),0]==position[:len(kernels),1]),0]))
+		position=numpy.delete(position, numpy.where(position[:,0]==position[:,1]),0);
+	position=position[:len(kernels)-len(survivor)]
+	#print(position)
+	#print(survivor)
+	for x in range(len(survivor)):
+		newKernels.append(kernels[meanQualityPosition[survivor[x]]]);
+	for x in range(len(kernels)-len(survivor)):
+		newKernels.append(mergeKernel(kernels[meanQualityPosition[position[x,0]]],kernels[meanQualityPosition[position[x,1]]],mixingRatio))
+	perm=numpy.random.permutation(len(kernels))
+	offset=0;
+	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
+		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
+		offset+=1
+	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
+		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
+		offset+=1
+	kernels=newKernels;
 	iteration=iteration+1
-}
-
-
-# from itertools import product
-# from multiprocessing import Pool
-# def worker(t):
-# 	x, y, z = t
-# 	id=multiprocessing.current_process();
-# 	print(id)
-# 	# result=g2s('-sa',serverAddressList[prosId],'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',numberOfSimulation,'-j',4);
-# 	# val[x,y,z]=mesureQualitry(varioRef,variogram(result[0]));
-	# print(multiprocessing.some)
-
-
-
-
-# prepare jobs
-
-
-
-
-
-
-# save results
-
-def saveData():
-	print("save")
-	np.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower)
-
-cpt=0;
-while not queue.empty():
-	time.sleep(1)
-	cpt=cpt+1;
-	if cpt%(1*10)==0 :
-		saveData()
 
 queue.join()
 saveData()
