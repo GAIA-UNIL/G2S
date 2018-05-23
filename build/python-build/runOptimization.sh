@@ -31,7 +31,7 @@ cat python_host.txt
 
 mpirun -machinefile MPI_host.txt -genv I_MPI_PIN off -wdir ~/githubProject/G2S/build/intel-build/ ./server -To 60 &
 
-python3 kernelGAO.py python_host.txt
+python3 kernelGAO.py 10000 python_host.txt
 
 wait $!
 
