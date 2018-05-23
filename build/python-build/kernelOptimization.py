@@ -37,7 +37,7 @@ alpha=[0,0.01,0.05,0.2,0.5,0.7,0.8,0.9,0.95,0.98,0.995,1];
 
 distanceMtrix=numpy.zeros([81,81]);
 distanceMtrix[int(numpy.ceil(numpy.size(distanceMtrix,0)/2)),int(numpy.ceil(numpy.size(distanceMtrix,1)/2))]=1;
-distanceMtrix=ndimage.distance_transform_edt(distanceMtrix)
+distanceMtrix=ndimage.distance_transform_edt(numpy.logical_not(distanceMtrix))
 kernel=[];
 
 # create kernels
