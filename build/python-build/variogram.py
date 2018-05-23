@@ -17,7 +17,7 @@ def variogram( x1 ):
 	x1[numpy.isnan(x1)]  = 0;
 	fx1 		= numpy.fft.fft2(numpy.pad(x1,((0, nr2-n),(0, nc2-p)), 'constant', constant_values=(0)));
 	fx1_x1		= numpy.fft.fft2(numpy.pad(numpy.square(x1), ((0, nr2-n),(0, nc2-p)), 'constant', constant_values=(0)));
-	fx1id 		= numpy.fft.fft2(numpy.pad(x1id,((0, nr2-n),(0, nc2-p)), 'constant', constant_values=(0)));
+	fx1id 		= numpy.fft.fft2(numpy.pad(x1id.astype('float'),((0, nr2-n),(0, nc2-p)), 'constant', constant_values=(0)));
 	nh11 		= numpy.round(numpy.real(numpy.fft.ifft2(numpy.multiply(numpy.conj(fx1id),fx1id))));
 	gh11 		= numpy.real(numpy.fft.ifft2(numpy.add(numpy.add(
 		numpy.multiply(numpy.conj(fx1id), fx1_x1),
