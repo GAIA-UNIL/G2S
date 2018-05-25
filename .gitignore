@@ -46,3 +46,5 @@ build/matlab-build/test*
 
 *.m~
 *.DS_Store
+*.npz
+build/python-build/__pycache__/variogram.cpython-36.pyc

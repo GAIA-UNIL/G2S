@@ -130,7 +130,8 @@ jobIdType echo_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
@@ -194,7 +195,8 @@ jobIdType test_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
@@ -287,7 +289,8 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
@@ -351,7 +354,8 @@ jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
@@ -445,7 +449,8 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
@@ -538,7 +543,8 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
-					jobIds.pids.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
+					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
 					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
 				}
 			}
