@@ -10,9 +10,11 @@
 typedef unsigned jobIdType;
 
 struct jobArray{
-	std::map<jobIdType, pid_t> pids;
+	std::map<jobIdType, pid_t> look4pid;
+	std::map<pid_t,jobIdType> look4jobId;
 };
 
 void recieveKill(jobArray &jobIds, jobIdType jobId );
+void cleanJobs(jobArray &jobIds);
 
 #endif // JOB_MANAGER_HPP

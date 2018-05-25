@@ -109,6 +109,7 @@ int main(int argc, char const *argv[]) {
 					{
 						zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
 						receiver.send(answer);
+						cleanJobs(jobIds);
 						break;
 					}
 				case JOB :
