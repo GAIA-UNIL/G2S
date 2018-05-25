@@ -109,7 +109,7 @@ def worker(queue, address):
 			break
 		x,z = item
 		# time.sleep(0.1)
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob);
+		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO');
 		quality[x,z]=mesureQualitry(varioRef,variogram(result[0]));
 		queue.task_done()
 
