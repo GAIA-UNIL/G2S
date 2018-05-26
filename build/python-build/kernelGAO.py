@@ -46,21 +46,33 @@ saveRate=20;
 
 def randonKernel():
 	ker=numpy.random.rand(sizeKernel,sizeKernel)
-	ker=ker/numpy.sum(ker)
+	norm=numpy.sum(ker)
+	if norm<0.001:
+		ker=randomKernel()
+		norm=1;
+	ker=ker/norm
 	return ker
 
 def mutateKernel(ker, ratio):
 	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
 	randKer=numpy.random.rand(sizeKernel,sizeKernel)
 	ker[places]=randKer[places];
-	ker=ker/numpy.sum(ker)
+	norm=numpy.sum(ker)
+	if norm<0.001:
+		ker=randomKernel()
+		norm=1;
+	ker=ker/norm
 	return ker
 
 def mergeKernel(ker1, ker2, ratio):
 	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
 	randKer=numpy.random.rand(sizeKernel,sizeKernel)
 	ker1[places]=ker2[places];
-	ker1=ker1/numpy.sum(ker1)
+	norm=numpy.sum(ker1)
+	if norm<0.001:
+		ker=randomKernel()
+		norm=1;
+	ker1=ker1/norm
 	return ker1
 
 
@@ -143,8 +155,8 @@ while maxIteration>iteration :
 		survivor=(numpy.unique(position[numpy.where(position[:len(kernels),0]==position[:len(kernels),1]),0]))
 		position=numpy.delete(position, numpy.where(position[:,0]==position[:,1]),0);
 	position=position[:len(kernels)-len(survivor)]
-	#print(position)
-	#print(survivor)
+	print(position)
+	print(survivor)
 	for x in range(len(survivor)):
 		newKernels.append(kernels[meanQualityPosition[survivor[x]]]);
 	for x in range(len(kernels)-len(survivor)):
