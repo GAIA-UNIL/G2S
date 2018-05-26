@@ -25,7 +25,7 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 			char *error=nullptr;
 			bool isOk=true;
 			if(isOk)
-				handle = dlopen((functionNameStr).c_str(), RTLD_NOW);
+				handle = dlopen((std::string("./")+functionNameStr+std::string(".so")).c_str(), RTLD_LAZY);
 			if (!handle) {
 				fputs (dlerror(), stderr);
 				//exit(1);

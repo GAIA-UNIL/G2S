@@ -1,6 +1,6 @@
 BUILD_DIR=../.
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-O3 -std=c++11
+export CFLAGS=-O3 -std=c++11 -fPIC
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
