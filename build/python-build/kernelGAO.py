@@ -53,9 +53,10 @@ def randonKernel():
 	ker=ker/norm
 	return ker
 
-def mutateKernel(ker, ratio):
+def mutateKernel(ker1, ratio):
 	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
 	randKer=numpy.random.rand(sizeKernel,sizeKernel)
+	ker=ker1.copy();
 	ker[places]=randKer[places];
 	norm=numpy.sum(ker)
 	if norm<0.001:
@@ -67,13 +68,14 @@ def mutateKernel(ker, ratio):
 def mergeKernel(ker1, ker2, ratio):
 	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
 	randKer=numpy.random.rand(sizeKernel,sizeKernel)
-	ker1[places]=ker2[places];
-	norm=numpy.sum(ker1)
+	ker=ker1.copy()
+	ker[places]=ker2[places];
+	norm=numpy.sum(ker)
 	if norm<0.001:
 		ker=randomKernel()
 		norm=1;
-	ker1=ker1/norm
-	return ker1
+	ker=ker/norm
+	return ker
 
 
 # create kernels
