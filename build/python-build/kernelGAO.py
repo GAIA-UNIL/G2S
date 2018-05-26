@@ -42,7 +42,7 @@ kernels=[];
 
 NumberOfKernel=128;
 numberOfSimulation=10
-saveRate=20;
+saveRate=5;
 
 def randonKernel():
 	ker=numpy.random.rand(sizeKernel,sizeKernel)
@@ -86,6 +86,7 @@ probPower=1/2
 mixingRatio=0.3
 muationfactor=0.02;
 muationRatio=0.3;
+ratioSelection=0.25;
 convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
 if os.path.exists('./kernelSet.npz') :
