@@ -153,7 +153,9 @@ while maxIteration>iteration :
 	position=numpy.empty([1, 1])
 	while position.shape[0]<=len(kernels) :
 		selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
-		position=numpy.floor(numpy.log(selection*(probPower-1)+1)/math.log(probPower)).astype('int');
+		#selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
+		#position=numpy.floor(numpy.log(selection*(probPower-1)+1)/math.log(probPower)).astype('int');
+		position=numpy.floor(numpy.random.rand(len(kernels)*10,2)*ratioSelection*len(kernels)).astype('int')
 		survivor=(numpy.unique(position[numpy.where(position[:len(kernels),0]==position[:len(kernels),1]),0]))
 		position=numpy.delete(position, numpy.where(position[:,0]==position[:,1]),0);
 	position=position[:len(kernels)-len(survivor)]
