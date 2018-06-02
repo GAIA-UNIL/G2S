@@ -9,11 +9,28 @@ import math
 from variogram import variogram
 from g2s import run as g2s
 import sys
-import os  
+import os
+
+def computeConnectivity(image,steps):
+	result=numpy.zeros([len(steps)]);
+	for i in range(len(steps)):
+		bwImage=image < steps[i]
+		labeledImage1,NumberFeature1=ndimage.label(bwImage);
+		labeledImage2,NumberFeature2=ndimage.label(numpy.logical_not(bwImage));
+		hist, bin_edges=numpy.histogram(labeledImage1-labeledImage2,numpy.arange(-NumberFeature2,NumberFeature1+1),density=False);
+		result[i]= (hist*(hist-1)).sum()/(image.size*(image.size-1))
+	return result
+
+def extractCenter(matrix):
+	size=numpy.ceil(numpy.array(matrix.shape)/4).astype('int');
+	return matrix[size[0]:-size[0],size[1]:-size[1]];
 
 ## extra function
-def mesureQualitry( vario1, vario2 ):
-	return numpy.sum(numpy.abs((vario1[0]-vario2[0])*vario1[1]));
+def mesureQualitry( vario1, vario2, conectivity1, conectivity2 ):
+	connectError=numpy.sum(numpy.abs(conectivity1-conectivity2));
+	varioError=numpy.sum(numpy.abs(extractCenter((vario1[0]-vario2[0])*vario1[1])));
+	#print(connectError," -", varioError);
+	return connectError
 
 
 ## main code
@@ -67,7 +84,6 @@ def mutateKernel(ker1, ratio):
 
 def mergeKernel(ker1, ker2, ratio):
 	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
-	randKer=numpy.random.rand(sizeKernel,sizeKernel)
 	ker=ker1.copy()
 	ker[places]=ker2[places];
 	norm=numpy.sum(ker)
@@ -105,6 +121,9 @@ numberOfThreadProJob=2
 quality=numpy.full([NumberOfKernel,numberOfSimulation],numpy.nan);
 probability=numpy.power(probPower,range(NumberOfKernel))
 varioRef=variogram(source);
+connectStep=(numpy.arange(255)+0.5)/255;
+connectivityRef=computeConnectivity(source,connectStep);
+
 
 from itertools import product
 from queue import Queue
@@ -125,7 +144,8 @@ def worker(queue, address):
 		x,z = item
 		# time.sleep(0.1)
 		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO');
-		quality[x,z]=mesureQualitry(varioRef,variogram(result[0]));
+		quality[x,z]=mesureQualitry(varioRef, variogram(result[0]), connectivityRef, computeConnectivity(result[0],connectStep));
+		#quality[x,z]=numpy.random.rand();
 		queue.task_done()
 
 queue = Queue()
@@ -160,8 +180,8 @@ while maxIteration>iteration :
 		survivor=(numpy.unique(position[numpy.where(position[:len(kernels),0]==position[:len(kernels),1]),0]))
 		position=numpy.delete(position, numpy.where(position[:,0]==position[:,1]),0);
 	position=position[:len(kernels)-len(survivor)]
-	print(position)
-	print(survivor)
+	#print(position)
+	#print(survivor)
 	for x in range(len(survivor)):
 		newKernels.append(kernels[meanQualityPosition[survivor[x]]]);
 	for x in range(len(kernels)-len(survivor)):
@@ -174,9 +194,17 @@ while maxIteration>iteration :
 	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
 		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
 		offset+=1
+	for x in range(len(kernels)):
+		plt.close()
+		plt.imshow(newKernels[x])
+		plt.show(block=False)
+		plt.pause(0.1)
+		print(numpy.random.rand())
+	print("new generation")
 	kernels=newKernels;
 	iteration=iteration+1
 
+plt.show()
 queue.join()
 saveData()
 # stop workers

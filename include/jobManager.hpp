@@ -16,5 +16,6 @@ struct jobArray{
 
 void recieveKill(jobArray &jobIds, jobIdType jobId );
 void cleanJobs(jobArray &jobIds);
+void cleanId(jobArray &jobIds, jobIdType id);
 
 #endif // JOB_MANAGER_HPP

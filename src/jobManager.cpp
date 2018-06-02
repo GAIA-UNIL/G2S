@@ -29,5 +29,8 @@ void cleanJobs(jobArray &jobIds){
 	}
 }
 
+void cleanId(jobArray &jobIds, jobIdType id){
+	
+}
 
  
