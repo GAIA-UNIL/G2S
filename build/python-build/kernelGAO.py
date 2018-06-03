@@ -141,9 +141,9 @@ def worker(queue, address):
 		if item is None:
 			print("died")
 			break
-		x,z = item
+		x,z ,requestId = item
 		# time.sleep(0.1)
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO');
+		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernels[x],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);
 		quality[x,z]=mesureQualitry(varioRef, variogram(result[0]), connectivityRef, computeConnectivity(result[0],connectStep));
 		#quality[x,z]=numpy.random.rand();
 		queue.task_done()
@@ -158,11 +158,13 @@ for t in threads:
 	t.start()
 
 
+idValue=1;
+
 while maxIteration>iteration :
 	if iteration%(saveRate)==0 :
 		saveData()
 	for t in product(range(0,len(kernels)), range(0, numberOfSimulation)):
-		queue.put(t)
+		queue.put(t + (idValue,))
 	queue.join()
 
 	meanQuality=quality.mean(1);
