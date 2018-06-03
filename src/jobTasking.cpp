@@ -71,6 +71,7 @@ jobIdType echo_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti")){
 			
 			char* argv[100];
@@ -149,6 +150,7 @@ jobIdType test_call(jobArray &jobIds, Json::Value job, bool singleTask, bool fun
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti")){
 			
 			char* argv[100];
@@ -214,6 +216,7 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
@@ -308,6 +311,7 @@ jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
@@ -374,6 +378,7 @@ jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
@@ -468,6 +473,7 @@ jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool func
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
 		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
 			
 			char* argv[100];
