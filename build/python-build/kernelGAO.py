@@ -173,7 +173,7 @@ while maxIteration>iteration :
 	#(p)^k ==> klog(p)
 	position=numpy.empty([1, 1])
 	while position.shape[0]<=len(kernels) :
-		selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
+		#selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
 		#selection=numpy.random.rand(len(kernels)*10,2)*((1-math.pow(probPower,len(kernels)))/(1-probPower))
 		#position=numpy.floor(numpy.log(selection*(probPower-1)+1)/math.log(probPower)).astype('int');
 		position=numpy.floor(numpy.random.rand(len(kernels)*10,2)*ratioSelection*len(kernels)).astype('int')
@@ -194,12 +194,12 @@ while maxIteration>iteration :
 	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
 		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
 		offset+=1
-	for x in range(len(kernels)):
-		plt.close()
-		plt.imshow(newKernels[x])
-		plt.show(block=False)
-		plt.pause(0.1)
-		print(numpy.random.rand())
+	# for x in range(len(kernels)):
+	# 	plt.close()
+	# 	plt.imshow(newKernels[x])
+	# 	plt.show(block=False)
+	# 	plt.pause(0.1)
+	# 	print(numpy.random.rand())
 	print("new generation")
 	kernels=newKernels;
 	iteration=iteration+1
