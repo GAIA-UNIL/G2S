@@ -103,6 +103,7 @@ mixingRatio=0.3
 muationfactor=0.02;
 muationRatio=0.3;
 ratioSelection=0.25;
+idValue=1;
 convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
 if os.path.exists('./kernelSet.npz') :
@@ -112,6 +113,7 @@ if os.path.exists('./kernelSet.npz') :
 	numberOfSimulation=data['numberOfSimulation']
 	probPower=data['probPower']
 	convergance=data['convergance'];
+	idValue=data['idValue']
 
 if maxIteration>convergance.shape[0]:
 	convergance.resize(maxIteration,NumberOfKernel)
@@ -132,7 +134,7 @@ import time
 
 def saveData():
 	print("save")
-	numpy.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance)
+	numpy.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
 
 #  worker
 def worker(queue, address):
@@ -158,13 +160,12 @@ for t in threads:
 	t.start()
 
 
-idValue=1;
-
 while maxIteration>iteration :
 	if iteration%(saveRate)==0 :
 		saveData()
 	for t in product(range(0,len(kernels)), range(0, numberOfSimulation)):
 		queue.put(t + (idValue,))
+		idValue=idValue+1;
 	queue.join()
 
 	meanQuality=quality.mean(1);
@@ -185,16 +186,16 @@ while maxIteration>iteration :
 	#print(position)
 	#print(survivor)
 	for x in range(len(survivor)):
-		newKernels.append(kernels[meanQualityPosition[survivor[x]]]);
+		newKernels.append(kernels[meanQualityPosition[survivor[x]]].copy());
 	for x in range(len(kernels)-len(survivor)):
 		newKernels.append(mergeKernel(kernels[meanQualityPosition[position[x,0]]],kernels[meanQualityPosition[position[x,1]]],mixingRatio))
 	perm=numpy.random.permutation(len(kernels))
 	offset=0;
 	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
+		newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],muationRatio)
 		offset+=1
 	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-		newKernels[perm[offset]]=mutateKernel(newKernels[x],muationRatio)
+		newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],muationRatio)
 		offset+=1
 	# for x in range(len(kernels)):
 	# 	plt.close()
