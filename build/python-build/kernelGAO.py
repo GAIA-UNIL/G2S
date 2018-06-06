@@ -59,7 +59,7 @@ kernels=[];
 
 NumberOfKernel=128;
 numberOfSimulation=10
-saveRate=5;
+saveRate=1;
 
 def randonKernel():
 	ker=numpy.random.rand(sizeKernel,sizeKernel)
@@ -100,9 +100,9 @@ for x in range(0,NumberOfKernel):
 iteration=0
 probPower=1/2
 mixingRatio=0.3
-muationfactor=0.02;
+muationfactor=0.5;
 muationRatio=0.3;
-ratioSelection=0.25;
+ratioSelection=0.15;
 idValue=1;
 convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
@@ -160,7 +160,7 @@ for t in threads:
 	t.start()
 
 
-while maxIteration>iteration :
+wwhile maxIteration>iteration :
 	if iteration%(saveRate)==0 :
 		saveData()
 	for t in product(range(0,len(kernels)), range(0, numberOfSimulation)):
@@ -182,6 +182,7 @@ while maxIteration>iteration :
 		position=numpy.floor(numpy.random.rand(len(kernels)*10,2)*ratioSelection*len(kernels)).astype('int')
 		survivor=(numpy.unique(position[numpy.where(position[:len(kernels),0]==position[:len(kernels),1]),0]))
 		position=numpy.delete(position, numpy.where(position[:,0]==position[:,1]),0);
+	survivor=[]
 	position=position[:len(kernels)-len(survivor)]
 	#print(position)
 	#print(survivor)
@@ -191,23 +192,17 @@ while maxIteration>iteration :
 		newKernels.append(mergeKernel(kernels[meanQualityPosition[position[x,0]]],kernels[meanQualityPosition[position[x,1]]],mixingRatio))
 	perm=numpy.random.permutation(len(kernels))
 	offset=0;
+	variability=numpy.dstack(kernels)[:,:,meanQualityPosition[:math.floor(ratioSelection*len(kernels))]].std(2);
 	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-		newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],muationRatio)
+		newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration)))
 		offset+=1
-	for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-		newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],muationRatio)
-		offset+=1
-	# for x in range(len(kernels)):
-	# 	plt.close()
-	# 	plt.imshow(newKernels[x])
-	# 	plt.show(block=False)
-	# 	plt.pause(0.1)
-	# 	print(numpy.random.rand())
-	print("new generation")
+	# for _ in range(int(math.ceil(len(kernels)*muationfactor))):
+	# 	newKernels[perm[offset]]=randonKernel()
+	# 	offset+=1
+	print("new generation :", iteration)
 	kernels=newKernels;
 	iteration=iteration+1
 
-plt.show()
 queue.join()
 saveData()
 # stop workers
