@@ -71,10 +71,7 @@ def randonKernel():
 	return ker
 
 def mutateKernel(ker1, ratio):
-	places=numpy.random.rand(sizeKernel,sizeKernel)<ratio
-	randKer=numpy.random.rand(sizeKernel,sizeKernel)
-	ker=ker1.copy();
-	ker[places]=randKer[places];
+	ker=numpy.maximum(ker1.copy()+numpy.random.randn(sizeKernel,sizeKernel)*variability,0);
 	norm=numpy.sum(ker)
 	if norm<0.001:
 		ker=randomKernel()
