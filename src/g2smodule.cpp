@@ -76,13 +76,15 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 	float* data=(float*)PyArray_DATA(array);
 	unsigned nbOfVariable=image._nbVariable;
 	unsigned dataSize=image.dataSize();
-	for (int i = 0; i < dataSize/nbOfVariable; ++i)
+	/*for (int i = 0; i < dataSize/nbOfVariable; ++i)
 	{
 		for (int j = 0; j < nbOfVariable; ++j)
 		{
 			data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
 		}
-	}
+	}*/
+
+	memcpy(image._data,data,dataSize*sizeof(float));
 
 	return array;
 }
@@ -145,113 +147,80 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 	//manage data
 	if(PyArray_TYPE(prh)==NPY_DOUBLE){
 		double *matrixData=(double *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_FLOAT){
 		float *matrixData=(float *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_UINT8){
 		uint8_t *matrixData=(uint8_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_UINT16){
 		uint16_t *matrixData=(uint16_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_UINT32){
 		uint32_t *matrixData=(uint32_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_UINT64){
 		uint64_t *matrixData=(uint64_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_INT8){
 		int8_t *matrixData=(int8_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_INT16){
 		int16_t *matrixData=(int16_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_INT32){
 		int32_t *matrixData=(int32_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	if(PyArray_TYPE(prh)==NPY_INT64){
 		int64_t *matrixData=(int64_t *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 
 	if(PyArray_TYPE(prh)==NPY_BOOL){
 		bool *matrixData=(bool *)PyArray_DATA(prh);
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-			}
+			data[i]=matrixData[i];
 		}
 	}
 	//compute hash
