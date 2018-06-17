@@ -71,7 +71,7 @@ def randonKernel():
 	return ker
 
 def mutateKernel(ker1, ratio):
-	ker=numpy.maximum(ker1.copy()+numpy.random.randn(sizeKernel,sizeKernel)*variability,0);
+	ker=numpy.maximum(ker1.copy()+numpy.random.randn(sizeKernel,sizeKernel)*ratio,0);
 	norm=numpy.sum(ker)
 	if norm<0.001:
 		ker=randomKernel()
@@ -110,7 +110,7 @@ if os.path.exists('./kernelSet.npz') :
 	numberOfSimulation=data['numberOfSimulation']
 	probPower=data['probPower']
 	convergance=data['convergance'];
-	idValue=data['idValue']
+	idValue=int(data['idValue'])
 
 if maxIteration>convergance.shape[0]:
 	convergance.resize(maxIteration,NumberOfKernel)
@@ -157,7 +157,7 @@ for t in threads:
 	t.start()
 
 
-wwhile maxIteration>iteration :
+while maxIteration>iteration :
 	if iteration%(saveRate)==0 :
 		saveData()
 	for t in product(range(0,len(kernels)), range(0, numberOfSimulation)):

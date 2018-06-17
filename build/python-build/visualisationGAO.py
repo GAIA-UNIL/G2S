@@ -83,6 +83,8 @@ maxId=nanList[:,0].max().astype('int');
 
 print(maxId)
 
+from matplotlib.colors import LogNorm
+
 plt.plot(	range(maxId),convergance[:maxId].min(1),':',
 			range(maxId),numpy.percentile(convergance[:maxId], 5,1),'-.',
 			range(maxId),numpy.percentile(convergance[:maxId],50,1),'-',
@@ -90,12 +92,25 @@ plt.plot(	range(maxId),convergance[:maxId].min(1),':',
 			range(maxId),convergance[:maxId].max(1),':');
 plt.show()
 
+maxValue=numpy.percentile(numpy.dstack(kernels),99)
+
+print(maxValue)
+
 for x in range(len(kernels)):
 	plt.close()
 	# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
-	plt.imshow(kernels[x],vmin=0, vmax=1).set_cmap('nipy_spectral')
+	plt.imshow(kernels[x],vmin=0.00001, vmax=maxValue, norm=LogNorm()).set_cmap('nipy_spectral')
 	plt.colorbar()
 	plt.show(block=False)
-	plt.pause(0.25)
+	plt.pause(0.01)
+
+plt.imshow(numpy.median(numpy.dstack(kernels),2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
+plt.show()
+
+plt.imshow(numpy.percentile(numpy.dstack(kernels),10,2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
+plt.show()
+
+plt.imshow(numpy.mean(numpy.dstack(kernels),2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
+plt.show()
 
 
