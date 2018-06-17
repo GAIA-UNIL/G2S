@@ -162,9 +162,9 @@ if __name__ == "__main__":
 				break
 			z,x ,requestId, kernel= item
 			# time.sleep(0.1)
-			path=numpy.random.permutation(source.shape[0]*source.shape[1])
-			path=path.reshape((source.shape[0],source.shape[1])).astype('float');
-			result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',kernel,'-k',1.5,'-n',50,'-sp',path,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);
+			#path=numpy.random.permutation(source.shape[0]*source.shape[1])
+			#path=path.reshape((source.shape[0],source.shape[1])).astype('float');
+			result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',kernel,'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);#,'-sp',path
 			#result=g2s('-sa',address,'-silent','-waitAndDownload',requestId) #debug
 			qualityLocal[x,z]=mesureQualitry(destinationRef,result[0]);
 			#quality[x,z]=numpy.random.rand();
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 		print(numpy.stack(kernels,axis=-1).shape)
 		variability=numpy.stack(kernels,axis=-1)[:,:,:,meanQualityPosition[:math.floor(ratioSelection*len(kernels))]].std(3);
 		for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-			newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration/100)))
+			newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration/10)))
 			offset+=1
 		# for _ in range(int(math.ceil(len(kernels)*muationfactor))):
 		# 	newKernels[perm[offset]]=randonKernel()

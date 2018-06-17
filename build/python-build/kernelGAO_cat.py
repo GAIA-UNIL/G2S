@@ -201,7 +201,7 @@ if __name__ == "__main__":
 		offset=0;
 		variability=numpy.dstack(kernels)[:,:,meanQualityPosition[:math.floor(ratioSelection*len(kernels))]].std(2);
 		for _ in range(int(math.ceil(len(kernels)*muationfactor))):
-			newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration/100)))
+			newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration/10)))
 			offset+=1
 		# for _ in range(int(math.ceil(len(kernels)*muationfactor))):
 		# 	newKernels[perm[offset]]=randonKernel()

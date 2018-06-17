@@ -48,3 +48,4 @@ build/matlab-build/test*
 *.DS_Store
 *.pyc
 *.npz
+*.npy
