@@ -152,7 +152,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			{
 				if(position<cumulated+TIs[i].dataSize()){
 					importIndex.TI=i;
-					importIndex.index=TIs[i]._data[position-cumulated];
+					importIndex.index=position-cumulated;
 					break;
 				}else{
 					cumulated+=TIs[i].dataSize();
