@@ -13,14 +13,20 @@ serverAddress='localhost';
 # simple echo
 data=g2s('-sa',serverAddress,'-a','echo','-ti',source,'-dt',numpy.zeros(shape=(1,1)))
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # simple unconditional simulation with QS
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # %with GPU is integrated GPU avaible
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # simple conditional simulation with QS
 pourcantage=0.25;#  0.25%
@@ -34,6 +40,8 @@ dest.reshape(sizeDest,1)[position]=source.reshape(sizeDest,1)[position];
 # % simuulation of the source
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',dest,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # % simulation with random value at random position
 dest=dest*numpy.nan;
@@ -43,16 +51,22 @@ dest.reshape(sizeDest,1)[position2]=source.reshape(sizeDest,1)[position];
 # % simuulation of the source
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',dest,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # simple non conditional simulation with multi TI of differente size
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source[:,0:149],numpy.rot90(source,1),numpy.rot90(source[:,0:174],2),numpy.rot90(source[:,0:149],3),'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # simulation with a fixed path
 # % row path
 path= numpy.arange(0,sizeDest).reshape((200,200));
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-sp',path);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # % partial random path
 path=numpy.random.permutation(sizeDest)
@@ -60,6 +74,8 @@ path[math.ceil(sizeDest/2):-1]=-numpy.inf;
 path=path.reshape((200,200));
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-sp',path);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # specifing a kernel
 # % ? kernel need to be define for each variable 
@@ -70,27 +86,41 @@ kernel=numpy.exp(-0.1*ndimage.morphology.distance_transform_edt(1-kernel));
 
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-ki',kernel);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # Multi variete
 source3=numpy.stack([source,source,source],2); # need to fine better example
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',numpy.nan*numpy.ones(shape=(200,200,3)),'-dt',numpy.zeros(shape=(1,3)),'-k',2,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # Multi-threaded, if suported
 nbThreads=4;
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # ds mode
 data=g2s('-sa',serverAddress,'-a','ds-l','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-th',10,'-f',0.3,'-n',50,'-s',100);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 
 # Categorical Mode
 # % creation of the image
 sourceCat=numpy.matlib.repmat(numpy.eye(2),25,25);
 sourceCat=numpy.hstack([numpy.vstack([sourceCat*1,sourceCat*2]),numpy.vstack([sourceCat*3,sourceCat*4])]);
 plt.imshow(sourceCat)
+print(sourceCat)
+plt.show()
 data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,'-di',numpy.nan*numpy.ones(shape=(100,100)),'-dt',numpy.ones(shape=(1,1)),'-k',1,'-n',50,'-s',100,'-j',1);
 plt.imshow(data[0])
+print(data[0])
+plt.show()
 data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,numpy.rot90(sourceCat,1),numpy.rot90(sourceCat,2),numpy.rot90(sourceCat,3),'-di',numpy.nan*numpy.ones(shape=(100,100)),'-dt',numpy.ones(shape=(1,1)),'-k',1,'-n',50,'-s',100,'-j',1);
 plt.imshow(data[0])
+print(data[0])
+plt.show()

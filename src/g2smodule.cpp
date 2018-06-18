@@ -84,7 +84,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 		}
 	}*/
 
-	memcpy(image._data,data,dataSize*sizeof(float));
+	memcpy(data,image._data,dataSize*sizeof(float));
 
 	return array;
 }
