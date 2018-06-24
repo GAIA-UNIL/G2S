@@ -42,14 +42,6 @@ def mesureQualitry( vario1, vario2 ):
 source=numpy.single(misc.imread('source.png'))/255
 serverAddressList=['localhost'];
 
-print(len(sys.argv))
-
-if len(sys.argv)>1 :
-	file_name = sys.argv[1]
-	fp = open(file_name)
-	serverAddressList = fp.read().splitlines()
-
-print(serverAddressList)
 
 ##
 #list Of kernel
@@ -115,8 +107,15 @@ numberOfSimulation=50
 numberOfThreadProJob=2
 
 val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation],numpy.nan);
-if os.path.exists('./simErrorMap.npy') :
-	val=numpy.load('simErrorMap.npy')
+
+fileName='./simErrorMap.npy';
+
+
+if len(sys.argv)>1 :
+	fileName = sys.argv[1]
+	print(fileName)
+if os.path.exists(fileName) :
+	val=numpy.load(fileName)
 	print(val)
 varioRef=variogram(source);
 

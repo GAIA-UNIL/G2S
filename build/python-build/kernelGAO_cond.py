@@ -113,6 +113,7 @@ if __name__ == "__main__":
 	# create kernels
 	for x in range(0,NumberOfKernel):
 		kernels.append(randonKernel())
+	oldKernel=kernels
 	iteration=0
 	probPower=1/2
 	mixingRatio=0.3
@@ -149,7 +150,7 @@ if __name__ == "__main__":
 
 	def saveData():
 		print("save")
-		numpy.savez('kernelSet_cond.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
+		numpy.savez('kernelSet_cond.npz', oldKernel=oldKernel, kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
 
 	#  worker
 	def worker(queue, address):
@@ -214,7 +215,7 @@ if __name__ == "__main__":
 			newKernels.append(mergeKernel(kernels[meanQualityPosition[position[x,0]]],kernels[meanQualityPosition[position[x,1]]],mixingRatio))
 		perm=numpy.random.permutation(len(kernels))
 		offset=0;
-		print(numpy.stack(kernels,axis=-1).shape)
+		#print(numpy.stack(kernels,axis=-1).shape)
 		variability=numpy.stack(kernels,axis=-1)[:,:,:,meanQualityPosition[:math.floor(ratioSelection*len(kernels))]].std(3);
 		for _ in range(int(math.ceil(len(kernels)*muationfactor))):
 			newKernels[perm[offset]]=mutateKernel(newKernels[perm[offset]],numpy.maximum(variability,1/(1+iteration/10)))
@@ -223,6 +224,7 @@ if __name__ == "__main__":
 		# 	newKernels[perm[offset]]=randonKernel()
 		# 	offset+=1
 		print("new generation :", iteration)
+		oldKernel=kernels;
 		kernels=newKernels;
 		iteration=iteration+1
 

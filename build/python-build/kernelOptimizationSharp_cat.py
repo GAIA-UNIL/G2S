@@ -34,7 +34,7 @@ def mesureQualitry( vario1, vario2, conectivity1, conectivity2 ):
 
 
 ## main code
-source=numpy.single(misc.imread('source.png'))/255
+source=numpy.single(misc.imread('strebelle.png'))/255
 serverAddressList=['localhost'];
 
 print(len(sys.argv))
@@ -110,11 +110,11 @@ numberOfSimulation=25
 numberOfThreadProJob=2
 
 val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation,2],numpy.nan);
-if os.path.exists('./simErrorMap_v2.npy') :
-	val=numpy.load('simErrorMap_v2.npy')
+if os.path.exists('./simErrorMap_cat.npy') :
+	val=numpy.load('simErrorMap_cat.npy')
 	print(val)
 varioRef=variogram(source);
-connectStep=(numpy.arange(255)+0.5)/255;
+connectStep=connectStep=[0.5];
 connectivityRef=computeConnectivity(source,connectStep);
 
 
@@ -139,7 +139,7 @@ def worker(queue, address):
 			queue.task_done()
 			continue
 		# time.sleep(0.1)
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);
+		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(250,250)),'-dt',numpy.ones(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);
 		val[x, y, z,:]=mesureQualitry(varioRef, variogram(result[0]), connectivityRef, computeConnectivity(result[0],connectStep));
 		queue.task_done()
 
@@ -163,7 +163,7 @@ for t in threads:
 
 def saveData():
 	print("save")
-	numpy.save("simErrorMap_v2",val)
+	numpy.save("simErrorMap_cat",val)
 
 cpt=0;
 while not queue.empty():

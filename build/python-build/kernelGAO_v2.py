@@ -91,6 +91,7 @@ if __name__ == "__main__":
 	distanceMtrix=ndimage.distance_transform_edt(distanceMtrix)
 	kernels=[];
 
+
 	NumberOfKernel=128;
 	numberOfSimulation=10
 	saveRate=1;
@@ -99,6 +100,7 @@ if __name__ == "__main__":
 	# create kernels
 	for x in range(0,NumberOfKernel):
 		kernels.append(randonKernel())
+	oldKernel=kernels
 	iteration=0
 	probPower=1/2
 	mixingRatio=0.3
@@ -138,7 +140,7 @@ if __name__ == "__main__":
 
 	def saveData():
 		print("save")
-		numpy.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
+		numpy.savez('kernelSet.npz', oldKernel=oldKernel, kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
 
 	#  worker
 	def worker(queue, address):
@@ -207,6 +209,7 @@ if __name__ == "__main__":
 		# 	newKernels[perm[offset]]=randonKernel()
 		# 	offset+=1
 		print("new generation :", iteration)
+		oldKernel=kernels;
 		kernels=newKernels;
 		iteration=iteration+1
 

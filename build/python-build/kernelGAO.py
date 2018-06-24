@@ -94,6 +94,7 @@ def mergeKernel(ker1, ker2, ratio):
 # create kernels
 for x in range(0,NumberOfKernel):
 	kernels.append(randonKernel())
+oldKernel=kernels
 iteration=0
 probPower=1/2
 mixingRatio=0.3
@@ -131,7 +132,7 @@ import time
 
 def saveData():
 	print("save")
-	numpy.savez('kernelSet.npz', kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
+	numpy.savez('kernelSet.npz', oldKernel=oldKernel, kernels=kernels, iteration=iteration, numberOfSimulation=numberOfSimulation, probPower=probPower, convergance=convergance, idValue=idValue)
 
 #  worker
 def worker(queue, address):
@@ -197,6 +198,7 @@ while maxIteration>iteration :
 	# 	newKernels[perm[offset]]=randonKernel()
 	# 	offset+=1
 	print("new generation :", iteration)
+	oldKernel=kernels;
 	kernels=newKernels;
 	iteration=iteration+1
 

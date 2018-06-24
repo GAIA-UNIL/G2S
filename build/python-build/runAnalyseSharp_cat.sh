@@ -27,7 +27,7 @@ cat python_host.txt
 
 mpirun -machinefile MPI_host.txt -genv I_MPI_PIN off -wdir $PBS_O_WORKDIR bash startServer.sh &
 
-python3 kernelOptimizationSharp.py python_host.txt
+python3 kernelOptimizationSharp_cat.py python_host.txt
 
 wait $!
 

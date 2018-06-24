@@ -4,6 +4,8 @@
 from scipy import misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
+import matplotlib.colors as colors
 import numpy
 import math
 from variogram import variogram
@@ -38,14 +40,13 @@ source=numpy.single(misc.imread('source.png'))/255
 serverAddressList=['localhost'];
 
 maxIteration=10000;
+fileName='./kernelSet.npz';
+
 
 if len(sys.argv)>1 :
-	maxIteration = int(sys.argv[1])
+	fileName = sys.argv[1]
+	print(fileName)
 
-if len(sys.argv)>2 :
-	file_name = sys.argv[2]
-	fp = open(file_name)
-	serverAddressList = fp.read().splitlines()
 
 print(serverAddressList)
 
@@ -69,8 +70,8 @@ ratioSelection=0.25;
 idValue=1;
 convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
-if os.path.exists('./kernelSet.npz') :
-	data = numpy.load('kernelSet.npz')
+if os.path.exists(fileName) :
+	data = numpy.load(fileName)
 	kernels=data['kernels']
 	iteration= data['iteration']
 	numberOfSimulation=data['numberOfSimulation']
@@ -83,34 +84,298 @@ maxId=nanList[:,0].max().astype('int');
 
 print(maxId)
 
+import colorsys
+spacing=numpy.linspace(0,1,256)
+colorsList=plt.cm.nipy_spectral(spacing);
+for x in range(colorsList.shape[0]):
+	r,g,b,alpha=colorsList[x,:];
+	h,l,s=colorsys.rgb_to_hls(r,g,b)
+	l=1-l;
+	r,g,b=colorsys.hls_to_rgb(h,l,s)
+	colorsList[x,:]=r,g,b,alpha;
+
+
+
+#print(numpy.stack([spacing,colorsList[:,0],colorsList[:,0]],1));
+cdict1 = {'red':   numpy.stack([spacing,colorsList[:,0],colorsList[:,0]],1),
+
+         'green': numpy.stack([spacing,colorsList[:,1],colorsList[:,1]],1),
+
+         'blue':  numpy.stack([spacing,colorsList[:,2],colorsList[:,2]],1)
+        }
+cmapPerso=colors.LinearSegmentedColormap('nipy_spectral_LInv',cdict1);
+cmapPerso.set_bad('black',1.)
+#scmapPersoRegister=plt.register_cmap(cmap=cmapPerso);
+
+## load extra data
+maxId=maxId
+
+if len(sys.argv)>2 and os.path.exists(sys.argv[2]) :
+	extraData = numpy.load(sys.argv[2])
+	qualityUniform=extraData['qualityUniform'];
+
+	tmp=int(math.floor(qualityUniform.shape[1]/numberOfSimulation));
+	qualityUniform=numpy.reshape(qualityUniform[:,:tmp*numberOfSimulation],[1,tmp,numberOfSimulation]);
+
+	qualityUniform=qualityUniform.mean(2);
+
+if len(sys.argv)>3 and os.path.exists(sys.argv[3]) :
+	extraData = numpy.load(sys.argv[3])
+	qualityBest=extraData['qualityBests'];
+	print(qualityBest.shape)
+
+
+	tmp=int(math.floor(qualityBest.shape[1]/numberOfSimulation));
+	qualityBest=numpy.reshape(qualityBest[:,:tmp*numberOfSimulation],[qualityBest.shape[0],tmp,numberOfSimulation]);
+	print(qualityBest.shape)
+	qualityBest=qualityBest.mean(2);
+	print(qualityBest.shape)
+
+
+
 from matplotlib.colors import LogNorm
+ 
+plt.figure(num=None, figsize=(16,9), dpi=120)
 
-plt.plot(	range(maxId),convergance[:maxId].min(1),':',
-			range(maxId),numpy.percentile(convergance[:maxId], 5,1),'-.',
-			range(maxId),numpy.percentile(convergance[:maxId],50,1),'-',
-			range(maxId),numpy.percentile(convergance[:maxId],95,1),'-.',
-			range(maxId),convergance[:maxId].max(1),':');
+plt.plot( range(maxId-11), convergance[:maxId-11].min(1),':',label='p0',lw=2);
+plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11], 5,1),'-.',label='p5',lw=2);
+plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11],50,1),'-',label='p50',lw=2);
+plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11],95,1),'-.',label='p95',lw=2);
+plt.plot( range(maxId-11), convergance[:maxId-11].max(1),':',label='p100',lw=2);
+			
+if 'qualityUniform' in locals():
+	plt.axhline(y=numpy.percentile(qualityUniform,50,1), xmin=0.0, xmax=1.0, linewidth=1, color='grey',label='u-p50')
+	plt.fill_between([-20, maxId+20], qualityUniform.min(1), qualityUniform.max(1), color='grey', alpha='0.3')
+if 'qualityBest' in locals():
+	plt.axhline(y=numpy.percentile(qualityBest[0,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='lime',label='trained-p50')
+	plt.fill_between([-20, maxId+20], qualityBest[0,:].min(0), qualityBest[0,:].max(0), color='lime', alpha='0.3')
+
+	# plt.axhline(y=numpy.percentile(qualityBest[1,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='lime', label='mean')
+	# plt.fill_between([-20, maxId+20], qualityBest[1,:].min(0), qualityBest[1,:].max(0), color='lime', alpha='0.5')
+
+plt.xlim(-2, maxId+10)
+#plt.legend(loc=7)
+
+plt.xlabel('Iterations', fontsize=26)
+plt.ylabel('SSIM', fontsize=26)
+plt.tick_params(axis='both', which='major', labelsize=20)
+
+plt.savefig('../figures/conv_cond.png', transparent=True)
 plt.show()
 
-maxValue=numpy.percentile(numpy.dstack(kernels),99)
 
-print(maxValue)
+meanQualityPosition=convergance[maxId,:].argsort();
+maxPosition=int(ratioSelection*len(kernels));
+print(maxPosition)
+print(meanQualityPosition[:maxPosition])
+maxValue=numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),99.9)*2;
+minValue=0.001;#numpy.percentile(numpy.stack(kernels,axis=-1),10)/2;
 
-for x in range(len(kernels)):
-	plt.close()
-	# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
-	plt.imshow(kernels[x],vmin=0.00001, vmax=maxValue, norm=LogNorm()).set_cmap('nipy_spectral')
-	plt.colorbar()
-	plt.show(block=False)
-	plt.pause(0.01)
+for kernel in kernels:
+	kernel[kernel>maxValue]=maxValue;
+	kernel[kernel<minValue]=minValue;
+	kernel[int(math.ceil(sizeKernel/2)),int(math.ceil(sizeKernel/2)),-1]=numpy.inf;
 
-plt.imshow(numpy.median(numpy.dstack(kernels),2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
-plt.show()
+# print(maxValue)
 
-plt.imshow(numpy.percentile(numpy.dstack(kernels),10,2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
-plt.show()
 
-plt.imshow(numpy.mean(numpy.dstack(kernels),2),vmin=0.0001, vmax=maxValue,norm=LogNorm()).set_cmap('nipy_spectral');
-plt.show()
+titles=['Blue', 'Green', 'Red', 'Near Infrared'];
+import matplotlib
+import matplotlib.animation as manimation
 
+FFMpegWriter = manimation.writers['ffmpeg']
+metadata = dict(title='Movie Test', artist='Matplotlib',
+                comment='Movie support!')
+writer = FFMpegWriter(fps=1, bitrate=-1, metadata=metadata);
+
+if kernels[0].ndim < 3:
+	for x in range(len(kernels)):
+		plt.close()
+		# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
+		plt.figure(num=None,figsize=figureSize, dpi=120)
+		plt.imshow(kernels[x],vmin=minValue, vmax=maxValue, norm=LogNorm()).set_cmap(cmapPerso)
+		plt.colorbar()
+		plt.tick_params(
+				# axis='both',         # changes apply to the x-axis
+				which='both',      # both major and minor ticks are affected
+				bottom=False,      # ticks along the bottom edge are off
+				top=False,         # ticks along the top edge are off
+				left=False,
+				right=False,
+				labelbottom=False,
+				labelleft=False) # labels along the bottom edge are off
+
+		plt.imshow(numpy.median(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+		plt.tick_params(
+					# axis='both',         # changes apply to the x-axis
+					which='both',      # both major and minor ticks are affected
+					bottom=False,      # ticks along the bottom edge are off
+					top=False,         # ticks along the top edge are off
+					left=False,
+					right=False,
+					labelbottom=False,
+					labelleft=False) # labels along the bottom edge are off
+		plt.show()
+
+		plt.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+		plt.tick_params(
+					# axis='both',         # changes apply to the x-axis
+					which='both',      # both major and minor ticks are affected
+					bottom=False,      # ticks along the bottom edge are off
+					top=False,         # ticks along the top edge are off
+					left=False,
+					right=False,
+					labelbottom=False,
+					labelleft=False) # labels along the bottom edge are off
+		plt.show()
+
+		plt.imshow(numpy.mean(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+		plt.tick_params(
+					# axis='both',         # changes apply to the x-axis
+					which='both',      # both major and minor ticks are affected
+					bottom=False,      # ticks along the bottom edge are off
+					top=False,         # ticks along the top edge are off
+					left=False,
+					right=False,
+					labelbottom=False,
+					labelleft=False) # labels along the bottom edge are off
+		plt.show(block=False)
+		plt.pause(0.01)
+	plt.show()
+
+else :
+
+	numberOfRows=1;
+	figureSize=(16,5)
+
+	# for x in range(len(kernels)):
+	# 	plt.close()
+	# 	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=, dpi=120)
+	# 	y=0
+	# 	for ax in axes.flat:
+	# 		im = ax.imshow(kernels[x].take(y,axis=2),vmin=minValue, vmax=maxValue, norm=LogNorm())
+	# 		im.set_cmap(cmapPerso)
+	# 		ax.set_title( titles[y], fontsize=20)
+	# 		ax.tick_params(
+	# 			# axis='both',         # changes apply to the x-axis
+	# 			which='both',      # both major and minor ticks are affected
+	# 			bottom=False,      # ticks along the bottom edge are off
+	# 			top=False,         # ticks along the top edge are off
+	# 			left=False,
+	# 			right=False,
+	# 			labelbottom=False,
+	# 			labelleft=False) # labels along the bottom edge are off
+	# 		y+=1
+
+	# 	fig.subplots_adjust(right=0.8)
+	# 	cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+	# 	fig.colorbar(im, cax=cbar_ax)
+	# 	# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
+	# 	plt.show(block=False)
+	# 	plt.pause(0.01)
+	# plt.close()
+
+
+	### video
+
+	# fig=plt.figure(figsize=figureSize, dpi=120)
+
+	# with writer.saving(fig, "writer_test.mp4", 120):
+	# 	for x in range(len(kernels)):
+			
+	# 		axes = fig.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)))
+	# 		y=0
+	# 		for ax in axes.flat:
+	# 			im = ax.imshow(kernels[x].take(y,axis=2),vmin=minValue, vmax=maxValue, norm=LogNorm())
+	# 			im.set_cmap(cmapPerso)
+	# 			ax.set_title( titles[y], fontsize=20)
+	# 			ax.tick_params(
+	# 				# axis='both',         # changes apply to the x-axis
+	# 				which='both',      # both major and minor ticks are affected
+	# 				bottom=False,      # ticks along the bottom edge are off
+	# 				top=False,         # ticks along the top edge are off
+	# 				left=False,
+	# 				right=False,
+	# 				labelbottom=False,
+	# 				labelleft=False) # labels along the bottom edge are off
+	# 			y+=1
+
+	# 		fig.subplots_adjust(right=0.8)
+	# 		cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+	# 		fig.colorbar(im, cax=cbar_ax)
+	# 		writer.grab_frame()
+
+
+	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
+	y=0
+	for ax in axes.flat:
+		im = ax.imshow(numpy.median(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1).take(y,axis=2),vmin=minValue, vmax=maxValue,norm=LogNorm());
+		im.set_cmap(cmapPerso)
+		ax.set_title( titles[y], fontsize=20)
+		ax.tick_params(
+				# axis='both',         # changes apply to the x-axis
+				which='both',      # both major and minor ticks are affected
+				bottom=False,      # ticks along the bottom edge are off
+				top=False,         # ticks along the top edge are off
+				left=False,
+				right=False,
+				labelbottom=False,
+				labelleft=False) # labels along the bottom edge are off
+		y+=1
+
+	fig.subplots_adjust(top=0.95, bottom=0.15,right=0.95,left=0.05)
+	cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.05])
+	cbar_ax.tick_params(labelsize=20)
+	fig.colorbar(im, orientation="horizontal", cax=cbar_ax)
+	plt.savefig('../figures/p50_cond.png', transparent=True)
+	plt.show()
+
+
+	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
+	y=0
+	for ax in axes.flat:
+		im = ax.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1).take(y,axis=2),vmin=minValue, vmax=maxValue,norm=LogNorm());
+		im.set_cmap(cmapPerso)
+		ax.set_title( titles[y], fontsize=20)
+		ax.tick_params(
+				# axis='both',         # changes apply to the x-axis
+				which='both',      # both major and minor ticks are affected
+				bottom=False,      # ticks along the bottom edge are off
+				top=False,         # ticks along the top edge are off
+				left=False,
+				right=False,
+				labelbottom=False,
+				labelleft=False) # labels along the bottom edge are off
+		y+=1
+
+	fig.subplots_adjust(top=0.95, bottom=0.15,right=0.95,left=0.05)
+	cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.05])
+	cbar_ax.tick_params(labelsize=20)
+	fig.colorbar(im, orientation="horizontal", cax=cbar_ax)
+	plt.savefig('../figures/p10_cond.png', transparent=True)
+	plt.show()
+
+	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
+	y=0
+	for ax in axes.flat:
+		im = ax.imshow(numpy.mean(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1).take(y,axis=2),vmin=minValue, vmax=maxValue,norm=LogNorm());
+		im.set_cmap(cmapPerso)
+		ax.set_title( titles[y], fontsize=20)
+		ax.tick_params(
+				# axis='both',         # changes apply to the x-axis
+				which='both',      # both major and minor ticks are affected
+				bottom=False,      # ticks along the bottom edge are off
+				top=False,         # ticks along the top edge are off
+				left=False,
+				right=False,
+				labelbottom=False,
+				labelleft=False) # labels along the bottom edge are off
+		y+=1
+
+	fig.subplots_adjust(top=0.95, bottom=0.15,right=0.95,left=0.05)
+	cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.05])
+	cbar_ax.tick_params(labelsize=20)
+	fig.colorbar(im, orientation="horizontal", cax=cbar_ax)
+	plt.savefig('../figures/mean_cond.png', transparent=True)
+	plt.show()
 
