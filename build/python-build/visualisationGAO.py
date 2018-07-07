@@ -72,7 +72,7 @@ convergance=numpy.full([maxIteration,NumberOfKernel],numpy.nan)
 
 if os.path.exists(fileName) :
 	data = numpy.load(fileName)
-	kernels=data['kernels']
+	kernels=data['oldKernel']
 	iteration= data['iteration']
 	numberOfSimulation=data['numberOfSimulation']
 	probPower=data['probPower']
@@ -115,9 +115,10 @@ if len(sys.argv)>2 and os.path.exists(sys.argv[2]) :
 	qualityUniform=extraData['qualityUniform'];
 
 	tmp=int(math.floor(qualityUniform.shape[1]/numberOfSimulation));
-	qualityUniform=numpy.reshape(qualityUniform[:,:tmp*numberOfSimulation],[1,tmp,numberOfSimulation]);
+	qualityUniform=numpy.reshape(qualityUniform[:,:tmp*numberOfSimulation],[qualityUniform.shape[0],tmp,numberOfSimulation]);
 
 	qualityUniform=qualityUniform.mean(2);
+	print(qualityUniform.shape)
 
 if len(sys.argv)>3 and os.path.exists(sys.argv[3]) :
 	extraData = numpy.load(sys.argv[3])
@@ -134,30 +135,45 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]) :
 
 
 from matplotlib.colors import LogNorm
- 
-plt.figure(num=None, figsize=(16,9), dpi=120)
-
-plt.plot( range(maxId-11), convergance[:maxId-11].min(1),':',label='p0',lw=2);
-plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11], 5,1),'-.',label='p5',lw=2);
-plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11],50,1),'-',label='p50',lw=2);
-plt.plot( range(maxId-11), numpy.percentile(convergance[:maxId-11],95,1),'-.',label='p95',lw=2);
-plt.plot( range(maxId-11), convergance[:maxId-11].max(1),':',label='p100',lw=2);
+figureSize= (16,9)
+#figureSize= (8,5)
+plt.figure(num=None, figsize=figureSize, dpi=120)
+amountSkiped=14;
+#plt.plot( range(maxId-amountSkiped), convergance[:maxId-amountSkiped].min(1),':',label='p0',lw=2);
+plt.plot( range(maxId-amountSkiped), numpy.percentile(convergance[:maxId-amountSkiped], 5,1),'-.',label='p5',lw=2);
+plt.plot( range(maxId-amountSkiped), numpy.percentile(convergance[:maxId-amountSkiped],50,1),'-',label='p50',lw=2);
+plt.plot( range(maxId-amountSkiped), numpy.percentile(convergance[:maxId-amountSkiped],95,1),'-.',label='p95',lw=2);
+#plt.plot( range(maxId-amountSkiped), convergance[:maxId-amountSkiped].max(1),':',label='p100',lw=2);
 			
 if 'qualityUniform' in locals():
-	plt.axhline(y=numpy.percentile(qualityUniform,50,1), xmin=0.0, xmax=1.0, linewidth=1, color='grey',label='u-p50')
-	plt.fill_between([-20, maxId+20], qualityUniform.min(1), qualityUniform.max(1), color='grey', alpha='0.3')
+	plt.axhline(y=numpy.percentile(qualityUniform[0,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='grey',label='Uniform')
+	plt.fill_between([-20, maxId+20], qualityUniform[0,:].min(0), qualityUniform[0,:].max(0), color='grey', alpha='0.3')
 if 'qualityBest' in locals():
-	plt.axhline(y=numpy.percentile(qualityBest[0,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='lime',label='trained-p50')
-	plt.fill_between([-20, maxId+20], qualityBest[0,:].min(0), qualityBest[0,:].max(0), color='lime', alpha='0.3')
+	if qualityBest.shape[0]>0:
+		plt.axhline(y=numpy.percentile(qualityBest[1,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='lime',label='Trained')
+		plt.fill_between([-20, maxId+20], qualityBest[1,:].min(0), qualityBest[1,:].max(0), color='lime', alpha='0.3')
 
-	# plt.axhline(y=numpy.percentile(qualityBest[1,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='lime', label='mean')
-	# plt.fill_between([-20, maxId+20], qualityBest[1,:].min(0), qualityBest[1,:].max(0), color='lime', alpha='0.5')
+	if qualityBest.shape[0]>2:
+		plt.axhline(y=numpy.percentile(qualityBest[2,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='cyan', label='static')
+		plt.fill_between([-20, maxId+20], qualityBest[2,:].min(0), qualityBest[2,:].max(0), color='cyan', alpha='0.5')
+		
+	# if qualityBest.shape[0]>4:
+	# 	plt.axhline(y=numpy.percentile(qualityBest[4+1,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='cyan', label='static')
+	# 	plt.fill_between([-20, maxId+20], qualityBest[4+1,:].min(0), qualityBest[4+1,:].max(0), color='cyan', alpha='0.5')
+
+	if qualityBest.shape[0]>6:
+		plt.axhline(y=numpy.percentile(qualityBest[6+1,:],50,0), xmin=0.0, xmax=1.0, linewidth=1, color='cyan', label='static')
+		plt.fill_between([-20, maxId+20], qualityBest[6+1,:].min(0), qualityBest[6+1,:].max(0), color='cyan', alpha='0.5')
+
 
 plt.xlim(-2, maxId+10)
-#plt.legend(loc=7)
+plt.legend(loc=1, fontsize=20)
 
 plt.xlabel('Iterations', fontsize=26)
-plt.ylabel('SSIM', fontsize=26)
+if kernels[0].ndim < 3:
+	plt.ylabel('Variogram - $\epsilon$', fontsize=26)
+else:
+	plt.ylabel('SSIM', fontsize=26)
 plt.tick_params(axis='both', which='major', labelsize=20)
 
 plt.savefig('../figures/conv_cond.png', transparent=True)
@@ -174,8 +190,10 @@ minValue=0.001;#numpy.percentile(numpy.stack(kernels,axis=-1),10)/2;
 for kernel in kernels:
 	kernel[kernel>maxValue]=maxValue;
 	kernel[kernel<minValue]=minValue;
-	kernel[int(math.ceil(sizeKernel/2)),int(math.ceil(sizeKernel/2)),-1]=numpy.inf;
-
+	if kernel.ndim>2 :
+		kernel[int(math.ceil(sizeKernel/2)),int(math.ceil(sizeKernel/2)),-1]=numpy.inf;
+	else :
+		kernel[int(math.ceil(sizeKernel/2)),int(math.ceil(sizeKernel/2))]=numpy.inf;
 # print(maxValue)
 
 
@@ -189,13 +207,30 @@ metadata = dict(title='Movie Test', artist='Matplotlib',
 writer = FFMpegWriter(fps=1, bitrate=-1, metadata=metadata);
 
 if kernels[0].ndim < 3:
-	for x in range(len(kernels)):
-		plt.close()
-		# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
-		plt.figure(num=None,figsize=figureSize, dpi=120)
-		plt.imshow(kernels[x],vmin=minValue, vmax=maxValue, norm=LogNorm()).set_cmap(cmapPerso)
-		plt.colorbar()
-		plt.tick_params(
+
+	figureSize=(10,8)
+
+	# for x in range(len(kernels)):
+	# 	plt.close()
+	# 	# plt.plot(range(sizeKernel*sizeKernel),kernels[x].flatten())
+	# 	plt.figure(num=None,figsize=figureSize, dpi=120)
+	# 	plt.imshow(kernels[x],vmin=minValue, vmax=maxValue, norm=LogNorm()).set_cmap(cmapPerso)
+	# 	plt.colorbar()
+	# 	plt.tick_params(
+	# 			# axis='both',         # changes apply to the x-axis
+	# 			which='both',      # both major and minor ticks are affected
+	# 			bottom=False,      # ticks along the bottom edge are off
+	# 			top=False,         # ticks along the top edge are off
+	# 			left=False,
+	# 			right=False,
+	# 			labelbottom=False,
+	# 			labelleft=False) # labels along the bottom edge are off
+	# 	plt.pause(0.01)
+
+	plt.figure(num=None,figsize=figureSize, dpi=120)
+	plt.imshow(numpy.median(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+	plt.colorbar().ax.tick_params(labelsize=20)
+	plt.tick_params(
 				# axis='both',         # changes apply to the x-axis
 				which='both',      # both major and minor ticks are affected
 				bottom=False,      # ticks along the bottom edge are off
@@ -204,43 +239,38 @@ if kernels[0].ndim < 3:
 				right=False,
 				labelbottom=False,
 				labelleft=False) # labels along the bottom edge are off
+	plt.savefig('../figures/p50_connected.png', transparent=True)
+	plt.show()
 
-		plt.imshow(numpy.median(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
-		plt.tick_params(
-					# axis='both',         # changes apply to the x-axis
-					which='both',      # both major and minor ticks are affected
-					bottom=False,      # ticks along the bottom edge are off
-					top=False,         # ticks along the top edge are off
-					left=False,
-					right=False,
-					labelbottom=False,
-					labelleft=False) # labels along the bottom edge are off
-		plt.show()
+	# plt.figure(num=None,figsize=figureSize, dpi=120)
+	# plt.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+	# fig.colorbar()
+	# plt.tick_params(
+	# 			# axis='both',         # changes apply to the x-axis
+	# 			which='both',      # both major and minor ticks are affected
+	# 			bottom=False,      # ticks along the bottom edge are off
+	# 			top=False,         # ticks along the top edge are off
+	# 			left=False,
+	# 			right=False,
+	# 			labelbottom=False,
+	# 			labelleft=False) # labels along the bottom edge are off
+	# plt.savefig('../figures/p10_connected.png', transparent=True)
+	# plt.show()
 
-		plt.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
-		plt.tick_params(
-					# axis='both',         # changes apply to the x-axis
-					which='both',      # both major and minor ticks are affected
-					bottom=False,      # ticks along the bottom edge are off
-					top=False,         # ticks along the top edge are off
-					left=False,
-					right=False,
-					labelbottom=False,
-					labelleft=False) # labels along the bottom edge are off
-		plt.show()
-
-		plt.imshow(numpy.mean(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
-		plt.tick_params(
-					# axis='both',         # changes apply to the x-axis
-					which='both',      # both major and minor ticks are affected
-					bottom=False,      # ticks along the bottom edge are off
-					top=False,         # ticks along the top edge are off
-					left=False,
-					right=False,
-					labelbottom=False,
-					labelleft=False) # labels along the bottom edge are off
-		plt.show(block=False)
-		plt.pause(0.01)
+	plt.figure(num=None,figsize=figureSize, dpi=120)
+	plt.imshow(numpy.mean(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),-1),vmin=minValue, vmax=maxValue,norm=LogNorm()).set_cmap(cmapPerso)
+	plt.colorbar().ax.tick_params(labelsize=20)
+	plt.tick_params(
+				# axis='both',         # changes apply to the x-axis
+				which='both',      # both major and minor ticks are affected
+				bottom=False,      # ticks along the bottom edge are off
+				top=False,         # ticks along the top edge are off
+				left=False,
+				right=False,
+				labelbottom=False,
+				labelleft=False) # labels along the bottom edge are off
+	plt.savefig('../figures/mean_connected.png', transparent=True)
+	plt.show(block=False)
 	plt.show()
 
 else :
@@ -331,29 +361,29 @@ else :
 	plt.show()
 
 
-	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
-	y=0
-	for ax in axes.flat:
-		im = ax.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1).take(y,axis=2),vmin=minValue, vmax=maxValue,norm=LogNorm());
-		im.set_cmap(cmapPerso)
-		ax.set_title( titles[y], fontsize=20)
-		ax.tick_params(
-				# axis='both',         # changes apply to the x-axis
-				which='both',      # both major and minor ticks are affected
-				bottom=False,      # ticks along the bottom edge are off
-				top=False,         # ticks along the top edge are off
-				left=False,
-				right=False,
-				labelbottom=False,
-				labelleft=False) # labels along the bottom edge are off
-		y+=1
+	# fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
+	# y=0
+	# for ax in axes.flat:
+	# 	im = ax.imshow(numpy.percentile(numpy.stack(kernels[meanQualityPosition[:maxPosition]],axis=-1),10,-1).take(y,axis=2),vmin=minValue, vmax=maxValue,norm=LogNorm());
+	# 	im.set_cmap(cmapPerso)
+	# 	ax.set_title( titles[y], fontsize=20)
+	# 	ax.tick_params(
+	# 			# axis='both',         # changes apply to the x-axis
+	# 			which='both',      # both major and minor ticks are affected
+	# 			bottom=False,      # ticks along the bottom edge are off
+	# 			top=False,         # ticks along the top edge are off
+	# 			left=False,
+	# 			right=False,
+	# 			labelbottom=False,
+	# 			labelleft=False) # labels along the bottom edge are off
+	# 	y+=1
 
-	fig.subplots_adjust(top=0.95, bottom=0.15,right=0.95,left=0.05)
-	cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.05])
-	cbar_ax.tick_params(labelsize=20)
-	fig.colorbar(im, orientation="horizontal", cax=cbar_ax)
-	plt.savefig('../figures/p10_cond.png', transparent=True)
-	plt.show()
+	# fig.subplots_adjust(top=0.95, bottom=0.15,right=0.95,left=0.05)
+	# cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.05])
+	# cbar_ax.tick_params(labelsize=20)
+	# fig.colorbar(im, orientation="horizontal", cax=cbar_ax)
+	# plt.savefig('../figures/p10_cond.png', transparent=True)
+	# plt.show()
 
 	fig, axes = plt.subplots(nrows=numberOfRows, ncols=int(math.ceil(kernels[0].shape[-1]/numberOfRows)),figsize=figureSize, dpi=120)
 	y=0

@@ -42,7 +42,7 @@ build/intel-build/*
 !build/intel-build/Makefile
 build/matlab-build/*.mex*
 
-build/figures
+build/otherData
 
 build/matlab-build/test*
 

@@ -75,7 +75,7 @@ if __name__ == "__main__":
 		print(fileName)
 	if os.path.exists(fileName) :
 		data = numpy.load(fileName)
-		kernels=data['kernels']
+		kernels=data['oldKernel']
 		iteration= data['iteration']
 		numberOfSimulation=data['numberOfSimulation']
 		probPower=data['probPower']
@@ -88,8 +88,8 @@ if __name__ == "__main__":
 	sizeKernel=9;
 	dimProblem=min(source.shape[2],destinationRef.shape[2])
 
-	numberOfThreadProJob=2
-	numberOfSimulation=1;
+	numberOfThreadProJob=4
+	numberOfSimulation=100;
 	ratioSelection=0.25;
 	meanQualityPosition=convergance[maxId,:].argsort();
 	maxPosition=int(ratioSelection*len(kernels));
@@ -104,18 +104,18 @@ if __name__ == "__main__":
 	requestId=0;
 	for i in range(len(ker)):
 		for z in range(numberOfSimulation):
-			result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',ker[i],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);#,'-sp',path
+			result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',ker[i],'-k',1,'-n',200,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);#,'-sp',path
 			qualityBests[i,z]=mesureQualitry(destinationRef,result[0]);
 			requestId+=1
 			result[0]=numpy.clip(result[0],minValue,maxValue);
 			print(qualityBests[i,z])
 			if i==0 and z==0 :
-				misc.imsave('../figures/p50-Simulation_cond.png', result[0][:,:,-1])
+				misc.imsave('../figures/p50-Simulation_cond.png',  (result[0][:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
 			if i==1 and z==0 :
-				misc.imsave('../figures/meanSimulation_cond.png', result[0][:,:,-1])
+				misc.imsave('../figures/meanSimulation_cond.png',  (result[0][:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
 			if i==2 and z==0 :
-				misc.imsave('../figures/staticSimulation_cond.png', result[0][:,:,-1])
+				misc.imsave('../figures/staticSimulation_cond.png',  (result[0][:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
 
 	
 
-	# numpy.savez('best_cond.npz', qualityBests=qualityBests);
+	numpy.savez('best_cond.npz', qualityBests=qualityBests);

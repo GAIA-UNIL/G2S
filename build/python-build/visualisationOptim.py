@@ -62,10 +62,10 @@ for alpha_value in alpha:
 	functionName=[];
 	loaclDistance=distanceMtrix*alpha_value;
 	#uniform
-	functionName.append("uniform");
+	functionName.append("Uniform");
 	type.append(numpy.single(loaclDistance<1));
 	#triangular
-	functionName.append("triangular");
+	functionName.append("Triangular");
 	type.append(numpy.maximum(1-loaclDistance,0));
 	#Epanechnikov
 	functionName.append("Epanechnikov");
@@ -108,24 +108,74 @@ numberOfThreadProJob=2
 
 val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation],numpy.nan);
 
+
+import colorsys
+import matplotlib.colors as colors
+spacing=numpy.linspace(0,1,256)
+colorsList=plt.cm.nipy_spectral(spacing);
+for x in range(colorsList.shape[0]):
+	r,g,b,alpha=colorsList[x,:];
+	h,l,s=colorsys.rgb_to_hls(r,g,b)
+	l=1-l;
+	r,g,b=colorsys.hls_to_rgb(h,l,s)
+	colorsList[x,:]=r,g,b,alpha;
+
+
+
+#print(numpy.stack([spacing,colorsList[:,0],colorsList[:,0]],1));
+cdict1 = {'red':   numpy.stack([spacing,colorsList[:,0],colorsList[:,0]],1),
+
+         'green': numpy.stack([spacing,colorsList[:,1],colorsList[:,1]],1),
+
+         'blue':  numpy.stack([spacing,colorsList[:,2],colorsList[:,2]],1)
+        }
+cmapPerso=colors.LinearSegmentedColormap('nipy_spectral_LInv',cdict1);
+cmapPerso.set_bad('black',1.)
+
+
 fileName='./simErrorMap.npy';
 
 
 if len(sys.argv)>1 :
 	fileName = sys.argv[1]
-	print(fileName)
+	#print(fileName)
 if os.path.exists(fileName) :
 	val=numpy.load(fileName)
-	print(val)
+	#print(val)
 varioRef=variogram(source);
 
-print("min : ",val.mean(2)[:,:,0].min(), "- ", val.mean(2)[:,:,1].min())
+#val=val.take([0, 2, 3, 4],1)
 
-plt.imshow(val.mean(2)[:,:,0].transpose(),vmin=val.mean(2)[:,:,0].min(), vmax=val.mean(2)[:,:,0].max()).set_cmap('nipy_spectral')
-plt.colorbar()
+# print("min : ",val.mean(2)[:,:,0].min(), "- ", val.mean(2)[:,:,1].min())
+
+# print(val.mean(2)[30:40,1,0])
+
+from matplotlib.colors import LogNorm
+kernelName=functionName;#["Gaussian","Cosinus","Logistic","Sigmoid","Silverman"]
+print(functionName)
+plt.imshow(val.mean(2)[:,:,0].transpose(),vmin=val.mean(2)[:,:,0].min(), vmax=val.mean(2)[:,:,0].max(),norm=LogNorm(), aspect='auto').set_cmap(cmapPerso)
+plt.yticks(numpy.arange(len(functionName)), kernelName,fontsize=15)
+plt.xticks(numpy.arange(9)*5+4.5, (numpy.arange(10)+1)/10,fontsize=15)
+plt.xlabel('$\\alpha$ kernel parameter', fontsize=16)
+print(val.mean(2)[:,:,0].transpose().argmin()/val.shape[0])
+print(val.mean(2)[:,:,0].transpose().argmin()%val.shape[0])
+cb=plt.colorbar(orientation="horizontal",ticks=[val.mean(2)[:,:,0].min(), (val.mean(2)[:,:,0].min() + val.mean(2)[:,:,0].max())/2, val.mean(2)[:,:,0].max()])
+cb.ax.tick_params(labelsize=15);
+cb.ax.set_xticklabels(['Low', 'Medium', 'High'])
+plt.tight_layout()
+plt.savefig('../figures/static_vario.png', transparent=True)
 plt.show(block=False)
 plt.figure()
-plt.imshow(val.mean(2)[:,:,1].transpose(),vmin=val.mean(2)[:,:,1].min(), vmax=val.mean(2)[:,:,1].max()).set_cmap('nipy_spectral')
-plt.colorbar()
+plt.imshow(val.mean(2)[:,:,1].transpose(),vmin=val.mean(2)[:,:,1].min(), vmax=val.mean(2)[:,:,1].max(),norm=LogNorm(), aspect='auto').set_cmap(cmapPerso)
+plt.yticks(numpy.arange(len(functionName)), kernelName,fontsize=15)
+plt.xticks(numpy.arange(9)*5+4.5, (numpy.arange(10)+1)/10,fontsize=15)
+plt.xlabel('$\\alpha$ kernel parameter', fontsize=16)
+print(val.mean(2)[:,:,1].transpose().argmin()/val.shape[0])
+print(val.mean(2)[:,:,1].transpose().argmin()%val.shape[0])
+cb=plt.colorbar(orientation="horizontal",ticks=[val.mean(2)[:,:,1].min(), (val.mean(2)[:,:,1].min() + val.mean(2)[:,:,1].max())/2, val.mean(2)[:,:,1].max()])
+cb.ax.tick_params(labelsize=15);
+cb.ax.set_xticklabels(['Low', 'Medium', 'High'])
+plt.tight_layout()
+plt.savefig('../figures/static_connect.png', transparent=True)
 plt.show(block=True)
 

@@ -71,21 +71,23 @@ if __name__ == "__main__":
 	sizeKernel=9;
 	dimProblem=min(source.shape[2],destinationRef.shape[2])
 
-	uniKernel=uniformKernel()
 	# create kernels
+	uniKernel=uniformKernel()
+	print(uniKernel)
 	
-	numberOfThreadProJob=2
+	numberOfThreadProJob=4
 	numberOfSimulation=100;
 
 	qualityUniform=numpy.full([1,numberOfSimulation],numpy.nan);
 
 	requestId=0;
 	for z in range(numberOfSimulation):
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',uniKernel,'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);#,'-sp',path
+		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,source.shape[2])),'-ki',uniKernel,'-k',1,'-n',200,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);#,'-sp',path
 		qualityUniform[0,z]=mesureQualitry(destinationRef,result[0]);
 		requestId+=1
 		result[0]=numpy.clip(result[0],minValue,maxValue);
-		misc.imsave('../figures/uniformSimulation_cond.png', result[0][:,:,-1])
+		print(result[0].shape)
+		misc.imsave('../figures/uniformSimulation_cond'+str(z)+'.png',  (result[0][:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
 
 
 	meanQuality=qualityUniform.mean(1);
@@ -98,7 +100,7 @@ if __name__ == "__main__":
 	destinationRef=numpy.clip(destinationRef,minValue,maxValue);
 
 	misc.imsave('../figures/ti_cond.png', (source[:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
-	misc.imsave('../figures/ti_cv_cond.png', (source[:,:,:-1]-minValue[:-1])/(maxValue[:-1]-minValue[:-1]))
+	misc.imsave('../figures/ti_cv_cond.png', (source[:,:,[2,1,0]]-minValue[[2,1,0]])/(maxValue[[2,1,0]]-minValue[[2,1,0]]))
 	misc.imsave('../figures/sg_cond.png', (destinationRef[:,:,-1]-minValue[-1])/(maxValue[-1]-minValue[-1]))
-	misc.imsave('../figures/sg_cv_cond.png', (destinationRef[:,:,:-1]-minValue[:-1])/(maxValue[:-1]-minValue[:-1]))
+	misc.imsave('../figures/sg_cv_cond.png', (destinationRef[:,:,[2,1,0]]-minValue[[2,1,0]])/(maxValue[[2,1,0]]-minValue[[2,1,0]]))
 
