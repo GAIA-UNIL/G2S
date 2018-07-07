@@ -64,6 +64,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 	{
 		dimsArray[i]=image._dims[i];
 	}
+	std::reverse(dimsArray,dimsArray+image._dims.size());
 	dimsArray[image._dims.size()]=image._nbVariable;
 	PyObject *array=nullptr;
 	if(image._encodingType==g2s::DataImage::Float)
@@ -118,6 +119,9 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 	{
 		dimArray[i]=dim_array[i];
 	}
+
+	std::reverse(dimArray,dimArray+dimData);
+
 
 	g2s::DataImage image(dimData,dimArray,nbOfVariable);
 	float *data=image._data;
