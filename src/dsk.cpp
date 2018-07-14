@@ -520,6 +520,7 @@ int main(int argc, char const *argv[]) {
 	for ( unsigned int i = 0; i < DI.dataSize()/DI._nbVariable; ++i)
 	{
 		seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
+		if(seedForIndex[i]==1.f)seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
 	}
 
 	// init QS
