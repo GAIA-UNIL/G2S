@@ -24,6 +24,7 @@ int main(int argc, char const *argv[]) {
 	bool singleTask=false;
 	bool functionMode=false;
 	float timeoutDuration=std::nanf("0");
+	short port=8128;
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -35,6 +36,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
+		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 	}
 
 	//run daemon
@@ -61,8 +63,11 @@ int main(int argc, char const *argv[]) {
 	zmq::socket_t receiver(context,ZMQ_REP);
 #endif
 	
+	char address[1024];
+	sprintf(address,"tcp://*:%d",port);
+
 	try {
-		receiver.bind ("tcp://*:8128");
+		receiver.bind(address);
 	}
 	catch(const std::exception& e) {
 		std::cerr << e.what() << '\n';

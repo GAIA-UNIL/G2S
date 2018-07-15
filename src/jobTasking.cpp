@@ -2,6 +2,8 @@
 #include <cstring>
 #include <thread>
 #include <dlfcn.h>
+#include <numeric>
+
 
 void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, const char* functionName, int index, char** argv){
 #ifndef EMSCRIPTEN
@@ -16,7 +18,7 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 			int index=argvV.size();
 			
 			std::vector<char*> cstrings;
-		    for(size_t i = 0; i < argvV.size(); ++i)
+			for(size_t i = 0; i < argvV.size(); ++i)
 				cstrings.push_back(const_cast<char*>(argvV[i].c_str()));
 
 			char** argv=cstrings.data();
@@ -25,7 +27,7 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 			char *error=nullptr;
 			bool isOk=true;
 			if(isOk)
-				handle = dlopen((std::string("./")+functionNameStr+std::string(".so")).c_str(), RTLD_LAZY);
+				handle = dlopen((functionNameStr+std::string(".so")).c_str(), RTLD_LAZY);
 			if (!handle) {
 				fputs (dlerror(), stderr);
 				//exit(1);
@@ -66,164 +68,66 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 #endif
 }
 
-jobIdType echo_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
+jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
 {
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
 		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti")){
-			
-			char* argv[100];
-			argv[0]=(char*)"./echo";
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
-			int index=1;
-			for (int i = 0; i < member.size(); ++i)
-			{
-				argv[index]=(char *)member[i].c_str();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				if(param[member[i]].isArray()){
-					for (int j = 0; j < param[member[i]].size(); ++j)
-					{
-						argv[index]=(char *)param[member[i]][j].asCString();
-						index++;
+
+		char exeName[1024];
+		sprintf(exeName,"./%s",algo);
+		FILE *fp = fopen("./algosName.config", "r");
+		std::vector<std::string>  listOfMendatory;
+		if (fp){
+			size_t sizeBuffer=2048;
+			char* line=(char*)malloc(sizeBuffer);
+			size_t readedSize;
+			char sourceName[1024];
+			char tagetName[1024];
+			char requested[2048];
+			char toAdd[2048];
+			char extra[2048];
+			char comment[2048];
+			while(readedSize=getline(&line, &sizeBuffer, fp)){
+				if((readedSize>1) && ((line[0]!='/') || (line[0]!='#'))){
+					if(sscanf(line, "%s\t%s\t%s\t%s\t%s\t%s",sourceName,tagetName,requested,toAdd,extra,comment)>=2){
+						if (strcmp(sourceName,algo)==0){
+							strcpy(exeName,tagetName);
+							char * pch;
+							pch = strtok (requested,",");
+							while (pch != NULL)
+							{
+								listOfMendatory.push_back(std::string(pch));
+								pch = strtok (NULL, ",");
+							}
+							break;
+						}
 					}
-				}else{
-					argv[index]=(char *)param[member[i]].asCString();
-					//fprintf(stderr, "%s\n", argv[index]);
-					index++;
 				}
 			}
-			{
-				argv[index]=(char*)"-r";
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
-				argv[index]=buffer;
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-
-			/*// add specific
-			for (int i = 0; i < index; ++i)
-			{
-				fprintf(stderr, "%s ", argv[i]);
-			}
-			fprintf(stderr, "\n" );*/
-
-			//Execute
-			if(functionMode)
-			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "echo",index, argv);
-				
-			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
-				if (pid==0) { // child process //
-					
-					execv("./echo", argv);
-					exit(127); // only if execv fails //
-				}
-				else { // pid!=0; parent process //
-					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
-					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
-					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
-				}
-			}
-		}else{
-			fprintf(stderr, "-ti needed\n");
+			free(line);
+			fclose(fp);
 		}
-	}else{
-		fprintf(stderr, "Parameter is mandatory for QS\n");
-	}
-	return uniqueId;
-}
 
-jobIdType test_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
-{
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	if(job.isMember("Parameter")){
-		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti")){
-			
-			char* argv[100];
-			argv[0]=(char*)"./test";
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
-			int index=1;
-			for (int i = 0; i < member.size(); ++i)
-			{
-				argv[index]=(char *)member[i].c_str();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				argv[index]=(char *)param[member[i]].asCString();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-			{
-				argv[index]=(char*)"-r";
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
-				argv[index]=buffer;
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
+		std::vector<std::string> missing;
 
-			// add specific
 
-			//Execute
-			if(functionMode)
-			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "test",index, argv);
-				
-			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
-				if (pid==0) { // child process //
-					
-					execv("./test", argv);
-					exit(127); // only if execv fails //
-				}
-				else { // pid!=0; parent process //
-					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
-					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
-					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
-				}
+		for (int i = 0; i < listOfMendatory.size(); ++i)
+		{
+			if(! param.isMember(listOfMendatory[i])){
+				missing.push_back(listOfMendatory[i]);
 			}
-		}else{
-			fprintf(stderr, "-ti needed\n");
 		}
-	}else{
-		fprintf(stderr, "Parameter is mandatory for QS\n");
-	}
-	return uniqueId;
-}
 
-jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
-{
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	if(job.isMember("Parameter")){
-		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
-			
+		if(missing.size()==0){
+
 			char* argv[100];
 			char tempMemory[100][100];
 			unsigned tempMemIndex=0;
 			memset(tempMemory,0,100*100);
-			argv[0]=(char*)"./qs";
+			//fprintf(stderr, "%s\n", exeName);
+			argv[0]=exeName;
 			for (int i = 1; i < 100; ++i)
 			{
 				argv[i]=nullptr;
@@ -282,13 +186,13 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 			//Execute
 			if(functionMode)
 			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "qs",index, argv);
+				call_functionMode(jobIds, singleTask,  uniqueId, exeName, index, argv);
 				
 			}else{
 				pid_t pid=fork(); // fork, to be crash resistant !!
 				if (pid==0) { // child process //
 					
-					execv("./qs", argv);
+					execv(argv[0], argv);
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
@@ -298,267 +202,24 @@ jobIdType qs_call(jobArray &jobIds, Json::Value job, bool singleTask, bool funct
 				}
 			}
 		}else{
-			fprintf(stderr, "-ti and (-di or -ds) is mandatory for QS\n");
+			std::string s;
+			if(missing.size()>0) s.append(missing[0]);
+			fprintf(stderr, "%d\n", missing.size());
+			for (int i = 1; i < int(missing.size())-2; ++i)
+			{
+				s.append(std::string(", "));
+				s.append(missing[i]);
+			}
+			if(missing.size()>1){
+				s.append(std::string(" and "));
+				s.append(missing[missing.size()-1]);
+			}
+			fprintf(stderr, "%s %s mandatory for %s\n",s.c_str(),(missing.size()>1 ? std::string("is") : std::string("are")).c_str(),algo);
+			uniqueId=-1;
 		}
 	}else{
 		fprintf(stderr, "Parameter is mandatory for QS\n");
-	}
-	return uniqueId;
-}
-
-jobIdType ds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
-{
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	if(job.isMember("Parameter")){
-		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
-			
-			char* argv[100];
-			argv[0]=(char*)"./ds";
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
-			int index=1;
-			for (int i = 0; i < member.size(); ++i)
-			{
-				argv[index]=(char *)member[i].c_str();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				argv[index]=(char *)param[member[i]].asCString();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-			{
-				argv[index]=(char*)"-r";
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
-				argv[index]=buffer;
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-
-			// add specific
-
-			//Execute
-			if(functionMode)
-			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "ds",index, argv);
-				
-			}else{
-				pid_t pid=fork(); // fork to be crash resistant !!
-				if (pid==0) { // child process //
-					
-					execv("./ds", argv);
-					exit(127); // only if execv fails //
-				}
-				else { // pid!=0; parent process //
-					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
-					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
-					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
-				}
-			}
-		}else{
-			fprintf(stderr, "-ti and (-di or -ds) is mandatory for DS\n");
-		}
-	}else{
-		fprintf(stderr, "Parameter is mandatory for DS\n");
-	}
-	return uniqueId;
-}
-
-
-jobIdType dsl_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
-{
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	if(job.isMember("Parameter")){
-		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
-			
-			char* argv[100];
-			char tempMemory[100][100];
-			unsigned tempMemIndex=0;
-			memset(tempMemory,0,100*100);
-			argv[0]=(char*)"./ds-l";
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
-			int index=1;
-			for (int i = 0; i < member.size(); ++i)
-			{
-				argv[index]=(char *)member[i].c_str();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-
-				if(param[member[i]].isString())
-				{
-					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
-					argv[index]=tempMemory[tempMemIndex];
-					tempMemIndex++;
-					//fprintf(stderr, "%s\n", argv[index]);
-					index++;
-				}
-				if(param[member[i]].isArray())
-				{
-					//fprintf(stderr, "%s\n", "is array");
-					Json::Value arrayData=param[member[i]];
-					for (int j = 0; j < arrayData.size(); ++j)
-					{
-						if(arrayData[j].isString()){
-							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
-							argv[index]=tempMemory[tempMemIndex];
-							tempMemIndex++;
-							//fprintf(stderr, "%s\n", argv[index]);
-							index++;
-						}
-					}
-				}
-			}
-			{
-				argv[index]=(char*)"-r";
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
-				argv[index]=buffer;
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-
-			// add specific
-
-			/*for (int i = 0; i < index; ++i)
-			{
-				fprintf(stderr, "%s ",argv[i] );
-			}*/
-
-			//Execute
-			if(functionMode)
-			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "ds-l",index, argv);
-				
-			}else{
-				pid_t pid=fork(); // fork, to be crash resistant !!
-				if (pid==0) { // child process //
-					
-					execv("./ds-l", argv);
-					exit(127); // only if execv fails //
-				}
-				else { // pid!=0; parent process //
-					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
-					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
-					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
-				}
-			}
-		}else{
-			fprintf(stderr, "-ti and (-di or -ds) is mandatory for DS\n");
-		}
-	}else{
-		fprintf(stderr, "Parameter is mandatory for DS\n");
-	}
-	return uniqueId;
-}
-
-jobIdType nds_call(jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
-{
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	if(job.isMember("Parameter")){
-		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
-		if(param.isMember("-ti") && (param.isMember("-di") || param.isMember("-ds") )){
-			
-			char* argv[100];
-			char tempMemory[100][100];
-			unsigned tempMemIndex=0;
-			memset(tempMemory,0,100*100);
-			argv[0]=(char*)"./nds";
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
-			int index=1;
-			for (int i = 0; i < member.size(); ++i)
-			{
-				argv[index]=(char *)member[i].c_str();
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-
-				if(param[member[i]].isString())
-				{
-					strcpy(tempMemory[tempMemIndex], (char *)param[member[i]].asString().c_str());
-					argv[index]=tempMemory[tempMemIndex];
-					tempMemIndex++;
-					//fprintf(stderr, "%s\n", argv[index]);
-					index++;
-				}
-				if(param[member[i]].isArray())
-				{
-					//fprintf(stderr, "%s\n", "is array");
-					Json::Value arrayData=param[member[i]];
-					for (int j = 0; j < arrayData.size(); ++j)
-					{
-						if(arrayData[j].isString()){
-							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
-							argv[index]=tempMemory[tempMemIndex];
-							tempMemIndex++;
-							//fprintf(stderr, "%s\n", argv[index]);
-							index++;
-						}
-					}
-				}
-			}
-			{
-				argv[index]=(char*)"-r";
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
-				argv[index]=buffer;
-				//fprintf(stderr, "%s\n", argv[index]);
-				index++;
-			}
-
-			// add specific
-
-			/*for (int i = 0; i < index; ++i)
-			{
-				fprintf(stderr, "%s ",argv[i] );
-			}*/
-
-			//Execute
-			if(functionMode)
-			{
-				call_functionMode(jobIds, singleTask,  uniqueId, "nds",index, argv);
-				
-			}else{
-				pid_t pid=fork(); // fork, to be crash resistant !!
-				if (pid==0) { // child process //
-					
-					execv("./nds", argv);
-					exit(127); // only if execv fails //
-				}
-				else { // pid!=0; parent process //
-					jobIds.look4pid.insert ( std::pair<jobIdType, pid_t >(uniqueId,pid) );
-					jobIds.look4jobId.insert ( std::pair<pid_t, jobIdType >(pid,uniqueId) );
-					if(singleTask)waitpid(pid,0,0); // wait for child to exit //
-				}
-			}
-		}else{
-			fprintf(stderr, "-ti and (-di or -ds) is mandatory for NDS\n");
-		}
-	}else{
-		fprintf(stderr, "Parameter is mandatory for NDS\n");
+		uniqueId=-1;
 	}
 	return uniqueId;
 }
@@ -567,7 +228,7 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
 {
 	jobIdType id=-1;
 	Json::CharReaderBuilder builder;
-  	Json::CharReader * reader = builder.newCharReader();
+	Json::CharReader * reader = builder.newCharReader();
 	Json::Value job;
 	std::string errors;
 	if(!reader->parse((const char*)data,(const char*)data+sizeBuffer,&job,&errors))
@@ -582,38 +243,9 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
 	if(job.isMember("Algorithm"))
 	{	
 		bool algoFounded=false;
-		if(!strcmp(job["Algorithm"].asCString(),"Echo")) //echo
-		{
-			algoFounded=true;
-			id=echo_call(jobIds, job,singleTask,functionMode);
-		}
-		if(!strcmp(job["Algorithm"].asCString(),"Test")) //test
-		{
-			algoFounded=true;
-			id=test_call(jobIds, job,singleTask,functionMode);
-		}
-		if(!strcmp(job["Algorithm"].asCString(),"QucikSampling")) //QuickSampling
-		{
-			algoFounded=true;
-			id=qs_call(jobIds, job,singleTask,functionMode);
-		}
-		if(!strcmp(job["Algorithm"].asCString(),"DirectSampling")) //DirectSampling
-		{
-			algoFounded=true;
-			id=ds_call(jobIds, job,singleTask,functionMode);
-		}
-		if(!strcmp(job["Algorithm"].asCString(),"DirectSamplingLike")) //DirectSampling Like
-		{
-			algoFounded=true;
-			id=dsl_call(jobIds, job,singleTask,functionMode);
-		}
-		if(!strcmp(job["Algorithm"].asCString(),"NarrawDistributionSelection")) // NDS
-		{
-			algoFounded=true;
-			id=nds_call(jobIds, job,singleTask,functionMode);
-		}
 		if(!algoFounded)
-			fprintf(stderr, "unknown aglorithm : %s\n", job["Algorithm"].asCString());
+			algoFounded=true;
+			id=general_call(job["Algorithm"].asCString(),jobIds, job,singleTask,functionMode);	
 	}else{
 		fprintf(stderr, "%s\n", "No Algorithm");
 	}
