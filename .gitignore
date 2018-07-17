@@ -41,13 +41,14 @@ build/em-build/*
 build/intel-build/*
 !build/intel-build/Makefile
 build/matlab-build/*.mex*
-
 build/otherData
-
 build/matlab-build/test*
 
+
+!*.config
 *.m~
 *.DS_Store
 *.pyc
 *.npz
 *.npy
+

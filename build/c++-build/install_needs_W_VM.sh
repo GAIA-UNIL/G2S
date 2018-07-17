@@ -1,5 +1,5 @@
 #!/bin/sh
-
+cd "$(dirname "$0")"
 sudo apt update -y
 sudo apt upgarde -y
 sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev -y

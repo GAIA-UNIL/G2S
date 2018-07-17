@@ -443,6 +443,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	int saP1_Index=-1;
 	int dimP1_Index=-1;
 	int aP1_Index=-1;
+	int pP1_Index=-1;
 	int id_index=-1;
 
 	bool submit=true;
@@ -459,6 +460,9 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		}
 		if(!inputArray[i].compare("-a")){
 			aP1_Index=inputArrayIndex[i]+1;
+		}
+		if(!inputArray[i].compare("-p")){
+			pP1_Index=inputArrayIndex[i]+1;
 		}
 		if(!inputArray[i].compare("-dim")){
 			dimP1_Index=inputArrayIndex[i]+1;
@@ -537,11 +541,15 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		socket.setsockopt(ZMQ_SNDTIMEO, timeout);
 	}
 
-	char address[4096];
+	short port=8128;
+	std::string serverAddress=std::string("localhost");
+	if(pP1_Index!=-1)
+		port=PyLong_Check(PyTuple_GetItem(args,pP1_Index));
 	if(saP1_Index!=-1)
-		sprintf(address,"tcp://%s:8128",PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index)));
-	else
-		strcpy(address,"tcp://localhost:8128");
+		serverAddress=PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index));
+
+	char address[4096];
+	sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
 	socket.connect (address);
 
 	if(serverShutdown){
@@ -574,31 +582,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		strcpy(algo,PyUnicode_AsUTF8(PyTuple_GetItem(args,aP1_Index)));
 
 		Json::Value object(Json::objectValue);
-		if(!strcmp(algo,"echo") || !strcmp(algo,"Echo") ){
-			
-			object["Algorithm"]="Echo";
-		}
-		if(!strcmp(algo,"test") || !strcmp(algo,"Test") ){
-			
-			object["Algorithm"]="Test";
-			noOutput=true;
-		}
-		if(!strcmp(algo,"qs") || !strcmp(algo,"QucikSampling") || !strcmp(algo,"QS") ){
-			
-			object["Algorithm"]="QucikSampling";
-		}
-		if(!strcmp(algo,"ds") || !strcmp(algo,"DirectSampling") || !strcmp(algo,"DS") ){
-			
-			object["Algorithm"]="DirectSampling";
-		}
-		if(!strcmp(algo,"dsl")|| !strcmp(algo,"ds-l") || !strcmp(algo,"DirectSamplingLike") || !strcmp(algo,"DS-L") ){
-			
-			object["Algorithm"]="DirectSamplingLike";
-		}   
-		if(!strcmp(algo,"nds") || !strcmp(algo,"NarrawDistributionSelection") || !strcmp(algo,"NDS") ){
-			
-			object["Algorithm"]="NarrawDistributionSelection";
-		}
+		object["Algorithm"]=algo;
 		{
 			object["Priority"]="1";
 			

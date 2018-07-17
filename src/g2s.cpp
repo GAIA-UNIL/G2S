@@ -435,12 +435,15 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	int saP1_Index=-1;
 	int dimP1_Index=-1;
 	int aP1_Index=-1;
+	int pP1_Index=-1;
 	int id_index=-1;
 
 	bool submit=true;
 	bool statusOnly=false;
 	bool waitAndDownload=true;
 	bool kill=false;
+	bool serverShutdown=false;
+	bool silentMode=false;
 
 	for (int i = 0; i < inputArray.size(); ++i)
 	{
@@ -449,6 +452,9 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		}
 		if(!inputArray[i].compare("-a")){
 			aP1_Index=inputArrayIndex[i]+1;
+		}
+		if(!inputArray[i].compare("-p")){
+			pP1_Index=inputArrayIndex[i]+1;
 		}
 		if(!inputArray[i].compare("-dim")){
 			dimP1_Index=inputArrayIndex[i]+1;
@@ -480,6 +486,14 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(!inputArray[i].compare("-kill")){
 			kill=true;
 			id_index=inputArrayIndex[i]+1;
+		}
+		if(!inputArray[i].compare("-shutdown")){
+			serverShutdown=true;
+			waitAndDownload=false;
+			noOutput=true;
+		}
+		if(!inputArray[i].compare("-silent")){
+			silentMode=true;
 		}
 	}
 
@@ -532,12 +546,33 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		socket.setsockopt(ZMQ_SNDTIMEO, timeout);
 	}
 
-	char address[4096];
+	short port=8128;
+	std::string serverAddress=std::string("localhost");
+	if(pP1_Index!=-1)
+		port=mxGetScalar(prhs[pP1_Index]);
 	if(saP1_Index!=-1)
-		sprintf(address,"tcp://%s:8128",mxArrayToString(prhs[saP1_Index]));
-	else
-		strcpy(address,"tcp://localhost:8128");
+		serverAddress=mxArrayToString(prhs[saP1_Index]);
+
+	char address[4096];
+	sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
 	socket.connect (address);
+
+	if(serverShutdown){
+		infoContainer task;
+		task.version=1;
+		task.task=SHUTDOWN;
+
+		zmq::message_t request (sizeof(infoContainer));
+		memcpy(request.data (), &task, sizeof(infoContainer));
+		if(!socket.send (request) && withTimeout ){
+			{
+				done=true;
+				mexErrMsgIdAndTxt("g2s:error", "fail to shutdown the server");
+			}
+		}
+		stop=true;
+		done=true;
+	}
 
 	std::vector<std::vector<std::string> > dataString;
 	if (submit) dataString=lookForUpload(socket, nrhs, prhs);
@@ -562,31 +597,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		mxGetString(prhs[aP1_Index], algo, 2048);
 
 		Json::Value object(Json::objectValue);
-		if(!strcmp(algo,"echo") || !strcmp(algo,"Echo") ){
-			
-			object["Algorithm"]="Echo";
-		}
-		if(!strcmp(algo,"test") || !strcmp(algo,"Test") ){
-			
-			object["Algorithm"]="Test";
-			noOutput=true;
-		}
-		if(!strcmp(algo,"qs") || !strcmp(algo,"QucikSampling") || !strcmp(algo,"QS") ){
-			
-			object["Algorithm"]="QucikSampling";
-		}
-		if(!strcmp(algo,"ds") || !strcmp(algo,"DirectSampling") || !strcmp(algo,"DS") ){
-			
-			object["Algorithm"]="DirectSampling";
-		}
-		if(!strcmp(algo,"dsl")|| !strcmp(algo,"ds-l") || !strcmp(algo,"DirectSamplingLike") || !strcmp(algo,"DS-L") ){
-			
-			object["Algorithm"]="DirectSamplingLike";
-		}	
-		if(!strcmp(algo,"nds") || !strcmp(algo,"NarrawDistributionSelection") || !strcmp(algo,"NDS") ){
-			
-			object["Algorithm"]="NarrawDistributionSelection";
-		}
+		object["Algorithm"]=algo;
 		{
 			object["Priority"]="1";
 			
@@ -658,10 +669,10 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(!socket.recv (&reply) && withTimeout){
 			mexErrMsgIdAndTxt("gss:error", "timeout starting job, maybe job run on server !!");
 		}
-		if(reply.size()!=sizeof(jobIdType)) printf( "%s\n", "wrong answer !");
+		if(reply.size()!=sizeof(jobIdType) && !silentMode) printf( "%s\n", "wrong answer !");
 		id=*((jobIdType*)reply.data());
-		if(id<0) printf( "%s\n", "error in job distribution!");
-		printf("job Id is: %u\n",id );
+		if(id<0 && !silentMode) printf( "%s\n", "error in job distribution!");
+		if(!silentMode)printf("job Id is: %u\n",id );
 		mexEvalString("drawnow");
 
 		if(done) {
@@ -725,10 +736,10 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 				stop=true;
 				continue;
 			}
-			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer !");
+			if(reply.size()!=sizeof(int) && !silentMode) printf( "%s\n", "wrong answer !");
 			else{
 				int progress=*((int*)reply.data());
-				if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
+				if(!silentMode && (progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
 					printf("progres %.3f%%\n",progress/1000. );
 					lastProgression=progress/1000.;
 					mexEvalString("drawnow");
@@ -801,7 +812,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			mexErrMsgIdAndTxt("gss:error", "timeout : get data dont answer");
 		}
 		if(reply.size()!=0){
-			printf("progres %.3f%%\n",100.0f );
+			if(!silentMode)printf("progres %.3f%%\n",100.0f );
 			mexEvalString("drawnow");
 			//printf( "recive\n");
 

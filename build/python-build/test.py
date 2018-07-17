@@ -6,176 +6,175 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 import numpy
 import math
-from variogram import variogram
 from g2s import run as g2s
-import sys
-import os  
 
-def computeConnectivity(image,steps):
-	result=numpy.zeros([len(steps)]);
-	for i in range(len(steps)):
-		bwImage=image < steps[i]
-		labeledImage1,NumberFeature1=ndimage.label(bwImage);
-		labeledImage2,NumberFeature2=ndimage.label(numpy.logical_not(bwImage));
-		hist, bin_edges=numpy.histogram(labeledImage1-labeledImage2,numpy.arange(-NumberFeature2,NumberFeature1+1),density=False);
-		result[i]= (hist*(hist-1)).sum()/(image.size*(image.size-1))
-	return result
+source=misc.imread('source.png')/255.
+destination=numpy.nan*numpy.ones(shape=(200,200));
+serverAddress='localhost';
+verbose = True;
 
-def extractCenter(matrix):
-	size=numpy.ceil(numpy.array(matrix.shape)/4).astype('int');
-	return matrix[size[0]:-size[0],size[1]:-size[1]];
+# conditional
+pourcantage=0.25; # 0.25%
+conDestination=destination;
+sizeDest=numpy.size(conDestination);
+position1=numpy.random.permutation(sizeDest)[1:math.ceil(sizeDest*pourcantage/100)];
+position2=numpy.random.permutation(sizeDest)[1:math.ceil(sizeDest*pourcantage/100)];
+conDestination.reshape(sizeDest,1)[position1]=source.reshape(sizeDest,1)[position2];
 
-## extra function
-def mesureQualitry( vario1, vario2):#, conectivity1, conectivity2 ):
-	#connectError=numpy.sum(numpy.abs(conectivity1-conectivity2));
-	varioError=numpy.sum(numpy.abs(extractCenter((vario1[0]-vario2[0])*vario1[1])));
-	#print(connectError," -", varioError);
-	return varioError
+# simple echo
+data=g2s('-sa',serverAddress,'-a','echo','-ti',source,'-dt',numpy.zeros(shape=(1,1)))
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-## main code
-source=numpy.single(misc.imread('source.png'))/255
-serverAddressList=['localhost'];
+# simple unconditional simulation with QS
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-print(len(sys.argv))
+# simple unconditional simulation with QS with GPU if integrated GPU avaible
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-if len(sys.argv)>1 :
-	file_name = sys.argv[1]
-	fp = open(file_name)
-	serverAddressList = fp.read().splitlines()
+# simulation with random value at random position
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',conDestination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-print(serverAddressList)
+# simple non conditional simulation with multi TI of differente size
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source[:,0:149].copy(),numpy.rot90(source,1).copy(),numpy.rot90(source[:,0:174],2).copy(),numpy.rot90(source[:,0:149],3).copy(),'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-##
-#list Of kernel
+# simulation with a fixed path, row path
+path= numpy.arange(0,sizeDest).reshape((200,200));
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-sp',path);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-# possible alphas
-alpha=[0,0.01,0.05,0.2,0.5,0.7,0.8,0.9,0.95,0.98,0.995,1];
+#simulation with a fixed path, partial random path
+path=numpy.random.permutation(sizeDest).astype(float);
+path[path>math.ceil(sizeDest/2)]=-numpy.inf;
+path=path.reshape((200,200));
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-sp',path);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-distanceMtrix=numpy.zeros([81,81]);
-distanceMtrix[int(numpy.ceil(numpy.size(distanceMtrix,0)/2)),int(numpy.ceil(numpy.size(distanceMtrix,1)/2))]=1;
-distanceMtrix=ndimage.distance_transform_edt(numpy.logical_not(distanceMtrix))
-kernel=[];
+# specifing a kernel
+kernel=numpy.zeros(shape=(101,101));
+kernel[51,51]=1;
+kernel=numpy.exp(-0.1*ndimage.morphology.distance_transform_edt(1-kernel));
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-ki',kernel);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-# create kernels
+# Multi variete
+source3=numpy.stack([source,source,source],2);
+destination3=numpy.stack([destination,destination,destination],2);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',numpy.zeros(shape=(1,3)),'-k',1.5,'-n',50,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-for alpha_value in alpha:
-	print(alpha_value)
-	type=[];
-	functionName=[];
-	loaclDistance=distanceMtrix*alpha_value;
-	#uniform
-	functionName.append("uniform");
-	type.append(numpy.single(loaclDistance<1));
-	#triangular
-	functionName.append("triangular");
-	type.append(numpy.maximum(1-loaclDistance,0));
-	#Epanechnikov
-	functionName.append("Epanechnikov");
-	type.append(numpy.maximum(3/4*(1-numpy.square(loaclDistance)),0));
-	#Quartic
-	functionName.append("Quartic");
-	type.append(numpy.maximum(15/16*numpy.square(1-numpy.square(loaclDistance)),0));
-	#Triweight
-	functionName.append("Triweight");
-	type.append(numpy.maximum(35/32*numpy.power(1-numpy.square(loaclDistance),3),0));
-	#Tricube
-	functionName.append("Tricube");
-	type.append(numpy.maximum(70/81*numpy.power(1-numpy.power(loaclDistance,3),3),0));
-	#Gaussian
-	functionName.append("Gaussian");
-	type.append(1/math.sqrt(2*math.pi)*numpy.exp(-1/2*numpy.square(loaclDistance)));
-	#Cosine
-	functionName.append("Cosine");
-	type.append(math.pi/4*numpy.cos(math.pi/2*loaclDistance));
-	#Logistic
-	functionName.append("Logistic");
-	type.append(1./(numpy.exp(loaclDistance)+2+numpy.exp(-loaclDistance)));
-	#Sigmoid function
-	functionName.append("Sigmoid");
-	type.append(math.pi/2*1./(numpy.exp(loaclDistance)+numpy.exp(-loaclDistance)));
-	#Silverman kernel
-	functionName.append("Silverman");
-	type.append(1/2*numpy.multiply(numpy.exp(-loaclDistance/math.sqrt(2)),numpy.sin(loaclDistance/math.sqrt(2))+math.pi/4));
-	# #variogram kernel
-	# functionName.append("variogram");
-	# type.append(1/2*exp(-loaclDistance/sqrt(2)).*sin(loaclDistance/sqrt(2)+pi/4));
-	# #entropy kernel
-	# functionName.append("entropy");
-	# type.append(1/2*exp(-loaclDistance/sqrt(2)).*sin(loaclDistance/sqrt(2)+pi/4));
-	#kernel=cat(2,kernel,type);
-	kernel.append(type)
+# Multi-threaded, if suported
+nbThreads=4;
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-numberOfSimulation=50
-numberOfThreadProJob=2
+# ds mode
+data=g2s('-sa',serverAddress,'-a','ds-l','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-th',0.05,'-f',0.3,'-n',50,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-val=numpy.full([len(kernel), len(kernel[0]), numberOfSimulation],numpy.nan);
-if os.path.exists('./simErrorMap.npy') :
-	val=numpy.load('simErrorMap.npy')
-	print(val)
-varioRef=variogram(source);
-connectStep=(numpy.arange(255)+0.5)/255;
-connectivityRef=computeConnectivity(source,connectStep);
-
-
-
-from itertools import product
-from queue import Queue
-from threading import Thread
-import time
-
-idValue=5000000;
-
-#  worker
-
-def worker(queue, address):
-	while True:
-		item = queue.get()
-		if item is None:
-			print("died")
-			break
-		x, y, z, requestId = item 
-		if not numpy.isnan(val[x, y, z]):
-			queue.task_done()
-			continue
-		# time.sleep(0.1)
-		result=g2s('-sa',address,'-a','qs','-ti',source,'-di',numpy.nan*numpy.ones(shape=(200,200)),'-dt',numpy.zeros(shape=(1,1)),'-ki',kernel[x][y],'-k',1.5,'-n',50,'-s',z,'-j',numberOfThreadProJob,'-silent','-noTO','-id',requestId);
-		val[x, y, z]=mesureQualitry(varioRef, variogram(result[0]));#, connectivityRef, computeConnectivity(result[0],connectStep));
-		queue.task_done()
-
-# prepare jobs
-
-queue = Queue()
-for t in product(range(0,len(kernel)), range(0, len(kernel[0])), range(0,numberOfSimulation)):
-	queue.put(t+ (idValue,))
-	idValue=idValue+1;
-
-# create threads
-
-threads = [Thread(target=worker, args=(queue, address)) for address in serverAddressList]
+# Categorical Mode
+# creation of the image
+sourceCat=numpy.matlib.repmat(numpy.eye(2),25,25);
+sourceCat=numpy.hstack([numpy.vstack([sourceCat*1,sourceCat*2]),numpy.vstack([sourceCat*3,sourceCat*4])]);
+plt.imshow(sourceCat)
+plt.show(block=False)
+plt.pause(0.1)
+data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,'-di',numpy.nan*numpy.ones(shape=(100,100)),'-dt',numpy.ones(shape=(1,1)),'-k',1,'-n',50,'-s',100,'-j',1);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
+data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,numpy.rot90(sourceCat,1).copy(),numpy.rot90(sourceCat,2).copy(),numpy.rot90(sourceCat,3).copy(),'-di',numpy.nan*numpy.ones(shape=(100,100)),'-dt',numpy.ones(shape=(1,1)),'-k',1,'-n',50,'-s',100,'-j',1);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
 
-# run jobs
-for t in threads:
-	t.start()
+# G2S interface options
+# async submission
+id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-submitOnly');
+if verbose:
+	print("id is :",id)
+plt.pause(5)
+# progression check
+progression=g2s('-sa',serverAddress,'-statusOnly',id);
+if verbose:
+	print("progression is  :",progression, " %")
+# Download data
+data=g2s('-sa',serverAddress,'-waitAndDownload',id);  # '-kill' to interrupt a job
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-# save results
+# silent mode
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-silent');
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-def saveData():
-	print("save")
-	numpy.save("simErrorMap",val)
+# without timeout
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-noTO');
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
 
-cpt=0;
-while not queue.empty():
-	time.sleep(1)
-	cpt=cpt+1;
-	if cpt%(1*60)==0 :
-		saveData()
+# shutdown the server
+g2s('-sa',serverAddress,'-shutdown');
 
-queue.join()
-saveData()
-# stop workers
-for i in range(len(serverAddressList)):
-    queue.put(None) 
-for t in threads:
-    t.join()
-
+plt.show()

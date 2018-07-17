@@ -120,7 +120,14 @@ int main(int argc, char const *argv[]) {
 			++jobsString;
 		}
 	}
-	arg.erase("--jobs");	
+	arg.erase("--jobs");
+
+	if(nbThreads<1)
+	#if _OPENMP
+		nbThreads=omp_get_max_threads();
+	#else
+		nbThreads=1;
+	#endif		
 
 	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
 	{

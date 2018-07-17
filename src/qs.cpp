@@ -120,7 +120,14 @@ int main(int argc, char const *argv[]) {
 			++jobsString;
 		}
 	}
-	arg.erase("--jobs");	
+	arg.erase("--jobs");
+
+	if(nbThreads<1)
+	#if _OPENMP
+		nbThreads=omp_get_max_threads();
+	#else
+		nbThreads=1;
+	#endif	
 
 	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
 	{
@@ -214,7 +221,6 @@ int main(int argc, char const *argv[]) {
 	int nbNeighbors=-1;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS
-	float narrowness=std::nanf("0");		// narrowness for NDS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 
@@ -241,12 +247,6 @@ int main(int argc, char const *argv[]) {
 		nbCandidate=atof((arg.find("-k")->second).c_str());
 	}
 	arg.erase("-k");
-
-	if (arg.count("-nw") == 1)
-	{
-		narrowness=atof((arg.find("-nw")->second).c_str());
-	}
-	arg.erase("-nw");
 
 	if (arg.count("-n") == 1)
 	{
