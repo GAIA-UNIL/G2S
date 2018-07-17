@@ -73,7 +73,9 @@ jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool
 	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
-		if(param.isMember("-id")) {uniqueId=atoll(param["-id"].asCString());}
+		if(param.isMember("-id")) {
+			uniqueId=atoll(param["-id"][0].asCString());
+		}
 
 		char exeName[1024];
 		sprintf(exeName,"./%s",algo);

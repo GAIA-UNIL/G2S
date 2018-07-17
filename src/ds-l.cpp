@@ -741,7 +741,7 @@ int main(int argc, char const *argv[]) {
 	importDataIndex=nullptr;
 
 #if _OPENMP
-	fftw_cleanup_threads();
+	fftwf_cleanup_threads();
 #endif
 
 	return 0;
