@@ -25,14 +25,15 @@ sourceCat=single(sourceCat);
 
 %% simple echo
 
-[data,t]=g2s('-sa',serverAddress,'-a','echo','-ti',single(source),'-dt',zeros(1,1));
+data=g2s('-sa',serverAddress,'-a','echo','-ti',single(source),'-dt',zeros(1,1));
 imshow(data);
-disp(time)
+
 
 %% simple unconditional simulation with QS
 
-data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
 imshow(data);
+disp(t)
 
 %% simple unconditional simulation with QS with GPU if integrated GPU avaible
 data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_GPU');

@@ -53,7 +53,7 @@ ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
 algoNames:
-	ln -s ../algosName.config algosName.config
+	ln -sf ../algosName.config algosName.config
 
 clean:
 	rm -rf *.o *.so
