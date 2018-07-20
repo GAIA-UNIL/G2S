@@ -36,7 +36,7 @@ typedef unsigned jobIdType;
 
 inline mxArray* convert2MxArray(g2s::DataImage &image){
 
-	size_t dimsArray[image._dims.size()+1];
+	size_t *dimsArray=(size_t *)malloc(sizeof(size_t)*(image._dims.size()+1));
 	for (int i = 0; i < image._dims.size(); ++i)
 	{
 		dimsArray[i]=image._dims[i];
@@ -60,7 +60,7 @@ inline mxArray* convert2MxArray(g2s::DataImage &image){
 			data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
 		}
 	}
-
+	free(dimsArray);
 	return array;
 }
 
@@ -91,13 +91,14 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 	if(variableTypeArray)nbOfVariable=mxGetNumberOfElements(variableTypeArray);
 	int dimData = mxGetNumberOfDimensions(prh)-(nbOfVariable>1);
 	const size_t * dim_array = mxGetDimensions(prh);
-	unsigned dimArray[dimData];
+	unsigned *dimArray=(unsigned *)malloc(sizeof(unsigned)*dimData);
 	for (int i = 0; i < dimData; ++i)
 	{
 		dimArray[i]=dim_array[i];
 	}
 
 	g2s::DataImage image(dimData,dimArray,nbOfVariable);
+	free(dimArray);
 	float *data=image._data;
 	
 	

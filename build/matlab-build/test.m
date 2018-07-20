@@ -3,7 +3,7 @@ if(~exist(strcat('g2s.',mexext), 'file'))
 end
 
 % config
-source=single(imread('source.png'))/255.;
+source=single(imread('../TrainingImages/source.png'))/255.;
 destination=single(nan.*ones(200));
 set(0,'DefaultFigureWindowStyle','docked')
 serverAddress='localhost';
@@ -16,10 +16,18 @@ position1=randperm(sizeDest,sizeDest*pourcantage/100);
 position2=randperm(sizeDest,sizeDest*pourcantage/100);
 conDestination(position1)=source(position2);
 
+%Categorical
+sourceCat=imread('../TrainingImages/gobi_dune_dimitri.png');
+%denoise
+%sourceCat=imagesc(colfilt(sourceCat, [5 5], 'sliding', @mode));
+sourceCat=sourceCat(1:end/2,1:end/2);
+sourceCat=single(sourceCat);
+
 %% simple echo
 
-data=g2s('-sa',serverAddress,'-a','echo','-ti',single(source),'-dt',zeros(1,1));
+[data,t]=g2s('-sa',serverAddress,'-a','echo','-ti',single(source),'-dt',zeros(1,1));
 imshow(data);
+disp(time)
 
 %% simple unconditional simulation with QS
 
@@ -62,14 +70,14 @@ kernel=exp(-0.1*bwdist(kernel));
 data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-ki',kernel);
 imshow(data);
 
-%% multi variete
+%% Multivariate
 
 source3=cat(3,source,source,source);
 destination3=cat(3,destination,destination,destination);
 data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source3),'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
 imshow(data);
 
-%% Multi-threaded, if suported
+%% Multi-threaded, if supported
 nbThreads=4;
 data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
 imshow(data);
@@ -80,12 +88,10 @@ imshow(data);
 
 %% Categorical Mode
 % creation of the image
-sourceCat=repmat(eye(2),25,25);
-sourceCat=cat(1,cat(2,sourceCat*1,sourceCat*2),cat(2,sourceCat*3,sourceCat*4));
 imagesc(sourceCat)
-data=g2s('-sa',serverAddress,'-a','qs','-ti',single(sourceCat),'-di',single(nan.*ones(100)),'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j',1);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,'-di',destination,'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
 imagesc(data)
-data=g2s('-sa',serverAddress,'-a','qs','-ti',single(sourceCat),rot90(single(sourceCat),1),rot90(single(sourceCat),2),rot90(single(sourceCat),3),'-di',single(nan.*ones(100)),'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j',1);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,rot90(sourceCat,1),rot90(sourceCat,2),rot90(sourceCat,3),'-di',single(nan.*ones(1000)),'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
 imagesc(data)
 
 %% G2S interface options
@@ -98,15 +104,15 @@ progression=g2s('-sa',serverAddress,'-statusOnly',id);
 disp(progression)
 % Download data
 data=g2s('-sa',serverAddress,'-waitAndDownload',id);  % '-kill' to interrupt a job
-imagesc(data)
+imshow(data)
 
 %% silent mode
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-silent');
-imagesc(data)
+imshow(data)
 
 %% without timeout
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-noTO');
-imagesc(data)
+imshow(data)
 %% shutdown the server
 g2s('-sa',serverAddress,'-shutdown');
 
