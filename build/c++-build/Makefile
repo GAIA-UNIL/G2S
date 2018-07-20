@@ -9,7 +9,7 @@ OPENCL_LIB=# -framework OpenCL -lOpenCL -lclFFT
 OPENCL_INC=#-DWITH_OPENCL=1
 
 
-all: server echo qs nds ds ds-l
+all: server echo qs nds ds ds-l algoNames
 
 depend: .depend Makefile
 
@@ -50,7 +50,11 @@ ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
+algoNames:
+	ln -s ../algosName.config algosName.config
+
 clean:
 	rm -rf *.o *.so
 	rm -rf server echo test qs nds ds ds-l
+	rm -rf algosName.config
 	rm -rf .depend

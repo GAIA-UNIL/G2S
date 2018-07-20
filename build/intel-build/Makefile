@@ -12,7 +12,7 @@ CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I/opt/intel/compilers_an
 LDFLAGS+=-fopenmp -mkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,/opt/intel/compilers_and_libraries/$(OS)/lib/
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
-all: server echo qs nds ds ds-l
+all: server echo qs nds ds ds-l algoNames
 
 depend: .depend Makefile
 
@@ -52,7 +52,11 @@ ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
+algoNames:
+	ln -s ../algosName.config algosName.config
+
 clean:
 	rm -rf *.o *.so
 	rm -rf server echo test qs nds ds ds-l
+	rm -rf algosName.config
 	rm -rf .depend

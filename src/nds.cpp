@@ -263,11 +263,11 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-nw");
 
-	if (arg.count("-nwb") == 1)
+	if (arg.count("-nwv") == 1)
 	{
-		nbBandsForNarrowness=atoi((arg.find("-nwb")->second).c_str());
+		nbBandsForNarrowness=atoi((arg.find("-nwv")->second).c_str());
 	}
-	arg.erase("-nwb");
+	arg.erase("-nwv");
 
 	if (arg.count("-cs") == 1)
 	{
