@@ -48,4 +48,4 @@ build/matlab-build/*.mex*
 build/python-build/__pycache__/variogram.cpython-36.pyc
 *.pyc
 
-!*.config
+*.config

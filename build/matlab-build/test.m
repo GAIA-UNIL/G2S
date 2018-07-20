@@ -92,7 +92,7 @@ imshow(data);
 imagesc(sourceCat)
 data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,'-di',destination,'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
 imagesc(data)
-data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,rot90(sourceCat,1),rot90(sourceCat,2),rot90(sourceCat,3),'-di',single(nan.*ones(1000)),'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
+data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,rot90(sourceCat,1),rot90(sourceCat,2),rot90(sourceCat,3),'-di',destination,'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
 imagesc(data)
 
 %% G2S interface options
