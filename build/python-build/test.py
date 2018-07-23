@@ -141,6 +141,18 @@ if verbose:
 plt.show(block=False)
 plt.pause(0.1)
 
+# categorical and continous
+threshold=0.4;
+combinedSource=numpy.dstack((source,(source<threshold)));
+# the relative importance can be seted with a kernel
+print((destination.shape + (combinedSource.shape[2],)))
+data=g2s('-sa',serverAddress,'-a','qs','-ti',combinedSource,'-di', numpy.nan*numpy.ones(shape=(destination.shape + (combinedSource.shape[2],))),'-dt',numpy.array([0,1]),'-k',1,'-n',50,'-s',100,'-j');
+plt.imshow(data[0][:,:,0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
+
 # G2S interface options
 # async submission
 id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-submitOnly');

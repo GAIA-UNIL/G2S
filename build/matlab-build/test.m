@@ -95,6 +95,13 @@ imagesc(data)
 data=g2s('-sa',serverAddress,'-a','qs','-ti',sourceCat,rot90(sourceCat,1),rot90(sourceCat,2),rot90(sourceCat,3),'-di',destination,'-dt',ones(1,1),'-k',1,'-n',50,'-s',100,'-j');
 imagesc(data)
 
+%% categorical and continous
+threshold=graythresh(source);
+combinedSource=cat(3,source,(source<threshold));
+% the relative importance can be seted with a kernel
+data=g2s('-sa',serverAddress,'-a','qs','-ti',combinedSource,'-di',nan([size(destination),size(combinedSource,3)]),'-dt',[0,1],'-k',1,'-n',50,'-s',100,'-j');
+imshow(data(:,:,1))
+
 %% G2S interface options
 % async submission
 id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-submitOnly');
