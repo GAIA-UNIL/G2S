@@ -661,7 +661,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		zmq::message_t request (sizeof(infoContainer)+strlen(jsonJob_c));
 		memcpy(request.data (), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer),jsonJob_c,strlen(jsonJob_c));
-		std::cout << "Send job" << std::endl;
+		if(!silentMode) std::cout << "Send job" << std::endl;
 		if(!socket.send (request) && withTimeout ){
 			mexErrMsgIdAndTxt("gss:error", "timeout sending job");
 		}
