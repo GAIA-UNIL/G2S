@@ -145,12 +145,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				cumulated+=TIs[i].dataSize();
 			}
 			
-			unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)))*TIs[0]._nbVariable;
+			unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)));
 
 			cumulated=0;
 			for (int i = 0; i < TIs.size(); ++i)
 			{
-				if(position<cumulated+TIs[i].dataSize()){
+				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
 					importIndex.TI=i;
 					importIndex.index=position-cumulated;
 					break;
