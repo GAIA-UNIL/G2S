@@ -5,6 +5,11 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 
+#ifdef WITH_VERSION_CONTROL
+#include <curl/curl.h>
+#endif
+
+
 #include <zmq.hpp>
 #if __EMSCRIPTEN__
 #include "wsZmq.hpp"
@@ -19,6 +24,8 @@
 
 		
 int main(int argc, char const *argv[]) {
+
+	std::string currentVersion=CURRENT_VERSION;
 
 	bool runAsDaemon=false;
 	bool singleTask=false;
@@ -38,6 +45,41 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 	}
+
+#ifdef WITH_VERSION_CONTROL
+	
+	std::string gitAdress=GIT_URL;
+	gitAdress=gitAdress.substr(0, gitAdress.size()-4);
+
+	CURL *curl;
+	CURLcode res;
+	char url[2048];
+	sprintf(url,"%s/raw/master/version",gitAdress.c_str());
+	curl = curl_easy_init();                                                                                                                                                                                                                                                           
+	if (curl)
+	{
+		curl_easy_setopt(curl, CURLOPT_URL, url);
+		std::string resultBody{ };
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resultBody);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, static_cast<size_t ( *)(char*, size_t, size_t, void*)>(
+			[](char* ptr, size_t size, size_t nmemb, void* resultBody){
+				*(static_cast<std::string*>(resultBody)) += std::string {ptr, size * nmemb};
+				return size * nmemb;
+			}
+		));
+		res = curl_easy_perform(curl);
+		if(res == CURLE_OK)
+		{
+			if(resultBody.size()<20 && currentVersion.compare(resultBody)<0){
+				fprintf(stdout, "The new version %s is avialable on GitHub: %s \n",resultBody.c_str(), gitAdress.c_str() );
+				fprintf(stdout, "The version %s is currently installed\n",currentVersion.c_str() );
+			}
+		}
+		curl_easy_cleanup(curl);
+	}
+
+
+#endif
 
 	//run daemon
 	if(runAsDaemon ){
@@ -86,7 +128,7 @@ int main(int argc, char const *argv[]) {
 	while (!needToStop) {
 		zmq::message_t request;
 
-        //  Wait for next request from client
+		//  Wait for next request from client
 		if(! receiver.recv(&request) ) break;
 		size_t requesSize=request.size();
 		if(requesSize>=sizeof(infoContainer)){
@@ -165,7 +207,7 @@ int main(int argc, char const *argv[]) {
 					}
 			}
 		}
-    }
+	}
 
-    return 0;
+	return 0;
  }
