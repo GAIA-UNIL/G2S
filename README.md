@@ -30,7 +30,7 @@ The installation is in two parts:
 2. Basics for compiling are needed, (e.g. on Ubuntu: build-essential).
 3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.  
 To install them on Ubuntu:
-`sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev –y`
+`sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libcurl4-openssl-dev –y` (libcurl4-openssl-dev is optional)
 4. The C++ extension for ZMQ is required too, and can be installed via:
 `sudo wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O /usr/include/zmq.hpp`
 5. Go to the `build` subfolder.
@@ -42,7 +42,7 @@ To install them on Ubuntu:
 2. Install a package manager like [macPort](https://www.macports.org/install.php) or [Homebrew](https://brew.sh)
 3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.  
 To install them with macPort: (to adapt for brew)
-`sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3`
+`sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 curl` (curl is optional)
 5. Go to the `build` subfolder.
 6. Run: `make c++ -j` or `make intel -j` if the *Intel C++ compiler* is installed.
 	The intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software)
@@ -57,7 +57,7 @@ To install them with macPort: (to adapt for brew)
 
 #### MATLAB
 * Solution 1:
-1. Download precompiled interfaces [here](TBA)
+1. Download precompiled interfaces [here](http://wp.unil.ch/gaia/files/2018/08/Prebuild-G2S-MATLAB-Interfaces.zip)
 2. Add downloaded file in the MATLAB path
 * Solution 2 (for Linux and macOS):
 1. Open MATLAB
@@ -65,8 +65,9 @@ To install them with macPort: (to adapt for brew)
 3. Run `CompileG2S`	
 4. Add compiled file in the MATLAB path
 * Solution 3, for windows (all versions)
+0. If needed install [python](https://www.python.org/downloads/) with the option to add it to the Path 
 1. Open MATLAB
-2. Install a compiler, available [here](https://mathworks.com/matlabcentral/fileexchange/52848-matlab-support-for-mingw-w64-c-c-compiler)
+2. Install a compiler, available [here](https://mathworks.com/matlabcentral/fileexchange/52848-matlab-support-for-mingw-w64-c-c-compiler)  
 3. Go to `build/build-matlab`
 4. Run `CompileG2S`	
 5. Add compiled file in the MATLAB path
@@ -135,7 +136,7 @@ Flag | Description
 | -- | -- | --
 |:heavy_check_mark: | -ti | Training images (1+)
 |:heavy_check_mark: | -di | Destination image (1) (aka simulation grid)
-|:heavy_check_mark: | -dt | Data type, array of to specify the type of each variable, 0  continuous and 1  categorical
+|:heavy_check_mark: | -dt | Data type, array of to specify the type of each variable, 0 &rightarrow; continuous and 1 &rightarrow; categorical
 | | -sp | simulation path, image of the position in the path, small values first, -∞ are not simulated
 | | -ki | image of weighting kernel 
 :heavy_check_mark: | -k | the number of best candidates to consider ∈[1 ∞]
@@ -157,15 +158,15 @@ Flag | Description
 | -- | -- | --
 |:heavy_check_mark: | -ti | Training images (one or more images)
 |:heavy_check_mark: | -di | Destination image (one image, aka simulation grid)
-|:heavy_check_mark: | -dt | Data type, array of to specify the type of each variable, 0  continuous and 1  categorical
+|:heavy_check_mark: | -dt | Data type, array of to specify the type of each variable, 0 &rightarrow; continuous and 1 &rightarrow; categorical
 | | -ki | image of weighting kernel 
 |:heavy_check_mark: | -k | the number of best candidates to consider to compute the narrowness ∈[5 ∞]
 |:heavy_check_mark: | -n | the N closest neighbors to consider
-| | -nw | narrowness range 0 max-min, 1 median, default IQR 0.5
+| | -nw | narrowness range  0&rightarrow; max-min, 1 &rightarrow; median, default IQR &rightarrow; 0.5
 | | -nwv | number of variables to consider in the narrowness, (start from the end), default: 1
 | | -cs | chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1
 | | -uds | area to update around each simulated pixel, the M closest pixel default: 10
-| | -mp | partial simulation, 0 empty, 1 100%
+| | -mp | partial simulation, 0 &rightarrow; empty, 1 &rightarrow; 100%
 | | -s | seed value
 | | -j | to run in parallel (if specified), to use as follows ‘-j’, N1, N2, N3<br/>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br/>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br/>- N3 threads used to parallelize FFTs (path-level). Default: 1<br/>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.
 | | -W_GPU | use integrated GPU if available
