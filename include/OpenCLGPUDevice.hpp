@@ -1,11 +1,13 @@
 /*
- * Mathieu Gravey
- * Copyright (C) 2017 Mathieu Gravey
+ * G2S (c) by Mathieu Gravey (gravey.mathieu@gmail.com)
  * 
- * This program is protected software: you can not redistribute, use, and/or modify it
- * without the explicit accord from the author : Mathieu Gravey, gravey.mathieu@gmail.com
- *
+ * G2S is licensed under a
+ * Creative Commons Attribution-NonCommercial 4.0 International License.
+ * 
+ * You should have received a copy of the license along with this
+ * work. If not, see <http://creativecommons.org/licenses/by-nc/4.0/>.
  */
+
 #ifndef OPENCL_GPU_DEVICE_HPP
 #define OPENCL_GPU_DEVICE_HPP
 
