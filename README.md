@@ -78,6 +78,8 @@ To install them with macPort: (to adapt for brew)
 
 ## Run the server
 
+:warning: The utilization of the server generate logs- and data-files, in subfolder `build/build-*/logs` and `build/build-*/data` that are originally saved for debug purpose, and are currently not automatically removed. This can be managed by the user manually or with a cron task.
+
 #### Ubuntu / macOS
 Run `./server` in `build/c++-build` or `build/intel-build`, respectively for the standard or Intel version  
 Options:
