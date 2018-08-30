@@ -39,6 +39,34 @@
 #include "dataManagement.hpp"
 #include "status.hpp"
 
+#include <stdio.h>
+#include <dirent.h>
+ 
+void removeAllFile(char* dir)
+{
+	struct dirent *de;
+
+	DIR *dr = opendir(dir);
+
+	if (dr == NULL) 
+	{
+		printf("Could not open current directory" );
+		return;
+	}
+
+	while ((de = readdir(dr)) != NULL){
+		if(de->d_type == DT_REG || de->d_type == DT_LNK)
+		{	
+			//printf("%s\n", de->d_name);
+			//printf("%d\n", de->d_type );
+			char completeName[2048];
+			sprintf(completeName,"%s/%s",dir,de->d_name);
+			unlink(completeName);
+		}
+	}
+	closedir(dr);
+}
+
 		
 int main(int argc, char const *argv[]) {
 
@@ -47,6 +75,7 @@ int main(int argc, char const *argv[]) {
 	bool runAsDaemon=false;
 	bool singleTask=false;
 	bool functionMode=false;
+	bool keepOldData=false;
 	float timeoutDuration=std::nanf("0");
 	short port=8128;
 
@@ -60,6 +89,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
+		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 	}
 
@@ -113,6 +143,11 @@ int main(int argc, char const *argv[]) {
 	jobArray jobIds;
 	mkdir("./data", 0777);
 	mkdir("./logs", 0777);
+
+	if(!keepOldData){
+		removeAllFile("./data");
+		removeAllFile("./logs");
+	}
 
 	//  Prepare our context and socket
 #if __EMSCRIPTEN__

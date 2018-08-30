@@ -78,7 +78,7 @@ To install them with macPort: (to adapt for brew)
 
 ## Run the server
 
-:warning: The utilization of the server generate logs- and data-files, in subfolder `build/build-*/logs` and `build/build-*/data` that are originally saved for debug purpose, and are currently not automatically removed. This can be managed by the user manually or with a cron task.
+:warning: The utilization of the server generate logs- and data-files, in subfolder `build/build-*/logs` and `build/build-*/data` that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server. If the server is used during a long period without interruption, it needs to be managed manually by the user or with a cron task.
 
 #### Ubuntu / macOS
 Run `./server` in `build/c++-build` or `build/intel-build`, respectively for the standard or Intel version  
@@ -89,6 +89,7 @@ Flag | Description
 -d | run as daemon
 -To n | shutdown the server if there is no activity after n second, 0 for ∞ (default : 0)
 -p | select a specific port for the server (default: 8128)
+-kod | keep old data, if the flag is not present all files from previous runs are erased at launch 
 -mT | single job at the time (experimental)
 -fM | Run as function, without fork (experimental)
 
