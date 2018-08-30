@@ -21,6 +21,7 @@
 #include <sys/types.h> /* for pid_t */
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
+#include <thread>
 
 #ifdef WITH_VERSION_CONTROL
 #include <curl/curl.h>
@@ -42,7 +43,7 @@
 #include <stdio.h>
 #include <dirent.h>
  
-void removeAllFile(char* dir)
+void removeAllFile(char* dir, double olderThan)
 {
 	struct dirent *de;
 
@@ -54,15 +55,32 @@ void removeAllFile(char* dir)
 		return;
 	}
 
+	time_t now;
+	time(&now);
+
 	while ((de = readdir(dr)) != NULL){
-		if(de->d_type == DT_REG || de->d_type == DT_LNK)
+		char completeName[2048];
+		sprintf(completeName,"%s/%s",dir,de->d_name);
+		struct stat info;
+
+		if(0==lstat(completeName,&info) && (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))){
+			//printf("%s\n", de->d_name);
+			double difInSeconds=difftime(now,info.st_atime);
+			//printf("%f s\n", difInSeconds);
+			if(difInSeconds>olderThan)
+				unlink(completeName);
+		}
+
+
+		//unlink(completeName);
+		/*if(de->d_type == DT_REG || de->d_type == DT_LNK)
 		{	
 			//printf("%s\n", de->d_name);
 			//printf("%d\n", de->d_type );
 			char completeName[2048];
 			sprintf(completeName,"%s/%s",dir,de->d_name);
 			unlink(completeName);
-		}
+		}*/
 	}
 	closedir(dr);
 }
@@ -77,6 +95,7 @@ int main(int argc, char const *argv[]) {
 	bool functionMode=false;
 	bool keepOldData=false;
 	float timeoutDuration=std::nanf("0");
+	double maxFileAge=24*3600.;
 	short port=8128;
 
 	
@@ -90,6 +109,10 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
+		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
+		{
+			maxFileAge=atof(argv[i+1]);
+		}
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 	}
 
@@ -144,10 +167,22 @@ int main(int argc, char const *argv[]) {
 	mkdir("./data", 0777);
 	mkdir("./logs", 0777);
 
-	if(!keepOldData){
-		removeAllFile("./data");
-		removeAllFile("./logs");
-	}
+	std::thread fileCleaningThread([&] {
+		time_t last;
+		time(&last);
+		removeAllFile("./data",( keepOldData ? maxFileAge : 0));
+		removeAllFile("./logs",( keepOldData ? maxFileAge : 0));
+		while(!needToStop) {
+			time_t now;
+			time(&now);
+		    if(difftime(now,last)>std::max(maxFileAge/100,10.)){
+		    	removeAllFile("./data",maxFileAge);
+				removeAllFile("./logs",maxFileAge);
+		    }else{
+		    	std::this_thread::sleep_for(std::chrono::seconds(1));
+		    }
+		}
+	});
 
 	//  Prepare our context and socket
 #if __EMSCRIPTEN__
@@ -260,6 +295,7 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 	}
+	fileCleaningThread.join();
 
 	return 0;
  }
