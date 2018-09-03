@@ -1,6 +1,6 @@
 BUILD_DIR=../.
 
-export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/mgravey/G2S.git"')
+export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
 export CFLAGS=-O3 -std=c++11 -fPIC
