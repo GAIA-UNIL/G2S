@@ -22,7 +22,7 @@ position2=numpy.random.permutation(sizeDest)[1:math.ceil(sizeDest*pourcantage/10
 conDestination.reshape(sizeDest,1)[position1]=source.reshape(sizeDest,1)[position2];
 
 # Categorical
-sourceCat=misc.imread('../TrainingImages/gobi_dune_dimitri.png');
+sourceCat=misc.imread('../TrainingImages/gobi_dune.png');
 sourceCat=sourceCat[:math.floor(numpy.size(sourceCat,0)/2),:math.floor(numpy.size(sourceCat,1)/2),2];
 sourceCat=sourceCat/1.;
 

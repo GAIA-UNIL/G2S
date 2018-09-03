@@ -17,7 +17,7 @@ position2=randperm(sizeDest,sizeDest*pourcantage/100);
 conDestination(position1)=source(position2);
 
 %Categorical
-sourceCat=imread('../TrainingImages/gobi_dune_dimitri.png');
+sourceCat=imread('../TrainingImages/gobi_dune.png');
 %denoise
 %sourceCat=imagesc(colfilt(sourceCat, [5 5], 'sliding', @mode));
 sourceCat=sourceCat(1:end/2,1:end/2);
