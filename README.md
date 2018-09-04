@@ -188,7 +188,7 @@ Flag | Description
 #### Matlab
 ```MATLAB
 % Minimum
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',single(source),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
+data=g2s('-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50);
 
 % Complete
 [data,indexes,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,rot90(source,1),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',4,1,1,'-ki',kernel,'-sp',reshape(randperm(numel(destination)),size(destination)),'-silent');
@@ -197,9 +197,14 @@ Flag | Description
 #### Python
 ```Python
 # Minimum
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100);
+data=g2s('-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50);
 
 # Complete
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-j',4,1,1,'-ki',kernel,'-sp',numpy.random.permutation(numpy.size(destination)).astype(float).reshape(numpy.shape(destination)),'-silent');
 ```
 
+## Benchmarking
+
+This code can be used for benchmarking, the code needs to run natively on macOS or on Linux using the Intel Compiler with MKL library, the version needs to be informed, and the time needs to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).
+
+When benchmarking, the code should NOT be used inside a Virtual Machine or truth WSL on Windows 10.
