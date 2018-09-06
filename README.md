@@ -42,7 +42,7 @@ To install them on Ubuntu:
 2. Install a package manager like [macPort](https://www.macports.org/install.php) or [Homebrew](https://brew.sh)
 3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.  
 To install them with macPort: (to adapt for brew)
-`sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 curl` (curl is optional)
+`sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl` (curl is optional)
 5. Go to the `build` subfolder.
 6. Run: `make c++ -j` or `make intel -j` if the *Intel C++ compiler* is installed.
 	The intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software)
