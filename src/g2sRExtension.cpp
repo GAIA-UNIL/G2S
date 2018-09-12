@@ -46,6 +46,7 @@ inline Rcpp::RObject convert2NDArray(g2s::DataImage &image){
 	}
 	std::reverse(dimsArray.begin(),dimsArray.begin()+image._dims.size());
 	dimsArray[image._dims.size()]=image._nbVariable;
+	int nbOfVariable=image._nbVariable;
 	Rcpp::RObject array;
 	int completeSize=image.dataSize();
 	if(dimsArray.back()==1)dimsArray.pop_back();
@@ -53,9 +54,12 @@ inline Rcpp::RObject convert2NDArray(g2s::DataImage &image){
 		Rcpp::NumericVector localArray=Rcpp::NumericVector(completeSize);
 		localArray.attr("dim")=Rcpp::as<Rcpp::IntegerVector>(Rcpp::wrap(dimsArray));
 		//copy memory
-		for (int i = 0; i < completeSize; ++i)
+		for (int i = 0; i < completeSize/nbOfVariable; ++i)
 		{
-			localArray[i]=image._data[i];
+			for (int j = 0; j < nbOfVariable; ++j)
+			{
+				localArray[i+j*(completeSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
+			}
 		}
 		array=localArray;
 	}
@@ -63,9 +67,12 @@ inline Rcpp::RObject convert2NDArray(g2s::DataImage &image){
 		Rcpp::IntegerVector localArray=Rcpp::IntegerVector(completeSize);
 		localArray.attr("dim")=Rcpp::as<Rcpp::IntegerVector>(Rcpp::wrap(dimsArray));
 		//copy memory
-		for (int i = 0; i < completeSize; ++i)
+		for (int i = 0; i < completeSize/nbOfVariable; ++i)
 		{
-			localArray[i]=((int*)image._data)[i];
+			for (int j = 0; j < nbOfVariable; ++j)
+			{
+				localArray[i+j*(completeSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
+			}
 		}
 		array=localArray;
 	}
@@ -127,10 +134,12 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 	
 	memset(data,0,sizeof(float)*dataSize);
 	//manage data
-
-	for (int i = 0; i < dataSize; ++i)
+	for (int i = 0; i < dataSize/nbOfVariable; ++i)
 	{
-		data[i]=arrayRcpp[i];
+		for (int j = 0; j < nbOfVariable; ++j)
+		{
+			data[i*nbOfVariable+j]=arrayRcpp[i+j*(dataSize/nbOfVariable)];
+		}
 	}
 	
 	//compute hash
