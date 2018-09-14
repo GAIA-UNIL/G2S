@@ -6,7 +6,7 @@ import numpy.distutils.misc_util
 print(numpy.distutils.misc_util.get_numpy_include_dirs())
 
 setup(name='G2S',
-      version='0.9.0',
+      version='0.91.0',
       description='G2S interface',
       author='Mathieu Gravey',
       author_email='mathieu.gravey@unil.ch',
