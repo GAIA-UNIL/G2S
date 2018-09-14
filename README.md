@@ -73,12 +73,15 @@ To install them with macPort: (to adapt for brew)
 5. Add compiled file in the MATLAB path
 
 #### Python (Python 3) /Numpy
-0. If needed Python and Numpy
-- Ubuntu: `sudo apt install python3-distutils python3-dev python3-numpy –y`
-- macOS: `sudo port install python37 py37-numpy`
-- Windows: install [python](https://www.python.org/downloads/) with the option to add it to the Path
+* Solution 1, for windows (all versions)
+0. If needed, install [python](https://www.python.org/downloads/) with the option to add it to the Path
+1. Download precompiled interfaces [here](http://wp.unil.ch/gaia/files/2018/09/G2S-python3.zip)
+* Solution 2
+0. If needed Python and Numpy  
+Ubuntu: `sudo apt install python3-distutils python3-dev python3-numpy –y`  
+macOS: `sudo port install python37 py37-numpy`
 1. Go to `build/python-build`
-2. Run `python3 compile.py build_ext --inplace`
+2. Run `sudo python3 setup.py install`
 
 ## Run the server
 
