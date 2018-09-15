@@ -39,7 +39,7 @@ To install them on Ubuntu:
 
 #### macOS
 1. First clone the code from this GitHub.
-2. Install a package manager like [macPort](https://www.macports.org/install.php) or [Homebrew](https://brew.sh)
+2. Install a package manager like [macPort](https://www.macports.org/install.php) (or for expert with [Homebrew](https://brew.sh) )
 3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.  
 To install them with macPort: (to adapt for brew)
 `sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl` (curl is optional)
@@ -72,9 +72,18 @@ To install them with macPort: (to adapt for brew)
 4. Run `CompileG2S`	
 5. Add compiled file in the MATLAB path
 
-#### Python (Python 3)
+#### Python (Python 3) /Numpy
+* Solution 1, for windows (all versions)
+0. If needed, install [python](https://www.python.org/downloads/) with the option to add it to the Path  
+Install [Visual C++ Redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=48145) that is needed for scipy (don't ask me why)
+1. Install needed package `pip install pillow scipy scikit-misc matplotlib`
+2. Download precompiled interfaces [here](http://wp.unil.ch/gaia/files/2018/09/G2S-python3-1.zip)
+* Solution 2
+0. If needed Python and Numpy  
+Ubuntu: `sudo apt install python3-distutils python3-dev python3-numpy –y`  
+macOS: `sudo port install python37 py37-numpy`
 1. Go to `build/python-build`
-2. Run `python3 compile.py build_ext --inplace`
+2. Run `sudo python3 setup.py install`
 
 ## Run the server
 

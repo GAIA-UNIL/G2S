@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#define NOMINMAX
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <Python.h>
@@ -76,13 +76,14 @@ PyMODINIT_FUNC PyInit_g2s(void)
 
 inline PyObject* convert2NDArray(g2s::DataImage &image){
 
-	npy_intp dimsArray[image._dims.size()+1];
+	npy_intp* dimsArray=new npy_intp[image._dims.size()+1];
 	for (int i = 0; i < image._dims.size(); ++i)
 	{
 		dimsArray[i]=image._dims[i];
 	}
 	std::reverse(dimsArray,dimsArray+image._dims.size());
 	dimsArray[image._dims.size()]=image._nbVariable;
+	delete[] dimsArray;
 	PyObject *array=nullptr;
 	if(image._encodingType==g2s::DataImage::Float)
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_FLOAT);
@@ -131,7 +132,7 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 	if(variableTypeArray)nbOfVariable=PyArray_SIZE(variableTypeArray);
 	int dimData = PyArray_NDIM(prh)-(nbOfVariable>1);
 	const npy_intp * dim_array = PyArray_DIMS(prh);
-	unsigned dimArray[dimData];
+	unsigned *dimArray=new unsigned[dimData];
 	for (int i = 0; i < dimData; ++i)
 	{
 		dimArray[i]=dim_array[i];
@@ -141,6 +142,7 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 
 
 	g2s::DataImage image(dimData,dimArray,nbOfVariable);
+	delete[] dimArray;
 	float *data=image._data;
 	
 	

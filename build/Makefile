@@ -41,4 +41,4 @@ intel:
 	$(MAKE) -C intel-build
 
 python:
-	cd python-build && python3 compile.py build_ext --inplace
+	cd python-build && python3 setup.py build_ext --inplace

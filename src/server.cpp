@@ -70,17 +70,6 @@ void removeAllFile(char* dir, double olderThan)
 			if(difInSeconds>olderThan)
 				unlink(completeName);
 		}
-
-
-		//unlink(completeName);
-		/*if(de->d_type == DT_REG || de->d_type == DT_LNK)
-		{	
-			//printf("%s\n", de->d_name);
-			//printf("%d\n", de->d_type );
-			char completeName[2048];
-			sprintf(completeName,"%s/%s",dir,de->d_name);
-			unlink(completeName);
-		}*/
 	}
 	closedir(dr);
 }
@@ -178,6 +167,7 @@ int main(int argc, char const *argv[]) {
 		    if(difftime(now,last)>std::max(maxFileAge/100,10.)){
 		    	removeAllFile("./data",maxFileAge);
 				removeAllFile("./logs",maxFileAge);
+				last=now;
 		    }else{
 		    	std::this_thread::sleep_for(std::chrono::seconds(1));
 		    }
