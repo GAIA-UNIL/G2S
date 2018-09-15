@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 
-from distutils.core import setup, Extension
-import numpy.distutils.misc_util
+#py setup_Win.py bdist --format=wininst
 
-print(numpy.distutils.misc_util.get_numpy_include_dirs())
+from distutils.core import setup, Extension
+import numpy
 
 setup(name='G2S',
       version='0.91.0',
@@ -19,5 +19,5 @@ setup(name='G2S',
     	libraries = ['libzmq-v120-mt-4_0_4'],
         library_dirs = ['/usr/lib','/opt/local/lib',"C:\Program Files\ZeroMQ 4.0.4\lib"]
          )],
-    include_dirs=numpy.distutils.misc_util.get_numpy_include_dirs(),
-    data_files=[('lib\\site-packages\\',["C:\\Program Files\\ZeroMQ 4.0.4\\bin\\libzmq-v120-mt-4_0_4.dll"])]
+    include_dirs=numpy.get_include(),
+    data_files=[('lib\\site-packages\\',["C:\\Program Files\\ZeroMQ 4.0.4\\bin\\libzmq-v120-mt-4_0_4.dll","C:\\Windows\\System32\\msvcr120.dll","C:\\Windows\\System32\\msvcp120.dll"])]
