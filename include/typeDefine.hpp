@@ -19,9 +19,11 @@
 #define TYPE_DEFINE_HPP
 
 enum convertionType{
-	P0=0,
-	P1=1,
-	P2=2
+	MinMinus1=-1,
+	P0,
+	P1,
+	P2,
+	MaxPlus1
 };
 
 #endif // TYPE_DEFINE_HPP

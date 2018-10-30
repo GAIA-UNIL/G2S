@@ -40,7 +40,9 @@
 // #endif
 
 
-CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
+CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio, bool withCrossMesurement){
+	_coeficientMatrix=coeficientMatrix;
+
 	_deviceType=DT_cpuThreads;
 	_threadRatio=threadRatio;
 	int chip,core;
@@ -74,12 +76,13 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 	}
 
 	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_frenquencySpaceOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	_realSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
-
-	if(_crossMesurement){
-		_frenquencySpaceCrossOutput=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-		_realCrossSpace=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
+	
+	for (int i = 0; i < _coeficientMatrix.size(); ++i)
+	{
+		FFTW_PRECISION(complex)* ptrCplx=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		_frenquencySpaceOutputArray.push_back(ptrCplx);
+		float* ptrReal=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
+		_realSpaceArray.push_back(ptrReal);
 	}
 
 	_pPatchL=(FFTW_PRECISION(plan)*)mem_malloc(sizeof(FFTW_PRECISION(plan)) * _fftSize.back());
@@ -90,14 +93,10 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 	#pragma omp critical (initPlan)
 	{
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
-		_pInv=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceOutput, _realSpace, FFTW_PLAN_OPTION);
-		if(_crossMesurement){
-			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
-			_pInvCross=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceCrossOutput, _realCrossSpace, FFTW_PLAN_OPTION);
-		}
+		_pInv=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceOutputArray[0], _realSpaceArray[0], FFTW_PLAN_OPTION);
 
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
-		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpace, _frenquencySpaceInput, FFTW_PLAN_OPTION);
+		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpaceArray[0], _frenquencySpaceInput, FFTW_PLAN_OPTION);
 
 		if(_fftSize.size()>1){
 			unsigned reducedSize=1;
@@ -113,7 +112,7 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsig
 			for (int i = 0; i < _fftSize.back(); ++i)
 			{
 				FFTW_PRECISION(plan_with_nthreads)(1);
-				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpace+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
+				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpaceArray[0]+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 			}
 
 			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
@@ -141,16 +140,18 @@ CPUThreadDevice::~CPUThreadDevice(){
 		}
 	}
 
-	if(_crossMesurement){
-		FFTW_PRECISION(destroy_plan)(_pInvCross);
-		mem_free(_frenquencySpaceCrossOutput);
-		mem_free(_realCrossSpace);
-	}
-
 	mem_free(_pPatchL);
 	mem_free(_frenquencySpaceInput);
-	mem_free(_frenquencySpaceOutput);
-	mem_free(_realSpace);
+	for (int i = 0; i < _frenquencySpaceOutputArray.size(); ++i)
+	{
+		mem_free(_frenquencySpaceOutputArray[i]);
+		_frenquencySpaceOutputArray[i]=nullptr;
+	}
+	for (int i = 0; i < _realSpaceArray.size(); ++i)
+	{
+		mem_free(_realSpaceArray[i]);
+		_realSpaceArray[i]=nullptr;
+	}
 }
 
 std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
@@ -207,20 +208,32 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(
 
 //compute function
 
+dataType* CPUThreadDevice::getArray(unsigned arrayIndex){
+	return _realSpaceArray[arrayIndex];
+}
+
+unsigned CPUThreadDevice::getArraySize(){
+	return _realSpaceSize;
+}
+
+float CPUThreadDevice::getValueAtPosition(unsigned arrayIndex, unsigned index){
+	return _realSpaceArray[arrayIndex][index];
+}
+
+
 dataType* CPUThreadDevice::getErrorsArray(){
-	return _realSpace;
+	return _realSpaceArray.front();
 }
 
 float CPUThreadDevice::getErrorAtPosition(unsigned index){
-	return _realSpace[index];
+	return _realSpaceArray.front()[index];
 }
 
 dataType* CPUThreadDevice::getCossErrorArray(){
-	return _realCrossSpace;
+	return _realSpaceArray.back();
 }
 float CPUThreadDevice::getCroossErrorAtPosition(unsigned index){
-	if(_realCrossSpace==nullptr) return 0;
-	return _realCrossSpace[index];
+	return _realSpaceArray.back()[index];
 }
 
 unsigned CPUThreadDevice::getErrorsArraySize(){
@@ -261,7 +274,7 @@ void CPUThreadDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }
 
-bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
+bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0){
 	if(neighborValueArrayVector.size()==0)return false;
 
 	for (int i = 0; i < _min.size(); ++i)
@@ -281,9 +294,12 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 	
 	{
 		bool lines[_fftSize.back()];
-		memset(_frenquencySpaceOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
+		for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+		{
+			memset(_frenquencySpaceOutputArray[dataArrayIndex], 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
+		}
+		
 		std::vector<std::vector<int> > neighborArray=neighborArrayVector;
-		if(_crossMesurement)memset(_frenquencySpaceCrossOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 		//update coordonate
 		for (int j = 0; j < neighborArray.size(); ++j)
@@ -294,16 +310,21 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 		}
 
-		for (int var = 0; var <neighborValueArrayVector[0].size() ; ++var)
+		for (int var = 0; var <_coeficientMatrix[0].getNumberOfVariable() ; ++var)
 		{
-			
-			memset(_realSpace,0,sizeof(dataType) * _realSpaceSize );
+			bool needTobeComputed=false;
+			for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+			{
+				needTobeComputed|=_coeficientMatrix[dataArrayIndex].needVariableAlongB(var);
+			}
+			if(!needTobeComputed) continue;
+
+			memset(_realSpaceArray[0],0,sizeof(dataType) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 			for (int i = 0; i < neighborArray.size(); ++i)
 			{
-				_realSpace[ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
-				//fprintf(stderr, "%f\n", neighborValueArrayVector[i][var]);
+				_realSpaceArray[0][ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
 				lines[neighborArray[i].back()]=true;
 			}
 
@@ -326,82 +347,44 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}else{
 				FFTW_PRECISION(execute)(_p);
 			}
-			//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+
+
+			for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
 			{
-				unsigned k=0;
-				#if _OPENMP
-				//k=omp_get_thread_num();
-				#endif
-				unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
-				g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutput)+shift, ((dataType*)_srcCplx[var].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
-			}
-			
-			if(_crossMesurement && var==0){
-				//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+				for (int varA = 0; varA < _coeficientMatrix[dataArrayIndex].getNumberOfVariable(); ++varA)
 				{
-					unsigned k=0;
-					#if _OPENMP
-					//k=omp_get_thread_num();
-					#endif
-					unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
-					g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceCrossOutput)+shift, ((dataType*)_srcCplx[variablesCoeficient.size()-1].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, variablesCoeficient[var],std::min(_fftSpaceSize,_fftSpaceSize-shift));
+					float localCoef=_coeficientMatrix[dataArrayIndex].getVariableAt(varA,var);
+					if (localCoef!=0.f)
+					{
+						//#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(variablesCoeficient,var)
+						{
+							unsigned k=0;
+							#if _OPENMP
+							//k=omp_get_thread_num();
+							#endif
+							unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
+							g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutputArray[dataArrayIndex])+shift, ((dataType*)_srcCplx[varA].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, localCoef, std::min(_fftSpaceSize,_fftSpaceSize-shift));
+						}
+					}
 				}
 			}
+
 		}
 
-		FFTW_PRECISION(execute)(_pInv);
-		//Remove fobidden/wrong value
-		for (int i = 0; i < _fftSize.size(); ++i)
+		// add //isation
+		for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
 		{
-			unsigned blockSize=1;
-			for (int j = 0; j < i; ++j)
-			{
-				blockSize*=_fftSize[j];
-			}
-			blockSize*=_fftSize[i]-(_srcSize[i]-(_max[i]-_min[i]));
-
-			unsigned delta=1;
-			for (int j = 0; j <= i; ++j)
-			{
-				delta*=_fftSize[j];
-			}
-
-			#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize)
-			for (int j = 0; j < _realSpaceSize; j+=delta)
-			{
-				fillVectorized(_realSpace,j,blockSize,-INFINITY);
-			}
-		}
-
-		if(_trueMismatch && !_crossMesurement) // correct value needed
-		{
-			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0)
-			for (int i = 0; i < _realSpaceSize; ++i)
-			{
-				_realSpace[i]=_realSpace[i]/(_realSpaceSize)+delta0;
-			}
-		}
-
-
-		// cross Mesuremnt 
-
-		if(_crossMesurement){
-			FFTW_PRECISION(execute)(_pInvCross);
-			int deltaCross=0;
-			for (int k = _min.size()-1; k >=0; k--)
-			{
-				deltaCross=deltaCross*_fftSize[k]+_min[k];
-			}
-			//fprintf(stderr, "delta --> %d \n", deltaCross);
+			FFTW_PRECISION(execute_dft_c2r)(_pInv, _frenquencySpaceOutputArray[dataArrayIndex], _realSpaceArray[dataArrayIndex]);
+			dataType* realSpace= _realSpaceArray[dataArrayIndex];
 			//Remove fobidden/wrong value
-			/*for (int i = _fftSize.size()-1; i>=0; --i)
+			for (int i = 0; i < _fftSize.size(); ++i)
 			{
 				unsigned blockSize=1;
-				for (int j = 0; j < i-1; ++j)
+				for (int j = 0; j < i; ++j)
 				{
 					blockSize*=_fftSize[j];
 				}
-				blockSize*=_max[i]-_min[i];
+				blockSize*=_fftSize[i]-(_srcSize[i]-(_max[i]-_min[i]));
 
 				unsigned delta=1;
 				for (int j = 0; j <= i; ++j)
@@ -409,30 +392,57 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 					delta*=_fftSize[j];
 				}
 
+				#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize,realSpace)
 				for (int j = 0; j < _realSpaceSize; j+=delta)
 				{
-					fillVectorized(_realCrossSpace,j,blockSize,0.0f);
+					fillVectorized(realSpace,j,blockSize,-INFINITY);
 				}
-			}*/
-			
-		/*#if __cilk
-			_realCrossSpace[0:_realSpaceSize]/=(_realSpaceSize);
-		#else
-			#pragma omp simd
-			for (int i = 0; i < _realSpaceSize; ++i)
-			{
-				_realCrossSpace[i]/=(_realSpaceSize);
 			}
 
-		#endif*/
-			unsigned nbVariable=neighborValueArrayVector[0].size();
-			#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(deltaCross,nbVariable)
-			for (int i = 0; i < _realSpaceSize; ++i)
+			if(_trueMismatch && !_crossMesurement) // correct value needed
 			{
-				_realCrossSpace[i]*=((dataType*)_srcCplx[nbVariable-1].space)[(i+deltaCross)%_realSpaceSize];
+				#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0,realSpace,dataArrayIndex)
+				for (int i = 0; i < _realSpaceSize; ++i)
+				{
+					realSpace[i]=realSpace[i]/(_realSpaceSize)+delta0[dataArrayIndex];
+				}
 			}
 		}
 	}
 	return true;
+}
+
+
+void CPUThreadDevice::maskCroossError(){
+	maskCroossErrorWithVariable(0);
+}
+
+void CPUThreadDevice::maskCroossErrorWithVariable(unsigned variable){
+	maskLayerWithVariable(_realSpaceArray.size()-1,variable);
+}
+
+void CPUThreadDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
+	int deltaCross=0;
+	for (int k = _min.size()-1; k >=0; k--)
+	{
+		deltaCross=deltaCross*_fftSize[k]+_min[k];
+	}
+	int convertedVariable=0;
+	int tmp=variable;
+	for (int var = 0; var <_coeficientMatrix[layer].getNumberOfVariable() ; ++var)
+	{
+		tmp-=_coeficientMatrix[layer].needVariableAlongA(var);
+		if(tmp<0)
+		{
+			convertedVariable=var;
+			break;
+		}
+	}
+
+	for (int i = 0; i < _realSpaceSize; ++i){
+		_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
+
+		//-((1.f-[j])*1.1f)*FLT_MAX);
+	}
 }
 

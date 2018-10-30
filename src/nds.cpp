@@ -610,8 +610,12 @@ int main(int argc, char const *argv[]) {
 		categoriesValues.push_back(currentVariable);
 	}
 
+	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
+	std::vector<g2s::OperationMatrix> coeficientMatrix;
+	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
-	for (int i = 0; i < TIs.size(); ++i)
+
+		for (int i = 0; i < TIs.size(); ++i)
 	{
 		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
 
@@ -630,23 +634,23 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
-			#pragma omp critical (createDevices)
+			//#pragma omp critical (createDevices)
 			{
 				bool deviceCreated=false;
-
+/*
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesurement);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
-				#endif
+				#endif*/
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,nbThreadsLastLevel, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -657,13 +661,8 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 
-	std::vector<std::vector<float> > variablesCoeficientMainVector;
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 
-	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
-
-
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector,variablesCoeficientMainVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
 	QSM.setNarrownessFunction([&TIs,narrownessRange, nbBandsForNarrowness](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];

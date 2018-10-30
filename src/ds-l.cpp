@@ -661,6 +661,9 @@ int main(int argc, char const *argv[]) {
 	}
 
 
+	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
+	std::vector<g2s::OperationMatrix> coeficientMatrix;
+	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, needCrossMesurement | true, categoriesValues);
 
 
 	for (int i = 0; i < TIs.size(); ++i)
@@ -682,23 +685,22 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
 		for (int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
 			{
 				bool deviceCreated=false;
-
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i], needCrossMesurement);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,nbThreadsLastLevel, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -708,13 +710,8 @@ int main(int argc, char const *argv[]) {
 		smm->allowNewModule(false);
 		sharedMemoryManagerVector.push_back(smm);
 	}
-
-	std::vector<std::vector<float> > variablesCoeficientMainVector;
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
-
-	TIs[0].generateCoef4Xcorr(variablesCoeficientMainVector, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
-
-	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, variablesCoeficientMainVector, noVerbatim, !needCrossMesurement);
+	
+	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, noVerbatim, !needCrossMesurement);
 	// run DS
 
 	auto begin = std::chrono::high_resolution_clock::now();

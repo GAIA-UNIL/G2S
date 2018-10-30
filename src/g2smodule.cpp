@@ -83,7 +83,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 	}
 	std::reverse(dimsArray,dimsArray+image._dims.size());
 	dimsArray[image._dims.size()]=image._nbVariable;
-	delete[] dimsArray;
+	
 	PyObject *array=nullptr;
 	if(image._encodingType==g2s::DataImage::Float)
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_FLOAT);
@@ -91,7 +91,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_INT32);
 	if(image._encodingType==g2s::DataImage::UInteger)
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_UINT32);
-
+	delete[] dimsArray;
 	float* data=(float*)PyArray_DATA(array);
 	unsigned nbOfVariable=image._nbVariable;
 	unsigned dataSize=image.dataSize();

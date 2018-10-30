@@ -36,8 +36,9 @@ imshow(data);
 disp(t)
 
 %% simple unconditional simulation with QS with GPU if integrated GPU avaible
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
 imshow(data);
+disp(t)
 
 %% simulation with random value at random position
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',single(conDestination),'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
@@ -84,13 +85,14 @@ imshow(data);
 
 %% With missing data
 incompleteSource=source;
-incompleteSource(rand(size(incompleteSource))>0.90)=nan; % remove randomly 10% of the data
+incompleteSource(repmat(rand(size(incompleteSource,1),size(incompleteSource,2))>0.90,1,1,1))=nan; % remove randomly 10% of the data
 data=g2s('-sa',serverAddress,'-a','qs','-ti',incompleteSource,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
 imshow(data);
 
 %% Multivariate with missing data
 incompleteSource3=cat(3,source,source,source);
 destination3=cat(3,destination,destination,destination);
+%incompleteSource3(repmat(rand(size(incompleteSource3,1),size(incompleteSource3,2))>0.90,1,1,size(incompleteSource3,3)))=nan; % remove randomly 10% of the data
 incompleteSource3(rand(size(incompleteSource3))>0.90)=nan; % remove randomly 10% of the data
 data=g2s('-sa',serverAddress,'-a','qs','-ti',incompleteSource3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
 imshow(data);

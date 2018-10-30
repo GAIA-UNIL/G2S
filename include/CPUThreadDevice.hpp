@@ -37,21 +37,28 @@
 class CPUThreadDevice : public ComputeDeviceModule
 {
 public:
-	CPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio=1, bool withCrossMesurement=false);
+	CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio=1, bool withCrossMesurement=false);
 	~CPUThreadDevice();
 
-	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0);
+	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
 	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
 	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
 
 	dataType* getErrorsArray();
+	dataType* getArray(unsigned);
 	unsigned getErrorsArraySize();
+	unsigned getArraySize();
 	dataType* getCossErrorArray();
 	float getErrorAtPosition(unsigned);
+	float getValueAtPosition(unsigned, unsigned);
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	unsigned cvtPositionToIndex(unsigned);
 	void setTrueMismatch(bool value);
+
+	void maskCroossError();
+	void maskCroossErrorWithVariable(unsigned );
+	void maskLayerWithVariable(unsigned, unsigned );
 
 private:
 	unsigned _threadRatio=1;
@@ -59,10 +66,8 @@ private:
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
 
 	FFTW_PRECISION(complex)* _frenquencySpaceInput=nullptr;
-	FFTW_PRECISION(complex)* _frenquencySpaceOutput=nullptr;
-	FFTW_PRECISION(complex)* _frenquencySpaceCrossOutput=nullptr;
-	dataType* _realSpace=nullptr;
-	dataType* _realCrossSpace=nullptr;
+	std::vector<FFTW_PRECISION(complex)*> _frenquencySpaceOutputArray;
+	std::vector<dataType*> _realSpaceArray;
 
 	FFTW_PRECISION(plan) _pInv;
 	FFTW_PRECISION(plan) _pInvCross;

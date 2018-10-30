@@ -32,18 +32,16 @@ private:
 	bool _completeTIs;
 	bool _noVerbatim=false;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
-	std::vector<std::vector<float> > _variablesCoeficient;
 
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, std::vector<std::vector<float> > variablesCoeficient, bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
 	{
 		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
 		_convertionTypeVector=convertionTypeVector;
-		_variablesCoeficient=variablesCoeficient;
 		_noVerbatim=noVerbatim;
 
 	}
@@ -100,18 +98,17 @@ public:
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
-						cummulatedVariablesCoeficient.push_back(_variablesCoeficient[i][j]);
 					break;
 					case convertionType::P1:
 						for (int k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
+							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
 								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
-						cummulatedVariablesCoeficient.push_back(_variablesCoeficient[i][j]);
 					break;
 					case convertionType::P2:
 						for (int k = 0; k < neighborArrayVector.size(); ++k)
@@ -122,17 +119,16 @@ public:
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
-						cummulatedVariablesCoeficient.push_back(_variablesCoeficient[i][j]);
 					break;
 				}	
 			}
 		}
 
-		float delta=0;
+		std::vector<float> delta;
 		float deltaKernel=0.f;
 		if(_completeTIs)
 		{
-			for (int i = 0; i < _variablesCoeficient.size(); ++i)
+			/*for (int i = 0; i < _variablesCoeficient.size(); ++i)
 			{
 				if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
 					float coef=_variablesCoeficient[i].back();
@@ -145,7 +141,7 @@ public:
 						}
 					}
 				}
-			}
+			}*/
 		}
 
 		//_randgen.seed(unsigned(seed*(2<<24)));
