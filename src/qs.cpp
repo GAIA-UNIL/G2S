@@ -595,6 +595,28 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	if(needCrossMesurement){
+
+		for (int i = 0; i < TIs.size(); ++i)
+		{
+			int nbVariable=TIs[i]._types.size();
+			for (int j = 0; j < TIs[i].dataSize()/nbVariable; ++j)
+			{
+				bool hasNan=false;
+				for (int k = 0; k < nbVariable; ++k)
+				{
+					hasNan|=std::isnan(TIs[i]._data[nbVariable*j+k]);
+				}
+				if(hasNan){
+					for (int k = 0; k < nbVariable; ++k)
+					{
+						TIs[i]._data[nbVariable*j+k]=std::nanf("0");
+					}
+				}
+			}
+		}
+	}
+
 	bool varaibleTypeAreCompatible=true;
 
 
