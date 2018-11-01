@@ -430,6 +430,9 @@ int main(int argc, char const *argv[]) {
 	}
 	else {
 		kernel=g2s::DataImage::createFromFile(kernelFileName);
+		if(kernel._dims.size()-1==TIs[0]._dims.size()){
+			kernel=kernel.convertLastDimInVariable();
+		}
 	}
 
 	std::vector<std::vector<int> > pathPosition;

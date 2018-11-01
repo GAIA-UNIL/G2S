@@ -257,6 +257,17 @@ class DataImage{
 		return isOk;
 	}
 
+	inline DataImage convertLastDimInVariable(){
+		DataImage result(_dims.size()-1,_dims.data(),_dims.back());
+		unsigned newVariableSize=_dims.back();
+		unsigned newDataSizeProLayer=dataSize()/newVariableSize;
+		for (int i = 0; i < dataSize(); ++i)
+		{
+			result._data[(i%newDataSizeProLayer)*newVariableSize+i/newDataSizeProLayer]=_data[i];
+		}
+		return result;
+	}
+
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());

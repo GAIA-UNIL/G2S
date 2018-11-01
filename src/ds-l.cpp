@@ -443,6 +443,9 @@ int main(int argc, char const *argv[]) {
 	}
 	else {
 		kernel=g2s::DataImage::createFromFile(kernelFileName);
+		if(kernel._dims.size()-1==TIs[0]._dims.size()){
+			kernel=kernel.convertLastDimInVariable();
+		}
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -682,10 +685,13 @@ int main(int argc, char const *argv[]) {
 		categoriesValues.push_back(currentVariable);
 	}
 
+	//true error needed
+	needCrossMesurement=true;
+
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 	std::vector<g2s::OperationMatrix> coeficientMatrix;
-	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, needCrossMesurement | true, categoriesValues);
+	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
 
 
 	for (int i = 0; i < TIs.size(); ++i)

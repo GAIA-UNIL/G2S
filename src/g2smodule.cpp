@@ -389,13 +389,13 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(PyUnicode_Check(PyTuple_GetItem(args,j))){
 					localVector.push_back(std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args, j))));
 				}else{
-					PyObject* variable=PyArray_SimpleNew(PyArray_NDIM(PyTuple_GetItem(args, dataTypeIndex)),
+					/*PyObject* variable=PyArray_SimpleNew(PyArray_NDIM(PyTuple_GetItem(args, dataTypeIndex)),
 														 PyArray_DIMS(PyTuple_GetItem(args, dataTypeIndex)),NPY_FLOAT);
 					for (int i = 0; i < PyArray_SIZE(variable); ++i)
 					{
 						((float*)PyArray_DATA(variable))[i]=0.f;
-					}
-					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j) ,variable));
+					}*/
+					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j)));
 				}
 			}
 			result.push_back(localVector);

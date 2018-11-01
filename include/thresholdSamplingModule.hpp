@@ -94,7 +94,7 @@ public:
 						{
 							unsigned indexInKernel=indexCenter;
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*1.f);
+								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -105,7 +105,7 @@ public:
 							unsigned indexInKernel=indexCenter;
 							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]);
+								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -115,7 +115,7 @@ public:
 						{
 							unsigned indexInKernel=indexCenter;
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -182,7 +182,7 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
+				float loaclError=-_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
 
 				if(loaclError<bestValue){
 					bestValue=loaclError;
@@ -203,7 +203,7 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
+				float loaclError=-(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
 
 				if(std::isnan(loaclError))continue;
 
