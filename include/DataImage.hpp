@@ -413,7 +413,9 @@ class DataImage{
 			return output;
 		}
 
-		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool forXMesurement, std::vector<std::vector<float> > categoriesValues){
+		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector,
+				 std::vector<std::vector<std::vector<convertionType> > > &convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > &convertionCoefVectorConstVector,
+				  bool forXMesurement, std::vector<std::vector<float> > categoriesValues){
 			unsigned categoriesValuesIndex=0;
 			int numberOfSubVariable=0;
 
@@ -433,10 +435,17 @@ class DataImage{
 			g2s::OperationMatrix regular(numberOfSubVariable);
 			g2s::OperationMatrix Xmeassurement(numberOfSubVariable);
 
+			std::vector<std::vector<convertionType> > convertionTypeVectorConstRegular(_nbVariable);
+			std::vector<std::vector<float> > convertionCoefVectorConstRegular(_nbVariable);
+			std::vector<std::vector<convertionType> > convertionTypeVectorConstXmeassurement(_nbVariable);
+			std::vector<std::vector<float> > convertionCoefVectorConstXmeassurement(_nbVariable);
+
 			categoriesValuesIndex=0;
 			int subVariablePosition=0;
 			for (int i = 0; i < _nbVariable; ++i)
 			{
+				convertionTypeVectorConstXmeassurement[i].push_back(P0);
+				convertionCoefVectorConstXmeassurement[i].push_back(1.f);
 
 				if(_types[i]==Continuous){
 					std::vector<convertionType> convType;
@@ -451,6 +460,9 @@ class DataImage{
 						regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
 						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition-2,1.f);
 						subVariablePosition+=1;
+					}else{
+						convertionTypeVectorConstRegular[i].push_back(P2);
+						convertionCoefVectorConstRegular[i].push_back(-1.f);
 					}
 					convertionTypeVectorMainVector.push_back(convType);
 				}
@@ -478,6 +490,13 @@ class DataImage{
 			}
 			coeficientMatrix.push_back(regular);
 			coeficientMatrix.push_back(Xmeassurement);
+
+			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstRegular);
+			convertionTypeVectorConstVector.push_back(std::vector<std::vector<convertionType> >(_nbVariable));
+			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstXmeassurement);
+			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstRegular);
+			convertionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
+			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstXmeassurement);
 		}
 
 		/*void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){

@@ -612,7 +612,10 @@ int main(int argc, char const *argv[]) {
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 	std::vector<g2s::OperationMatrix> coeficientMatrix;
-	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, needCrossMesurement, categoriesValues);
+	std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector;
+	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, needCrossMesurement, categoriesValues);
+
 
 
 		for (int i = 0; i < TIs.size(); ++i)
@@ -662,7 +665,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
 	QSM.setNarrownessFunction([&TIs,narrownessRange, nbBandsForNarrowness](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];

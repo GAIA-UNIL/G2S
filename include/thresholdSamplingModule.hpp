@@ -32,18 +32,23 @@ private:
 	bool _completeTIs;
 	bool _noVerbatim=false;
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
+	std::vector<std::vector<std::vector<convertionType> > > _convertionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > _convertionCoefVectorConstVector;
 
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector, bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector,
+		std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector,
+		bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
 	{
 		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
 		_convertionTypeVector=convertionTypeVector;
 		_noVerbatim=noVerbatim;
-
+		_convertionTypeVectorConstVector=convertionTypeVectorConstVector;
+		_convertionCoefVectorConstVector=convertionCoefVectorConstVector;
 	}
 	~ThresholdSamplingModule(){
 
@@ -124,25 +129,52 @@ public:
 			}
 		}
 
+		
 		std::vector<float> delta;
-		float deltaKernel=0.f;
-		if(_completeTIs)
+		//if(_completeTIs)
 		{
-			/*for (int i = 0; i < _variablesCoeficient.size(); ++i)
+			for (int p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
 			{
-				if(_convertionTypeVector[i].size()<_variablesCoeficient[i].size()){
-					float coef=_variablesCoeficient[i].back();
-					for (int k = 0; k < neighborArrayVector.size(); ++k)
+				float sum=0;
+				for (int i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
+				{
+					for (int j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
 					{
-						unsigned indexInKernel;
-						if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i])){
-							delta+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i];
-							deltaKernel+=coef*_kernel->_data[indexInKernel*_kernel->_nbVariable+i];
-						}
+						switch(_convertionTypeVectorConstVector[p][i][j]){
+							case convertionType::P0:
+								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								{
+									unsigned indexInKernel=indexCenter;
+									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
+								}
+							break;
+							case convertionType::P1:
+								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								{
+									unsigned indexInKernel=indexCenter;
+									//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
+									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+								}
+							break;
+							case convertionType::P2:
+								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								{
+									unsigned indexInKernel=indexCenter;
+									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+								}
+							break;
+						}	
 					}
 				}
-			}*/
+				//fprintf(stderr, "%d ==> %f\n",delta.size(), sum);
+				delta.push_back(sum);
+			}
 		}
+
+		float deltaKernel=delta.back();
 
 		//_randgen.seed(unsigned(seed*(2<<24)));
 
