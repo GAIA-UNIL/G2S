@@ -83,7 +83,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 	}
 	std::reverse(dimsArray,dimsArray+image._dims.size());
 	dimsArray[image._dims.size()]=image._nbVariable;
-	delete[] dimsArray;
+	
 	PyObject *array=nullptr;
 	if(image._encodingType==g2s::DataImage::Float)
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_FLOAT);
@@ -91,7 +91,7 @@ inline PyObject* convert2NDArray(g2s::DataImage &image){
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_INT32);
 	if(image._encodingType==g2s::DataImage::UInteger)
 		array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_UINT32);
-
+	delete[] dimsArray;
 	float* data=(float*)PyArray_DATA(array);
 	unsigned nbOfVariable=image._nbVariable;
 	unsigned dataSize=image.dataSize();
@@ -389,13 +389,13 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 				if(PyUnicode_Check(PyTuple_GetItem(args,j))){
 					localVector.push_back(std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args, j))));
 				}else{
-					PyObject* variable=PyArray_SimpleNew(PyArray_NDIM(PyTuple_GetItem(args, dataTypeIndex)),
+					/*PyObject* variable=PyArray_SimpleNew(PyArray_NDIM(PyTuple_GetItem(args, dataTypeIndex)),
 														 PyArray_DIMS(PyTuple_GetItem(args, dataTypeIndex)),NPY_FLOAT);
 					for (int i = 0; i < PyArray_SIZE(variable); ++i)
 					{
 						((float*)PyArray_DATA(variable))[i]=0.f;
-					}
-					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j) ,variable));
+					}*/
+					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j)));
 				}
 			}
 			result.push_back(localVector);

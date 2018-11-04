@@ -5,8 +5,9 @@
 
 
 
-OPENCL_LIB=# -framework OpenCL -lOpenCL -lclFFT
-OPENCL_INC=#-DWITH_OPENCL=1
+#OPENCL_LIB= -framework OpenCL -lclFFT
+#OPENCL_LIB= -lOpenCL -lclFFT
+#OPENCL_INC=-DWITH_OPENCL=1
 
 
 all: server echo qs nds ds ds-l algoNames

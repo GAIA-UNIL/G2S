@@ -53,11 +53,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
 	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
-		/*if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
-			unsigned currentCell=solvingPath[indexPath];
-			memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
-			continue;
-		}*/
+		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
+		// 	unsigned currentCell=solvingPath[indexPath];
+		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
+		// 	continue;
+		// }
 
 		unsigned moduleID=0;
 		#if _OPENMP
@@ -126,13 +126,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			}
 		}
 
-		/*for (int i = 0; i < neighborValueArrayVector.size(); ++i)
-		{
-			for (int j = 0; j < neighborValueArrayVector[i].size(); ++j)
-			{
-				fprintf(stderr, "%f\n", neighborValueArrayVector[i][j]);
-			}
-		}*/
+		// for (int i = 0; i < neighborValueArrayVector.size(); ++i)
+		// {
+		// 	for (int j = 0; j < neighborValueArrayVector[i].size(); ++j)
+		// 	{
+		// 		fprintf(stderr, "%f\n", neighborValueArrayVector[i][j]);
+		// 	}
+		// }
 
 		SamplingModule::matchLocation importIndex;
 
