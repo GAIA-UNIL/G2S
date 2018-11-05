@@ -532,17 +532,29 @@ int main(int argc, char const *argv[]) {
 			simulationPathIndex[i]=i;
 		}
 
-		for (int i = 0; i < simulationPathSize; ++i)
+		if (fullSimulation)
 		{
-			bool valueSeted=true;
-			for (int j = 0; j < DI._nbVariable; ++j)
+			for (int i = 0; i < simulationPathSize; ++i)
 			{
-				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
+				if(!std::isnan(DI._data[i])){
+					std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+					beginPath++;
+				}
 			}
-			if(valueSeted)
+
+		}else{
+			for (int i = 0; i < simulationPathSize; ++i)
 			{
-				std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
-				beginPath++;
+				bool valueSeted=true;
+				for (int j = 0; j < DI._nbVariable; ++j)
+				{
+					if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
+				}
+				if(valueSeted)
+				{
+					std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+					beginPath++;
+				}
 			}
 		}
 		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
