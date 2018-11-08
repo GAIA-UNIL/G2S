@@ -76,9 +76,9 @@ void removeAllFile(char* dir, double olderThan)
 
 		
 int main(int argc, char const *argv[]) {
-
+#ifdef WITH_VERSION_CONTROL
 	std::string currentVersion=CURRENT_VERSION;
-
+#endif
 	bool runAsDaemon=false;
 	bool singleTask=false;
 	bool functionMode=false;
