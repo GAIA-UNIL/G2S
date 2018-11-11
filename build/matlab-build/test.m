@@ -98,7 +98,7 @@ data=g2s('-sa',serverAddress,'-a','qs','-ti',incompleteSource3,'-di',destination
 imshow(data);
 
 %% full simulation
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100,'-j',4);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100,'-j',4,'-fs');
 imshow(data);
 
 %% full simulation
