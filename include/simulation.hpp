@@ -374,11 +374,11 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				//reverseVector[i]*=-1;
 			//}
 			//TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID);
+			importIndex=samplingModule.sample(neighborArrayVector, neighborValueArrayVector, localSeed, verbatimRecord, moduleID, false, currentVariable);
 		}else if(withDataInCenter){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID);
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, false, currentVariable);
 		}else{
 
 			// sample from the marginal

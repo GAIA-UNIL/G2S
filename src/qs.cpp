@@ -622,7 +622,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	if(needCrossMesurement)
+	if(needCrossMesurement && !fullSimulation)
 	{
 		for (int i = 0; i < TIs.size(); ++i)
 		{
@@ -756,11 +756,11 @@ int main(int argc, char const *argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	if(fullSimulation){
-		fprintf(stderr, "%s\n", "full sim");
+		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
 			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	}else{
-		fprintf(stderr, "%s\n", "vector sim");
+		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
 			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	}

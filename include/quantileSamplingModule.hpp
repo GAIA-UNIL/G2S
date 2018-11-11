@@ -73,7 +73,7 @@ public:
 		}
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0){
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
@@ -186,7 +186,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			float maxValue=delta.back();
@@ -198,7 +198,7 @@ public:
 
 				if(!_completeTIs)
 				{
-					_cdmV[moduleID][i]->maskCroossError();
+					_cdmV[moduleID][i]->maskCroossErrorWithVariable(variableOfInterest);
 					#pragma omp simd
 					for (int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
 					{
