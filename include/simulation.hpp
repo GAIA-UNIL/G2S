@@ -213,13 +213,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
 						cumulated+=!locHasNan;
-						if(position>=cumulated){
+						if(position<=cumulated){
 							importIndex.TI=i;
 							importIndex.index=k;
 							break;
 						}
 					}
-					if(position>=cumulated)break;
+					if(position<=cumulated)break;
 				}
 			}
 		}
@@ -418,7 +418,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
-						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						int j=currentVariable;
 						{
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
@@ -434,18 +434,18 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
-						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						int j=currentVariable;
 						{
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
 						cumulated+=!locHasNan;
-						if(position>=cumulated){
+						if(position<=cumulated){
 							importIndex.TI=i;
 							importIndex.index=k;
 							break;
 						}
 					}
-					if(position>=cumulated)break;
+					if(position<=cumulated)break;
 				}
 			}
 		}
