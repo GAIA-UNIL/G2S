@@ -42,30 +42,36 @@ public:
 	static std::vector<unsigned> DeviceWithHostUnifiedMemory(unsigned platform_id);
 
 
-	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, unsigned int platform, unsigned int device, bool withCrossMesurement=false);
+	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platform, unsigned int device, bool withCrossMesurement=false);
 	~OpenCLGPUDevice();
 
-	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0);
+	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
 	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
 	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
 
 	dataType* getErrorsArray();
+	dataType* getArray(unsigned);
 	unsigned getErrorsArraySize();
+	unsigned getArraySize();
 	dataType* getCossErrorArray();
 	float getErrorAtPosition(unsigned);
+	float getValueAtPosition(unsigned, unsigned);
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	void setTrueMismatch(bool value);
+	unsigned cvtPositionToIndex(unsigned position);
+
+	void maskCroossError();
+	void maskCroossErrorWithVariable(unsigned );
+	void maskLayerWithVariable(unsigned, unsigned );
 
 private:
 
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
 
 	FFTW_PRECISION(complex)* _frenquencySpaceInput=nullptr;
-	FFTW_PRECISION(complex)* _frenquencySpaceOutput=nullptr;
-	FFTW_PRECISION(complex)* _frenquencySpaceCrossOutput=nullptr;
-	dataType* _realSpace=nullptr;
-	dataType* _realCrossSpace=nullptr;
+	std::vector<FFTW_PRECISION(complex)*> _frenquencySpaceOutputArray;
+	std::vector<dataType*> _realSpaceArray;
 
 	FFTW_PRECISION(plan) _pInv;
 	FFTW_PRECISION(plan) _pInvCross;
@@ -107,8 +113,8 @@ private:
 	bool _trueMismatch=true;
 	bool _crossMesurement=false;
 
-	cl_mem frenquencySpaceOutput_d;
-	cl_mem realSpace_d;
+	std::vector<cl_mem> frenquencySpaceOutputArray_d;
+	std::vector<cl_mem> realSpaceArray_d;
 	cl_mem tmpBuffer_d;
 
 	cl_context ctx = 0;

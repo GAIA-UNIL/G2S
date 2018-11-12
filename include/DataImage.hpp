@@ -24,6 +24,7 @@
 #include <vector>
 #include "utils.hpp"
 #include "typeDefine.hpp"
+#include "OperationMatrix.hpp"
 
 char* loadRawData(const char * hash);
 char* writeRawData(char* data, bool compresed=false);
@@ -256,6 +257,17 @@ class DataImage{
 		return isOk;
 	}
 
+	inline DataImage convertLastDimInVariable(){
+		DataImage result(_dims.size()-1,_dims.data(),_dims.back());
+		unsigned newVariableSize=_dims.back();
+		unsigned newDataSizeProLayer=dataSize()/newVariableSize;
+		for (int i = 0; i < dataSize(); ++i)
+		{
+			result._data[(i%newDataSizeProLayer)*newVariableSize+i/newDataSizeProLayer]=_data[i];
+		}
+		return result;
+	}
+
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
@@ -366,6 +378,20 @@ class DataImage{
 						}
 					}
 				}
+				if(needCrossMesurement){
+					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
+					int lastPosition=output[i].size()-1;
+					std::fill(output[i][lastPosition]._data, output[i][lastPosition]._data+output[i][lastPosition].dataSize(),1.f);
+					for (int j = 0; j < dataSize(); j++)
+					{
+						if(std::isnan(_data[j])){
+							unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
+							output[i][lastPosition]._data[newIndex] = 0.f;
+						}/*else{
+							output[i][lastPosition]._data[newIndex] = 1.f;
+						}*/
+					}
+				}
 			}
 
 			if(needCrossMesurement){
@@ -387,7 +413,93 @@ class DataImage{
 			return output;
 		}
 
-		void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
+		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector,
+				 std::vector<std::vector<std::vector<convertionType> > > &convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > &convertionCoefVectorConstVector,
+				  bool forXMesurement, std::vector<std::vector<float> > categoriesValues){
+			unsigned categoriesValuesIndex=0;
+			int numberOfSubVariable=0;
+
+			for (int i = 0; i < _nbVariable; ++i)
+			{
+				if(_types[i]==Continuous){
+					numberOfSubVariable+=2;
+				}
+
+				if(_types[i]==Categorical){
+					numberOfSubVariable+=categoriesValues[categoriesValuesIndex].size();
+					categoriesValuesIndex++;
+				}
+				numberOfSubVariable+=forXMesurement;
+			}
+
+			g2s::OperationMatrix regular(numberOfSubVariable);
+			g2s::OperationMatrix Xmeassurement(numberOfSubVariable);
+
+			std::vector<std::vector<convertionType> > convertionTypeVectorConstRegular(_nbVariable);
+			std::vector<std::vector<float> > convertionCoefVectorConstRegular(_nbVariable);
+			std::vector<std::vector<convertionType> > convertionTypeVectorConstXmeassurement(_nbVariable);
+			std::vector<std::vector<float> > convertionCoefVectorConstXmeassurement(_nbVariable);
+
+			categoriesValuesIndex=0;
+			int subVariablePosition=0;
+			for (int i = 0; i < _nbVariable; ++i)
+			{
+				convertionTypeVectorConstXmeassurement[i].push_back(P0);
+				convertionCoefVectorConstXmeassurement[i].push_back(1.f);
+
+				if(_types[i]==Continuous){
+					std::vector<convertionType> convType;
+					convType.push_back(P0);
+					regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
+					subVariablePosition+=1;
+					convType.push_back(P1);
+					regular.setVariableAt(subVariablePosition,subVariablePosition,2.f);
+					subVariablePosition+=1;
+					if(forXMesurement){
+						convType.push_back(P2);
+						regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
+						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition-2,1.f);
+						subVariablePosition+=1;
+					}else{
+						convertionTypeVectorConstRegular[i].push_back(P2);
+						convertionCoefVectorConstRegular[i].push_back(-1.f);
+					}
+					convertionTypeVectorMainVector.push_back(convType);
+				}
+
+				if(_types[i]==Categorical){
+					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
+					for (int k = 0; k < numberOfCategorie; ++k)
+					{
+						std::vector<convertionType> convType;
+						convType.push_back(P1);
+						regular.setVariableAt(subVariablePosition,subVariablePosition,1.f);
+						subVariablePosition+=1;
+						convertionTypeVectorMainVector.push_back(convType);
+					}
+					if(forXMesurement){
+						std::vector<convertionType> convType;
+						convType.push_back(P0);
+						regular.setVariableAt(subVariablePosition,subVariablePosition,1.f);
+						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition,1.f);
+						subVariablePosition+=1;
+						convertionTypeVectorMainVector.push_back(convType);
+					}
+					categoriesValuesIndex++;
+				}
+			}
+			coeficientMatrix.push_back(regular);
+			coeficientMatrix.push_back(Xmeassurement);
+
+			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstRegular);
+			convertionTypeVectorConstVector.push_back(std::vector<std::vector<convertionType> >(_nbVariable));
+			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstXmeassurement);
+			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstRegular);
+			convertionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
+			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstXmeassurement);
+		}
+
+		/*void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
 			unsigned categoriesValuesIndex=0;
 
 			for (int i = 0; i < _nbVariable; ++i)
@@ -417,10 +529,11 @@ class DataImage{
 						variablesCoeficientMainVector.push_back(coef);
 						convertionTypeVectorMainVector.push_back(convType);
 					}
+					categoriesValuesIndex++;
 				}
 				
 			}
-		}
+		}*/
 
 	protected:
 		std::vector<unsigned> index2Corrd(unsigned index){

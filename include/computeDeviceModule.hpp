@@ -24,6 +24,7 @@
 #define ComputeDeviceModule_HPP
 
 #include "utils.hpp"
+#include "OperationMatrix.hpp"
 class SharedMemoryManager;
 
 enum DeviceType
@@ -51,23 +52,31 @@ public:
 	ComputeDeviceModule(){}
 	virtual ~ComputeDeviceModule(){}
 
-	virtual bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0)=0;
+	virtual bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0)=0;
 	virtual std::vector<g2s::spaceFrequenceMemoryAddress > allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
 	virtual std::vector<g2s::spaceFrequenceMemoryAddress > freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress > sharedMemoryAdress)=0;
 
 	virtual dataType* getErrorsArray()=0;
+	virtual dataType* getArray(unsigned)=0;
 	virtual unsigned getErrorsArraySize()=0;
+	virtual unsigned getArraySize()=0;
 	virtual dataType* getCossErrorArray()=0;
 	virtual float getErrorAtPosition(unsigned)=0;
+	virtual float getValueAtPosition(unsigned, unsigned)=0;
 	virtual float getCroossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
 	virtual unsigned cvtPositionToIndex(unsigned)=0;
+
+	virtual void maskCroossError()=0;
+	virtual void maskCroossErrorWithVariable(unsigned )=0;
+	virtual void maskLayerWithVariable(unsigned, unsigned )=0;
 
 	unsigned _memoryID=UINT_MAX;
 	DeviceType _deviceType=DT_none;
 	unsigned _deviceID;
 
 	SharedMemoryManager* _sharedMemoryManager=nullptr;
+	std::vector<g2s::OperationMatrix> _coeficientMatrix;
 	
 };
 
