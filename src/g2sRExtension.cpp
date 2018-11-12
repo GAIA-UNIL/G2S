@@ -292,9 +292,9 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 					if(dataTypeIndex<0)Rcpp::stop(
 						 "%s : %s", "gss:error", "-dt wasn't specified");
 					Rcpp::RObject obj1=Rcpp::as<Rcpp::RObject>(args[j]);
-					Rcpp::IntegerVector dim=Rcpp::as<Rcpp::NumericVector>(args[dataTypeIndex]).attr("dim");
-					Rcpp::RObject obj2=Rcpp::NumericVector(dim[0],0.f);
-					localVector.push_back(uploadData(socket, &obj1, &obj2));
+					//Rcpp::IntegerVector dim=Rcpp::as<Rcpp::NumericVector>(args[dataTypeIndex]).attr("dim");
+					//Rcpp::RObject obj2=Rcpp::NumericVector(dim[0],0.f);
+					localVector.push_back(uploadData(socket, &obj1));
 				}
 			}
 			result.push_back(localVector);
