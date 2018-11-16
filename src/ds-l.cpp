@@ -527,6 +527,7 @@ int main(int argc, char const *argv[]) {
 	unsigned simulationPathSize=0;
 	unsigned* simulationPathIndex=nullptr;
 	unsigned beginPath=0;
+	bool fullSimulation=false;
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
@@ -611,7 +612,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	if(needCrossMesurement){
+	if(needCrossMesurement && !fullSimulation){
 
 		for (int i = 0; i < TIs.size(); ++i)
 		{

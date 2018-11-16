@@ -381,35 +381,19 @@ class DataImage{
 				if(needCrossMesurement){
 					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
 					int lastPosition=output[i].size()-1;
-					std::fill(output[i][lastPosition]._data, output[i][lastPosition]._data+output[i][lastPosition].dataSize(),1.f);
-					for (int j = 0; j < dataSize(); j++)
+					//std::fill(output[i][lastPosition]._data, output[i][lastPosition]._data+output[i][lastPosition].dataSize(),1.f);
+					for (int j = i; j < dataSize(); j+=_nbVariable)
 					{
+						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 						if(std::isnan(_data[j])){
-							unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 							output[i][lastPosition]._data[newIndex] = 0.f;
-						}/*else{
+						}else{
 							output[i][lastPosition]._data[newIndex] = 1.f;
-						}*/
+						}
 					}
 				}
 			}
 
-			if(needCrossMesurement){
-				output.push_back(std::vector<g2s::DataImage>());
-				output[_nbVariable].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
-				//memset(output[_nbVariable][0]._data,0,sizeof(float) * output[_nbVariable][0].dataSize());
-				std::fill(output[_nbVariable][0]._data, output[_nbVariable][0]._data+output[_nbVariable][0].dataSize(),1.f);
-
-				for (int j = 0; j < dataSize(); j++)
-				{
-					if(std::isnan(_data[j])){
-						unsigned newIndex=output[_nbVariable][0].dataSize()-1-output[_nbVariable][0].corrd2Index(index2Corrd(j/_nbVariable));
-						output[_nbVariable][0]._data[newIndex] = 0.f;
-					}/*else{
-						output[_nbVariable][0]._data[newIndex] = 1.f;
-					}*/
-				}
-			}
 			return output;
 		}
 

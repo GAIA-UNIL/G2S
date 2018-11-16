@@ -213,13 +213,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
 						cumulated+=!locHasNan;
-						if(position>=cumulated){
+						if(position<=cumulated){
 							importIndex.TI=i;
 							importIndex.index=k;
 							break;
 						}
 					}
-					if(position>=cumulated)break;
+					if(position<=cumulated)break;
 				}
 			}
 		}
@@ -240,9 +240,228 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	free(posterioryPath);
 }
 
+void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1){
 
+	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
+	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize());
+	for (int i = 0; i < di.dataSize(); ++i)
+	{
+		bool withNan=false;
+		for (int j = 0; j < di._nbVariable; ++j)
+		{
+			withNan|=std::isnan(di._data[i]);
+		}
+		if(!withNan)
+			posterioryPath[i]=0;
+	}
+	for (int i = 0; i < numberOfPointToSimulate; ++i)
+	{
+		posterioryPath[solvingPath[i]]=i;
+	}
+	
+	unsigned numberOfVariable=di._nbVariable;
+	for (int i = 0; i < categoriesValues.size(); ++i)
+	{
+		numberOfVariable+=categoriesValues[i].size()-1;
+	}
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
+	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+		
+		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
+		// 	unsigned currentCell=solvingPath[indexPath];
+		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
+		// 	continue;
+		// }
 
+		unsigned moduleID=0;
+		#if _OPENMP
+			moduleID=omp_get_thread_num();
+		#endif
+		unsigned currentCell=solvingPath[indexPath];
+		float localSeed=seedAray[indexPath];
 
+		unsigned currentVariable=currentCell%di._nbVariable;
+		unsigned currentPosition=currentCell/di._nbVariable;
+
+		bool withDataInCenter=false;
+
+		for (int i = 0; i < di._nbVariable; ++i)
+		{
+			withDataInCenter|=!std::isnan(di._data[currentPosition*di._nbVariable+i]);
+		}
+
+		std::vector<std::vector<int> > neighborArrayVector;
+		std::vector<std::vector<float> > neighborValueArrayVector;
+		{
+			unsigned positionSearch=0;
+			while((neighborArrayVector.size()<numberNeighbor)&&(positionSearch<pathPosition.size())){
+				unsigned dataIndex;
+				if(di.indexWithDelta(dataIndex, currentPosition, pathPosition[positionSearch]))
+				{
+					bool needToBeadd=false;
+					for (int i = 0; i < di._nbVariable; ++i)
+					{
+						needToBeadd|=posterioryPath[dataIndex*di._nbVariable+i]<indexPath;
+					}
+					//add for
+					if(needToBeadd){
+						std::vector<float> data(numberOfVariable);
+						unsigned numberOfNaN=0;
+						float val;
+						while(true) {
+							numberOfNaN=0;
+							unsigned id=0;
+							unsigned idCategorie=0;
+							for (int i = 0; i < di._nbVariable; ++i)
+							{
+								if(di._types[i]==g2s::DataImage::Continuous){
+									#pragma omp atomic read
+									val=di._data[dataIndex*di._nbVariable+i];
+									numberOfNaN+=std::isnan(val)*(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
+									data[id]=val;
+									id++;
+								}
+								if(di._types[i]==g2s::DataImage::Categorical){
+									#pragma omp atomic read
+									val=di._data[dataIndex*di._nbVariable+i];
+									numberOfNaN+=std::isnan(val)*(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
+									for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+									{
+										if(val==categoriesValues[idCategorie][k]){
+											data[id]=1;
+										}else{
+											data[id]=0;
+										}
+										id++;
+									}
+									idCategorie++;
+								}
+							}
+
+							if(numberOfNaN==0)break;
+							std::this_thread::sleep_for(std::chrono::microseconds(250));
+						}
+						neighborValueArrayVector.push_back(data);
+						neighborArrayVector.push_back(pathPosition[positionSearch]);
+					}
+				}
+				positionSearch++;
+			}
+		}
+
+		// for (int i = 0; i < neighborValueArrayVector.size(); ++i)
+		// {
+		// 	for (int j = 0; j < neighborValueArrayVector[i].size(); ++j)
+		// 	{
+		// 		fprintf(stderr, "%f\n", neighborValueArrayVector[i][j]);
+		// 	}
+		// }
+		
+		SamplingModule::matchLocation importIndex;
+
+		if(neighborArrayVector.size()>1){
+			//unsigned dataIndex;
+			//di.indexWithDelta(dataIndex, currentCell, neighborArrayVector[1]);
+			//unsigned verbatimIndex=importDataIndex[dataIndex];
+			SamplingModule::matchLocation verbatimRecord;
+			verbatimRecord.TI=TIs.size();
+			//std::vector<int> reverseVector=neighborArrayVector[1];
+			//for (int i = 0; i < reverseVector.size(); ++i)
+			//{
+				//reverseVector[i]*=-1;
+			//}
+			//TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
+			importIndex=samplingModule.sample(neighborArrayVector, neighborValueArrayVector, localSeed, verbatimRecord, moduleID, false, currentVariable);
+		}else if(withDataInCenter){
+			SamplingModule::matchLocation verbatimRecord;
+			verbatimRecord.TI=TIs.size();
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, false, currentVariable);
+		}else{
+
+			// sample from the marginal
+			unsigned cumulated=0;
+			for (int i = 0; i < TIs.size(); ++i)
+			{
+				cumulated+=TIs[i].dataSize();
+			}
+			
+			unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)));
+
+			cumulated=0;
+			for (int i = 0; i < TIs.size(); ++i)
+			{
+				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
+					importIndex.TI=i;
+					importIndex.index=position-cumulated;
+					break;
+				}else{
+					cumulated+=TIs[i].dataSize();
+				}
+			}
+
+			bool hasNaN=false;
+
+			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			{
+				if(std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j])){
+					hasNaN=true;
+				}
+			}
+		
+			if(hasNaN){ // nan safe, much slower
+				unsigned cumulated=0;
+				for (int i = 0; i < TIs.size(); ++i)
+				{
+					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					{
+						bool locHasNan=false;
+						int j=currentVariable;
+						{
+							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
+						}
+						cumulated+=!locHasNan;
+					}
+				}
+				unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)))*TIs[0]._nbVariable;
+
+				cumulated=0;
+
+				for (int i = 0; i < TIs.size(); ++i)
+				{
+					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					{
+						bool locHasNan=false;
+						int j=currentVariable;
+						{
+							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
+						}
+						cumulated+=!locHasNan;
+						if(position<=cumulated){
+							importIndex.TI=i;
+							importIndex.index=k;
+							break;
+						}
+					}
+					if(position<=cumulated)break;
+				}
+			}
+		}
+		// import data
+		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
+		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
+		
+		if(std::isnan(di._data[currentCell])){
+			#pragma omp atomic write
+			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];
+		}
+		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+	}
+	free(posterioryPath);
+}
 
 void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernel, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,

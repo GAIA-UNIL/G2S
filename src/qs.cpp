@@ -240,12 +240,19 @@ int main(int argc, char const *argv[]) {
 	float nbCandidate=std::nanf("0");		// 1/f for QS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+	bool requestFullSimulation=false;
 
 	if (arg.count("-nV") == 1)
 	{
 		noVerbatim=true;
 	}
 	arg.erase("-nV");
+
+	if (arg.count("-fs") == 1)
+	{
+		requestFullSimulation=true;
+	}
+	arg.erase("-fs");
 
 	if (arg.count("-f") == 1)
 	{
@@ -295,7 +302,6 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-md");
 
-
 	//add extra paremetre here
 	float alpha=0;
 	g2s::KernelType kernelTypeForGeneration=g2s::UNIFORM;
@@ -329,7 +335,6 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-alpha");
 
 
-	arg.erase("-ks");
 	bool withGPU=false;
 	if (arg.count("-W_GPU") == 1)
 	{
@@ -461,10 +466,6 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	
-
-	
-
 	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
 		for (int i = 0; i < wieghtKernel.dataSize(); ++i)
@@ -481,7 +482,6 @@ int main(int argc, char const *argv[]) {
 				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
 			}
 		}
-		
 	}
 
 	unsigned center=0;
@@ -514,38 +514,62 @@ int main(int argc, char const *argv[]) {
 	unsigned simulationPathSize=0;
 	unsigned* simulationPathIndex=nullptr;
 	unsigned beginPath=0;
+	bool fullSimulation=false;
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
-		simulationPathSize=DI.dataSize()/DI._nbVariable;
+		if (requestFullSimulation)
+		{
+			simulationPathSize=DI.dataSize();
+			fullSimulation=true;
+		}else{
+			simulationPathSize=DI.dataSize()/DI._nbVariable;
+			fullSimulation=false;
+		}
 		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
 		for (unsigned i = 0; i < simulationPathSize; ++i)
 		{
 			simulationPathIndex[i]=i;
 		}
 
-		for (int i = 0; i < simulationPathSize; ++i)
+		if (fullSimulation)
 		{
-			bool valueSeted=true;
-			for (int j = 0; j < DI._nbVariable; ++j)
+			for (int i = 0; i < simulationPathSize; ++i)
 			{
-				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
+				if(!std::isnan(DI._data[i])){
+					std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+					beginPath++;
+				}
 			}
-			if(valueSeted)
+
+		}else{
+			for (int i = 0; i < simulationPathSize; ++i)
 			{
-				std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
-				beginPath++;
+				bool valueSeted=true;
+				for (int j = 0; j < DI._nbVariable; ++j)
+				{
+					if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
+				}
+				if(valueSeted)
+				{
+					std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
+					beginPath++;
+				}
 			}
 		}
 		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
-		
-		
 	}
 	else {
 		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
 		simulationPathSize=simulationPath.dataSize();
 		bool dimAgree=true;
-		if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
+		fullSimulation=false;
+		if(simulationPath._dims.size()!=DI._dims.size()){
+			if(simulationPath._dims.size()-1==DI._dims.size()){
+				simulationPath=simulationPath.convertLastDimInVariable();
+				fullSimulation=true;
+			}else dimAgree=false;
+		}
 		for (int i = 0; i < simulationPath._dims.size(); ++i)
 		{
 			if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
@@ -572,11 +596,11 @@ int main(int argc, char const *argv[]) {
 
 	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
 	memset(importDataIndex,0,sizeof(unsigned)*simulationPathSize);
-	float* seedForIndex=( float* )malloc( sizeof(float) * DI.dataSize()/DI._nbVariable );
+	float* seedForIndex=( float* )malloc( sizeof(float) * simulationPathSize );
 	
 	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
 
-	for ( unsigned int i = 0; i < DI.dataSize()/DI._nbVariable; ++i)
+	for ( unsigned int i = 0; i < simulationPathSize; ++i)
 	{
 		seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
 		if(seedForIndex[i]==1.f)seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
@@ -598,8 +622,8 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	if(needCrossMesurement){
-
+	if(needCrossMesurement && !fullSimulation)
+	{
 		for (int i = 0; i < TIs.size(); ++i)
 		{
 			int nbVariable=TIs[i]._types.size();
@@ -731,8 +755,15 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
-	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+	if(fullSimulation){
+		fprintf(reportFile, "%s\n", "full sim");
+		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+	}else{
+		fprintf(reportFile, "%s\n", "vector sim");
+		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+	}
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
@@ -758,7 +789,7 @@ int main(int argc, char const *argv[]) {
 	delete[] computeDeviceModuleArray;
 
 	
-	g2s::DataImage id=DI.emptyCopy(true);
+	g2s::DataImage id=DI.emptyCopy(!fullSimulation);
 	id.setEncoding(g2s::DataImage::UInteger);
 	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
 	id.write(outputIndexFilename);
