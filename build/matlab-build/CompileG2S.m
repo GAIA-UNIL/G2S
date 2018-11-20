@@ -1,5 +1,5 @@
 if ismac
-    mex ../../src/g2s.cpp ../../src/cvtZMQ2WS.cpp -I/usr/local/include -lut -I/opt/local/include -I../../include -L/opt/local/lib -lzmq -ljsoncpp
+    mex ../../src/g2s.cpp -I/usr/local/include -lut -I/opt/local/include -I../../include -L/opt/local/lib -lzmq -ljsoncpp %../../src/cvtZMQ2WS.cpp
 elseif isunix
     mex ../../src/g2s.cpp -lut -I/usr/include -I../../include -I/usr/include/jsoncpp -L/usr/lib -lzmq  -ljsoncpp
 elseif ispc
