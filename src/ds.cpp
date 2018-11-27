@@ -394,7 +394,7 @@ int main(int argc, char const *argv[]) {
 				default :
 					startName="unkown";
 			}
-			fprintf(dsConfigFile, "%s %d DEFAULT_FORMAT\n", startName.c_str(), 1);
+			fprintf(dsConfigFile, "%s_%d %d DEFAULT_FORMAT\n", startName.c_str(),i, 1);
 		}
 		fprintf(dsConfigFile, "\n");
 
