@@ -31,7 +31,7 @@ imshow(data);
 
 %% simple unconditional simulation with QS
 
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
+[data,t]=g2s('-sa',serverAddress,'-a','ds','-ti',source,'-di',destination,'-dt',zeros(1,1),'-th',0.5,'-n',50,'-f',0.5,'-s',100);
 imshow(data);
 disp(t)
 
