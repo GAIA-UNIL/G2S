@@ -41,6 +41,7 @@ nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
 
 ds: ds.o DataImage.o sharedMemoryManager.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+	mkdir -p ../3party_bin/ && cp -f $(which deesseOMP 2>/dev/null) ../3party_bin/ 2>/dev/null || echo "no deesseOMP in the path"
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
 dsk: dsk.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
