@@ -46,7 +46,7 @@ nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
 
 ds: ds.o DataImage.o sharedMemoryManager.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
-	mkdir -p ../3party_bin/ && which deesseOMP 2>/dev/null | xargs -I{} cp -f {}  ../3party_bin/
+	mkdir -p ../3party_bin/ && which deesseOMP 2>/dev/null | xargs -I{} ln -s {} ../3party_bin/deesseOMP 2>/dev/null || exit 0
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
 ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o
