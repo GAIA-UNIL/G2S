@@ -31,7 +31,7 @@ imshow(data);
 
 %% simple unconditional simulation with QS
 
-[data,t]=g2s('-sa',serverAddress,'-a','ds','-ti',source,'-di',destination,'-dt',zeros(1,1),'-th',0.5,'-n',50,'-f',0.5,'-s',100);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
 imshow(data);
 disp(t)
 
@@ -112,7 +112,6 @@ data=g2s('-sa',serverAddress,'-a','qs','-ti',incompleteSource3,'-di',destination
 imshow(data);
 
 %% DS mode
-
 data=g2s('-sa',serverAddress,'-a','ds-l','-ti',source,'-di',destination,'-dt',zeros(1,1),'-th',0.05,'-f',0.3,'-n',50,'-s',100);
 imshow(data);
 
@@ -152,6 +151,13 @@ data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zero
 imshow(data)
 %% shutdown the server
 g2s('-sa',serverAddress,'-shutdown');
+
+
+
+%% 3th-party code
+%% RandLab-DS. http://www.randlab.org and http://www.ephesia-consult.com/work/deesse/
+data=g2s('-sa',serverAddress,'-a','ds','-ti',source,'-di',destination,'-dt',zeros(1,1),'-th',0.05,'-n',50,'-f',0.5,'-s',100);
+imagesc(data);
 
 
 
