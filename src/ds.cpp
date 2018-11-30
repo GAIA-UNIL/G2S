@@ -174,6 +174,9 @@ int main(int argc, char const *argv[]) {
 	{
 		outputFilename=arg.find("-o")->second;
 		run=false;
+	}else{
+		outputFilename=std::to_string(uniqueID);
+		outputIndexFilename=std::string("id_")+std::to_string(uniqueID);
 	}
 	arg.erase("-o");
 
@@ -348,13 +351,13 @@ int main(int argc, char const *argv[]) {
 	for (int j = 0; j < sourceImages.size(); ++j)
 	{
 		char dsTIFileName[128];
-		sprintf(dsTIFileName, "ti_%lld_%d.gslib",uniqueID,j);
+		sprintf(dsTIFileName, "data/ti_%lld_%d.gslib",uniqueID,j);
 		sourceImages[0].writeSGEMS(dsTIFileName);
 	}
 
 	{
 		char dsDIFileName[128];
-		sprintf(dsDIFileName, "di_%lld.gslib",uniqueID);
+		sprintf(dsDIFileName, "data/di_%lld.gslib",uniqueID);
 		destinationImage.writeSGEMS(dsDIFileName);
 	}
 
@@ -362,13 +365,13 @@ int main(int argc, char const *argv[]) {
 	char dsOutFileName[128];
 	char dsReportFileName[128];
 	
-	sprintf(dsOutFileName, "output_%lld_real00000.gslib",uniqueID);
-	sprintf(dsReportFileName, "report_%lld.txt\n",uniqueID);
+	sprintf(dsOutFileName, "data/output_%lld_real00000.gslib",uniqueID);
+	sprintf(dsReportFileName, "logs/report_%lld.txt\n",uniqueID);
 
 	//start config file
 
 	char dsConfigFilename[2048];
-	sprintf(dsConfigFilename,"config_%lld.in", uniqueID);
+	sprintf(dsConfigFilename,"data/config_%lld.in", uniqueID);
 
 	FILE* dsConfigFile=fopen(dsConfigFilename, "w");
 
@@ -399,11 +402,11 @@ int main(int argc, char const *argv[]) {
 		fprintf(dsConfigFile, "\n");
 
 		fprintf(dsConfigFile, "OUTPUT_SIM_ONE_FILE_PER_REALIZATION\n");
-		fprintf(dsConfigFile, "output_%lld\n",uniqueID);
+		fprintf(dsConfigFile, "data/output_%lld\n",uniqueID);
 		fprintf(dsConfigFile, "\n");
 
-		fprintf(dsConfigFile, "1\n"); // output rapport
-		fprintf(dsConfigFile, "output_%lld_real00000.gslib\n",uniqueID);
+		fprintf(dsConfigFile, "1\n"); // output report
+		fprintf(dsConfigFile, "logs/report_%lld.txt\n",uniqueID);
 		fprintf(dsConfigFile, "\n");
 
 		//ti
@@ -411,12 +414,12 @@ int main(int argc, char const *argv[]) {
 		for (int j = 0; j < sourceImages.size(); ++j)
 		{
 			char dsTIFileName[128];
-			fprintf(dsConfigFile, "ti_%lld_%d.gslib\n",uniqueID,j);
+			fprintf(dsConfigFile, "data/ti_%lld_%d.gslib\n",uniqueID,j);
 		}
 
 		//di
 		fprintf(dsConfigFile, "1\n"); // with di
-		fprintf(dsConfigFile, "di_%lld.gslib\n",uniqueID);
+		fprintf(dsConfigFile, "data/di_%lld.gslib\n",uniqueID);
 		fprintf(dsConfigFile, "\n");
 
 		fprintf(dsConfigFile, "0\n"); // no data point set
@@ -550,7 +553,7 @@ int main(int argc, char const *argv[]) {
 	argvChild[2]=configFile;
 	argvChild[3]=nullptr;
 
-
+	auto begin = std::chrono::high_resolution_clock::now();
 	pid_t pid=fork();
 	if (pid==0) { // child process //
 		
@@ -565,6 +568,10 @@ int main(int argc, char const *argv[]) {
 	else { // pid!=0; parent process //
 		waitpid(pid,0,0); // wait for child to exit //
 	}
+	auto end = std::chrono::high_resolution_clock::now();
+	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
+	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
+	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
 
 
 	g2s::DataImage DI=g2s::DataImage::readSGEMS(dsOutFileName);

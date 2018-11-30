@@ -551,7 +551,10 @@ class DataImage{
 			if (!file) DataImage();
 
 			unsigned sizes[3];
+			float offset;
 			fscanf(file,"%d %d %d",sizes+0, sizes+1, sizes+2);
+			fscanf(file,"%f %f %f",&offset, &offset, &offset);
+			fscanf(file,"%f %f %f",&offset, &offset, &offset);
 			unsigned nbDim=(sizes[0]>1)+(sizes[1]>1)+(sizes[2]>1);
 			unsigned nbVariable;
 			fscanf(file,"%d",&nbVariable);
@@ -582,7 +585,7 @@ class DataImage{
 			FILE *file;
 			file = fopen(fileName, "w");
 			if (file) {
-				fprintf(file,"%d %d %d\n",_dims[0], _dims.size()>1 ? _dims[1] : 1, _dims.size()>2 ? _dims[2] : 1);
+				fprintf(file,"%d %d %d 1.0 1.0 1.0 0.0 0.0 0.0\n",_dims[0], _dims.size()>1 ? _dims[1] : 1, _dims.size()>2 ? _dims[2] : 1);
 				fprintf(file,"%d\n",_types.size());
 				for (int i = 0; i < _types.size(); ++i)
 				{
