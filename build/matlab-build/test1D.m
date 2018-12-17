@@ -11,7 +11,7 @@ phase=(1:numberOfVariable)'./numberOfVariable;
 waveLength=(1:numberOfVariable)'./numberOfVariable/precision;
 N=10000;
 source=sin((1:N)'*waveLength'+phase');
-destination=single(nan(10000,numberOfVariable));
+destination=single(nan(N,numberOfVariable));
 dataType=zeros(1,numberOfVariable);
 
 conDestination=source;

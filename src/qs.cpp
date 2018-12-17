@@ -557,7 +557,7 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 		}
-		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
+		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize, randomGenerator );
 	}
 	else {
 		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);

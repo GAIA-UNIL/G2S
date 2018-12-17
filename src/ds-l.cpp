@@ -551,7 +551,7 @@ int main(int argc, char const *argv[]) {
 				beginPath++;
 			}
 		}
-		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize- beginPath, randomGenerator );
+		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize, randomGenerator );
 		
 		
 	}

@@ -199,6 +199,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 						cumulated+=!locHasNan;
 					}
 				}
+				if(cumulated==0)fprintf(logFile, "error - no available data with complete vector, if you have data for each variable try with -fs option");
 				unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)))*TIs[0]._nbVariable;
 
 				cumulated=0;
@@ -270,11 +271,6 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile) shared( pathPosition, di, samplingModule, TIs)
 	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
-		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
-		// 	unsigned currentCell=solvingPath[indexPath];
-		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
-		// 	continue;
-		// }
 
 		unsigned moduleID=0;
 		#if _OPENMP
@@ -285,13 +281,6 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 		unsigned currentVariable=currentCell%di._nbVariable;
 		unsigned currentPosition=currentCell/di._nbVariable;
-
-		bool withDataInCenter=false;
-
-		for (int i = 0; i < di._nbVariable; ++i)
-		{
-			withDataInCenter|=!std::isnan(di._data[currentPosition*di._nbVariable+i]);
-		}
 
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
@@ -352,30 +341,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			}
 		}
 
-		// for (int i = 0; i < neighborValueArrayVector.size(); ++i)
-		// {
-		// 	for (int j = 0; j < neighborValueArrayVector[i].size(); ++j)
-		// 	{
-		// 		fprintf(stderr, "%f\n", neighborValueArrayVector[i][j]);
-		// 	}
-		// }
-		
 		SamplingModule::matchLocation importIndex;
 
 		if(neighborArrayVector.size()>1){
-			//unsigned dataIndex;
-			//di.indexWithDelta(dataIndex, currentCell, neighborArrayVector[1]);
-			//unsigned verbatimIndex=importDataIndex[dataIndex];
-			SamplingModule::matchLocation verbatimRecord;
-			verbatimRecord.TI=TIs.size();
-			//std::vector<int> reverseVector=neighborArrayVector[1];
-			//for (int i = 0; i < reverseVector.size(); ++i)
-			//{
-				//reverseVector[i]*=-1;
-			//}
-			//TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
-			importIndex=samplingModule.sample(neighborArrayVector, neighborValueArrayVector, localSeed, verbatimRecord, moduleID, false, currentVariable);
-		}else if(withDataInCenter){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
 			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, false, currentVariable);
@@ -402,14 +370,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				}
 			}
 
-			bool hasNaN=false;
-
-			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
-			{
-				if(std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j])){
-					hasNaN=true;
-				}
-			}
+			bool hasNaN=std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable]); 
 		
 			if(hasNaN){ // nan safe, much slower
 				unsigned cumulated=0;
@@ -425,6 +386,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 						cumulated+=!locHasNan;
 					}
 				}
+				if(cumulated==0)fprintf(logFile, "error - no available data for variable: %d", currentVariable);
 				unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)))*TIs[0]._nbVariable;
 
 				cumulated=0;
