@@ -540,6 +540,78 @@ class DataImage{
 			}
 			return result;
 		}
+
+
+	public:
+		inline static DataImage readSGEMS(const char * fileName){
+
+			FILE *file;
+			file = fopen(fileName, "r");
+			if (!file) DataImage();
+
+			unsigned sizes[3];
+			float offset;
+			fscanf(file,"%d %d %d",sizes+0, sizes+1, sizes+2);
+			fscanf(file,"%f %f %f",&offset, &offset, &offset);
+			fscanf(file,"%f %f %f",&offset, &offset, &offset);
+			unsigned nbDim=(sizes[0]>1)+(sizes[1]>1)+(sizes[2]>1);
+			unsigned nbVariable;
+			fscanf(file,"%d",&nbVariable);
+			DataImage result=g2s::DataImage(nbDim, sizes, nbVariable);
+
+			for (int i = 0; i < nbVariable; ++i)
+			{
+				int id;
+				char variableName[1024];
+				fscanf(file, "%s_%d", variableName, id);
+				if(strcmp("Continuous",variableName)==0){
+					result._types[i]=Continuous;
+				}
+				if(strcmp("Categorical",variableName)==0){
+					result._types[i]=Categorical;
+				}
+			}
+			float* dataPtr=result._data;
+			for (int i = 0; i < result.dataSize(); ++i)
+			{
+				fscanf(file,"%f", dataPtr+i);
+			}
+			fclose(file);
+			return result;
+		}
+
+		inline void writeSGEMS(const char * fileName){
+			FILE *file;
+			file = fopen(fileName, "w");
+			if (file) {
+				fprintf(file,"%d %d %d 1.0 1.0 1.0 0.0 0.0 0.0\n",_dims[0], _dims.size()>1 ? _dims[1] : 1, _dims.size()>2 ? _dims[2] : 1);
+				fprintf(file,"%d\n",_types.size());
+				for (int i = 0; i < _types.size(); ++i)
+				{
+					std::string startName;
+					switch(_types[i]){
+						case Continuous:
+							startName="Continuous";
+							break;
+						case Categorical:
+							startName="Categorical";
+							break;
+						default :
+							startName="unkown";
+					}
+					fprintf(file,"%s_%d",startName.c_str(), i);
+				}
+				int nbVariable=_types.size();
+				for (int i = 0; i < dataSize(); ++i)
+				{
+					if( i%(nbVariable)==0 ) fprintf(file,"\n");  //start new line for each position
+					fprintf(file,"%f ", _data[i]);
+					
+				}
+				fclose(file);
+			}
+		}
+
 };
 
 
