@@ -9,6 +9,7 @@ export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 export LDFLAGS=-lzmq -lz -ljsoncpp -lcurl -lfftw3f -lfftw3f_threads -ldl -lpthread
 export LIB_PATH= -L/usr/lib -L/opt/local/lib
+export ARFLAGS= rcs
 
 dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
 ifeq ("$(dosentSupportOMP)","0")
@@ -39,6 +40,14 @@ em:
 
 intel:
 	$(MAKE) -C intel-build
+
+c++-extension:
+	$(MAKE) -C c++-build extension
+
+intel-extension:
+	$(MAKE) -C intel-build extension
+
+extension: c++-extension intel-extension
 
 python:
 	cd python-build && python3 setup.py build_ext --inplace
