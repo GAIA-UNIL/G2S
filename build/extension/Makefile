@@ -2,16 +2,21 @@ SUBDIRS := $(wildcard */.)
 
 build:
 	for dir in $(SUBDIRS); do \
-        $(MAKE) -C $$dir $@; \
-    done
+		if [ -f $$dir/Makefile ]; then \
+			$(MAKE) -C $$dir $@; \
+		fi \
+	done
 
 install:
 	for dir in $(SUBDIRS); do \
-        $(MAKE) -C $$dir $@; \
-    done
+		if [ -f $$dir/Makefile ]; then \
+			$(MAKE) -C $$dir $@; \
+		fi \
+	done
 
 clean:
 	for dir in $(SUBDIRS); do \
-        $(MAKE) -C $$dir $@; \
-    done
-
+		if [ -f $$dir/Makefile ]; then \
+			$(MAKE) -C $$dir $@; \
+		fi \
+	done
