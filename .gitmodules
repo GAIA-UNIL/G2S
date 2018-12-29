@@ -1,0 +1,3 @@
+[submodule "build/extension/G2Swrapper4RandLabDS"]
+	path = build/extension/G2Swrapper4RandLabDS
+	url = https://github.com/GAIA-UNIL/G2Swrapper4RandLabDS.git
