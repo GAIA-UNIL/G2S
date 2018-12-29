@@ -1,6 +1,6 @@
-CC=icc
-CXX=icpc
-AR=xiar
+export CC=icc
+export CXX=icpc
+export AR=xiar
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     OS =linux
