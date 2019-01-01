@@ -27,24 +27,14 @@
 #include <json/json.h>
 #include <numeric>
 #include <chrono>
-#include <thread>
 #include <atomic>
-#include <future>
 #include <algorithm>
 #include "DataImage.hpp"
+#include "mexInterrupt.hpp"
 
 #ifdef WITH_WEB_SUPPORT
 #include "cvtZMQ2WS.hpp"
 #endif 
-
-#ifdef __cplusplus 
-	extern "C" bool utIsInterruptPending();
-	extern "C" bool utSetInterruptPending(bool);
-#else
-	extern bool utIsInterruptPending();
-	extern bool utSetInterruptPending(bool);
-#endif
-
 
 #include "matrix.h"
 
@@ -941,21 +931,12 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	done=true;
 };
 
-void testIfInterupted(std::atomic<bool> &done){
-	while (!done){
-		std::this_thread::sleep_for(std::chrono::milliseconds(300));
-		if(utIsInterruptPending()){
-			done=true;
-		}
-	}
-}
 
 void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-
 	std::atomic<bool> done(false);
-	auto myFuture = std::async(std::launch::async, testIfInterupted,std::ref(done));
-	mexFunctionWork(nlhs, plhs,  nrhs, prhs,std::ref(done));
+	auto myFuture = mexInterrupt::startInterruptCheck(done);
+	mexFunctionWork(nlhs, plhs,  nrhs, prhs,done); // MATLAB APIs need to be exactuted in the main thread
 	myFuture.wait();
 	mexEvalString("drawnow");
 }
