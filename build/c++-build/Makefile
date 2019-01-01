@@ -10,6 +10,8 @@
 #OPENCL_INC=-DWITH_OPENCL=1
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
+.PHONY: all depend algoNames extension clean
+
 all: server echo qs nds ds-l algoNames libg2s.a
 
 depend: .depend Makefile

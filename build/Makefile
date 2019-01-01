@@ -26,11 +26,20 @@ ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/loca
 	export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell sh -c "cat ../version")\" -DGIT_URL=\"$(GIT_URL)\"
 endif
 
+DEFAULT_JOB=c++
+ifneq ("$(shell sh -c 'icpc ; echo $$?')","127")
+	DEFAULT_JOB+=intel
+endif
+
+.DEFAULT_GOAL=default
+
+.PHONY: c++ em intel c++-extension intel-extension extension python
+
 .DEFAULT:
 	$(MAKE) -C c++-build $@
 	$(MAKE) -C intel-build $@
 
-compile_all:all
+default: $(DEFAULT_JOB)
 
 c++:
 	$(MAKE) -C c++-build

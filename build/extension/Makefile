@@ -1,20 +1,8 @@
 SUBDIRS := $(wildcard */.)
 
-build:
-	for dir in $(SUBDIRS); do \
-		if [ -f $$dir/Makefile ]; then \
-			$(MAKE) -C $$dir $@; \
-		fi \
-	done
+.DEFAULT_GOAL=build
 
-install:
-	for dir in $(SUBDIRS); do \
-		if [ -f $$dir/Makefile ]; then \
-			$(MAKE) -C $$dir $@; \
-		fi \
-	done
-
-clean:
+.DEFAULT:
 	for dir in $(SUBDIRS); do \
 		if [ -f $$dir/Makefile ]; then \
 			$(MAKE) -C $$dir $@; \
