@@ -18,7 +18,7 @@ elseif ispc
         ! python amalgamate.py
         cd ..
     end
-    mex('../../src/g2s.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I/usr/include','-I../../include','-I"C:\Program Files\ZeroMQ 4.0.4\include"','-I"cppzmq-master"','-L"C:\Program Files\ZeroMQ 4.0.4\lib"','-llibzmq-v120-mt-4_0_4','-I"jsoncpp-master\dist"',strcat("-L",matlabroot,"\extern\lib\win64\mingw64"),'-lut','-DNOMINMAX');
+    mex('../../src/g2s.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I/usr/include','-I../../include','-I"C:\Program Files\ZeroMQ 4.0.4\include"','-I"cppzmq-master"','-L"C:\Program Files\ZeroMQ 4.0.4\lib"','-llibzmq-v120-mt-4_0_4','-I"jsoncpp-master\dist"',strcat("-L",matlabroot,"\extern\lib\win64\mingw64"),'-lut','-DNOMINMAX',strcat('-DMATLAB_VERSION=0x',version('-release')));
     path=getenv('PATH');
     newpath=strcat(path,'C:\Program Files\ZeroMQ 4.0.4\bin;');
     setenv('PATH',newpath);
