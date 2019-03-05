@@ -11,6 +11,28 @@ export LDFLAGS=-lzmq -lz -ljsoncpp -lcurl -lfftw3f -lfftw3f_threads -ldl -lpthre
 export LIB_PATH= -L/usr/lib -L/opt/local/lib
 export ARFLAGS= rcs
 
+
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    OS =linux
+    OPENCL_LIB= -lOpenCL -lclFFT
+endif
+ifeq ($(UNAME_S),Darwin)
+    OS =mac
+    OPENCL_LIB= -framework OpenCL -lclFFT
+endif
+
+export OS
+
+dosentSupportOpenCL:= $(shell sh -c "echo 'int main(){}' | c++ -xc - -o /dev/null $OPENCL_LIB 2>/dev/null && echo 0 || echo 1 ")
+ifeq ("$(dosentSupportOMP)","0")
+	export OPENCL_INC=-DWITH_OPENCL=1
+	export OPENCL_LIB
+else
+	OPENCL_LIB=''
+endif
+
 dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
 ifeq ("$(dosentSupportOMP)","0")
 	CFLAGS += -fopenmp
@@ -27,7 +49,7 @@ ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/loca
 endif
 
 DEFAULT_JOB=c++
-ifneq ("$(shell sh -c 'icpc ; echo $$?')","127")
+ifneq ("$(shell sh -c 'icpc 2>/dev/null; echo $? ')","127")
 	DEFAULT_JOB+=intel
 endif
 

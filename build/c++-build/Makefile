@@ -5,9 +5,10 @@
 
 
 
-#OPENCL_LIB= -framework OpenCL -lclFFT
-#OPENCL_LIB= -lOpenCL -lclFFT
-#OPENCL_INC=-DWITH_OPENCL=1
+
+
+
+
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
 .PHONY: all depend algoNames extension clean
