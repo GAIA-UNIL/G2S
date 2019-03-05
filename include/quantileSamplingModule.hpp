@@ -186,7 +186,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate( extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
 			float maxValue=delta.back();
@@ -215,14 +215,19 @@ public:
 				float* localErrorPtr=localError;
 				unsigned localEncodedPosition[extendK*_threadRatio];
 				unsigned* localEncodedPositionPtr=localEncodedPosition;
-				#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
+				#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
 				{
 					unsigned k=0;
 					#if _OPENMP
 					k=omp_get_thread_num();
 					#endif
+					std::mt19937 generator;// can be inprouved by only resetting the seed each time
+					generator.seed(floor(UINT_MAX*seed)+k);
+					std::uniform_real_distribution<float> distribution(0.0,1.0);
+
+					auto rng = std::bind(distribution, std::ref(generator));
 					unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
-					fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK);
+					fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
 					for (int j = 0; j < extendK; ++j)
 					{
 						localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
