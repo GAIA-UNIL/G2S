@@ -235,7 +235,7 @@ int main(int argc, char const *argv[]) {
 	// LOOK FOR SETINGS
 	bool noVerbatim=false;
 	float threshold=std::nanf("0");			// threshold for DS ...
-	int nbNeighbors=-1;						// number of nighbors QS, DS ...
+	std::vector<unsigned> nbNeighbors;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -272,9 +272,11 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-k");
 
-	if (arg.count("-n") == 1)
+	if (arg.count("-n") >= 1)
 	{
-		nbNeighbors=atoi((arg.find("-n")->second).c_str());
+		for (auto val=arg.lower_bound("-n"); val!=arg.upper_bound("-n"); val++){
+			nbNeighbors.push_back(atoi((val->second).c_str()));
+		}
 	}
 	arg.erase("-n");
 
@@ -345,9 +347,9 @@ int main(int argc, char const *argv[]) {
 
 	// precheck | check what is mandatory
 
-	if(nbNeighbors<0){
+	if(nbNeighbors.size()<=0){
 		run=false;
-		fprintf(reportFile, "%s\n", "number of neighbor not valide" );
+		fprintf(reportFile, "%s\n", "number of neighbor parameter not valide" );
 	}
 	/*if(std::isnan(threshold)){
 		run=false;
