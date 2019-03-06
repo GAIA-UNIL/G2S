@@ -154,10 +154,11 @@ Flag | Description
 | | -ki | image of weighting kernel 
 :heavy_check_mark: | -k | the number of best candidates to consider ∈[1 ∞]
 | | -f | f=1/k equivalent to f of DS with a threshold to 0
-:heavy_check_mark: | -n | the N closest neighbors to consider
+:heavy_check_mark: | -n | the N closest neighbors to consider:<br> - single value for vectors neighbors<br> - one for each variable 
 | | -s | random seed value
 | | -j | to run in parallel (if specified), to use as follows ‘-j’, N1, N2, N3<br/>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br/>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br/>- N3 threads used to parallelize FFTs (path-level). Default: 1<br/>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.
 | | -W_GPU | use integrated GPU if available
+| | -fs | full simulation, run the simulation of each pixel independentantly, i.e. dosen't simulate all the vector at the time (experimental)
 | | -nV | no Verbatim (experimental)
 
 ##### Return 

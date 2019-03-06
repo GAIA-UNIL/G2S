@@ -25,7 +25,7 @@
 
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1){
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
@@ -73,58 +73,84 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
 		}
 
+
+		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
 		{
 			unsigned positionSearch=0;
-			while((neighborArrayVector.size()<numberNeighbor)&&(positionSearch<pathPosition.size())){
+			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
 				unsigned dataIndex;
 				if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
 				{
+					//add for
 					if(posterioryPath[dataIndex]<=indexPath){
-						std::vector<float> data(numberOfVariable);
 						unsigned numberOfNaN=0;
 						float val;
 						while(true) {
 							numberOfNaN=0;
-							unsigned id=0;
-							unsigned idCategorie=0;
 							for (int i = 0; i < di._nbVariable; ++i)
 							{
-								if(di._types[i]==g2s::DataImage::Continuous){
-									#pragma omp atomic read
-									val=di._data[dataIndex*di._nbVariable+i];
-									numberOfNaN+=std::isnan(val);
-									data[id]=val;
-									id++;
-								}
-								if(di._types[i]==g2s::DataImage::Categorical){
-									#pragma omp atomic read
-									val=di._data[dataIndex*di._nbVariable+i];
-									numberOfNaN+=std::isnan(val);
-									for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
-									{
-										if(val==categoriesValues[idCategorie][k]){
-											data[id]=1;
-										}else{
-											data[id]=0;
-										}
-										id++;
-									}
-									idCategorie++;
-								}
-								
+								#pragma omp atomic read
+								val=di._data[dataIndex*di._nbVariable+i];
+								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
 							}
 							if((numberOfNaN==0)||(posterioryPath[dataIndex]==indexPath))break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
+
+						std::vector<float> data(di._nbVariable);
+						unsigned cpt=0;
+						for (int i = 0; i < di._nbVariable; ++i)
+						{
+							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
+							{
+								#pragma omp atomic read
+								val=di._data[dataIndex*di._nbVariable+i];
+								data[i]=val;
+								cpt++;
+								numberOfNeighborsProVariable[i]++;
+							}else{
+								data[i]=std::nanf("0");
+							}
+						}
 						neighborValueArrayVector.push_back(data);
 						neighborArrayVector.push_back(pathPosition[positionSearch]);
+						if(cpt==0) break;
 					}
 				}
 				positionSearch++;
 			}
 		}
+		// conversion from one variable to many
+		for (int j = 0; j < neighborValueArrayVector.size(); ++j)
+		{
+			std::vector<float> data(numberOfVariable);
+			unsigned id=0;
+			unsigned idCategorie=0;
+			for (int i = 0; i < di._nbVariable; ++i)
+			{
+				if(di._types[i]==g2s::DataImage::Continuous){
+					
+					data[id]=neighborValueArrayVector[j][i];
+					id++;
+				}
+				if(di._types[i]==g2s::DataImage::Categorical){
+					for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+					{
+						if(neighborValueArrayVector[j][i]==categoriesValues[idCategorie][k]){
+							data[id]=1;
+						}else{
+							data[id]=0;
+						}
+						id++;
+					}
+					idCategorie++;
+				}
+			}
+			neighborValueArrayVector[j]=data;
+		}
+
 
 		// for (int i = 0; i < neighborValueArrayVector.size(); ++i)
 		// {
@@ -242,7 +268,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 }
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, unsigned numberNeighbor,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1){
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
@@ -277,69 +303,94 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			moduleID=omp_get_thread_num();
 		#endif
 		unsigned currentCell=solvingPath[indexPath];
+		if(!std::isnan(di._data[currentCell])) continue;
 		float localSeed=seedAray[indexPath];
 
 		unsigned currentVariable=currentCell%di._nbVariable;
 		unsigned currentPosition=currentCell/di._nbVariable;
 
+		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
 		{
 			unsigned positionSearch=0;
-			while((neighborArrayVector.size()<numberNeighbor)&&(positionSearch<pathPosition.size())){
+			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
 				unsigned dataIndex;
 				if(di.indexWithDelta(dataIndex, currentPosition, pathPosition[positionSearch]))
 				{
 					bool needToBeadd=false;
 					for (int i = 0; i < di._nbVariable; ++i)
 					{
-						needToBeadd|=posterioryPath[dataIndex*di._nbVariable+i]<indexPath;
+						needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) ;
 					}
 					//add for
 					if(needToBeadd){
-						std::vector<float> data(numberOfVariable);
 						unsigned numberOfNaN=0;
 						float val;
 						while(true) {
 							numberOfNaN=0;
-							unsigned id=0;
-							unsigned idCategorie=0;
 							for (int i = 0; i < di._nbVariable; ++i)
 							{
-								if(di._types[i]==g2s::DataImage::Continuous){
-									#pragma omp atomic read
-									val=di._data[dataIndex*di._nbVariable+i];
-									numberOfNaN+=std::isnan(val)*(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
-									data[id]=val;
-									id++;
-								}
-								if(di._types[i]==g2s::DataImage::Categorical){
-									#pragma omp atomic read
-									val=di._data[dataIndex*di._nbVariable+i];
-									numberOfNaN+=std::isnan(val)*(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
-									for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
-									{
-										if(val==categoriesValues[idCategorie][k]){
-											data[id]=1;
-										}else{
-											data[id]=0;
-										}
-										id++;
-									}
-									idCategorie++;
-								}
+								#pragma omp atomic read
+								val=di._data[dataIndex*di._nbVariable+i];
+								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) && std::isnan(val);
 							}
-
 							if(numberOfNaN==0)break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
+
+						std::vector<float> data(di._nbVariable);
+						unsigned cpt=0;
+						for (int i = 0; i < di._nbVariable; ++i)
+						{
+							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
+							{
+								#pragma omp atomic read
+								val=di._data[dataIndex*di._nbVariable+i];
+								data[i]=val;
+								cpt++;
+								numberOfNeighborsProVariable[i]++;
+							}else{
+								data[i]=std::nanf("0");
+							}
+						}
 						neighborValueArrayVector.push_back(data);
 						neighborArrayVector.push_back(pathPosition[positionSearch]);
+						if(cpt==0) break;
 					}
 				}
 				positionSearch++;
 			}
 		}
+		// conversion from one variable to many
+		for (int j = 0; j < neighborValueArrayVector.size(); ++j)
+		{
+			std::vector<float> data(numberOfVariable);
+			unsigned id=0;
+			unsigned idCategorie=0;
+			for (int i = 0; i < di._nbVariable; ++i)
+			{
+				if(di._types[i]==g2s::DataImage::Continuous){
+					
+					data[id]=neighborValueArrayVector[j][i];
+					id++;
+				}
+				if(di._types[i]==g2s::DataImage::Categorical){
+					for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+					{
+						if(neighborValueArrayVector[j][i]==categoriesValues[idCategorie][k]){
+							data[id]=1;
+						}else{
+							data[id]=0;
+						}
+						id++;
+					}
+					idCategorie++;
+				}
+			}
+			neighborValueArrayVector[j]=data;
+		}
+
 
 		SamplingModule::matchLocation importIndex;
 
