@@ -316,6 +316,33 @@ class DataImage{
 		return kernel;
 	};
 
+	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor){
+
+		unsigned cumulated=0;
+		for (int i = 0; i < factor.size(); ++i)
+		{
+			cumulated+=factor[i];
+		}
+
+
+		DataImage kernel=DataImage(currentKernel._dims.size(),currentKernel._dims.data(),cumulated);
+
+		unsigned currentPosition=0;
+		for (int i = 0; i < factor.size(); ++i)
+		{
+			for (int j = 0; j < factor[i]; ++j)
+			{
+				for (int k = 0; k < currentKernel.dataSize()/currentKernel._nbVariable; ++k)
+				{
+					kernel._data[k*cumulated+currentPosition]=currentKernel._data[k*currentKernel._nbVariable+i];
+				}
+				currentPosition++;
+			}
+		}
+		
+		return kernel;
+	};
+
 	public:
 		float distance2ToCenter(unsigned index){
 			std::vector<int> dists(_dims.size());
