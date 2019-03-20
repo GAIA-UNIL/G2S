@@ -339,7 +339,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 						unsigned cpt=0;
 						for (int i = 0; i < di._nbVariable; ++i)
 						{
-							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
+							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath))
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
