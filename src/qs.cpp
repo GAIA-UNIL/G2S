@@ -675,28 +675,35 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	std::vector<std::vector<float> > categoriesValues;
-
+		std::vector<std::vector<float> > categoriesValues;
+	std::vector<unsigned> numberDeComputedVariableProVariable;
 	for (int i = 0; i < DI._types.size(); ++i)
 	{
-		if(DI._types[i]!=g2s::DataImage::VaraibleType::Categorical) continue;
-		std::vector<float> currentVariable;
-		for (int im = 0; im < TIs.size(); ++im)
-		{
-			for (int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
+		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
+			numberDeComputedVariableProVariable.push_back(1);
+		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+			std::vector<float> currentVariable;
+			for (int im = 0; im < TIs.size(); ++im)
 			{
-				bool isPresent=false;
-				for (int k = 0; k < currentVariable.size(); ++k)
+				for (int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
 				{
-					isPresent|=((TIs[im]._data[j])==(currentVariable[k]));
-				}
-				if(!isPresent){
-					currentVariable.push_back(TIs[im]._data[j]);
+					bool isPresent=false;
+					for (int k = 0; k < currentVariable.size(); ++k)
+					{
+						isPresent|=((TIs[im]._data[j])==(currentVariable[k]));
+					}
+					if(!isPresent){
+						currentVariable.push_back(TIs[im]._data[j]);
+					}
 				}
 			}
+			categoriesValues.push_back(currentVariable);
+			numberDeComputedVariableProVariable.push_back(currentVariable.size());
 		}
-		categoriesValues.push_back(currentVariable);
 	}
+
+	// correct the kernel to take in account categories
+	kernel=g2s::DataImage::offsetKernel4categories(kernel,numberDeComputedVariableProVariable);
 
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
