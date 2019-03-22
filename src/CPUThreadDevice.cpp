@@ -31,8 +31,10 @@
 
 #define PARTIAL_FFT
 
-#define FFTW_PLAN_OPTION FFTW_PATIENT
-
+#ifndef FFTW_PLAN_OPTION
+	//FFTW_PATIENT
+	#define FFTW_PLAN_OPTION FFTW_ESTIMATE
+#endif
 // #if __cilk
 // 	#define fillVectorized(name, begin, amount, value) name[begin:amount]=value;
 // #else
