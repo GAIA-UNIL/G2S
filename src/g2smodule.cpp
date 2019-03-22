@@ -491,20 +491,20 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		}
 		if(!inputArray[i].compare("-submitOnly")){
 			waitAndDownload=false;
-			/*if(nlhs>1){
-				mexErrMsgIdAndTxt("gss:error", "require maximum one output");
-				stop=true;
-			}*/
+			// if(nlhs>1){
+			// 	mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+			// 	stop=true;
+			// }
 		}
 		if(!inputArray[i].compare("-statusOnly")){
 			statusOnly=true;
 			waitAndDownload=false;
 			submit=false;
 			id_index=inputArrayIndex[i]+1;
-			/*if(nlhs>1){
-				mexErrMsgIdAndTxt("gss:error", "require maximum one output");
-				stop=true;
-			}*/
+			// /*if(nlhs>1){
+			// 	mexErrMsgIdAndTxt("gss:error", "require maximum one output");
+			// 	stop=true;
+			// }
 		}
 		if(!inputArray[i].compare("-waitAndDownload")){
 			submit=false;
@@ -970,9 +970,11 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 void testIfInterupted(std::atomic<bool> &done){
 	while (!done){
 		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		Py_BLOCK_THREADS
 		if(PyErr_CheckSignals()){
 			done=true;
 		}
+		Py_UNBLOCK_THREADS
 	}
 }
 
