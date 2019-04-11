@@ -968,14 +968,14 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 };
 
 void testIfInterupted(std::atomic<bool> &done){
-	while (!done){
+	/*while (!done){
 		std::this_thread::sleep_for(std::chrono::milliseconds(300));
 		Py_BLOCK_THREADS
 		if(PyErr_CheckSignals()){
 			done=true;
 		}
 		Py_UNBLOCK_THREADS
-	}
+	}*/
 }
 
 static PyObject *g2s_run(PyObject *self, PyObject *args)
