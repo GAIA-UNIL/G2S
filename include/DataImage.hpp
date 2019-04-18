@@ -626,7 +626,7 @@ class DataImage{
 						default :
 							startName="unkown";
 					}
-					fprintf(file,"%s_%d",startName.c_str(), i);
+					fprintf(file,"%s_%d ",startName.c_str(), i);
 				}
 				int nbVariable=_types.size();
 				for (int i = 0; i < dataSize(); ++i)
