@@ -93,7 +93,12 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage srcIput=g2s::DataImage::createFromFile(sourceFileName);
 
+	// to remove later
 	srcIput.write(outputFilename);
+	//end to remove
+
+	// new filename 
+	srcIput.write(std::string("im_1_")+std::to_string(uniqueID));
 
 
 	return 0;

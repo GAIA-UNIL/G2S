@@ -23,6 +23,8 @@ enum taskType{
     STATUS=5,
     DURATION=6,
     KILL=7,
+    UPLOAD_JSON=8,
+    DOWNLOAD_JSON=9,
     SHUTDOWN=10
 };
 

@@ -216,9 +216,9 @@ int main(int argc, char const *argv[]) {
 			{
 				case EXIST :
 					{
-						int error=dataIsPresent((char*)request.data()+sizeof(infoContainer));
-						zmq::message_t reply(sizeof(error));
-						memcpy (reply.data (), &error, sizeof(error));
+						int type=dataIsPresent((char*)request.data()+sizeof(infoContainer));
+						zmq::message_t reply(sizeof(type));
+						memcpy (reply.data (), &type, sizeof(type));
 						receiver.send(reply);
 						break;
 					}
@@ -271,6 +271,21 @@ int main(int argc, char const *argv[]) {
 						zmq::message_t reply(sizeof(error));
 						memcpy (reply.data (), &error, sizeof(error));
 						receiver.send(reply);
+						break;
+					}
+				case UPLOAD_JSON :
+					{
+						int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+						zmq::message_t reply(sizeof(error));
+						memcpy (reply.data (), &error, sizeof(error));
+						receiver.send(reply);
+					break;
+					}
+				case DOWNLOAD_JSON :
+					{
+						zmq::message_t answer=sendJson((char*)request.data()+sizeof(infoContainer));
+						receiver.send(answer);
+						cleanJobs(jobIds);
 						break;
 					}
 				case SHUTDOWN :

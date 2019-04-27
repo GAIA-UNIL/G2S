@@ -710,7 +710,7 @@ int main(int argc, char const *argv[]) {
 
 	free(computeDeviceModuleArray);
 
-	DI.write(outputFilename);
+	DI.write(std::string("im_1_")+std::to_string(uniqueID));
 
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;
