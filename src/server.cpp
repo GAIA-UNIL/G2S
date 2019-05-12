@@ -153,6 +153,13 @@ int main(int argc, char const *argv[]) {
 	// start soket reading
 	bool needToStop=false;
 	jobArray jobIds;
+	// fill error array
+	for (int i = 0; i < 1000; ++i)
+	{
+		jobIds.errorsByJobId.push_back({0,0});
+		jobIds.errorsByPid.push_back({0,0});
+	}
+
 	mkdir("./data", 0777);
 	mkdir("./logs", 0777);
 
@@ -228,13 +235,13 @@ int main(int argc, char const *argv[]) {
 						zmq::message_t reply(sizeof(error));
 						memcpy (reply.data (), &error, sizeof(error));
 						receiver.send(reply);
-					break;
+						break;
 					}
 				case DOWNLOAD :
 					{
 						zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
 						receiver.send(answer);
-						cleanJobs(jobIds);
+						cleanJobs(jobIds); // to remove with later versions
 						break;
 					}
 				case JOB :
@@ -245,11 +252,22 @@ int main(int argc, char const *argv[]) {
 						receiver.send(reply);
 						break;
 					}
-				case STATUS :
+				case PROGESSION :
 					{
 						int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
 						zmq::message_t reply(sizeof(progess));
 						memcpy (reply.data (), &progess, sizeof(progess));
+						receiver.send(reply);
+						break;
+					}
+				case JOB_STATUS :
+					{
+
+						jobIdType jobId;
+						memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
+						int error=statusJobs(jobIds,jobId);
+						zmq::message_t reply(sizeof(error));
+						memcpy (reply.data (), &error, sizeof(error));
 						receiver.send(reply);
 						break;
 					}
@@ -285,15 +303,29 @@ int main(int argc, char const *argv[]) {
 					{
 						zmq::message_t answer=sendJson((char*)request.data()+sizeof(infoContainer));
 						receiver.send(answer);
-						cleanJobs(jobIds);
+						break;
+					}
+				case DOWNLOAD_TEXT :
+					{
+						zmq::message_t answer=sendText((char*)request.data()+sizeof(infoContainer));
+						receiver.send(answer);
 						break;
 					}
 				case SHUTDOWN :
 					{
+						cleanJobs(jobIds);
 						needToStop=true;
 						int error=0;
 						zmq::message_t reply(sizeof(error));
 						memcpy (reply.data (), &error, sizeof(error));
+						receiver.send(reply);
+						break;
+					}
+				case SERVER_STATUS :
+					{
+						int status=1;
+						zmq::message_t reply(sizeof(status));
+						memcpy (reply.data (), &status, sizeof(status));
 						receiver.send(reply);
 						break;
 					}

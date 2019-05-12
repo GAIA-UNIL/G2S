@@ -199,6 +199,56 @@ zmq::message_t sendJson( char* dataName){
 	return zmq::message_t(0);
 }
 
+
+zmq::message_t sendText( char* dataName){
+	
+	char hash[65]={0};
+	memcpy(hash,dataName,64);
+
+	char filename[4096];
+	void* buffer=nullptr;
+	size_t fullSize;
+
+	//fprintf(stderr, "look For File %s \n",hash);
+
+	sprintf(filename,"./data/%s.txt.gz",hash);
+	if(!buffer &&  fileExist(filename)){
+		gzFile dataFile=gzopen(filename,"rb");
+		if(dataFile) {
+			gzread (dataFile, &fullSize, sizeof(fullSize));
+			gzrewind (dataFile);
+			buffer =(char*) malloc (sizeof(char)*fullSize);
+			gzread (dataFile, buffer, fullSize);
+			gzclose(dataFile);
+		}
+	}
+	sprintf(filename,"./data/%s.txt",hash);
+	//fprintf(stderr, "requested data %s\n", filename);
+	if(!buffer && fileExist(filename)){
+		FILE* dataFile=fopen(filename,"r");
+		if(dataFile) {
+			fseek(dataFile, 0L, SEEK_END);
+			fullSize = ftell(dataFile);
+			rewind (dataFile);
+			buffer = (char*)malloc (sizeof(char)*fullSize);
+			fread (buffer,1,fullSize,dataFile);
+			fclose(dataFile);
+		}
+	}
+
+	if(buffer){
+		//fprintf(stderr, "send file\n");
+		zmq::message_t reply (fullSize);
+		memcpy (reply.data (), buffer, fullSize);
+		free(buffer);
+		return reply;
+		//
+		//fprintf(stderr, "%d\n", size);
+	}
+	fprintf(stderr, "file not fund\n");
+	return zmq::message_t(0);
+}
+
 int dataIsPresent(char* dataName){
 	char hash[65]={0};
 	memcpy(hash,dataName,64);
@@ -212,6 +262,10 @@ int dataIsPresent(char* dataName){
 	if(fileExist(filename)) isPresent=2;
 	sprintf(filename,"./data/%s.json",hash);
 	if(fileExist(filename)) isPresent=2;
+	sprintf(filename,"./data/%s.txt.gz",hash);
+	if(fileExist(filename)) isPresent=3;
+	sprintf(filename,"./data/%s.txt",hash);
+	if(fileExist(filename)) isPresent=3;
 	return isPresent;
 }
 

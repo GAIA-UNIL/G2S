@@ -20,12 +20,15 @@ enum taskType{
     UPLOAD=2,
     DOWNLOAD=3,
     EXIST=4,
-    STATUS=5,
+    PROGESSION=5,
     DURATION=6,
     KILL=7,
     UPLOAD_JSON=8,
     DOWNLOAD_JSON=9,
-    SHUTDOWN=10
+    SHUTDOWN=10,
+    SERVER_STATUS=11,
+    JOB_STATUS=12,
+    DOWNLOAD_TEXT=13
 };
 
 struct infoContainer{

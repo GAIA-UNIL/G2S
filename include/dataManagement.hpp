@@ -30,6 +30,8 @@ zmq::message_t sendData( char* dataName);
 int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed);
 zmq::message_t sendJson( char* dataName);
 
+zmq::message_t sendText( char* dataName);
+
 int dataIsPresent(char* data);
 
 	

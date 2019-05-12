@@ -109,6 +109,8 @@ jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool
 			char extra[2048];
 			char comment[2048];
 			while(readedSize=getline(&line, &sizeBuffer, fp)){
+				memset(sourceName,0,1024);memset(tagetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
+				memset(requested,0,2048);memset(toAdd,0,2048);memset(extra,0,2048);memset(comment,0,2048);
 				if((readedSize>1) && ((line[0]!='/') || (line[0]!='#'))){
 					if(sscanf(line, "%s\t%s\t%s\t%s\t%s\t%s",sourceName,tagetName,requested,toAdd,extra,comment)>=2){
 						if (strcmp(sourceName,algo)==0){

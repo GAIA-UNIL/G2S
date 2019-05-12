@@ -38,12 +38,47 @@ void recieveKill(jobArray &jobIds, jobIdType jobId ){
 void cleanJobs(jobArray &jobIds){
 	
 	pid_t pid;
-	pid = waitpid(-1, NULL, WNOHANG);
+	int status=0;
+	pid = waitpid(-1,  &status, WNOHANG);
 	while ( pid > 0 ){
-		jobIds.look4pid.erase(jobIds.look4jobId[pid]);
+		jobIdType localJobId =jobIds.look4jobId[pid];
+		jobIds.look4pid.erase(localJobId);
 		jobIds.look4jobId.erase(pid);
-		pid = waitpid(-1, NULL, WNOHANG);
+
+		if(WIFEXITED(status)){ // "normal exit"
+			int exitCode=WEXITSTATUS(status);
+			if(exitCode!=0)
+			{	//store bad Pid
+				jobIds.errorsByPid.push_back ( std::pair<pid_t, int >(pid, exitCode) );
+				jobIds.errorsByJobId.push_back ( std::pair<jobIdType, int >(localJobId, exitCode) );
+				jobIds.errorsByJobId.pop_front();
+				jobIds.errorsByPid.pop_front();
+			}
+		}else{
+			if(WIFSIGNALED(status)){ // "prematurated exit"
+				int exitCode=256+WTERMSIG(status);
+				jobIds.errorsByPid.push_back ( std::pair<pid_t, int >(pid, exitCode) );
+				jobIds.errorsByJobId.push_back ( std::pair<jobIdType, int >(localJobId, exitCode) );
+				jobIds.errorsByJobId.pop_front();
+				jobIds.errorsByPid.pop_front();
+			}
+		}
+		pid = waitpid(-1, &status, WNOHANG);
 	}
+}
+
+int statusJobs(jobArray &jobIds, jobIdType jobId){
+	cleanJobs(jobIds);
+	if(jobIds.look4pid.find(jobId)!=jobIds.look4pid.end())
+		return -1;
+	else{
+		for (auto it = jobIds.errorsByJobId.cbegin(); it != jobIds.errorsByJobId.cend(); it++)
+		{
+			if(it->first ==jobId)
+				return it->second;
+		}
+	}
+	return 0;
 }
 
 
