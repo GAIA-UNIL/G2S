@@ -347,6 +347,16 @@ public:
 			}
 		}
 
+
+		if(position<nlhs){
+			auto iter=outputs.find("progression");
+			if(iter!=outputs.end())
+			{
+				plhs[position]=std::any_cast<mxArray *>(ScalarToNative(std::any_cast<float>(iter->second)));
+				position++;
+			}
+		}
+
 		if(position<nlhs){
 			auto iter=outputs.find("id");
 			if(iter!=outputs.end())
@@ -355,16 +365,6 @@ public:
 				position++;
 			}
 		}
-
-		if(position<nlhs){
-			auto iter=outputs.find("progression");
-			if(iter!=outputs.end())
-			{
-				plhs[position]=std::any_cast<mxArray *>(iter->second);
-				position++;
-			}
-		}
-
 	}
 };
 

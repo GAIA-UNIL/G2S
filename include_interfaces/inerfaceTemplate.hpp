@@ -55,10 +55,11 @@ public:
 	virtual void eraseAndPrint(std::string val)=0;
 
 	std::string toString(std::any val){
+		if(val.type()==typeid(nullptr))
+			return "";
 		if(val.type()==typeid(std::string))
 			return std::any_cast<std::string>(val);
-		else
-			return nativeToStandardString(val);
+		return nativeToStandardString(val);
 	}
 
 //
@@ -319,6 +320,7 @@ public:
 				}
 			}
 			done=true;
+			return;
 		}
 
 
@@ -411,13 +413,13 @@ public:
 			done=true;
 		}
 
-		outputs.insert({"progression",0.f});
+		if(waitAndDownload || statusOnly) outputs.insert({"progression",0.f});
 
-		while(!done && waitAndDownload) {
+		while(!done && waitAndDownload || !done && statusOnly) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
 			// status
-			{
+			if(!silentMode || statusOnly){
 				infoContainer task;
 				task.version=1;
 				task.task=PROGESSION;
@@ -437,12 +439,16 @@ public:
 				else{
 					int progress=*((int*)reply.data());
 					if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
-						printf("progress %.3f%%\n",progress/1000.);
+						char buff[100];
+						snprintf(buff, sizeof(buff), "progress %.3f%%",progress/1000.);
+						std::string buffAsStdStr = buff;
+						if(!silentMode)eraseAndPrint(buffAsStdStr);
 						lastProgression=progress/1000.;
-						updateDisplay();
+						if(!silentMode)updateDisplay();
 					}
 					outputs.find("progression")->second=lastProgression;
-				}	
+				}
+				if(statusOnly) break;
 			}
 
 			if(userRequestInteruption()){
@@ -472,7 +478,10 @@ public:
 
 					int statusCode=*((int*)reply.data());
 					if(statusCode==0){
-						printf("progress %.3f%%\n",100.);
+						char buff[100];
+						snprintf(buff, sizeof(buff), "progress %.3f%%\n",100.);
+						std::string buffAsStdStr = buff;
+						if(!silentMode)eraseAndPrint(buffAsStdStr);
 						lastProgression=100.;
 						outputs.find("progression")->second=lastProgression;
 						break;
@@ -615,6 +624,7 @@ public:
 		}
 
 		
+		if(waitAndDownload)
 		{
 			infoContainer task;
 			task.version=1;

@@ -76,7 +76,7 @@ public:
 
 	void sendError(std::string val){
 		lockThread();
-		PyErr_Format(PyExc_Exception,"%s ==> %s","g2s:error", val.c_str());
+		PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
 		unlockThread();
 	}
 
@@ -87,7 +87,7 @@ public:
 	}
 
 	void eraseAndPrint(std::string val){
-		printf("\r%s\n",val.c_str());
+		printf("\r%s        ",val.c_str());
 	}
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
@@ -126,7 +126,9 @@ public:
 
 	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
 		PyObject * prh=std::any_cast<PyObject *>(matrix);
-		PyObject * variableTypeArray=std::any_cast<PyObject *>(dataType);
+		PyObject * variableTypeArray=nullptr;
+		if(dataType.type()==typeid(PyObject *))
+			variableTypeArray=std::any_cast<PyObject *>(dataType);
 		int dataSize=PyArray_SIZE(prh);
 		int nbOfVariable=1;
 		if(variableTypeArray)nbOfVariable=PyArray_SIZE(variableTypeArray);
@@ -289,7 +291,7 @@ public:
 
 
 	PyObject * runStandardCommunicationPython(PyObject *self, PyObject *args, PyObject *keywds, int numberOfOutput=INT_MAX){
-		
+		setbuf(stdout, NULL);
 		std::multimap<std::string, std::any> inputs;
 		std::multimap<std::string, std::any> outputs;
 
@@ -334,7 +336,11 @@ public:
 
 		runStandardCommunication(inputs, outputs, numberOfOutput);
 
-		int nlhs=std::min(numberOfOutput,int(outputs.size()));
+		if(outputs.size()==0){
+			return Py_None;
+		}
+
+		int nlhs=std::min(numberOfOutput,std::max(int(outputs.size())-1,1));
 		//printf("requested output %d\n",nlhs);
 		PyObject* pyResult=PyTuple_New(nlhs);
 		int position=0;
@@ -344,6 +350,7 @@ public:
 			if(iter!=outputs.end() && position<std::max(nlhs-1,1))
 			{
 				PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));
+				Py_INCREF(PyTuple_GetItem(pyResult,position));
 				position++;
 			}else break;
 		}
@@ -353,18 +360,50 @@ public:
 			if(iter!=outputs.end())
 			{
 				PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));
+				Py_INCREF(PyTuple_GetItem(pyResult,position));
 				position++;
 			}
 		}
+
+		if(position<nlhs){
+			auto iter=outputs.find("progression");
+			if(iter!=outputs.end())
+			{
+				PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(ScalarToNative(std::any_cast<float>(iter->second))));
+				position++;
+			}
+		}
+
 
 		if(position<nlhs){
 			auto iter=outputs.find("id");
 			if(iter!=outputs.end())
 			{
 				PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));
+				Py_INCREF(PyTuple_GetItem(pyResult,position));
 				position++;
 			}
 		}
+
+		for (auto it=outputs.begin(); it!=outputs.end(); ++it){
+    		if(it->second.type()==typeid(PyObject *)){
+    			Py_DECREF(std::any_cast<PyObject*>(it->second));
+    		}
+		}
+
+
+		if(nlhs==1){
+			PyObject* pyResultUnique=PyTuple_GetItem(pyResult,0);
+			Py_INCREF(pyResultUnique);
+			Py_DECREF(pyResult);
+			return pyResultUnique;
+		}
+		if(nlhs==0){
+			Py_DECREF(pyResult);
+			return Py_None;
+		}
+
+
 		return pyResult;
 	}
 };

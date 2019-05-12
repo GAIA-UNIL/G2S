@@ -15,7 +15,7 @@ setup(name='G2S',
     	language="c++", 
     	extra_compile_args=["-std=c++17"],
     	extra_link_args=["-std=c++17",'-static'],
-    	include_dirs=["../../include","../include_interfaces","C:\Program Files\ZeroMQ 4.0.4\include", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+    	include_dirs=["../../include", "../../include_interfaces", "C:\Program Files\ZeroMQ 4.0.4\include", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
     	libraries = ['libzmq-v120-mt-4_0_4'],
         library_dirs = ['/usr/lib','/opt/local/lib',"C:\Program Files\ZeroMQ 4.0.4\lib"]
          )],

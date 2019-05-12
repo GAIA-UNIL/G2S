@@ -250,7 +250,7 @@ public:
 
 		runStandardCommunication(inputs, outputs, numberOfOutput);
 
-		int nlhs=std::min(numberOfOutput,int(outputs.size()));
+		int nlhs=std::min(numberOfOutput,std::max(int(outputs.size())-1,1));
 
 		std::vector<Rcpp::RObject> result;
 		int position=0;
@@ -274,6 +274,15 @@ public:
 		}
 
 		if(position<nlhs){
+			auto iter=outputs.find("progression");
+			if(iter!=outputs.end())
+			{
+				result.push_back(std::any_cast<Rcpp::RObject>(ScalarToNative(std::any_cast<float>(iter->second))));
+				position++;
+			}
+		}
+
+		if(position<nlhs){
 			auto iter=outputs.find("id");
 			if(iter!=outputs.end())
 			{
@@ -281,6 +290,9 @@ public:
 				position++;
 			}
 		}
+
+		if(nlhs==1) return result[0];
+
 		return Rcpp::as<Rcpp::List>(Rcpp::wrap(result));
 	}
 };

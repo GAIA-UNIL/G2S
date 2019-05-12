@@ -16,7 +16,7 @@ setup(name='G2S',
 		language="c++", 
 		extra_compile_args=["-std=c++17"],
 		extra_link_args=["-std=c++17"],
-		include_dirs=["../../include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+		include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 		libraries = ['zmq','jsoncpp'],
 		library_dirs = ['/usr/lib','/opt/local/lib']
 		)],
