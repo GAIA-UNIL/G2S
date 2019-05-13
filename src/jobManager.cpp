@@ -35,8 +35,8 @@ void recieveKill(jobArray &jobIds, jobIdType jobId ){
 	jobIds.look4pid.erase(jobId);
 }
 
-void cleanJobs(jobArray &jobIds){
-	
+bool cleanJobs(jobArray &jobIds){
+	bool cleanSomething=false;
 	pid_t pid;
 	int status=0;
 	pid = waitpid(-1,  &status, WNOHANG);
@@ -44,6 +44,7 @@ void cleanJobs(jobArray &jobIds){
 		jobIdType localJobId =jobIds.look4jobId[pid];
 		jobIds.look4pid.erase(localJobId);
 		jobIds.look4jobId.erase(pid);
+		cleanSomething=true;
 
 		if(WIFEXITED(status)){ // "normal exit"
 			int exitCode=WEXITSTATUS(status);
@@ -65,6 +66,7 @@ void cleanJobs(jobArray &jobIds){
 		}
 		pid = waitpid(-1, &status, WNOHANG);
 	}
+	return cleanSomething;
 }
 
 int statusJobs(jobArray &jobIds, jobIdType jobId){

@@ -24,9 +24,14 @@
 #include <sys/wait.h> /* for wait */
 
 #include <iostream>
+#include <deque>
 #include <json/json.h>
 #include "jobManager.hpp"
 
-jobIdType recieveJob(jobArray &jobIds, void* data, size_t sizeBuffer, bool singleTask=true, bool functionMode=true);
+typedef std::tuple<jobIdType, Json::Value, std::vector<jobIdType> > jobTask;
+typedef std::deque<jobTask > jobQueue;
+
+jobIdType recieveJob(jobQueue &queue,void* data, size_t sizeBuffer);
+bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool functionMode);
 
 #endif // JOB_TASKING_HPP

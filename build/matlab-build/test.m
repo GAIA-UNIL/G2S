@@ -153,7 +153,14 @@ imshow(data)
 %% shutdown the server
 g2s('-sa',serverAddress,'-shutdown');
 
+%% test stack job
+%stak 10 jobs
 
-
-
+% ids={uint32(0)};
+% for i=1:10
+%     ids{end}
+%     id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100+i,'-submitOnly','-j',6,'-after',ids{end});
+%     ids{i}=id;
+% end
+% 
 

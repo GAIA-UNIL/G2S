@@ -340,6 +340,15 @@ public:
 			input.erase("-a");
 			{
 				object["Priority"]="1";
+				{
+					Json::Value jsonArray(Json::arrayValue);
+					for (auto it=input.equal_range("-after").first; it!=input.equal_range("-after").second; ++it)
+					{
+						jsonArray.append(nativeToUint32(it->second));
+					}
+					input.erase("-after");
+					object["Dependency"]=jsonArray;
+				}
 				
 				Json::Value parameter(Json::objectValue);
 
