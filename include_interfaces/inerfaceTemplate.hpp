@@ -265,7 +265,7 @@ public:
 
 		zmq::context_t context (1);
 		zmq::socket_t socket (context, ZMQ_REQ);
-		int timeout=500; // put 30000
+		int timeout=10000; // put 30000
 		socket.setsockopt(ZMQ_LINGER, timeout);
 		if(withTimeout){
 			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
@@ -425,7 +425,6 @@ public:
 		if(waitAndDownload || statusOnly) outputs.insert({"progression",0.f});
 
 		while(!done && waitAndDownload || !done && statusOnly) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
 			// status
 			if(!silentMode || statusOnly){
@@ -560,6 +559,7 @@ public:
 				kill=true;
 				break;
 			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(600));
 		}
 
 		if(kill && !done) {

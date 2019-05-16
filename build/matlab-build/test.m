@@ -162,5 +162,13 @@ g2s('-sa',serverAddress,'-shutdown');
 %     id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100+i,'-submitOnly','-j',6,'-after',ids{end});
 %     ids{i}=id;
 % end
-% 
+
+% %%
+% ids={uint32(0)};
+% for i=1:10
+%     ids{end}
+%     id=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100+i,'-submitOnly','-j',6);
+%     ids{i}=id;
+% end
+
 
