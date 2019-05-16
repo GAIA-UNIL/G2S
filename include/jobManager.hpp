@@ -23,15 +23,20 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <stack>
+#include <utility>
 
 typedef unsigned jobIdType;
 
 struct jobArray{
 	std::map<jobIdType, pid_t> look4pid;
 	std::map<pid_t,jobIdType> look4jobId;
+	std::deque<std::pair<jobIdType, int> > errorsByJobId;
+	std::deque<std::pair<pid_t, int> > errorsByPid;
 };
 
 void recieveKill(jobArray &jobIds, jobIdType jobId );
-void cleanJobs(jobArray &jobIds);
+int statusJobs(jobArray &jobIds, jobIdType jobId);
+bool cleanJobs(jobArray &jobIds);
 
 #endif // JOB_MANAGER_HPP

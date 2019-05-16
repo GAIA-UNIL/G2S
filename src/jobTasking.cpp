@@ -85,9 +85,14 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 #endif
 }
 
-jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool singleTask, bool functionMode)
+jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bool functionMode)
 {
-	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	jobIdType uniqueId=std::get<0>(theJobTask);
+	Json::Value job=std::get<1>(theJobTask);
+
+	std::string algoStr=job["Algorithm"].asString();
+	char algo[2048];
+	strcpy(algo,algoStr.c_str());
 	if(job.isMember("Parameter")){
 		Json::Value param=job["Parameter"];
 		if(param.isMember("-id")) {
@@ -109,6 +114,8 @@ jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool
 			char extra[2048];
 			char comment[2048];
 			while(readedSize=getline(&line, &sizeBuffer, fp)){
+				memset(sourceName,0,1024);memset(tagetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
+				memset(requested,0,2048);memset(toAdd,0,2048);memset(extra,0,2048);memset(comment,0,2048);
 				if((readedSize>1) && ((line[0]!='/') || (line[0]!='#'))){
 					if(sscanf(line, "%s\t%s\t%s\t%s\t%s\t%s",sourceName,tagetName,requested,toAdd,extra,comment)>=2){
 						if (strcmp(sourceName,algo)==0){
@@ -243,7 +250,68 @@ jobIdType general_call(const char *algo, jobArray &jobIds, Json::Value job, bool
 	return uniqueId;
 }
 
-jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool singleTask, bool functionMode)
+bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool functionMode){
+	bool runNewJob=false;
+	if(queue.empty()) return false;
+
+	if(jobIds.look4pid.empty()){
+		general_call(queue.front(), jobIds, singleTask, functionMode);
+		queue.pop_front();
+		runNewJob=true;
+	}else{
+		for (int i = 0; i < queue.size(); ++i)
+		{
+			std::vector<jobIdType> jobDependency=std::get<2>(queue[i]);
+			if(jobDependency.empty()){
+				break;//make sens to me to se an unseted as a barrier
+			}else{
+				bool toRun=true;
+				for (int j = 0; (j < jobDependency.size()) && toRun; ++j)
+				{
+					if(jobIds.look4pid.count(jobDependency[j])>0)toRun=false;
+					for (int k = 0; k < i; ++k)
+					{
+						if(std::get<0>(queue[k])==jobDependency[j])toRun=false;
+					}
+				}
+				if (toRun)
+				{
+					general_call(queue[i], jobIds, singleTask, functionMode);
+					queue.erase(queue.begin()+i);
+					runNewJob=true;
+				}
+			}
+		}
+	}
+	return runNewJob;
+}
+
+
+jobIdType stackJob(Json::Value job,jobQueue &queue){
+	jobIdType uniqueId=std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	if(job.isMember("Parameter")){
+		Json::Value param=job["Parameter"];
+		if(param.isMember("-id")) {
+			uniqueId=atoll(param["-id"][0].asCString());
+		}
+		std::vector<jobIdType> jobDependency;
+		if(job.isMember("Dependency") && job["Dependency"].isArray()){
+			Json::Value dep=job["Dependency"];
+			for (int i = 0; i < dep.size(); ++i)
+			{
+				if(dep[i].isUInt())
+				jobDependency.push_back(dep[i].asUInt());
+			}
+		}
+		queue.push_back({uniqueId, job, jobDependency});
+	}else{
+		fprintf(stderr, "Parameter is mandatory for QS\n");
+		uniqueId=-1;
+	}
+	return uniqueId;	
+}
+
+jobIdType recieveJob(jobQueue &queue,void* data, size_t sizeBuffer)
 {
 	jobIdType id=-1;
 	Json::CharReaderBuilder builder;
@@ -261,10 +329,7 @@ jobIdType recieveJob(jobArray &jobIds,void* data, size_t sizeBuffer, bool single
 
 	if(job.isMember("Algorithm"))
 	{	
-		bool algoFounded=false;
-		if(!algoFounded)
-			algoFounded=true;
-			id=general_call(job["Algorithm"].asCString(),jobIds, job,singleTask,functionMode);	
+		id=stackJob( job, queue);	
 	}else{
 		fprintf(stderr, "%s\n", "No Algorithm");
 	}

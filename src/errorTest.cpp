@@ -16,20 +16,36 @@
 */
 
 #include <iostream>
+#include <cmath>
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
+
+#include <cstdio>
+
+void printHelp(){
+	printf ("that is the help");
+}
 
 int main(int argc, char const *argv[]) {
 
 	std::multimap<std::string, std::string> arg=g2s::argumentReader(argc,argv);
 
 	char logFileName[2048]={0};
-	char sourceFileName[2048];
-	char outputFilename[2048];
+	std::vector<std::string> sourceFileNameVector;
+	std::string targetFileName;
+	std::string kernelFileName;
+	std::string simuationPathFileName;
+
+	std::string outputFilename;
+	std::string outputIndexFilename;
+
+
 	jobIdType uniqueID=-1;
 	bool run=true;
 
+
+	// manage report file
 	FILE *reportFile=NULL;
 	if (arg.count("-r") > 1)
 	{
@@ -50,8 +66,9 @@ int main(int argc, char const *argv[]) {
 
 
 				jobIdType logId;
-				if(sscanf(logFileName,"logs/%u.log",&logId)==1){
-					sprintf(outputFilename,"%u",logId);
+				if(sscanf(logFileName,"logs/%d.log",&logId)==1){
+					std::to_string(logId);
+					//sprintf(outputFilename,"%d",logId);
 					//symlink(outputName, fullFilename);
 					uniqueID=logId;
 				}
@@ -63,43 +80,15 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
-	for (int i = 0; i < argc; ++i)
-	{
-		fprintf(reportFile,"%s ",argv[i]);
-	}
-	fprintf(reportFile,"\n");
+	
+	std::string errorFileName="./data/error_";
+	errorFileName=errorFileName+std::to_string(uniqueID)+std::string(".txt");
 
-	if (arg.count("-ti") != 1)
-	{
-		fprintf(reportFile,"error source\n");
-		run=false;
-	}else{
-		strcpy(sourceFileName,(arg.find("-ti")->second).c_str());
-	}
-	arg.erase("-ti");
+	FILE *fp=fopen(errorFileName.c_str(),"w");
 
-	int outputCount=arg.count("-o");
-	if (outputCount >0)
-	{
-		strcpy(outputFilename,(arg.find("-o")->second).c_str());
-	}
-	arg.erase("-o");
+	fprintf(fp, "%s\n", "just a test error");
+	fclose(fp);
+	fp=nullptr;
 
-	for (std::multimap<std::string, std::string>::iterator it=arg.begin(); it!=arg.end(); ++it){
-		fprintf(reportFile, "%s %s <== ignored !\n", it->first.c_str(), it->second.c_str());
-	}
-
-	if(!run) return 0;
-
-	g2s::DataImage srcIput=g2s::DataImage::createFromFile(sourceFileName);
-
-	// to remove later
-	srcIput.write(outputFilename);
-	//end to remove
-
-	// new filename 
-	srcIput.write(std::string("im_1_")+std::to_string(uniqueID));
-
-
-	return 0;
+	return 1;
 }

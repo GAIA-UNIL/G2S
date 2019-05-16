@@ -153,6 +153,13 @@ int main(int argc, char const *argv[]) {
 	// start soket reading
 	bool needToStop=false;
 	jobArray jobIds;
+	// fill error array
+	for (int i = 0; i < 1000; ++i)
+	{
+		jobIds.errorsByJobId.push_back({0,0});
+		jobIds.errorsByPid.push_back({0,0});
+	}
+
 	mkdir("./data", 0777);
 	mkdir("./logs", 0777);
 
@@ -202,87 +209,136 @@ int main(int argc, char const *argv[]) {
 	}
 #endif
 
+	jobQueue jobQueue;
+
 	while (!needToStop) {
 		zmq::message_t request;
-
+		bool newRequest=false;
 		//  Wait for next request from client
-		if(! receiver.recv(&request) ) break;
-		size_t requesSize=request.size();
-		if(requesSize>=sizeof(infoContainer)){
-			infoContainer infoRequest;
-			memcpy(&infoRequest,request.data(),sizeof(infoContainer));
-			if(infoRequest.version<=0) continue;
-			switch(infoRequest.task)
-			{
-				case EXIST :
-					{
-						int error=dataIsPresent((char*)request.data()+sizeof(infoContainer));
-						zmq::message_t reply(sizeof(error));
-						memcpy (reply.data (), &error, sizeof(error));
-						receiver.send(reply);
-						break;
-					}
-				case UPLOAD :
-					{
-						int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
-						zmq::message_t reply(sizeof(error));
-						memcpy (reply.data (), &error, sizeof(error));
-						receiver.send(reply);
-					break;
-					}
-				case DOWNLOAD :
-					{
-						zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
-						receiver.send(answer);
-						cleanJobs(jobIds);
-						break;
-					}
-				case JOB :
-					{
-						int id=recieveJob(jobIds,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer),singleTask, functionMode);
-						zmq::message_t reply(sizeof(id));
-						memcpy (reply.data (), &id, sizeof(id));
-						receiver.send(reply);
-						break;
-					}
-				case STATUS :
-					{
-						int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-						zmq::message_t reply(sizeof(progess));
-						memcpy (reply.data (), &progess, sizeof(progess));
-						receiver.send(reply);
-						break;
-					}
-				case DURATION :
-					{
-						int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-						zmq::message_t reply(sizeof(progess));
-						memcpy (reply.data (), &progess, sizeof(progess));
-						receiver.send(reply);
-						break;
-					}
-				case KILL :
-					{
-						fprintf(stderr, "%s\n", "recieve KILL");
-						jobIdType jobId;
-						memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-						recieveKill(jobIds,jobId);
-						int error=0;
-						zmq::message_t reply(sizeof(error));
-						memcpy (reply.data (), &error, sizeof(error));
-						receiver.send(reply);
-						break;
-					}
-				case SHUTDOWN :
-					{
-						needToStop=true;
-						int error=0;
-						zmq::message_t reply(sizeof(error));
-						memcpy (reply.data (), &error, sizeof(error));
-						receiver.send(reply);
-						break;
-					}
+		bool reciveMessage=receiver.recv(&request,ZMQ_NOBLOCK);
+		if( reciveMessage )
+		{
+			newRequest=true;
+			size_t requesSize=request.size();
+			if(requesSize>=sizeof(infoContainer)){
+				infoContainer infoRequest;
+				memcpy(&infoRequest,request.data(),sizeof(infoContainer));
+				if(infoRequest.version<=0) continue;
+				switch(infoRequest.task)
+				{
+					case EXIST :
+						{
+							int type=dataIsPresent((char*)request.data()+sizeof(infoContainer));
+							zmq::message_t reply(sizeof(type));
+							memcpy (reply.data (), &type, sizeof(type));
+							receiver.send(reply);
+							break;
+						}
+					case UPLOAD :
+						{
+							int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+							zmq::message_t reply(sizeof(error));
+							memcpy (reply.data (), &error, sizeof(error));
+							receiver.send(reply);
+							break;
+						}
+					case DOWNLOAD :
+						{
+							zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
+							receiver.send(answer);
+							break;
+						}
+					case JOB :
+						{
+							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer));
+							zmq::message_t reply(sizeof(id));
+							memcpy (reply.data (), &id, sizeof(id));
+							receiver.send(reply);
+							break;
+						}
+					case PROGESSION :
+						{
+							int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
+							zmq::message_t reply(sizeof(progess));
+							memcpy (reply.data (), &progess, sizeof(progess));
+							receiver.send(reply);
+							break;
+						}
+					case JOB_STATUS :
+						{
+
+							jobIdType jobId;
+							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
+							int error=statusJobs(jobIds,jobId);
+							zmq::message_t reply(sizeof(error));
+							memcpy (reply.data (), &error, sizeof(error));
+							receiver.send(reply);
+							break;
+						}
+					case DURATION :
+						{
+							int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
+							zmq::message_t reply(sizeof(progess));
+							memcpy (reply.data (), &progess, sizeof(progess));
+							receiver.send(reply);
+							break;
+						}
+					case KILL :
+						{
+							fprintf(stderr, "%s\n", "recieve KILL");
+							jobIdType jobId;
+							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
+							recieveKill(jobIds,jobId);
+							int error=0;
+							zmq::message_t reply(sizeof(error));
+							memcpy (reply.data (), &error, sizeof(error));
+							receiver.send(reply);
+							break;
+						}
+					case UPLOAD_JSON :
+						{
+							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+							zmq::message_t reply(sizeof(error));
+							memcpy (reply.data (), &error, sizeof(error));
+							receiver.send(reply);
+							break;
+						}
+					case DOWNLOAD_JSON :
+						{
+							zmq::message_t answer=sendJson((char*)request.data()+sizeof(infoContainer));
+							receiver.send(answer);
+							break;
+						}
+					case DOWNLOAD_TEXT :
+						{
+							zmq::message_t answer=sendText((char*)request.data()+sizeof(infoContainer));
+							receiver.send(answer);
+							break;
+						}
+					case SHUTDOWN :
+						{
+							needToStop=true;
+							int error=0;
+							zmq::message_t reply(sizeof(error));
+							memcpy (reply.data (), &error, sizeof(error));
+							receiver.send(reply);
+							break;
+						}
+					case SERVER_STATUS :
+						{
+							int status=1;
+							zmq::message_t reply(sizeof(status));
+							memcpy (reply.data (), &status, sizeof(status));
+							receiver.send(reply);
+							break;
+						}
+				}
 			}
+		}
+		if(cleanJobs(jobIds) || newRequest){
+			runJobInQueue(jobQueue, jobIds, singleTask, functionMode);
+		}else{
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
 	}
 	fileCleaningThread.join();

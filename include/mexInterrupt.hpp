@@ -16,17 +16,15 @@
 #include <future>
 #include <mex.h>
 
-class InterruptStateData;
-std::shared_ptr<struct InterruptStateData> const & utGetInterruptStateData(void);
+class std::shared_ptr<struct InterruptStateData> const & utGetInterruptStateData(void);
 
 class utInterruptState
 {
 	
 public:
 	static bool IsInterruptPending();	
-	static bool IsInterruptPending(std::shared_ptr<InterruptStateData> const& state);
+	static bool IsInterruptPending(std::shared_ptr<struct InterruptStateData> const& state);
 };
-
 
 class mexInterrupt
 {

@@ -732,7 +732,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		{
 			infoContainer task;
 			task.version=1;
-			task.task=STATUS;
+			task.task=PROGESSION;
 			
 			zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
 			memcpy(request.data (), &task, sizeof(infoContainer));

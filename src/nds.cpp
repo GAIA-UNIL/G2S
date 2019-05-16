@@ -738,10 +738,20 @@ int main(int argc, char const *argv[]) {
 	g2s::DataImage id=DI.emptyCopy(true);
 	id.setEncoding(g2s::DataImage::UInteger);
 	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
+
+
+	// to remove later
 	id.write(outputIndexFilename);
 	NI.write(outputNarrownessFilename);
 	simulationPath.write(outputPathFilename);
 	DI.write(outputFilename);
+	//end to remove
+
+	// new filename 
+	id.write(std::string("im_2_")+std::to_string(uniqueID));
+	NI.write(std::string("im_3_")+std::to_string(uniqueID));
+	simulationPath.write(std::string("im_4_")+std::to_string(uniqueID));
+	DI.write(std::string("im_1_")+std::to_string(uniqueID));
 
 	free(importDataIndex);
 	importDataIndex=nullptr;
