@@ -172,3 +172,19 @@ g2s('-sa',serverAddress,'-shutdown');
 % end
 
 
+% %%
+% [bigTi,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',nan(512),'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100,'-j',6);
+% imshow(bigTi);
+% disp(t)
+% %%
+% [data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',bigTi(1:end/2,1:end/2),bigTi(1:end/2,end/2+1:end),bigTi(end/2+1:end,1:end/2),bigTi(end/2+1:end,end/2+1:end),...
+%     '-di',destination,'-dt',zeros(1,1),'-k',4,'-n',50,'-s',100);
+% imshow(data);
+% disp(t)
+% %%
+% [data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',bigTi(1:end/2,1:end/2),bigTi(1:end/2,end/2+1:end),bigTi(end/2+1:end,1:end/2),bigTi(end/2+1:end,end/2+1:end),...
+%     '-di',destination,'-dt',zeros(1,1),'-k',4,'-n',50,'-s',100,'-far');
+% imshow(data);
+% disp(t)
+
+

@@ -177,10 +177,25 @@ public:
 			}
 		}
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		bool toUpdate[vectorSize];
+		std::fill(toUpdate,toUpdate+vectorSize,true);
+
+		if(fullStationary){
+			std::mt19937 generator;
+			generator.seed(floor(UINT_MAX*seed)-1);
+			for (int i = 0; i < vectorSize-ceil(vectorSize/_k); ++i)
+			{
+				toUpdate[i]=false;
+			}
+			std::shuffle(toUpdate,toUpdate+vectorSize,generator);
+		}
+
+		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (int i = 0; i < vectorSize; ++i)
 		{
-			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
+			if(toUpdate[i]){
+				updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
+			}
 		}
 
 		int extendK=int(ceil(_k));
@@ -254,13 +269,16 @@ public:
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
 		
+		//printf("%d %d %d %d\n", updated[0],updated[1],updated[2],updated[3]);
+
 		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
 			return errors[a] > errors[b];
 		});
+		//printf("%f %f %f %f\n", errors[localPosition[0]],errors[localPosition[1]],errors[localPosition[2]],errors[localPosition[3]]);
 		//fprintf(stderr, "%f\n", errors[0]);
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
-		unsigned slectedIndex=int(floor(seed*_k));
+		unsigned slectedIndex=int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
 		unsigned selectedTI=localPosition[slectedIndex]/extendK;
 		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
 		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );

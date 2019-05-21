@@ -234,6 +234,7 @@ int main(int argc, char const *argv[]) {
 
 	// LOOK FOR SETINGS
 	bool noVerbatim=false;
+	bool fullStationary=false;
 	float threshold=std::nanf("0");			// threshold for DS ...
 	std::vector<unsigned> nbNeighbors;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
@@ -303,6 +304,17 @@ int main(int argc, char const *argv[]) {
 		searchDistance=g2s::MANAHTTAN;
 	}
 	arg.erase("-md");
+
+	if (arg.count("-fastAndRisky") == 1)
+	{
+		fullStationary=true;
+	}
+	arg.erase("-fastAndRisky");
+	if (arg.count("-far") == 1)
+	{
+		fullStationary=true;
+	}
+	arg.erase("-far");
 
 	//add extra paremetre here
 	float alpha=0;
@@ -767,11 +779,11 @@ int main(int argc, char const *argv[]) {
 	if(fullSimulation){
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
 	}else{
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
