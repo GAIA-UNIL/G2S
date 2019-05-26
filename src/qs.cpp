@@ -48,6 +48,7 @@ int main(int argc, char const *argv[]) {
 	std::string targetFileName;
 	std::string kernelFileName;
 	std::string simuationPathFileName;
+	std::string idImagePathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -206,6 +207,16 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile,"non critical error : no simulation path\n");
 	}
 	arg.erase("-sp");
+
+	bool useUniqueTI4Sampling=false;
+	//look for -ii			: image of training index
+	if (arg.count("-ii") ==1)
+	{
+		idImagePathFileName=arg.find("-ii")->second;
+		useUniqueTI4Sampling=true;
+	}
+	arg.erase("-ii");
+
 
 
 
@@ -413,6 +424,7 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
+	g2s::DataImage idImage;
 
 	if(kernelFileName.empty()) {
 		std::vector<unsigned> maxSize=TIs[0]._dims;
@@ -620,6 +632,15 @@ int main(int argc, char const *argv[]) {
 		if(seedForIndex[i]==1.f)seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
 	}
 
+
+	// id Image
+
+	if (!idImagePathFileName.empty())
+	{
+		idImage=g2s::DataImage::createFromFile(idImagePathFileName);
+	}
+
+
 	// init QS
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
@@ -687,7 +708,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-		std::vector<std::vector<float> > categoriesValues;
+	std::vector<std::vector<float> > categoriesValues;
 	std::vector<unsigned> numberDeComputedVariableProVariable;
 	for (int i = 0; i < DI._types.size(); ++i)
 	{
@@ -770,7 +791,7 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 	
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 	// run QS
 
@@ -778,11 +799,11 @@ int main(int argc, char const *argv[]) {
 
 	if(fullSimulation){
 		fprintf(reportFile, "%s\n", "full sim");
-		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
+		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
 	}else{
 		fprintf(reportFile, "%s\n", "vector sim");
-		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
+		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
 	}
 	auto end = std::chrono::high_resolution_clock::now();
