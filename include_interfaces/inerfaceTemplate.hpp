@@ -103,7 +103,7 @@ public:
 		}
 
 		zmq::message_t reply;
-		if(!socket.recv (&reply) && withTimeout){
+		if(!socket.recv (reply) && withTimeout){
 			sendError("timeout receive data");
 		}
 		if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -131,7 +131,7 @@ public:
 			}
 
 			zmq::message_t reply;
-			if(!socket.recv (&reply) && withTimeout){
+			if(!socket.recv (reply) && withTimeout){
 				sendError("timeout receive data");
 			}
 			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer in upload!");
@@ -180,7 +180,7 @@ public:
 		memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
 		socket.send (request);
 		zmq::message_t reply;
-		socket.recv (&reply);
+		socket.recv (reply);
 		
 		//if(!silent)sendError("Ctrl C, user interupted");
 	}
@@ -294,7 +294,7 @@ public:
 			}
 			}
 			zmq::message_t reply;
-			if(!socket.recv (&reply) && withTimeout){
+			if(!socket.recv (reply) && withTimeout){
 				done=true;
 				sendError("the server is probably off-line, please execute first ./server ");
 			}
@@ -388,7 +388,7 @@ public:
 			}
 
 			zmq::message_t reply;
-			if(!socket.recv (&reply) && withTimeout){
+			if(!socket.recv (reply) && withTimeout){
 				sendError("timeout starting job, maybe job run on server !!");
 			}
 			if(reply.size()!=sizeof(jobIdType) && !silentMode) printf( "%s\n", "wrong answer !");
@@ -439,7 +439,7 @@ public:
 					continue;
 				}
 				zmq::message_t reply;
-				if(!socket.recv (&reply) && withTimeout){
+				if(!socket.recv (reply) && withTimeout){
 					continue;
 				}
 
@@ -476,7 +476,7 @@ public:
 					continue;
 				}
 				zmq::message_t reply;
-				if(!socket.recv (&reply) && withTimeout){
+				if(!socket.recv (reply) && withTimeout){
 					continue;
 				}
 
@@ -518,7 +518,7 @@ public:
 							}
 
 							zmq::message_t reply;
-							if(!socket.recv (&reply) && withTimeout){
+							if(!socket.recv (reply) && withTimeout){
 								sendError("timeout receive data");
 							}
 							if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -540,7 +540,7 @@ public:
 								sendError("timeout asking for data");
 							}
 							zmq::message_t reply;
-							if(!socket.recv (&reply) && withTimeout){
+							if(!socket.recv (reply) && withTimeout){
 								sendError("timeout : get data dont answer");
 							}
 							
@@ -596,7 +596,7 @@ public:
 				}
 
 				zmq::message_t reply;
-				if(!socket.recv (&reply) && withTimeout){
+				if(!socket.recv (reply) && withTimeout){
 					sendError("timeout receive data");
 				}
 				if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -618,7 +618,7 @@ public:
 					sendError("timeout asking for data");
 				}
 				zmq::message_t reply;
-				if(!socket.recv (&reply) && withTimeout){
+				if(!socket.recv (reply) && withTimeout){
 					sendError("timeout : get data dont answer");
 				}
 				
@@ -646,7 +646,7 @@ public:
 				sendError("timeout asking for data");
 			}
 			zmq::message_t reply;
-			if(!socket.recv (&reply) && withTimeout){
+			if(!socket.recv (reply) && withTimeout){
 				sendError("timeout : get data dont answer");
 			}
 
