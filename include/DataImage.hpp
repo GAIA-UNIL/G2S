@@ -75,6 +75,7 @@ class DataImage{
 	static DataImage createFromFile(std::string filename)
 	{
 		char *raw=loadRawData((const char *) filename.c_str());
+		if(!raw) return DataImage();
 		DataImage toReturn(raw);
 		free(raw);
 		return toReturn; 

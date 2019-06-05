@@ -55,7 +55,7 @@ endif
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ em intel c++-extension intel-extension extension python
+.PHONY: c++ em intel c++-extension intel-extension extension python python-extension-module
 
 .DEFAULT:
 	$(MAKE) -C c++-build $@
@@ -81,4 +81,11 @@ intel-extension:
 extension: c++-extension intel-extension
 
 python:
-	cd python-build && python3 setup.py build_ext --inplace
+	cd python-build && (python3 setup.py install --user || python setup.py install --user)
+
+python-extension-module: python
+	ln -sf  ../python-build/pyEcho.py c++-build/pyEcho.py
+	ln -sf  $(shell which python3) c++-build/python3
+	ln -sf  ../python-build/pyEcho.py intel-build/pyEcho.py
+	ln -sf  $(shell which python3) intel-build/python3
+	echo "pyEcho	./pyEcho.py	-ti" >> algosName.config

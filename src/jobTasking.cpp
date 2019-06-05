@@ -147,20 +147,22 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		}
 
 		if(missing.size()==0){
-
+			int index=1;
 			char* argv[100];
+			for (int i = 0; i < 100; ++i)
+			{
+				argv[i]=nullptr;
+			}
 			char tempMemory[100][100];
 			unsigned tempMemIndex=0;
 			memset(tempMemory,0,100*100);
 			//fprintf(stderr, "%s\n", exeName);
-			argv[0]=exeName;
-			for (int i = 1; i < 100; ++i)
-			{
-				argv[i]=nullptr;
-			}
+			argv[index]=exeName;
+			index++;
+	
 			//init defualt
 			Json::Value::Members member=param.getMemberNames();
-			int index=1;
+			
 			for (int i = 0; i < member.size(); ++i)
 			{
 				argv[index]=(char *)member[i].c_str();
@@ -217,8 +219,24 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 			}else{
 				pid_t pid=fork(); // fork, to be crash resistant !!
 				if (pid==0) { // child process //
-					
-					execv(argv[0], argv);
+					char *runVariable=argv[1];
+					char *dot = strrchr(runVariable, '.');
+					if (dot && !strcmp(dot, ".py"))
+						argv[0]="python3";
+					if (dot && !strcmp(dot, ".sh"))
+						argv[0]="bash";
+					fprintf(stderr, "%s\n", runVariable);
+					if(argv[0])fprintf(stderr, "%s\n", argv[0]);
+					if(argv[0])
+					{
+						fprintf(stderr, "branch 0\n");
+						execv(argv[0], argv);
+					}
+					else
+					{
+						fprintf(stderr, "branch 1\n");
+						execv(argv[1], argv+1);
+					}
 					exit(127); // only if execv fails //
 				}
 				else { // pid!=0; parent process //
