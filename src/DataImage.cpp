@@ -21,7 +21,7 @@
 #include <unistd.h>
 
 void createLink(char* outputFullFilename, char* fullFilename){
-	symlink(outputFullFilename, fullFilename);
+	int val=symlink(outputFullFilename, fullFilename);
 }
 
 
@@ -50,12 +50,13 @@ char* loadRawData(const char * hash){
 	if(!data &&  g2s::file_exist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
+			size_t length;
 			size_t fullSize;
-			fread (&fullSize, 1, sizeof(fullSize), dataFile);
+			length=fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
 			ptr = (char*)malloc (sizeof(char)*fullSize);
 			data=ptr;
-			fread (data,1,fullSize,dataFile);
+			length=fread (data,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}
