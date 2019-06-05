@@ -34,19 +34,22 @@ private:
 	std::vector<std::vector<convertionType> > _convertionTypeVector;
 	std::vector<std::vector<std::vector<convertionType> > > _convertionTypeVectorConstVector;
 	std::vector<std::vector<std::vector<float> > > _convertionCoefVectorConstVector;
+	bool _useUniqueTI=false;
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
 public:
 	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector,
 		std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector,
-		bool noVerbatim, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1):SamplingModule(cdmV,kernel)
+		bool noVerbatim, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1, bool useUniqueTI=false):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
 		_convertionTypeVector=convertionTypeVector;
 		_errors.resize(nbThread,nullptr);
 		_encodedPosition.resize(nbThread,nullptr);
 		_completeTIs=completeTIs;
+
+		_useUniqueTI=useUniqueTI;
 		for (int i = 0; i < nbThread; ++i)
 		{
 			_errors[i]=(float*)malloc(_cdmV[0].size() * int(ceil(_k)) * sizeof(float));
@@ -73,7 +76,7 @@ public:
 		}
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
@@ -188,6 +191,10 @@ public:
 				toUpdate[i]=false;
 			}
 			std::shuffle(toUpdate,toUpdate+vectorSize,generator);
+		}
+		if(idTI4Sampling>=0){
+			std::fill(toUpdate,toUpdate+vectorSize,false);
+			toUpdate[idTI4Sampling]=true;
 		}
 
 		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 

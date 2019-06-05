@@ -154,7 +154,7 @@ public:
 
 		auto dataType=input.find("-dt");
 		std::set<std::string> listOfParameterToUploadIfNeededWithDataType= {"-ti","-di"};
-		std::set<std::string> listOfParameterToUploadIfNeededWithoutDataType= {"-ki","-sp"};
+		std::set<std::string> listOfParameterToUploadIfNeededWithoutDataType= {"-ki","-sp","-ii"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithDataType.find(it->first) != listOfParameterToUploadIfNeededWithDataType.end())
 				if(isDataMatrix(it->second))

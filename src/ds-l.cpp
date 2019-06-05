@@ -48,6 +48,7 @@ int main(int argc, char const *argv[]) {
 	std::string targetFileName;
 	std::string kernelFileName;
 	std::string simuationPathFileName;
+	std::string idImagePathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -206,6 +207,15 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile,"non critical error : no simulation path\n");
 	}
 	arg.erase("-sp");
+
+	bool useUniqueTI4Sampling=false;
+	//look for -ii			: image of training index
+	if (arg.count("-ii") ==1)
+	{
+		idImagePathFileName=arg.find("-ii")->second;
+		useUniqueTI4Sampling=true;
+	}
+	arg.erase("-ii");
 
 
 
@@ -409,6 +419,7 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
+	g2s::DataImage idImage;
 
 	if(kernelFileName.empty()) {
 		std::vector<unsigned> maxSize=TIs[0]._dims;
@@ -598,7 +609,14 @@ int main(int argc, char const *argv[]) {
 		if(seedForIndex[i]==1.f)seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
 	}
 
-	// init QS
+	// id Image
+
+	if (!idImagePathFileName.empty())
+	{
+		idImage=g2s::DataImage::createFromFile(idImagePathFileName);
+	}
+
+	// init DS
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
@@ -756,7 +774,7 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath,
+	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
