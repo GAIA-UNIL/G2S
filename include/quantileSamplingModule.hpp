@@ -132,6 +132,9 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
+					case convertionType::MinMinus1:
+					case convertionType::MaxPlus1:
+					break;
 				}	
 			}
 		}
@@ -171,6 +174,9 @@ public:
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
 										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
+							break;
+							case convertionType::MinMinus1:
+							case convertionType::MaxPlus1:
 							break;
 						}	
 					}
@@ -355,6 +361,9 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}						
 					break;
+					case convertionType::MinMinus1:
+					case convertionType::MaxPlus1:
+					break;
 				}	
 			}
 		}
@@ -394,6 +403,9 @@ public:
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
 										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
+							break;
+							case convertionType::MinMinus1:
+							case convertionType::MaxPlus1:
 							break;
 						}	
 					}

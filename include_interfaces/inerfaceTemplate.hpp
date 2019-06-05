@@ -98,7 +98,7 @@ public:
 		memcpy (positionInTheStream, hashInHexa, 64 * sizeof(unsigned char));
 		positionInTheStream+=64 * sizeof(unsigned char);
 
-		if(!socket.send (request) && withTimeout){
+		if(!socket.send (request,zmq::send_flags::none) && withTimeout){
 			sendError("timeout sending data");
 		}
 
@@ -126,7 +126,7 @@ public:
 			positionInTheStream+=fullsize;
 			
 
-			if(!socket.send (request) && withTimeout){
+			if(!socket.send (request,zmq::send_flags::none) && withTimeout){
 				sendError("timeout sending data");
 			}
 
@@ -157,11 +157,12 @@ public:
 		std::set<std::string> listOfParameterToUploadIfNeededWithoutDataType= {"-ki","-sp","-ii"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithDataType.find(it->first) != listOfParameterToUploadIfNeededWithDataType.end())
-				if(isDataMatrix(it->second))
+				if(isDataMatrix(it->second)){
 					if(dataType!=input.end())
 						it->second=std::any(uploadData(socket, it->second,dataType->second));
 					else
 						sendError("-dt is missing, impossible to uplaod a matrix without data type");
+					}
 			if(listOfParameterToUploadIfNeededWithoutDataType.find(it->first) != listOfParameterToUploadIfNeededWithoutDataType.end()){
 				if(isDataMatrix(it->second))
 					it->second=std::any(uploadData(socket, it->second));
@@ -178,7 +179,7 @@ public:
 		zmq::message_t request (sizeof(infoContainer)+sizeof(jobIdType));
 		memcpy(request.data (), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
-		socket.send (request);
+		socket.send (request,zmq::send_flags::none);
 		zmq::message_t reply;
 		socket.recv (reply);
 		
@@ -287,7 +288,7 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request) && withTimeout ){
+			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 			{
 				done=true;
 				sendError("the server is probably off-line, please execute first ./server ");
@@ -313,7 +314,7 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request) && withTimeout ){
+			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 				{
 					done=true;
 					sendError("fail to shutdown the server");
@@ -371,10 +372,15 @@ public:
 				object["Parameter"]=parameter;
 
 			}
-
+			/*
 			Json::FastWriter fast;
 		    std::string jsonJob = fast.write(object);
-		    const char* jsonJob_c=jsonJob.c_str();
+			*/
+			Json::StreamWriterBuilder builder;
+			builder["commentStyle"] = "None";
+			builder["indentation"] = "";  // or whatever you like
+			std::string jsonJob = Json::writeString(builder, object);
+			const char* jsonJob_c=jsonJob.c_str();
 
 		    //printf( "%s\n", jsonJob_c);
 
@@ -383,7 +389,7 @@ public:
 			zmq::message_t request (sizeof(infoContainer)+strlen(jsonJob_c));
 			memcpy(request.data (), &task, sizeof(infoContainer));
 			memcpy((char*)request.data()+sizeof(infoContainer),jsonJob_c,strlen(jsonJob_c));
-			if(!socket.send (request) && withTimeout ){
+			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 				sendError("timeout sending job");
 			}
 
@@ -424,7 +430,7 @@ public:
 
 		if(waitAndDownload || statusOnly) outputs.insert({"progression",0.f});
 
-		while(!done && waitAndDownload || !done && statusOnly) {
+		while(!done && (waitAndDownload || statusOnly)) {
 
 			// status
 			if(!silentMode || statusOnly){
@@ -435,7 +441,7 @@ public:
 				zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
 				memcpy(request.data (), &task, sizeof(infoContainer));
 				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-				if(!socket.send (request)){
+				if(!socket.send (request,zmq::send_flags::none)){
 					continue;
 				}
 				zmq::message_t reply;
@@ -472,7 +478,7 @@ public:
 				zmq::message_t request(sizeof(infoContainer)+sizeof( jobIdType ));
 				memcpy(request.data(), &task, sizeof(infoContainer));
 				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-				if(!socket.send (request)){
+				if(!socket.send (request,zmq::send_flags::none)){
 					continue;
 				}
 				zmq::message_t reply;
@@ -513,7 +519,7 @@ public:
 							memcpy (positionInTheStream, nameFile_local, 64 * sizeof(unsigned char));
 							positionInTheStream+=64 * sizeof(unsigned char);
 
-							if(!socket.send (request) && withTimeout){
+							if(!socket.send (request,zmq::send_flags::none) && withTimeout){
 								sendError("timeout sending data");
 							}
 
@@ -536,7 +542,7 @@ public:
 							memcpy (request.data(), &task, sizeof(infoContainer));
 							memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_local, 64);
 							//std::cout << "ask for data" << std::endl;
-							if(!socket.send (request) && withTimeout ){
+							if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 								sendError("timeout asking for data");
 							}
 							zmq::message_t reply;
@@ -591,7 +597,7 @@ public:
 				memcpy (positionInTheStream, nameFile_local, 64 * sizeof(unsigned char));
 				positionInTheStream+=64 * sizeof(unsigned char);
 
-				if(!socket.send (request) && withTimeout){
+				if(!socket.send (request,zmq::send_flags::none) && withTimeout){
 					sendError("timeout sending data");
 				}
 
@@ -614,7 +620,7 @@ public:
 				memcpy (request.data(), &task, sizeof(infoContainer));
 				memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_local, 64);
 				//std::cout << "ask for data" << std::endl;
-				if(!socket.send (request) && withTimeout ){
+				if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 					sendError("timeout asking for data");
 				}
 				zmq::message_t reply;
@@ -642,7 +648,7 @@ public:
 			zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
 			memcpy(request.data (), &task, sizeof(infoContainer));
 			memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-			if(!socket.send (request)){
+			if(!socket.send (request,zmq::send_flags::none)){
 				sendError("timeout asking for data");
 			}
 			zmq::message_t reply;

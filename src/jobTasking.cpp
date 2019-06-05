@@ -113,7 +113,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 			char toAdd[2048];
 			char extra[2048];
 			char comment[2048];
-			while(readedSize=getline(&line, &sizeBuffer, fp)){
+			while((readedSize=getline(&line, &sizeBuffer, fp))){
 				memset(sourceName,0,1024);memset(tagetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
 				memset(requested,0,2048);memset(toAdd,0,2048);memset(extra,0,2048);memset(comment,0,2048);
 				if((readedSize>1) && ((line[0]!='/') || (line[0]!='#'))){
@@ -222,19 +222,15 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 					char *runVariable=argv[1];
 					char *dot = strrchr(runVariable, '.');
 					if (dot && !strcmp(dot, ".py"))
-						argv[0]="python3";
+						argv[0]=(char *)"python3";
 					if (dot && !strcmp(dot, ".sh"))
-						argv[0]="bash";
-					fprintf(stderr, "%s\n", runVariable);
-					if(argv[0])fprintf(stderr, "%s\n", argv[0]);
+						argv[0]=(char *)"bash";
 					if(argv[0])
 					{
-						fprintf(stderr, "branch 0\n");
 						execv(argv[0], argv);
 					}
 					else
 					{
-						fprintf(stderr, "branch 1\n");
 						execv(argv[1], argv+1);
 					}
 					exit(127); // only if execv fails //
@@ -248,7 +244,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		}else{
 			std::string s;
 			if(missing.size()>0) s.append(missing[0]);
-			fprintf(stderr, "%d\n", missing.size());
+			fprintf(stderr, "%lu\n", missing.size());
 			for (int i = 1; i < int(missing.size())-2; ++i)
 			{
 				s.append(std::string(", "));

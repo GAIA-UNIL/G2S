@@ -40,11 +40,11 @@ int lookForStatus(void* data, size_t dataSize){
 
 				std::regex_search(lineHeader, base_search, base_regex);
 				if (base_search.size() >= 1) {
-					sscanf(base_search[0].str().c_str(),"%f%",&truePourcentage);
+					sscanf(base_search[0].str().c_str(),"%f%%",&truePourcentage);
 				}else{
 					std::regex_search(lineHeader, base_search, base_regex2);
 					if (base_search.size() >= 1) {
-						sscanf(base_search[0].str().c_str(),"%f %",&truePourcentage);
+						sscanf(base_search[0].str().c_str(),"%f %%",&truePourcentage);
 					}
 				}
 			}

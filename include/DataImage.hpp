@@ -296,6 +296,17 @@ class DataImage{
 						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*M_PI)*exp(-dist2/2.f);
 					}
 					break;
+						
+				case TRIANGULAR :
+				case EPANECHNIKOV :
+				case QUARTIC :
+				case TRIWEIGHT :
+				case TRICUBE :
+				case COSINE :
+				case LOGISTIC :
+				case SIGMOID :
+				case SILVERMAN :
+					break;
 			}
 		}
 		/*
@@ -591,7 +602,7 @@ class DataImage{
 			{
 				int id;
 				char variableName[1024];
-				fscanf(file, "%s_%d", variableName, id);
+				fscanf(file, "%s_%d", variableName, &id);
 				if(strcmp("Continuous",variableName)==0){
 					result._types[i]=Continuous;
 				}
@@ -613,7 +624,7 @@ class DataImage{
 			file = fopen(fileName, "w");
 			if (file) {
 				fprintf(file,"%d %d %d 1.0 1.0 1.0 0.0 0.0 0.0\n",_dims[0], _dims.size()>1 ? _dims[1] : 1, _dims.size()>2 ? _dims[2] : 1);
-				fprintf(file,"%d\n",_types.size());
+				fprintf(file,"%lu\n",_types.size());
 				for (int i = 0; i < _types.size(); ++i)
 				{
 					std::string startName;
