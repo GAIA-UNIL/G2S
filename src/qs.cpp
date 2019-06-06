@@ -246,7 +246,7 @@ int main(int argc, char const *argv[]) {
 	// LOOK FOR SETINGS
 	bool noVerbatim=false;
 	bool fullStationary=false;
-	float threshold=std::nanf("0");			// threshold for DS ...
+	
 	std::vector<unsigned> nbNeighbors;						// number of nighbors QS, DS ...
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS

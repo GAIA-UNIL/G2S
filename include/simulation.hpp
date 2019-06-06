@@ -497,14 +497,14 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 	}
 	unsigned sizeSimulation=placeToUpdate.size();
 	unsigned fullSize=sizeSimulation;
-	unsigned indicationSize=100*nbThreads;
+	//unsigned indicationSize=100*nbThreads;
 
 	unsigned solvingPathIndex=0;
 	while((sizeSimulation>0) && ((float(sizeSimulation)/fullSize)>(1.f-maxProgression))){
 	
-		unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
+		//unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
-		#pragma omp parallel for schedule(dynamic,bunchSize) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
+		#pragma omp parallel for schedule(dynamic) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
 		for (size_t i = 0; i < placeToUpdate.size(); ++i)
 		{
 			unsigned moduleID=0;

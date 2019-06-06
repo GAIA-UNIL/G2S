@@ -217,7 +217,7 @@ public:
 		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
-			float maxValue=delta.back();
+			
 			if(updated[i])
 			{
 				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();

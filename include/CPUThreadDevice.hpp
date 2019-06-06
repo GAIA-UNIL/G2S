@@ -70,7 +70,6 @@ private:
 	std::vector<dataType*> _realSpaceArray;
 
 	FFTW_PRECISION(plan) _pInv;
-	FFTW_PRECISION(plan) _pInvCross;
 	FFTW_PRECISION(plan) _p;
 
 	FFTW_PRECISION(plan) _pPatchM;

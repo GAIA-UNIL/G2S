@@ -147,7 +147,6 @@ int main(int argc, char const *argv[]) {
 		fprintf(stderr, "start daemon\n" );
 		bool stayInCurrentDirectory=true;
 		bool dontRedirectStdIO=false;
-		pid_t child_pid;
 		int value=daemon(stayInCurrentDirectory,dontRedirectStdIO);
 		if(value==-1) fprintf(stderr, "fail to run daemon\n" );
 		else fprintf(stderr, "Daemon started\n" );

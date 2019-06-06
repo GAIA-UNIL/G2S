@@ -29,7 +29,7 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 		std::vector<std::string> argvV(argv, argv + index);
 		std::string functionNameStr(functionName);
 #ifndef EMSCRIPTEN
-		std::thread myThread([argvV,functionNameStr,uniqueId]()
+		std::thread myThread([argvV,functionNameStr]()
 #endif
 		{
 			int index=argvV.size();
