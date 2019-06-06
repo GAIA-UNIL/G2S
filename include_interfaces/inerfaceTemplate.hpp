@@ -190,7 +190,7 @@ public:
 
 		std::atomic<bool> done(false);
 
-		jobIdType id;
+		jobIdType id=0;
 		bool stop=false;
 		bool withTimeout=true;
 		bool noOutput=false;

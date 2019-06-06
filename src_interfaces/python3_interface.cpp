@@ -87,7 +87,7 @@ static PyObject *g2s_run(PyObject *self, PyObject *args, PyObject *keywds)
 static PyObject *g2s_loadData(PyObject *self, PyObject *args, PyObject *keywds)
 {
 #ifndef _WIN32
-	static char *kwlist[] = {"filename", NULL};
+	static char *kwlist[] = {(char*)"filename", NULL};
 	PyObject* filename;
 	if (!PyArg_ParseTupleAndKeywords(args, keywds, "U", kwlist, &filename)) {
         return NULL;
@@ -100,7 +100,7 @@ static PyObject *g2s_loadData(PyObject *self, PyObject *args, PyObject *keywds)
 	PyObject* type=PyArray_SimpleNew(1,&size,NPY_INT32);
 	int32_t *typePtr=(int32_t*)PyArray_DATA(type);
 
-	for (int i = 0; i < loadedImage._types.size(); ++i)
+	for (size_t i = 0; i < loadedImage._types.size(); ++i)
 	{
 		switch(loadedImage._types[i]){
 			case g2s::DataImage::VaraibleType::Continuous:
@@ -123,7 +123,7 @@ static PyObject *g2s_loadData(PyObject *self, PyObject *args, PyObject *keywds)
 static PyObject *g2s_writeData(PyObject *self, PyObject *args, PyObject *keywds)
 {
 #ifndef _WIN32
-	static char *kwlist[] = {"image","dataType","filename", NULL};
+	static char *kwlist[] = {(char*)"image",(char*)"dataType",(char*)"filename", NULL};
 	PyObject* pyImage;
 	PyObject* pyDataType;
 	PyObject* filename;

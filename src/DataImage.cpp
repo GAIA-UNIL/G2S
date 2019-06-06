@@ -21,7 +21,7 @@
 #include <unistd.h>
 
 void createLink(char* outputFullFilename, char* fullFilename){
-	int val=symlink(outputFullFilename, fullFilename);
+	(void)symlink(outputFullFilename, fullFilename);
 }
 
 

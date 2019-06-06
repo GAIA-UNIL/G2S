@@ -92,7 +92,7 @@ public:
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
 		npy_intp* dimsArray=new npy_intp[image._dims.size()+1];
-		for (int i = 0; i < image._dims.size(); ++i)
+		for (size_t i = 0; i < image._dims.size(); ++i)
 		{
 			dimsArray[i]=image._dims[i];
 		}
@@ -108,7 +108,7 @@ public:
 			array=PyArray_SimpleNew(image._dims.size()+(image._nbVariable>1), dimsArray,NPY_UINT32);
 		delete[] dimsArray;
 		float* data=(float*)PyArray_DATA(array);
-		unsigned nbOfVariable=image._nbVariable;
+		//unsigned nbOfVariable=image._nbVariable;
 		unsigned dataSize=image.dataSize();
 		/*for (int i = 0; i < dataSize/nbOfVariable; ++i)
 		{
@@ -307,7 +307,7 @@ public:
 			}
 			listOfIndex.push_back(PyTuple_Size(args));
 
-			for (int j = 0; j < listOfIndex.size()-1; ++j)
+			for (size_t j = 0; j < listOfIndex.size()-1; ++j)
 			{
 				if(listOfIndex[j]+1==listOfIndex[j+1]){
 					inputs.insert(std::pair<std::string, std::any>(std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,listOfIndex[j]))),nullptr));
