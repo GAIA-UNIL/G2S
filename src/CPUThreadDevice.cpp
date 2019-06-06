@@ -425,7 +425,7 @@ void CPUThreadDevice::maskCroossErrorWithVariable(unsigned variable){
 
 void CPUThreadDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	int deltaCross=0;
-	for (size_t k = _min.size()-1; k >=0; k--)
+	for (int k = int(_min.size())-1; k >=0; k--)
 	{
 		deltaCross=deltaCross*_fftSize[k]+_min[k];
 	}
