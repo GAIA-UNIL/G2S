@@ -91,7 +91,7 @@ inline __attribute__((always_inline)) void addValueB(const T* data,const unsigne
 template<typename T>
 inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
 
-	for (int i = 0; i < N; ++i)
+	for (unsigned int i = 0; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -104,7 +104,7 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 template<typename T>
 inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
 
-	for (int i = 0; i < N; ++i)
+	for (unsigned int i = 0; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -117,7 +117,7 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 template<typename T,typename urgT>
 inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
-	for (int i = 0; i < N; ++i)
+	for (unsigned int i = 0; i < N; ++i)
 	{
 		if(data[i]>=output[k-1]) //then change
 		{
@@ -133,13 +133,13 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
 	__m128 smallest=_mm_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmpgt_ps(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -151,7 +151,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -165,13 +165,13 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
 	__m128 smallest=_mm_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmpgt_ps(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -183,7 +183,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -197,13 +197,13 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
 	__m128 smallest=_mm_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmpge_ps(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -215,7 +215,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -229,13 +229,13 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
 	__m128d smallest=_mm_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmpgt_pd(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -247,7 +247,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -261,13 +261,13 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
 	__m128d smallest=_mm_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmpgt_pd(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -279,7 +279,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -293,13 +293,13 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
 	__m128d smallest=_mm_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmpge_pd(dataVector,smallest))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -311,7 +311,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -329,12 +329,12 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
 	__m256 smallest=_mm256_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,smallest,_CMP_GT_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -346,7 +346,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -360,12 +360,12 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
 	__m256 smallest=_mm256_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,smallest,_CMP_GT_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -377,7 +377,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -391,12 +391,12 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
 	__m256 smallest=_mm256_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,smallest,_CMP_GE_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -408,7 +408,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -422,12 +422,12 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
 	__m256d smallest=_mm256_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,smallest,_CMP_GT_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -439,7 +439,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -453,12 +453,12 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
 	__m256d smallest=_mm256_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,smallest,_CMP_GT_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -470,7 +470,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -484,12 +484,12 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
 	__m256d smallest=_mm256_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
 		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,smallest,_CMP_GE_OQ))))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -501,7 +501,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -520,12 +520,12 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
 	__m512 smallest=_mm512_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,smallest,_CMP_GT_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -537,7 +537,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -551,12 +551,12 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
 	__m512 smallest=_mm512_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (iunsigned nt i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,smallest,_CMP_GT_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -568,7 +568,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -582,12 +582,12 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
 	__m512 smallest=_mm512_set1_ps(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,smallest,_CMP_GE_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -599,7 +599,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -613,12 +613,12 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
 	__m512d smallest=_mm512_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,smallest,_CMP_GT_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -630,7 +630,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -644,12 +644,12 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
 	__m512d smallest=_mm512_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,smallest,_CMP_GT_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -661,7 +661,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
@@ -675,12 +675,12 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
 	__m512d smallest=_mm512_set1_pd(output[k-1]);
-	for (int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,smallest,_CMP_GE_OQ)))
 		{
-			for (int j = i; j < i+ratio; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
 				{
@@ -692,7 +692,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 		
 	}
 
-	for (int i = ( N/ratio)*ratio; i < N; ++i)
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{

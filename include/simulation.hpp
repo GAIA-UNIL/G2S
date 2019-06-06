@@ -30,28 +30,28 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
-	for (int i = 0; i < di.dataSize()/di._nbVariable; ++i)
+	for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 	{
 		bool withNan=false;
-		for (int j = 0; j < di._nbVariable; ++j)
+		for (unsigned int j = 0; j < di._nbVariable; ++j)
 		{
 			withNan|=std::isnan(di._data[i*di._nbVariable+j]);
 		}
 		if(!withNan)
 			posterioryPath[i]=0;
 	}
-	for (int i = 0; i < numberOfPointToSimulate; ++i)
+	for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
 	{
 		posterioryPath[solvingPath[i]]=i;
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
-	for (int i = 0; i < categoriesValues.size(); ++i)
+	for (unsigned int i = 0; i < categoriesValues.size(); ++i)
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
 	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate( fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
-	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
 		// 	unsigned currentCell=solvingPath[indexPath];
@@ -68,7 +68,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		bool withDataInCenter=false;
 
-		for (int i = 0; i < di._nbVariable; ++i)
+		for (unsigned int i = 0; i < di._nbVariable; ++i)
 		{
 			withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
 		}
@@ -89,7 +89,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 						float val;
 						while(true) {
 							numberOfNaN=0;
-							for (int i = 0; i < di._nbVariable; ++i)
+							for (unsigned int i = 0; i < di._nbVariable; ++i)
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
@@ -101,7 +101,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 						std::vector<float> data(di._nbVariable);
 						unsigned cpt=0;
-						for (int i = 0; i < di._nbVariable; ++i)
+						for (unsigned int i = 0; i < di._nbVariable; ++i)
 						{
 							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
 							{
@@ -123,12 +123,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			}
 		}
 		// conversion from one variable to many
-		for (int j = 0; j < neighborValueArrayVector.size(); ++j)
+		for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
 		{
 			std::vector<float> data(numberOfVariable);
 			unsigned id=0;
 			unsigned idCategorie=0;
-			for (int i = 0; i < di._nbVariable; ++i)
+			for (unsigned int i = 0; i < di._nbVariable; ++i)
 			{
 				if(di._types[i]==g2s::DataImage::Continuous){
 					
@@ -136,7 +136,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 					id++;
 				}
 				if(di._types[i]==g2s::DataImage::Categorical){
-					for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+					for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
 					{
 						data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
 						id++;
@@ -165,7 +165,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=verbatimIndex%TIs.size();
 			std::vector<int> reverseVector=neighborArrayVector[1];
-			for (int i = 0; i < reverseVector.size(); ++i)
+			for (size_t i = 0; i < reverseVector.size(); ++i)
 			{
 				reverseVector[i]*=-1;
 			}
@@ -179,7 +179,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			// sample from the marginal
 			unsigned cumulated=0;
-			for (int i = 0; i < TIs.size(); ++i)
+			for (size_t i = 0; i < TIs.size(); ++i)
 			{
 				cumulated+=TIs[i].dataSize();
 			}
@@ -187,7 +187,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)));
 
 			cumulated=0;
-			for (int i = 0; i < TIs.size(); ++i)
+			for (size_t i = 0; i < TIs.size(); ++i)
 			{
 				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
 					importIndex.TI=i;
@@ -200,7 +200,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			bool hasNaN=false;
 
-			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 			{
 				if(std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j])){
 					hasNaN=true;
@@ -209,12 +209,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		
 			if(hasNaN){ // nan safe, much slower
 				unsigned cumulated=0;
-				for (int i = 0; i < TIs.size(); ++i)
+				for (size_t i = 0; i < TIs.size(); ++i)
 				{
-					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					for (unsigned int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
-						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						for (unsigned int j = 0; j < TIs[i]._nbVariable; ++j)
 						{
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
@@ -226,12 +226,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 				cumulated=0;
 
-				for (int i = 0; i < TIs.size(); ++i)
+				for (size_t i = 0; i < TIs.size(); ++i)
 				{
-					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					for (unsigned int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
-						for (int j = 0; j < TIs[i]._nbVariable; ++j)
+						for (unsigned int j = 0; j < TIs[i]._nbVariable; ++j)
 						{
 							locHasNan|=std::isnan(TIs[i]._data[k*TIs[i]._nbVariable+j]);
 						}
@@ -250,7 +250,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
-		for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+		for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
 			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
 				#pragma omp atomic write
@@ -269,29 +269,29 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize());
-	for (int i = 0; i < di.dataSize(); ++i)
+	for (unsigned int i = 0; i < di.dataSize(); ++i)
 	{
 		bool withNan=false;
-		for (int j = 0; j < di._nbVariable; ++j)
+		for (unsigned int j = 0; j < di._nbVariable; ++j)
 		{
 			withNan|=std::isnan(di._data[i]);
 		}
 		if(!withNan)
 			posterioryPath[i]=0;
 	}
-	for (int i = 0; i < numberOfPointToSimulate; ++i)
+	for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
 	{
 		posterioryPath[solvingPath[i]]=i;
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
-	for (int i = 0; i < categoriesValues.size(); ++i)
+	for (size_t i = 0; i < categoriesValues.size(); ++i)
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
 	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
-	for (int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
 		unsigned moduleID=0;
@@ -315,7 +315,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				if(di.indexWithDelta(dataIndex, currentPosition, pathPosition[positionSearch]))
 				{
 					bool needToBeadd=false;
-					for (int i = 0; i < di._nbVariable; ++i)
+					for (unsigned int i = 0; i < di._nbVariable; ++i)
 					{
 						needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) ;
 					}
@@ -325,7 +325,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 						float val;
 						while(true) {
 							numberOfNaN=0;
-							for (int i = 0; i < di._nbVariable; ++i)
+							for (unsigned int i = 0; i < di._nbVariable; ++i)
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
@@ -337,7 +337,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 						std::vector<float> data(di._nbVariable);
 						unsigned cpt=0;
-						for (int i = 0; i < di._nbVariable; ++i)
+						for (unsigned int i = 0; i < di._nbVariable; ++i)
 						{
 							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath))
 							{
@@ -359,12 +359,12 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			}
 		}
 		// conversion from one variable to many
-		for (int j = 0; j < neighborValueArrayVector.size(); ++j)
+		for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
 		{
 			std::vector<float> data(numberOfVariable);
 			unsigned id=0;
 			unsigned idCategorie=0;
-			for (int i = 0; i < di._nbVariable; ++i)
+			for (unsigned int i = 0; i < di._nbVariable; ++i)
 			{
 				if(di._types[i]==g2s::DataImage::Continuous){
 					
@@ -372,7 +372,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 					id++;
 				}
 				if(di._types[i]==g2s::DataImage::Categorical){
-					for (int k = 0; k < categoriesValues[idCategorie].size(); ++k)
+					for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
 					{
 						data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
 						id++;
@@ -394,7 +394,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 			// sample from the marginal
 			unsigned cumulated=0;
-			for (int i = 0; i < TIs.size(); ++i)
+			for (size_t i = 0; i < TIs.size(); ++i)
 			{
 				cumulated+=TIs[i].dataSize();
 			}
@@ -402,7 +402,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			unsigned position=int(floor(localSeed*(cumulated/TIs[0]._nbVariable)));
 
 			cumulated=0;
-			for (int i = 0; i < TIs.size(); ++i)
+			for (size_t i = 0; i < TIs.size(); ++i)
 			{
 				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
 					importIndex.TI=i;
@@ -417,9 +417,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		
 			if(hasNaN){ // nan safe, much slower
 				unsigned cumulated=0;
-				for (int i = 0; i < TIs.size(); ++i)
+				for (size_t i = 0; i < TIs.size(); ++i)
 				{
-					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					for (unsigned int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
 						int j=currentVariable;
@@ -434,9 +434,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 				cumulated=0;
 
-				for (int i = 0; i < TIs.size(); ++i)
+				for (size_t i = 0; i < TIs.size(); ++i)
 				{
-					for (int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
+					for (unsigned int k = 0; k < TIs[i].dataSize()/TIs[i]._nbVariable; ++k)
 					{
 						bool locHasNan=false;
 						int j=currentVariable;
@@ -483,7 +483,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 	for (unsigned i = 0; i < di.dataSize()/di._nbVariable; ++i)
 	{
 		bool hasNaN=false;
-		for (int j = 0; j < di._nbVariable; ++j)
+		for (unsigned int j = 0; j < di._nbVariable; ++j)
 		{
 			hasNaN|=std::isnan(di._data[i*di._nbVariable+j]);
 		}
@@ -505,7 +505,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
 		#pragma omp parallel for schedule(dynamic,bunchSize) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, bunchSize, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
-		for (int i = 0; i < placeToUpdate.size(); ++i)
+		for (size_t i = 0; i < placeToUpdate.size(); ++i)
 		{
 			unsigned moduleID=0;
 			#if _OPENMP
@@ -524,7 +524,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 					if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
 					{
 						std::vector<float> data(di._nbVariable);
-						for (int i = 0; i < di._nbVariable; ++i)
+						for (unsigned int i = 0; i < di._nbVariable; ++i)
 						{
 							data[i]=di._data[dataIndex*di._nbVariable+i];
 						}
@@ -553,7 +553,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 
 		fKst::findKSmallest<float>(narrownessArray, ni.dataSize()/ni._nbVariable, maxAutorisedChunkSize, usedNarrowness, bestPlaces);
 		solvingPathIndex++;
-		for (int i = 0; i < maxAutorisedChunkSize; ++i)
+		for (unsigned int i = 0; i < maxAutorisedChunkSize; ++i)
 		{
 			unsigned simulatedPlace=bestPlaces[i];
 			if(/*simulatedPlace<0 ||*/ simulatedPlace>(ni.dataSize()/ni._nbVariable) || std::isnan(usedNarrowness[i])) continue;
@@ -562,7 +562,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 			solvingPath[simulatedPlace]=solvingPathIndex;
 			ni._data[simulatedPlace]=narrownessArray[simulatedPlace];
 			narrownessArray[simulatedPlace]=INFINITY;
-			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 			{
 				if(std::isnan(di._data[simulatedPlace*di._nbVariable+j])){
 					di._data[simulatedPlace*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
@@ -571,11 +571,11 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 			importDataIndex[simulatedPlace]=importIndex.index*TIs.size()+importIndex.TI;
 		}
 
-		for (int i = 0; i < maxAutorisedChunkSize; ++i)
+		for (unsigned int i = 0; i < maxAutorisedChunkSize; ++i)
 		{
 			unsigned simulatingPlace=bestPlaces[i];
 			unsigned dataIndex;
-			for (int j = 0; j < std::min(unsigned(pathPosition.size()),maxUpdate); ++j)
+			for (unsigned int j = 0; j < std::min(unsigned(pathPosition.size()),maxUpdate); ++j)
 			{
 				if(di.indexWithDelta(dataIndex, simulatingPlace, pathPosition[j])){
 					if(solvingPath[dataIndex]>solvingPathIndex) placeToUpdate.push_back(dataIndex);
@@ -590,7 +590,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 
 	}
 
-	for (int i = 0; i < di.dataSize()/di._nbVariable; ++i)
+	for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 	{
 		if(!std::isnan(narrownessArray[i]) && (solvingPath[i]>solvingPathIndex)){
 
@@ -601,7 +601,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 			SamplingModule::matchLocation importIndex=candidates[simulatedPlace];
 			ni._data[simulatedPlace]=narrownessArray[simulatedPlace];
 			narrownessArray[simulatedPlace]=INFINITY;
-			for (int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
+			for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 			{
 				if(std::isnan(di._data[simulatedPlace*di._nbVariable+j])){
 					di._data[simulatedPlace*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];

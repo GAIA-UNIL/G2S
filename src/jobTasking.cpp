@@ -139,7 +139,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		std::vector<std::string> missing;
 
 
-		for (int i = 0; i < listOfMendatory.size(); ++i)
+		for (size_t i = 0; i < listOfMendatory.size(); ++i)
 		{
 			if(! param.isMember(listOfMendatory[i])){
 				missing.push_back(listOfMendatory[i]);
@@ -163,7 +163,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 			//init defualt
 			Json::Value::Members member=param.getMemberNames();
 			
-			for (int i = 0; i < member.size(); ++i)
+			for (size_t i = 0; i < member.size(); ++i)
 			{
 				argv[index]=(char *)member[i].c_str();
 				//fprintf(stderr, "%s\n", argv[index]);
@@ -181,7 +181,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 				{
 					//fprintf(stderr, "%s\n", "is array");
 					Json::Value arrayData=param[member[i]];
-					for (int j = 0; j < arrayData.size(); ++j)
+					for (int j = 0; j < int(arrayData.size()); ++j)
 					{
 						if(arrayData[j].isString()){
 							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
@@ -273,17 +273,17 @@ bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool func
 		queue.pop_front();
 		runNewJob=true;
 	}else{
-		for (int i = 0; i < queue.size(); ++i)
+		for (size_t i = 0; i < queue.size(); ++i)
 		{
 			std::vector<jobIdType> jobDependency=std::get<2>(queue[i]);
 			if(jobDependency.empty()){
 				break;//make sens to me to se an unseted as a barrier
 			}else{
 				bool toRun=true;
-				for (int j = 0; (j < jobDependency.size()) && toRun; ++j)
+				for (size_t j = 0; (j < jobDependency.size()) && toRun; ++j)
 				{
 					if(jobIds.look4pid.count(jobDependency[j])>0)toRun=false;
-					for (int k = 0; k < i; ++k)
+					for (size_t k = 0; k < i; ++k)
 					{
 						if(std::get<0>(queue[k])==jobDependency[j])toRun=false;
 					}
@@ -311,7 +311,7 @@ jobIdType stackJob(Json::Value job,jobQueue &queue){
 		std::vector<jobIdType> jobDependency;
 		if(job.isMember("Dependency") && job["Dependency"].isArray()){
 			Json::Value dep=job["Dependency"];
-			for (int i = 0; i < dep.size(); ++i)
+			for (int i = 0; i < int(dep.size()); ++i)
 			{
 				if(dep[i].isUInt())
 				jobDependency.push_back(dep[i].asUInt());

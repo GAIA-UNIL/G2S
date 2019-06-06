@@ -27,7 +27,7 @@
  	_srcSize=trueSize;
 	_fftSize=std::vector<unsigned>(trueSize.begin(),trueSize.end());
 
-	for (int j = 0; j < _fftSize.size(); ++j)
+	for (size_t j = 0; j < _fftSize.size(); ++j)
 	{
 		if(_fftSize[j]==1)continue;
 		int currentSize=_fftSize[j];
