@@ -62,7 +62,7 @@ class DataImage{
 	{
 		_nbVariable=nbVariable;
 		unsigned arraySize=nbVariable;
-		for (int i = 0; i < nbDim; ++i)
+		for (unsigned int i = 0; i < nbDim; ++i)
 		{
 			_dims.push_back(sizes[i]);
 			arraySize*=sizes[i];
@@ -127,14 +127,14 @@ class DataImage{
 		index+=sizeof(fullSize)/4;
 		*((unsigned*)(raw+4*index))=_dims.size();
 		index++;
-		for (int i = 0; i < _dims.size(); ++i)
+		for (size_t i = 0; i < _dims.size(); ++i)
 		{
 			*((unsigned*)(raw+4*index))=_dims[i];
 			index++;
 		}
 		*((unsigned*)(raw+4*index))=_types.size();
 		index++;
-		for (int i = 0; i < _types.size(); ++i)
+		for (size_t i = 0; i < _types.size(); ++i)
 		{
 			*((VaraibleType*)(raw+4*index))=_types[i];
 			index++;
@@ -153,14 +153,14 @@ class DataImage{
 		index+=sizeof(fullSize)/4;
 		_dims.resize(*((unsigned*)(raw+4*index)));
 		index++;
-		for (int i = 0; i < _dims.size(); ++i)
+		for (size_t i = 0; i < _dims.size(); ++i)
 		{
 			_dims[i]=*((unsigned*)(raw+4*index));
 			index++;
 		}
 		_types.resize(*((unsigned*)(raw+4*index)));
 		index++;
-		for (int i = 0; i < _types.size(); ++i)
+		for (size_t i = 0; i < _types.size(); ++i)
 		{
 			_types[i]=*((VaraibleType*)(raw+4*index));
 			index++;
@@ -221,7 +221,7 @@ class DataImage{
 
 	inline unsigned dataSize(){
 		unsigned result= _nbVariable;
-		for (int i = 0; i < _dims.size(); ++i)
+		for (size_t i = 0; i < _dims.size(); ++i)
 		{
 			result*=_dims[i];
 		}
@@ -236,17 +236,17 @@ class DataImage{
 
 		std::vector<int> val(_dims.size());
 
-		for (int i = 0; i < _dims.size(); ++i)
+		for (size_t i = 0; i < _dims.size(); ++i)
 		{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+deltaVect[i];
-			if((val[i]<0)|| (val[i] >= _dims[i])){
+			if((val[i]<0)|| (val[i] >= int(_dims[i]))){
 				isOk=false;
 			}
 			position/=_dims[i];
 		}
 
-		for (int i = _dims.size()-1; i >= 0; i--)
+		for (int i = int(_dims.size()-1); i >= 0; i--)
 		{
 			finalValue*=_dims[i];
 			finalValue+=val[i];
@@ -262,7 +262,7 @@ class DataImage{
 		DataImage result(_dims.size()-1,_dims.data(),_dims.back());
 		unsigned newVariableSize=_dims.back();
 		unsigned newDataSizeProLayer=dataSize()/newVariableSize;
-		for (int i = 0; i < dataSize(); ++i)
+		for (unsigned int i = 0; i < dataSize(); ++i)
 		{
 			result._data[(i%newDataSizeProLayer)*newVariableSize+i/newDataSizeProLayer]=_data[i];
 		}
@@ -273,28 +273,39 @@ class DataImage{
 
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
 		
-		for (int j = 0; j < variableWeight.size(); ++j)
+		for (size_t j = 0; j < variableWeight.size(); ++j)
 		{
 			switch(kernelsTypeForGeneration[j]) {
 				case  UNIFORM:
-					for (int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
+					for (unsigned int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
 					{
 						kernel._data[i*kernel._nbVariable+j]=variableWeight[j];
 					}
 					break;
 				case  EXPONENTIAL:
-					for (int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
+					for (unsigned int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
 					{
 						float dist=sqrt(kernel.distance2ToCenter(i));
 						kernel._data[i*kernel._nbVariable+j]=exp(-alphas[j]*dist);
 					}
 					break;
 				case  GAUSSIAN:
-					for (int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
+					for (unsigned int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
 					{
 						float dist2=kernel.distance2ToCenter(i)*alphas[j]*alphas[j];
 						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*M_PI)*exp(-dist2/2.f);
 					}
+					break;
+						
+				case TRIANGULAR :
+				case EPANECHNIKOV :
+				case QUARTIC :
+				case TRIWEIGHT :
+				case TRICUBE :
+				case COSINE :
+				case LOGISTIC :
+				case SIGMOID :
+				case SILVERMAN :
 					break;
 			}
 		}
@@ -320,7 +331,7 @@ class DataImage{
 	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor){
 
 		unsigned cumulated=0;
-		for (int i = 0; i < factor.size(); ++i)
+		for (size_t i = 0; i < factor.size(); ++i)
 		{
 			cumulated+=factor[i];
 		}
@@ -329,11 +340,11 @@ class DataImage{
 		DataImage kernel=DataImage(currentKernel._dims.size(),currentKernel._dims.data(),cumulated);
 
 		unsigned currentPosition=0;
-		for (int i = 0; i < factor.size(); ++i)
+		for (size_t i = 0; i < factor.size(); ++i)
 		{
-			for (int j = 0; j < factor[i]; ++j)
+			for (unsigned int j = 0; j < factor[i]; ++j)
 			{
-				for (int k = 0; k < currentKernel.dataSize()/currentKernel._nbVariable; ++k)
+				for (unsigned int k = 0; k < currentKernel.dataSize()/currentKernel._nbVariable; ++k)
 				{
 					kernel._data[k*cumulated+currentPosition]=currentKernel._data[k*currentKernel._nbVariable+i];
 				}
@@ -348,14 +359,14 @@ class DataImage{
 		float distance2ToCenter(unsigned index){
 			std::vector<int> dists(_dims.size());
 			int val=index;
-			for (int i = 0; i < _dims.size(); ++i)
+			for (size_t i = 0; i < _dims.size(); ++i)
 			{
 				dists[i]=abs(int(val%_dims[i])-(int(_dims[i])-1)/2);
 				val/=_dims[i];
 			}
 
 			float value=0.f;
-			for (int i = 0; i < _dims.size(); ++i)
+			for (size_t i = 0; i < _dims.size(); ++i)
 			{
 				value+=dists[i]*dists[i];
 			}
@@ -365,7 +376,7 @@ class DataImage{
 		std::vector<std::vector<g2s::DataImage> > convertInput4Xcorr( std::vector<unsigned> fftSize, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
 			std::vector<std::vector<g2s::DataImage> > output;
 			unsigned categoriesValuesIndex=0;
-			for (int i = 0; i < _nbVariable; ++i)
+			for (unsigned int i = 0; i < _nbVariable; ++i)
 			{
 				if(_types[i]==Continuous){
 					output.push_back(std::vector<g2s::DataImage>());
@@ -376,7 +387,7 @@ class DataImage{
 					memset(output[i][1]._data,0,sizeof(float) * output[i][1].dataSize());
 					//memset(output[i][2]._data,0,sizeof(float) * output[i][2].dataSize());
 
-					for (int j = i; j < dataSize(); j+=_nbVariable)
+					for (unsigned int j = i; j < dataSize(); j+=_nbVariable)
 					{
 						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 						output[i][0]._data[newIndex] = _data[j] * _data[j];
@@ -390,16 +401,16 @@ class DataImage{
 				if(_types[i]==Categorical){
 					output.push_back(std::vector<g2s::DataImage>());
 					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
-					for (int k = 0; k < numberOfCategorie; ++k)
+					for (unsigned int k = 0; k < numberOfCategorie; ++k)
 					{
 						output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
 						memset(output[i][k]._data,0,sizeof(float) * output[i][k].dataSize());
 					}
 
-					for (int j = i; j < dataSize(); j+=_nbVariable)
+					for (unsigned int j = i; j < dataSize(); j+=_nbVariable)
 					{
 						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
-						for (int k = 0; k < numberOfCategorie; ++k)
+						for (unsigned int k = 0; k < numberOfCategorie; ++k)
 						{
 							//output[i][k]._data[newIndex] = (_data[j] != categoriesValues[categoriesValuesIndex][k])/float(numberOfCategorie);
 							output[i][k]._data[newIndex] = (_data[j] == categoriesValues[categoriesValuesIndex][k]);
@@ -410,7 +421,7 @@ class DataImage{
 					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
 					int lastPosition=output[i].size()-1;
 					//std::fill(output[i][lastPosition]._data, output[i][lastPosition]._data+output[i][lastPosition].dataSize(),1.f);
-					for (int j = i; j < dataSize(); j+=_nbVariable)
+					for (unsigned int j = i; j < dataSize(); j+=_nbVariable)
 					{
 						unsigned newIndex=output[i][0].dataSize()-1-output[i][0].corrd2Index(index2Corrd(j/_nbVariable));
 						if(std::isnan(_data[j])){
@@ -431,7 +442,7 @@ class DataImage{
 			unsigned categoriesValuesIndex=0;
 			int numberOfSubVariable=0;
 
-			for (int i = 0; i < _nbVariable; ++i)
+			for (unsigned int i = 0; i < _nbVariable; ++i)
 			{
 				if(_types[i]==Continuous){
 					numberOfSubVariable+=2;
@@ -454,7 +465,7 @@ class DataImage{
 
 			categoriesValuesIndex=0;
 			int subVariablePosition=0;
-			for (int i = 0; i < _nbVariable; ++i)
+			for (unsigned int i = 0; i < _nbVariable; ++i)
 			{
 				convertionTypeVectorConstXmeassurement[i].push_back(P0);
 				convertionCoefVectorConstXmeassurement[i].push_back(1.f);
@@ -481,7 +492,7 @@ class DataImage{
 
 				if(_types[i]==Categorical){
 					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
-					for (int k = 0; k < numberOfCategorie; ++k)
+					for (unsigned int k = 0; k < numberOfCategorie; ++k)
 					{
 						std::vector<convertionType> convType;
 						convType.push_back(P1);
@@ -550,7 +561,7 @@ class DataImage{
 	protected:
 		std::vector<unsigned> index2Corrd(unsigned index){
 			std::vector<unsigned> result(_dims.size());
-			for (int i = 0; i < _dims.size(); ++i)
+			for (size_t i = 0; i < _dims.size(); ++i)
 			{
 				result[i]=index%_dims[i];
 				index/=_dims[i];
@@ -587,11 +598,11 @@ class DataImage{
 			fscanf(file,"%d",&nbVariable);
 			DataImage result=g2s::DataImage(nbDim, sizes, nbVariable);
 
-			for (int i = 0; i < nbVariable; ++i)
+			for (unsigned int i = 0; i < nbVariable; ++i)
 			{
 				int id;
 				char variableName[1024];
-				fscanf(file, "%s_%d", variableName, id);
+				fscanf(file, "%s_%d", variableName, &id);
 				if(strcmp("Continuous",variableName)==0){
 					result._types[i]=Continuous;
 				}
@@ -600,7 +611,7 @@ class DataImage{
 				}
 			}
 			float* dataPtr=result._data;
-			for (int i = 0; i < result.dataSize(); ++i)
+			for (unsigned int i = 0; i < result.dataSize(); ++i)
 			{
 				fscanf(file,"%f", dataPtr+i);
 			}
@@ -613,8 +624,8 @@ class DataImage{
 			file = fopen(fileName, "w");
 			if (file) {
 				fprintf(file,"%d %d %d 1.0 1.0 1.0 0.0 0.0 0.0\n",_dims[0], _dims.size()>1 ? _dims[1] : 1, _dims.size()>2 ? _dims[2] : 1);
-				fprintf(file,"%d\n",_types.size());
-				for (int i = 0; i < _types.size(); ++i)
+				fprintf(file,"%lu\n",_types.size());
+				for (size_t i = 0; i < _types.size(); ++i)
 				{
 					std::string startName;
 					switch(_types[i]){
@@ -627,10 +638,10 @@ class DataImage{
 						default :
 							startName="unkown";
 					}
-					fprintf(file,"%s_%d ",startName.c_str(), i);
+					fprintf(file,"%s_%zu ",startName.c_str(), i);
 				}
 				int nbVariable=_types.size();
-				for (int i = 0; i < dataSize(); ++i)
+				for (unsigned int i = 0; i < dataSize(); ++i)
 				{
 					if( i%(nbVariable)==0 ) fprintf(file,"\n");  //start new line for each position
 					fprintf(file,"%f ", _data[i]);

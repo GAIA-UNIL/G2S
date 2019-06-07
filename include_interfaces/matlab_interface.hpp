@@ -100,7 +100,7 @@ public:
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
 		size_t *dimsArray=(size_t *)malloc(sizeof(size_t)*(image._dims.size()+1));
-		for (int i = 0; i < image._dims.size(); ++i)
+		for (size_t i = 0; i < image._dims.size(); ++i)
 		{
 			dimsArray[i]=image._dims[i];
 		}
@@ -116,9 +116,9 @@ public:
 		float* data=(float*)mxGetPr(array);
 		unsigned nbOfVariable=image._nbVariable;
 		unsigned dataSize=image.dataSize();
-		for (int i = 0; i < dataSize/nbOfVariable; ++i)
+		for (unsigned int i = 0; i < dataSize/nbOfVariable; ++i)
 		{
-			for (int j = 0; j < nbOfVariable; ++j)
+			for (unsigned int j = 0; j < nbOfVariable; ++j)
 			{
 				data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
 			}
@@ -306,7 +306,7 @@ public:
 		}
 		listOfIndex.push_back(nrhs);
 
-		for (int j = 0; j < listOfIndex.size()-1; ++j)
+		for (int j = 0; j < int(listOfIndex.size())-1; ++j)
 		{
 			if(listOfIndex[j]+1==listOfIndex[j+1]){
 				inputs.insert(std::pair<std::string, std::any>(mxArrayToString(prhs[listOfIndex[j]]),nullptr));
@@ -314,7 +314,7 @@ public:
 				for (int i = listOfIndex[j]+1; i < listOfIndex[j+1]; ++i)
 				{
 					if(mxIsCell(prhs[i])){
-						for (int p = 0; p < mxGetNumberOfElements(prhs[i]); ++p)
+						for (size_t p = 0; p < mxGetNumberOfElements(prhs[i]); ++p)
 						{
 							inputs.insert(std::pair<std::string, std::any>(mxArrayToString(prhs[listOfIndex[j]]),std::any((const mxArray *)mxGetCell(prhs[i],p))));
 						}

@@ -92,10 +92,11 @@ zmq::message_t sendData( char* dataName){
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
-			fread (&fullSize, 1, sizeof(fullSize), dataFile);
+			size_t length;
+			length=fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
 			buffer = (char*)malloc (sizeof(char)*fullSize);
-			fread (buffer,1,fullSize,dataFile);
+			length=fread (buffer,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}
@@ -178,10 +179,11 @@ zmq::message_t sendJson( char* dataName){
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
-			fread (&fullSize, 1, sizeof(fullSize), dataFile);
+			size_t length;
+			length=fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
 			buffer = (char*)malloc (sizeof(char)*fullSize);
-			fread (buffer,1,fullSize,dataFile);
+			length=fread (buffer,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}
@@ -227,11 +229,12 @@ zmq::message_t sendText( char* dataName){
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"r");
 		if(dataFile) {
+			size_t length;
 			fseek(dataFile, 0L, SEEK_END);
 			fullSize = ftell(dataFile);
 			rewind (dataFile);
 			buffer = (char*)malloc (sizeof(char)*fullSize);
-			fread (buffer,1,fullSize,dataFile);
+			length=fread (buffer,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}

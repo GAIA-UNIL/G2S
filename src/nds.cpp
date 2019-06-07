@@ -332,7 +332,7 @@ int main(int argc, char const *argv[]) {
 	//add extra paremetre here
 	float alpha=0;
 	g2s::KernelType kernelTypeForGeneration=g2s::UNIFORM;
-	unsigned kernelSize=-1;
+	int kernelSize=-1;
 	if (arg.count("-kernel") == 1)
 	{
 		//TODO implement the selecteur 
@@ -408,7 +408,7 @@ int main(int argc, char const *argv[]) {
 
 	std::vector<g2s::DataImage > TIs;
 
-	for (int i = 0; i < sourceFileNameVector.size(); ++i)
+	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
 	}
@@ -421,31 +421,31 @@ int main(int argc, char const *argv[]) {
 	if(kernelFileName.empty()) {
 		std::vector<unsigned> maxSize=TIs[0]._dims;
 		if(kernelSize!=-1){
-			for (int i = 0; i < maxSize.size(); ++i)
+			for (size_t i = 0; i < maxSize.size(); ++i)
 			{
 				maxSize[i]=kernelSize;
 			}
 		}else{
-			for (int j = 0; j < TIs.size(); ++j)
+			for (size_t j = 0; j < TIs.size(); ++j)
 			{
-				for (int i = 0; i < maxSize.size(); ++i)
+				for (size_t i = 0; i < maxSize.size(); ++i)
 				{
 					maxSize[i]=std::min(TIs[j]._dims[i]/2+1,maxSize[i]);
 				}
 			}
 		}
 		std::vector<float> variableWeight(TIs[0]._nbVariable);
-		for (int i = 0; i < variableWeight.size(); ++i)
+		for (size_t i = 0; i < variableWeight.size(); ++i)
 		{
 			variableWeight[i]=1;
 		}
 		std::vector<float> alphas(TIs[0]._nbVariable);
-		for (int i = 0; i < alphas.size(); ++i)
+		for (size_t i = 0; i < alphas.size(); ++i)
 		{
 			alphas[i]=alpha;
 		}
 		std::vector<g2s::KernelType> kernelsTypeFG(TIs[0]._nbVariable);
-		for (int i = 0; i < kernelsTypeFG.size(); ++i)
+		for (size_t i = 0; i < kernelsTypeFG.size(); ++i)
 		{
 			kernelsTypeFG[i]=kernelTypeForGeneration;
 		}
@@ -457,12 +457,12 @@ int main(int argc, char const *argv[]) {
 
 	std::vector<std::vector<int> > pathPosition;
 	pathPosition.push_back(std::vector<int>(0));
-	for (int i = 0; i < kernel._dims.size(); ++i)
+	for (size_t i = 0; i < kernel._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
 		int sizeInThisDim=(kernel._dims[i]+1)/2;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
-		for (int k = 0; k < originalSize; ++k)
+		for (unsigned int k = 0; k < originalSize; ++k)
 		{
 			pathPosition[k].push_back(0);
 		}
@@ -470,11 +470,11 @@ int main(int argc, char const *argv[]) {
 		{
 			std::copy ( pathPosition.begin(), pathPosition.begin()+originalSize, pathPosition.begin()+originalSize*(-1+2*j+0) );
 			std::copy ( pathPosition.begin(), pathPosition.begin()+originalSize, pathPosition.begin()+originalSize*(-1+2*j+1) );
-			for (int k = originalSize*(-1+2*j+0); k < originalSize*(-1+2*j+1); ++k)
+			for (unsigned int k = originalSize*(-1+2*j+0); k < originalSize*(-1+2*j+1); ++k)
 			{
 				pathPosition[k][i]=j;
 			}
-			for (int k = originalSize*(-1+2*j+1); k < originalSize*(-1+2*j+2); ++k)
+			for (unsigned int k = originalSize*(-1+2*j+1); k < originalSize*(-1+2*j+2); ++k)
 			{
 				pathPosition[k][i]=-j;
 			}
@@ -495,16 +495,16 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
-		for (int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
 		{
 			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
 		}
 	}
 	if(searchDistance==g2s::KERNEL){
 		unsigned nbV=kernel._nbVariable;
-		for (int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
 		{
-			for (int j = 0; j < nbV; ++j)
+			for (unsigned int j = 0; j < nbV; ++j)
 			{
 				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
 			}
@@ -549,10 +549,10 @@ int main(int argc, char const *argv[]) {
 
 	bool needCrossMesurement=false;
 
-	for (int i = 0; i < TIs.size(); ++i)
+	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		#pragma omp simd reduction(|:needCrossMesurement)
-		for (int j = 0; j < TIs[i].dataSize(); ++j)
+		for (unsigned int j = 0; j < TIs[i].dataSize(); ++j)
 		{
 			needCrossMesurement|=std::isnan(TIs[i]._data[j]);
 		}
@@ -561,9 +561,9 @@ int main(int argc, char const *argv[]) {
 	bool varaibleTypeAreCompatible=true;
 
 
-	for (int i = 0; i < TIs.size(); ++i)
+	for (size_t i = 0; i < TIs.size(); ++i)
 	{
-		for (int j = 0; j < TIs[i]._types.size(); ++j)
+		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
 			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
@@ -575,13 +575,13 @@ int main(int argc, char const *argv[]) {
 		return 0;
 	}
 
-	for (int i = 0; i < TIs.size(); ++i)
+	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		if((TIs[i]._types.size())!=(DI._types.size())){
 			varaibleTypeAreCompatible=false;
 			break;
 		}
-		for (int j = 0; j < TIs[i]._types.size(); ++j)
+		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
 			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
@@ -589,18 +589,18 @@ int main(int argc, char const *argv[]) {
 
 	std::vector<std::vector<float> > categoriesValues;
 	std::vector<unsigned> numberDeComputedVariableProVariable;
-	for (int i = 0; i < DI._types.size(); ++i)
+	for (size_t i = 0; i < DI._types.size(); ++i)
 	{
 		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
 			numberDeComputedVariableProVariable.push_back(1);
 		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
 			std::vector<float> currentVariable;
-			for (int im = 0; im < TIs.size(); ++im)
+			for (size_t im = 0; im < TIs.size(); ++im)
 			{
-				for (int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
+				for (unsigned int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
 				{
 					bool isPresent=false;
-					for (int k = 0; k < currentVariable.size(); ++k)
+					for (size_t k = 0; k < currentVariable.size(); ++k)
 					{
 						isPresent|=((TIs[im]._data[j])==(currentVariable[k]));
 					}
@@ -625,15 +625,15 @@ int main(int argc, char const *argv[]) {
 
 
 
-		for (int i = 0; i < TIs.size(); ++i)
+		for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
 
 		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
 
-		for (int j = 0; j < variablesImages.size(); ++j)
+		for (size_t j = 0; j < variablesImages.size(); ++j)
 		{
-			for (int k = 0; k < variablesImages[j].size(); ++k)
+			for (size_t k = 0; k < variablesImages[j].size(); ++k)
 			{
 				smm->addVaraible(variablesImages[j][k]._data);
 			}
@@ -645,7 +645,7 @@ int main(int argc, char const *argv[]) {
 		#endif
 
 		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
-		for (int i = 0; i < nbThreads; ++i)
+		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
 			{
@@ -677,9 +677,9 @@ int main(int argc, char const *argv[]) {
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];
 		float *values_ptr=values;;
-		for (int i = 0; i < nb; ++i)
+		for (unsigned int i = 0; i < nb; ++i)
 		{
-			for (int j = 0; j < nbVariable; ++j)
+			for (unsigned int j = 0; j < nbVariable; ++j)
 			{
 				values[i*nbVariable+j]=TIs[tiId[i]]._data[indexId[i]*TIs[tiId[i]]._nbVariable+j];
 			}
@@ -687,8 +687,8 @@ int main(int argc, char const *argv[]) {
 		unsigned localPosition[nb];
 		std::iota(localPosition,localPosition+nb-1,0);
 		std::sort(localPosition,localPosition+nb-1,[values_ptr,nbVariable](unsigned a, unsigned b){
-			int valide=0;
-			for (int j = 0; j < nbVariable; ++j)
+			unsigned valide=0;
+			for (unsigned int j = 0; j < nbVariable; ++j)
 			{
 				valide+=(values_ptr[a*nbVariable+j]<values_ptr[b*nbVariable+j]);
 			}
@@ -697,7 +697,7 @@ int main(int argc, char const *argv[]) {
 
 		float narrowness=0;
 
-		for (int j = nbVariable-nbBandsForNarrowness; j < nbVariable; ++j)
+		for (unsigned int j = nbVariable-nbBandsForNarrowness; j < nbVariable; ++j)
 		{
 			narrowness+=fabs(values[localPosition[int(ceil((0.5f-narrownessRange/2.f)*nb))]*nbVariable+j]-values[localPosition[int(floor((0.5f+narrownessRange/2.f)*nb))]*nbVariable+j]);
 		}
@@ -717,16 +717,16 @@ int main(int argc, char const *argv[]) {
 
 	// free memory
 
-	for (int i = 0; i < nbThreads; ++i)
+	for (unsigned int i = 0; i < nbThreads; ++i)
 	{
-		for (int j = 0; j < computeDeviceModuleArray[i].size(); ++j)
+		for (size_t j = 0; j < computeDeviceModuleArray[i].size(); ++j)
 		{
 			delete computeDeviceModuleArray[i][j];
 			computeDeviceModuleArray[i][j]=nullptr;
 		}
 	}
 
-	for (int i = 0; i < sharedMemoryManagerVector.size(); ++i)
+	for (size_t i = 0; i < sharedMemoryManagerVector.size(); ++i)
 	{
 		delete sharedMemoryManagerVector[i];
 		sharedMemoryManagerVector[i]=nullptr;

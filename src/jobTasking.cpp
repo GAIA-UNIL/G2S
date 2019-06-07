@@ -29,7 +29,7 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 		std::vector<std::string> argvV(argv, argv + index);
 		std::string functionNameStr(functionName);
 #ifndef EMSCRIPTEN
-		std::thread myThread([argvV,functionNameStr,uniqueId]()
+		std::thread myThread([argvV,functionNameStr]()
 #endif
 		{
 			int index=argvV.size();
@@ -113,7 +113,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 			char toAdd[2048];
 			char extra[2048];
 			char comment[2048];
-			while(readedSize=getline(&line, &sizeBuffer, fp)){
+			while((readedSize=getline(&line, &sizeBuffer, fp))){
 				memset(sourceName,0,1024);memset(tagetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
 				memset(requested,0,2048);memset(toAdd,0,2048);memset(extra,0,2048);memset(comment,0,2048);
 				if((readedSize>1) && ((line[0]!='/') || (line[0]!='#'))){
@@ -139,7 +139,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		std::vector<std::string> missing;
 
 
-		for (int i = 0; i < listOfMendatory.size(); ++i)
+		for (size_t i = 0; i < listOfMendatory.size(); ++i)
 		{
 			if(! param.isMember(listOfMendatory[i])){
 				missing.push_back(listOfMendatory[i]);
@@ -163,7 +163,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 			//init defualt
 			Json::Value::Members member=param.getMemberNames();
 			
-			for (int i = 0; i < member.size(); ++i)
+			for (size_t i = 0; i < member.size(); ++i)
 			{
 				argv[index]=(char *)member[i].c_str();
 				//fprintf(stderr, "%s\n", argv[index]);
@@ -181,7 +181,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 				{
 					//fprintf(stderr, "%s\n", "is array");
 					Json::Value arrayData=param[member[i]];
-					for (int j = 0; j < arrayData.size(); ++j)
+					for (int j = 0; j < int(arrayData.size()); ++j)
 					{
 						if(arrayData[j].isString()){
 							strcpy(tempMemory[tempMemIndex], arrayData[j].asCString());
@@ -222,19 +222,15 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 					char *runVariable=argv[1];
 					char *dot = strrchr(runVariable, '.');
 					if (dot && !strcmp(dot, ".py"))
-						argv[0]="python3";
+						argv[0]=(char *)"python3";
 					if (dot && !strcmp(dot, ".sh"))
-						argv[0]="bash";
-					fprintf(stderr, "%s\n", runVariable);
-					if(argv[0])fprintf(stderr, "%s\n", argv[0]);
+						argv[0]=(char *)"bash";
 					if(argv[0])
 					{
-						fprintf(stderr, "branch 0\n");
 						execv(argv[0], argv);
 					}
 					else
 					{
-						fprintf(stderr, "branch 1\n");
 						execv(argv[1], argv+1);
 					}
 					exit(127); // only if execv fails //
@@ -248,7 +244,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		}else{
 			std::string s;
 			if(missing.size()>0) s.append(missing[0]);
-			fprintf(stderr, "%d\n", missing.size());
+			fprintf(stderr, "%lu\n", missing.size());
 			for (int i = 1; i < int(missing.size())-2; ++i)
 			{
 				s.append(std::string(", "));
@@ -277,17 +273,17 @@ bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool func
 		queue.pop_front();
 		runNewJob=true;
 	}else{
-		for (int i = 0; i < queue.size(); ++i)
+		for (size_t i = 0; i < queue.size(); ++i)
 		{
 			std::vector<jobIdType> jobDependency=std::get<2>(queue[i]);
 			if(jobDependency.empty()){
 				break;//make sens to me to se an unseted as a barrier
 			}else{
 				bool toRun=true;
-				for (int j = 0; (j < jobDependency.size()) && toRun; ++j)
+				for (size_t j = 0; (j < jobDependency.size()) && toRun; ++j)
 				{
 					if(jobIds.look4pid.count(jobDependency[j])>0)toRun=false;
-					for (int k = 0; k < i; ++k)
+					for (size_t k = 0; k < i; ++k)
 					{
 						if(std::get<0>(queue[k])==jobDependency[j])toRun=false;
 					}
@@ -315,7 +311,7 @@ jobIdType stackJob(Json::Value job,jobQueue &queue){
 		std::vector<jobIdType> jobDependency;
 		if(job.isMember("Dependency") && job["Dependency"].isArray()){
 			Json::Value dep=job["Dependency"];
-			for (int i = 0; i < dep.size(); ++i)
+			for (int i = 0; i < int(dep.size()); ++i)
 			{
 				if(dep[i].isUInt())
 				jobDependency.push_back(dep[i].asUInt());

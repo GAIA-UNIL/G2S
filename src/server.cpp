@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #include <thread>
 
+#include <spawn.h>
+
 #ifdef WITH_VERSION_CONTROL
 #include <curl/curl.h>
 #endif
@@ -166,14 +168,14 @@ int main(int argc, char const *argv[]) {
 	std::thread fileCleaningThread([&] {
 		time_t last;
 		time(&last);
-		removeAllFile("./data",( keepOldData ? maxFileAge : 0));
-		removeAllFile("./logs",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"./data",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"./logs",( keepOldData ? maxFileAge : 0));
 		while(!needToStop) {
 			time_t now;
 			time(&now);
 		    if(difftime(now,last)>std::max(maxFileAge/100,10.)){
-		    	removeAllFile("./data",maxFileAge);
-				removeAllFile("./logs",maxFileAge);
+		    	removeAllFile((char*)"./data",maxFileAge);
+				removeAllFile((char*)"./logs",maxFileAge);
 				last=now;
 		    }else{
 		    	std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -215,7 +217,7 @@ int main(int argc, char const *argv[]) {
 		zmq::message_t request;
 		bool newRequest=false;
 		//  Wait for next request from client
-		bool reciveMessage=receiver.recv(&request,ZMQ_NOBLOCK);
+		zmq::detail::recv_result_t reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
 		if( reciveMessage )
 		{
 			newRequest=true;
@@ -231,7 +233,7 @@ int main(int argc, char const *argv[]) {
 							int type=dataIsPresent((char*)request.data()+sizeof(infoContainer));
 							zmq::message_t reply(sizeof(type));
 							memcpy (reply.data (), &type, sizeof(type));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case UPLOAD :
@@ -239,13 +241,13 @@ int main(int argc, char const *argv[]) {
 							int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case DOWNLOAD :
 						{
 							zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
-							receiver.send(answer);
+							receiver.send(answer,zmq::send_flags::none);
 							break;
 						}
 					case JOB :
@@ -253,7 +255,7 @@ int main(int argc, char const *argv[]) {
 							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer));
 							zmq::message_t reply(sizeof(id));
 							memcpy (reply.data (), &id, sizeof(id));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case PROGESSION :
@@ -261,7 +263,7 @@ int main(int argc, char const *argv[]) {
 							int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
 							zmq::message_t reply(sizeof(progess));
 							memcpy (reply.data (), &progess, sizeof(progess));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case JOB_STATUS :
@@ -272,7 +274,7 @@ int main(int argc, char const *argv[]) {
 							int error=statusJobs(jobIds,jobId);
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case DURATION :
@@ -280,7 +282,7 @@ int main(int argc, char const *argv[]) {
 							int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
 							zmq::message_t reply(sizeof(progess));
 							memcpy (reply.data (), &progess, sizeof(progess));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case KILL :
@@ -292,7 +294,7 @@ int main(int argc, char const *argv[]) {
 							int error=0;
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case UPLOAD_JSON :
@@ -300,19 +302,19 @@ int main(int argc, char const *argv[]) {
 							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case DOWNLOAD_JSON :
 						{
 							zmq::message_t answer=sendJson((char*)request.data()+sizeof(infoContainer));
-							receiver.send(answer);
+							receiver.send(answer,zmq::send_flags::none);
 							break;
 						}
 					case DOWNLOAD_TEXT :
 						{
 							zmq::message_t answer=sendText((char*)request.data()+sizeof(infoContainer));
-							receiver.send(answer);
+							receiver.send(answer,zmq::send_flags::none);
 							break;
 						}
 					case SHUTDOWN :
@@ -321,7 +323,7 @@ int main(int argc, char const *argv[]) {
 							int error=0;
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 					case SERVER_STATUS :
@@ -329,7 +331,7 @@ int main(int argc, char const *argv[]) {
 							int status=1;
 							zmq::message_t reply(sizeof(status));
 							memcpy (reply.data (), &status, sizeof(status));
-							receiver.send(reply);
+							receiver.send(reply,zmq::send_flags::none);
 							break;
 						}
 				}

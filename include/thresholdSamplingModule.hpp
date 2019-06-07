@@ -65,7 +65,7 @@ public:
 		}
 		if(_maxNumberOfElement[moduleID]==0){
 			unsigned numberElement=0;
-			for (int i = 0; i < _cdmV[moduleID].size(); ++i)
+			for (size_t i = 0; i < _cdmV[moduleID].size(); ++i)
 			{
 				numberElement+=_cdmV[moduleID][i]->getErrorsArraySize();
 			}
@@ -88,14 +88,14 @@ public:
 			indexCenter=indexCenter*_kernel->_dims[i]+_kernel->_dims[i]/2;
 		}
 
-		for (int i = 0; i < _convertionTypeVector.size(); ++i)
+		for (size_t i = 0; i < _convertionTypeVector.size(); ++i)
 		{
 
-			for (int j = 0; j < _convertionTypeVector[i].size(); ++j)
+			for (size_t j = 0; j < _convertionTypeVector[i].size(); ++j)
 			{
 				switch(_convertionTypeVector[i][j]){
 					case convertionType::P0:
-						for (int k = 0; k < neighborArrayVector.size(); ++k)
+						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
@@ -105,7 +105,7 @@ public:
 						}
 					break;
 					case convertionType::P1:
-						for (int k = 0; k < neighborArrayVector.size(); ++k)
+						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
 							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
@@ -116,7 +116,7 @@ public:
 						}
 					break;
 					case convertionType::P2:
-						for (int k = 0; k < neighborArrayVector.size(); ++k)
+						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
 							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
@@ -124,6 +124,9 @@ public:
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
+					break;
+					case convertionType::MinMinus1:
+					case convertionType::MaxPlus1:
 					break;
 				}	
 			}
@@ -133,16 +136,16 @@ public:
 		std::vector<float> delta;
 		//if(_completeTIs)
 		{
-			for (int p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
+			for (size_t p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
 			{
 				float sum=0;
-				for (int i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
+				for (size_t i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
 				{
-					for (int j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
+					for (size_t j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
 					{
 						switch(_convertionTypeVectorConstVector[p][i][j]){
 							case convertionType::P0:
-								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
@@ -150,7 +153,7 @@ public:
 								}
 							break;
 							case convertionType::P1:
-								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
@@ -159,12 +162,15 @@ public:
 								}
 							break;
 							case convertionType::P2:
-								for (int k = 0; k < neighborArrayVector.size(); ++k)
+								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
 										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
+							break;
+							case convertionType::MinMinus1:
+							case convertionType::MaxPlus1:
 							break;
 						}	
 					}
@@ -178,14 +184,14 @@ public:
 
 		//_randgen.seed(unsigned(seed*(2<<24)));
 
-		for (int i = 0; i < vectorSize; ++i)
+		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
 		}
 
 		unsigned numberElement=0;
 
-		for (int i = 0; i < vectorSize; ++i)
+		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
 			{

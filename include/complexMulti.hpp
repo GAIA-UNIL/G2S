@@ -55,7 +55,7 @@ namespace  g2s{
 	inline void complexAddAlphaxCxD_32(T* restrict dst, const T* C, const T* D, const T Alpha, const unsigned int size){
 
 		#pragma omp simd
-		for (int i = 0; i < size; i++)
+		for (unsigned int i = 0; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -68,7 +68,7 @@ namespace  g2s{
 
 		__m128 alphaVect=_mm_set1_ps(Alpha);
 		
-		for (int i = 0; i < 2*size/4; i++)
+		for (unsigned int i = 0; i < 2*size/4; i++)
 		{
 
 			__m128 C_vec=_mm_loadu_ps(C+i*4);
@@ -89,7 +89,7 @@ namespace  g2s{
 			_mm_storeu_ps(dst+i*4,val);
 		}
 		
-		for (int i = (size/4)*4; i < size; i++)
+		for (unsigned int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -102,7 +102,7 @@ namespace  g2s{
 
 		__m128d alphaVect=_mm_set1_pd(Alpha);
 		
-		for (int i = 0; i < 2*size/2; i++)
+		for (unsigned int i = 0; i < 2*size/2; i++)
 		{
 
 			__m128d C_vec=_mm_loadu_pd(C+i*2);
@@ -123,7 +123,7 @@ namespace  g2s{
 			_mm_storeu_pd(dst+i*2,val);
 		}
 		
-		for (int i = (size/2)*2; i < size; i++)
+		for (unsigned int i = (size/2)*2; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -140,7 +140,7 @@ namespace  g2s{
 
 		__m256 alphaVect=_mm256_set1_ps(Alpha);
 		
-		for (int i = 0; i < 2*size/8; i++)
+		for (unsigned int i = 0; i < 2*size/8; i++)
 		{
 			
 			__m256 C_vec=_mm256_loadu_ps(C+i*8);
@@ -160,7 +160,7 @@ namespace  g2s{
 			_mm256_storeu_ps(dst+i*8,val);
 		}
 		
-		for (int i = (size/8)*8; i < size; i++)
+		for (unsigned int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -173,7 +173,7 @@ namespace  g2s{
 
 		__m256d alphaVect=_mm256_set1_pd(Alpha);
 		
-		for (int i = 0; i < 2*size/4; i++)
+		for (unsigned int i = 0; i < 2*size/4; i++)
 		{
 			
 			__m256d C_vec=_mm256_loadu_pd(C+i*4);
@@ -193,7 +193,7 @@ namespace  g2s{
 			_mm256_storeu_pd(dst+i*4,val);
 		}
 		
-		for (int i = (size/4)*4; i < size; i++)
+		for (unsigned int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -210,7 +210,7 @@ namespace  g2s{
 		__m512 alphaVect=_mm512_set1_ps(Alpha);
 		__m512 onesVect=_mm512_set1_ps(1.f);
 		
-		for (int i = 0; i < 2*size/16; i++)
+		for (unsigned int i = 0; i < 2*size/16; i++)
 		{
 			
 			__m512 C_vec=_mm512_loadu_ps(C+i*16);
@@ -232,7 +232,7 @@ namespace  g2s{
 			_mm512_storeu_ps(dst+i*16,val);
 		}
 		
-		for (int i = (size/16)*16; i < size; i++)
+		for (unsigned int i = (size/16)*16; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -245,7 +245,7 @@ namespace  g2s{
 		__m512d alphaVect=_mm512_set1_pd(Alpha);
 		__m512d onesVect=_mm512_set1_pd(1.f);
 		
-		for (int i = 0; i < 2*size/8; i++)
+		for (unsigned int i = 0; i < 2*size/8; i++)
 		{
 			
 			__m512d C_vec=_mm512_loadu_pd(C+i*8);
@@ -267,7 +267,7 @@ namespace  g2s{
 			_mm512_storeu_pd(dst+i*8,val);
 		}
 		
-		for (int i = (size/8)*8; i < size; i++)
+		for (unsigned int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
