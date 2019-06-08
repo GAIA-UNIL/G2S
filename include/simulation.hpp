@@ -386,6 +386,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 		SamplingModule::matchLocation importIndex;
 
+		importIndex.TI=0;
+		importIndex.index=0;
+
 		if(neighborArrayVector.size()>1){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
