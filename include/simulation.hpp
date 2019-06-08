@@ -157,6 +157,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		// }
 
 		SamplingModule::matchLocation importIndex;
+		importIndex.TI=0;
+		importIndex.index=INT_MAX;
 
 		if(neighborArrayVector.size()>1){
 			unsigned dataIndex;
@@ -387,7 +389,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		SamplingModule::matchLocation importIndex;
 
 		importIndex.TI=0;
-		importIndex.index=0;
+		importIndex.index=INT_MAX;
 
 		if(neighborArrayVector.size()>1){
 			SamplingModule::matchLocation verbatimRecord;
