@@ -551,7 +551,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
 	__m512 smallest=_mm512_set1_ps(output[k-1]);
-	for (iunsigned nt i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
 		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,smallest,_CMP_GT_OQ)))

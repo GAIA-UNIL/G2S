@@ -50,13 +50,12 @@ char* loadRawData(const char * hash){
 	if(!data &&  g2s::file_exist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
 		if(dataFile) {
-			size_t length;
 			size_t fullSize;
-			length=fread (&fullSize, 1, sizeof(fullSize), dataFile);
+			(void)fread (&fullSize, 1, sizeof(fullSize), dataFile);
 			rewind (dataFile);
 			ptr = (char*)malloc (sizeof(char)*fullSize);
 			data=ptr;
-			length=fread (data,1,fullSize,dataFile);
+			(void)fread (data,1,fullSize,dataFile);
 			fclose(dataFile);
 		}
 	}

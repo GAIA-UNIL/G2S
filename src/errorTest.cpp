@@ -42,7 +42,6 @@ int main(int argc, char const *argv[]) {
 
 
 	jobIdType uniqueID=-1;
-	bool run=true;
 
 
 	// manage report file
@@ -50,7 +49,6 @@ int main(int argc, char const *argv[]) {
 	if (arg.count("-r") > 1)
 	{
 		fprintf(reportFile,"only one rapport file is possible\n");
-		run=false;
 	}else{
 		if(arg.count("-r") ==1){
 			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
@@ -75,7 +73,6 @@ int main(int argc, char const *argv[]) {
 			}
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
-				run=false;
 			}
 		}
 	}
