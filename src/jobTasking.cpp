@@ -147,21 +147,43 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 		}
 
 		if(missing.size()==0){
+			//init defualt
+			Json::Value::Members member=param.getMemberNames();
+
+			int sizeParamArray=50;
+
+			for (size_t i = 0; i < member.size(); ++i)
+			{
+				sizeParamArray++;
+
+				if(param[member[i]].isString())
+				{
+					sizeParamArray++;
+				}
+				if(param[member[i]].isArray())
+				{
+					Json::Value arrayData=param[member[i]];
+					for (int j = 0; j < int(arrayData.size()); ++j)
+					{
+						if(arrayData[j].isString()){
+							sizeParamArray++;
+						}
+					}
+				}
+			}
+
 			int index=1;
-			char* argv[100];
-			for (int i = 0; i < 100; ++i)
+			char* argv[sizeParamArray];
+			for (int i = 0; i < sizeParamArray; ++i)
 			{
 				argv[i]=nullptr;
 			}
-			char tempMemory[100][100];
+			char tempMemory[sizeParamArray][100];
 			unsigned tempMemIndex=0;
-			memset(tempMemory,0,100*100);
+			memset(tempMemory,0,sizeParamArray*100);
 			//fprintf(stderr, "%s\n", exeName);
 			argv[index]=exeName;
 			index++;
-	
-			//init defualt
-			Json::Value::Members member=param.getMemberNames();
 			
 			for (size_t i = 0; i < member.size(); ++i)
 			{
