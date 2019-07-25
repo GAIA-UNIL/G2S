@@ -142,6 +142,7 @@ Flag | Description
 -submitOnly | submit a job
 -statusOnly | check progression
 -waitAndDownload | download the result
+-after | execute the task after an other on is finished (e.g. '-after',previousTaskId )
 
 #### QS options
 
@@ -157,6 +158,8 @@ Flag | Description
 :heavy_check_mark: | -n | the N closest neighbors to consider:<br> - single value for vectors neighbors<br> - one for each variable 
 | | -s | random seed value
 | | -j | to run in parallel (if specified), to use as follows ‘-j’, N1, N2, N3<br/>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br/>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br/>- N3 threads used to parallelize FFTs (path-level). Default: 1<br/>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.
+| | -ii | index of trining in with to sample from (experimental)
+| | -far | fast and risky :smile:, like -ii but with a random input (experimental)
 | | -W_GPU | use integrated GPU if available
 | | -fs | full simulation, run the simulation of each pixel independentantly, i.e. dosen't simulate all the vector at the time (experimental)
 | | -nV | no Verbatim (experimental)
@@ -211,6 +214,14 @@ data=g2s('-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1))
 
 # Complete
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-j',4,1,1,'-ki',kernel,'-sp',numpy.random.permutation(numpy.size(destination)).astype(float).reshape(numpy.shape(destination)),'-silent');
+
+## MATLAB output style
+
+# to get only the simulation 
+sim,=g2s('-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50);
+
+# to get only the simulation and the compuation time
+sim,t=g2s('-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50);
 ```
 
 ## Benchmarking
