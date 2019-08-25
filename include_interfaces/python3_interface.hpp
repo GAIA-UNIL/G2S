@@ -22,6 +22,16 @@
 #include <numpy/arrayobject.h>
 #include "inerfaceTemplate.hpp"
 
+char* writeRawData(char* data, bool compresed){
+	return nullptr;
+}
+
+char* loadRawData(const char * hash){
+	return nullptr;
+}
+
+void createLink(char* outputFullFilename, char* fullFilename){}
+
 class InerfaceTemplatePython3: public InerfaceTemplate
 {
 private:
