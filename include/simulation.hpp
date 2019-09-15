@@ -81,7 +81,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			unsigned positionSearch=0;
 			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
 				unsigned dataIndex;
-				if(di.indexWithDelta(dataIndex, currentCell, pathPosition[positionSearch]))
+				std::vector<int> vectorInDi=pathPosition[positionSearch];
+				vectorInDi.resize(di._dims.size(),0);
+				if(di.indexWithDelta(dataIndex, currentCell, vectorInDi))
 				{
 					//add for
 					if(posterioryPath[dataIndex]<=indexPath){
@@ -162,7 +164,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		if(neighborArrayVector.size()>1){
 			unsigned dataIndex;
-			di.indexWithDelta(dataIndex, currentCell, neighborArrayVector[1]);
+			std::vector<int> vectorInDi=neighborArrayVector[1];
+			vectorInDi.resize(di._dims.size(),0);
+			di.indexWithDelta(dataIndex, currentCell, vectorInDi);
 			unsigned verbatimIndex=importDataIndex[dataIndex];
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=verbatimIndex%TIs.size();
@@ -314,7 +318,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			unsigned positionSearch=0;
 			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
 				unsigned dataIndex;
-				if(di.indexWithDelta(dataIndex, currentPosition, pathPosition[positionSearch]))
+				std::vector<int> vectorInDi=pathPosition[positionSearch];
+				vectorInDi.resize(di._dims.size(),0);
+				if(di.indexWithDelta(dataIndex, currentPosition, vectorInDi))
 				{
 					bool needToBeadd=false;
 					for (unsigned int i = 0; i < di._nbVariable; ++i)
