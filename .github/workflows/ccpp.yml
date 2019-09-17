@@ -1,0 +1,85 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  Ubuntu-build:
+    name: Test on  ${{ matrix.ubuntuOS }} on ${{ matrix.python }}
+    runs-on: ${{ matrix.ubuntuOS }}
+    strategy:
+      matrix:
+        ubuntuOS: [ubuntu-18.04, ubuntu-latest]
+        python: [ '3.5', '3.6', '3.7' ]
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python }}
+    - name: install requested
+      run: |
+          sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev
+          wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: make
+      run: |
+        cd build/
+        make c++ -j
+    - name: install python packages
+      run: pip install numpy scipy
+    - name: compilation of python interface
+      run: cd build/ && make python
+  macOS-build:
+    name: Test on  ${{ matrix.macOS }} on ${{ matrix.python }} using ${{ matrix.packageManager }} as packages manager
+    runs-on: ${{ matrix.macOS }}
+    strategy:
+      matrix:
+        macOS: [macOS-latest]
+        packageManager: ['Brew', 'macPort']
+        python: [ '3.5', '3.6', '3.7' ]
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python }}
+    - name: install requested macPort
+      if : contains( matrix.packageManager, 'macPort' )
+      run: |
+          curl -O https://distfiles.macports.org/MacPorts/MacPorts-2.5.4.tar.bz2
+          tar xf MacPorts-2.5.4.tar.bz2
+          cd MacPorts-2.5.4/
+          ./configure
+          make -j
+          sudo make install
+          export PATH=$PATH:/opt/local/bin
+          sudo port -v selfupdate
+          sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl
+    - name: install requested Homebrew
+      if : contains( matrix.packageManager, 'Brew' )
+      run: |
+          /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+          brew install zeromq jsoncpp zlib fftw curl
+          wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: make
+      run: |
+        cd build/
+        make c++ -j
+    - name: install python packages
+      run: pip install numpy scipy
+    - name: compilation of python interface
+      run: cd build/ && make python
+  Windows-build:
+    name: Test on  ${{ matrix.windowsOS }} on ${{ matrix.python }}
+    runs-on: ${{ matrix.windowsOS }}
+    strategy:
+      matrix:
+        windowsOS: [windows-latest]
+        python: [ '3.5', '3.6', '3.7' ]
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python }}
+    - name: install python packages
+      run: pip install numpy scipy
+    # - name: compilation of python interface
+    #   run: 
+    #- name: install requested
