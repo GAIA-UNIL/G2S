@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>G2S a free and flexible MPS framework, including QS and NDS  </title>
+	<link rel="stylesheet" href="./style.css" media="screen" type="text/css">
+	<link rel="stylesheet" href="./print.css" media="print" type="text/css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	<script src="./scripte.js"></script>
+</head>
+<body>
+	<header>
+		<div class="inner">
+			<a><h1>G2S: The GeoStatistical Server</h1></a>
+			<h2>A free and flexible multiple point (geo)statistics framework including state of the art algorithm:<br>Quantile Sampling and Narrow Distribution Selection</h2>
+			<a href="https://github.com/GAIA-UNIL/G2S" class="button"><small>View project on</small> GitHub</a>
+		</div>
+	</header>
+	<div id="content-wrapper">
+		<div class="inner clearfix">
+			<section id="main-content">
+				<h1>Brief overview</h1>
+				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-artu <strong>Multiple Point Statistics (MPS)</strong> algorithm to run simulation</p>
+
+				<p><strong>G2S</strong>  is designed to run simulation code independently of the code we used to run this simulation. For example, it enable to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (and any other combination :) )</p>
+
+				<p>Currently, the framework is provided with:
+					<ul>
+						<li><strong>Quantile Sampling (QS)</strong> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous, categorial or a combination of both. The code was developed with any restriction on the dimention.</li>
+						<li><strong>Narrow Distribution Selection (NDS)</strong> is an algorithm specific targeted to simulate spectral enhanced remote sensed imagery. It realizes simulations of most probable realization. It requires an external variable (for example, a gray image) to control the simulation (of colors) </li>
+					</ul>
+
+					<p>However, the framework can be easily exetneded to handle most of the code that uses grided data. Currently any compiled code, and python code can be handled.</p>
+
+					<h1>Installation</h1>
+
+					<p>Because life is short, we design a tools to get straight to the goal. &#x1F609 <br> Except if you plan to run simulation on a remote computer you need to install both the server and the interfaces. Please choose the options regarding your needs.</p>
+					<div class="osChoice buttonChoice">
+						<a data-os="linux" class="button linux">Linux</a>
+						<a data-os="macOS" class="button macOS">macOS</a>
+						<a data-os="windows" class="button windows">Windows</a>
+					</div>
+					<div class="installationChoice buttonChoice">
+						<a data-install="server" class="button server">Server</a>
+						<a data-install="interface" class="button interface">Interface</a>
+					</div>
+					<div class="quickSelect server installSens">
+						<h2>Installation of the server</h2>
+						<div class="quickSelect linux server osSens">
+							<h3>Installation of the server on Ubuntu</h3>
+							<h4>Automatic with GCC</h4>
+							<ol>
+								<li>First clone the code from this GitHub.</li>
+								<li>run <code>build/c++-build/install_needs_W_VM.sh</code></li>
+							</ol>
+							<h4>Manual (included Intel C++ Compiler)</h4>
+							<ol>
+								<li>First clone the code from this GitHub.</li>
+								<li>Basics for compiling are needed, (e.g. on Ubuntu: build-essential).</li>
+								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
+								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-devlibfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
+								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>sudo wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O /usr/include/zmq.hpp</code></li>
+								<li>Go to the build subfolder.</li>
+								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
+							</ol>
+						</div>
+						<div class="quickSelect macOS server osSens">
+							<h3>Installation of the server on macOS</h3>
+							<h4>using MacPort</h4>
+							<ol>
+								<li>First clone the code from this GitHub.</li>
+								<li>Install a package manager like macPort</li>
+								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
+								<li>To install them with macPort:<code>sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl</code> (curl is optional)</li>
+								<li>Go to the build subfolder.</li>
+								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
+							</ol>
+							<h4>using Homebrew</h4>
+							<ol>
+								<li></li>
+							</ol>
+						</div>
+						<div class="quickSelect windows server osSens">
+							<h3>Installation of the server on Windows 10</h3>
+							<ol>
+								<li>Check that the last updates of Windows are installed</li>
+								<li>Install WSL follwing instruction <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">here</a></li>
+								<li>Go to the directory <code>build/c++-build</code></li>
+								<li>Run <code>install.bat</code></li>
+							</ol>
+						</div>
+					</div>
+					<div class="quickSelect interface installSens">
+						<h2>Installation of interfaces</h2>
+						<div class="progLangChoice buttonChoice">
+							<a data-progLang="python" class="button python">Python</a>
+							<a data-progLang="matlab" class="button matlab">MATLAB</a>
+							<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
+								<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+							</a>
+						</div>
+						<div class="quickSelect linux interface python osSens langSens">
+							<h3>Installation of the Python interface on Ubuntu</h3>
+							<ol>
+								<li>If needed Python and Numpy: <code>sudo apt install python3-distutils python3-dev python3-numpy -y</code></li>
+								<li>Go to <code>build/python-build</code></li>
+								<li>Run <code>sudo python3 setup.py install</code></li>
+							</ol>
+						</div>
+						<div class="quickSelect linux interface matlab osSens langSens">
+							<h3>Installation of the MATLAB interface on Ubuntu</h3>
+							<ol>
+								<li>Open MATLAB</li>
+								<li>Go to <code>build/build-matlab</code></li>
+								<li>Run <code>CompileG2S</code></li>
+								<li>Add compiled file in the MATLAB path</li>
+							</ol>
+						</div>
+						<div class="quickSelect linux interface R-lang osSens langSens progLang2hide">
+							<h3>Installation of the R interface on Ubuntu</h3>
+						</div>
+						<div class="quickSelect macOS interface python osSens langSens">
+							<h3>Installation of the Python interface on macOS</h3>
+							<ol>
+								<li>If needed Python and Numpy:<code>sudo port install python37 py37-numpy</code></li>
+								<li>Go to <code>build/python-build</code></li>
+								<li>Run <code>sudo python3 setup.py install</code></li>
+							</ol>
+						</div>
+						<div class="quickSelect macOS interface matlab osSens langSens">
+							<h3>Installation of the MATLAB interface on macOS</h3>
+							<ol>
+								<li>Open MATLAB</li>
+								<li>Go to <code>build/build-matlab</code></li>
+								<li>Run <code>CompileG2S</code></li>
+								<li>Add compiled file in the MATLAB path</li>
+							</ol>
+						</div>
+						<div class="quickSelect macOS interface R-lang osSens langSens progLang2hide">
+							<h3>Installation of the R interface on macOS</h3>
+						</div>
+						<div class="quickSelect windows interface python osSens langSens">
+							<h3>Installation of the Python interface on Windows 10</h3>
+							<ol>
+								<li>If needed, install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
+								<li>Install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable</a> that is needed for scipy (don't ask me why)</li>
+								<li>Install needed package <code>pip install pillow scipy scikit-misc matplotlib</code></li>
+								<li>Download precompiled interfaces here</li>
+							</ol>
+						</div>
+						<div class="quickSelect windows interface matlab osSens langSens">
+							<h3>Installation of the MATLAB interface on Windows 10</h3>
+							<ol>
+								<li>If needed install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
+								<li>Open MATLAB</li>
+								<li>Install a compiler, available <a href="https://mathworks.com/matlabcentral/fileexchange/52848-matlab-support-for-mingw-w64-c-c-compiler">here</a></li>
+								<li>Go to <code>build/build-matlab</code></li>
+								<li>Run <code>CompileG2S</code></li>
+								<li>Add compiled file in the MATLAB path</li>
+							</ol>
+						</div>
+						<div class="quickSelect windows interface R-lang osSens langSens progLang2hide">
+							<h3>Installation of the R interface on Windows 10</h3>
+						</div>
+					</div>
+
+					<h1>Run the server</h1>
+					<p>&#x26A0 The utilization of the server generate logs- and data-files, in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
+
+					<div class="osChoice buttonChoice">
+						<a data-os="linux" class="button linux">Linux</a>
+						<a data-os="macOS" class="button macOS">macOS</a>
+						<a data-os="windows" class="button windows">Windows</a>
+					</div>
+					<div class="quickSelect linux osSens">
+						<h3>Run the server on Ubuntu</h3>
+						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version</p>
+					</div>
+					<div class="quickSelect macOS osSens">
+						<h3>Run the server on macOS</h3>
+						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version</p>
+					</div>
+					<div class="quickSelect macOS linux osSens ">
+						<table class="parameter">
+							<thead>
+								<tr>
+									<th>Flag</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>&#8209;d</td>
+									<td>run as daemon</td>
+								</tr>
+								<tr>
+									<td>&#8209;To&nbsp;n</td>
+									<td>shutdown the server if there is no activity after n second, 0 for &infin; (default : 0)</td>
+								</tr>
+								<tr>
+									<td>&#8209;p</td>
+									<td>select a specific port for the server (default: 8128)</td>
+								</tr>
+								<tr>
+									<td>&#8209;kod</td>
+									<td>keep old data, if the flag is not present all files from previous runs are erased at launch</td>
+								</tr>
+								<tr>
+									<td>&#8209;age</td>
+									<td>set the time in second after files need to be removed (default: 86400 s = 1d)</td>
+								</tr>
+								<tr>
+									<td>&#8209;mT</td>
+									<td>single job at the time (experimental)</td>
+								</tr>
+								<tr>
+									<td>&#8209;fM</td>
+									<td>Run as function, without fork (experimental)</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<div class="quickSelect windows osSens">
+						<h3>Run the server on Windows 10</h3>
+						It is possible to run the server with <code>runServer.bat</code> or <code>runDaemon.bat</code> as daemon available in <code>build/c++-build</code>
+					</div>
+
+					<h1>Use the interfaces</h1>
+					<p>To do any computation a call to <strong>g2s</strong> is needed and parameter do <strong>NOT</strong> have a specific order.</p>
+					<div class="progLangChoice buttonChoice">
+						<a data-progLang="python" class="button python">Python</a>
+						<a data-progLang="matlab" class="button matlab">MATLAB</a>
+						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+						</a>
+					</div>
+
+					<div class="quickSelect python langSens osSens">
+						<h3>Use g2s in Python</h3>
+						<pre class="highlight"><code>from g2s import run as g2s<br>data=g2s(...)	# it returns an array that contains all the output maps and the computing duration</code></pre>
+					</div>
+					<div class="quickSelect matlab langSens osSens">
+						<h3>Use g2s in MATLAB</h3>
+						<pre class="highlight"><code>data=g2s(...)		% principal output, the simulation<br>[data, t]=g2s(...)	% the simulation and the computation time<br>[data, ...,t]=g2s(...)	% the simulation, other outputs map and the computation time</code></pre>
+					</div>
+					<div class="quickSelect R-lang langSens osSens progLang2hide">
+						<h3>Use g2s in R</h3>
+						<<pre class="highlight"><code></code></pre>
+					</div>
+					<p>Each call to <strong>g2s</strong> is composed of parameters of G2S and of the name of the algorithm used.</p>
+
+					<table class="parameter">
+						<thead>
+							<tr>
+								<th>Flag</th>
+								<th>Description</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>&#8209;a</td>
+								<td>the algorithm, it can be 'qs', 'nds', 'ds-l'</td>
+							</tr>
+							<tr>
+								<td>&#8209;sa</td>
+								<td>address of the computation server (default: localhost, the server is local)<br>Nice when we have a powerful machine dedicated for computation</td>
+							</tr>
+							<tr>
+								<td>&#8209;silent</td>
+								<td>don't display the progression, nice for scripts</td>
+							</tr>
+							<tr>
+								<td>&#8209;noTO</td>
+								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., trough internet)</td>
+							</tr>
+							<tr>
+								<td>&#8209;shutdown</td>
+								<td>shutdown the server, useful at the end of scripts</td>
+							</tr>
+						</tbody>
+					</table>
+					<br>
+					<p>The following options represent the <b>Async mode</b>, check example in <i>MATLAB</i> and <i>Python</i> directory:</p>
+
+					<table class="parameter">
+						<thead>
+							<tr>
+								<th>Flag</th>
+								<th>Description</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>&#8209;submitOnly</td>
+								<td>submit a job</td>
+							</tr>
+							<tr>
+								<td>&#8209;statusOnly</td>
+								<td>check progression</td>
+							</tr>
+							<tr>
+								<td>&#8209;waitAndDownload</td>
+								<td>download the result</td>
+							</tr>
+							<tr>
+								<td>&#8209;after</td>
+								<td>execute the task after an other on is finished (e.g. '-after',previousTaskId )</td>
+							</tr>
+						</tbody>
+					</table>
+
+					<h1>Algorithm</h1>
+					<p><b>G2S</b> is provided with standard state-of-the-art algorithms:
+						<ul>
+							<li>
+								QS (aka. Quantile Sampling)
+							</li>
+							<li>
+								NDS (aka. Narrow Distribution Selection)
+							</li>
+						</ul>
+					</p>
+
+					<div class="algoChoice buttonChoice">
+						<a data-algo="qs" class="button qs">QS</a>
+						<a data-algo="nds" class="button nds">NDS</a>
+						<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+						</a>-->
+					</div>
+
+					<div class="quickSelect algoSens qs">
+						<h3>Paremeter for QS</h3>
+						<table class="parameter">
+							<thead>
+								<tr>
+									<th>Flag</th>
+									<th>Description</th>
+									<th>Mandatory</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>&#8209;ti</td>
+									<td>Training images (1+)</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;di</td>
+									<td>Destination image (1) (aka simulation grid)</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;dt</td>
+									<td>Data type, array of to specify the type of each variable, 0 &rarr; continuous and 1 &rarr; categorical</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;sp</td>
+									<td>simulation path, image of the position in the path, small values first, -&infin; are not simulated</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;ki</td>
+									<td>image of weighting kernel</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;k</td>
+									<td>the number of best candidates to consider &#x2208[1 &infin;]</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;f</td>
+									<td>f=1/k equivalent to f of DS with a threshold to 0</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;n</td>
+									<td>the N closest neighbors to consider:<br> - single value for vectors neighbors<br> - one for each variable</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;s</td>
+									<td>random seed value</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;j</td>
+									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;ii</td>
+									<td>index of trining in with to sample from (experimental)</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;far</td>
+									<td>fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;W_GPU</td>
+									<td>use integrated GPU if available</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;fs</td>
+									<td>full simulation, run the simulation of each pixel independentantly, i.e. dosen't simulate all the vector at the time (experimental)</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;nV</td>
+									<td>no Verbatim (experimental)</td>
+									<td></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<br>
+					<div class="quickSelect algoSens nds">
+						<h3>Paremeter for NDS</h3>
+						<table class="parameter">
+							<thead>
+								<tr>
+									<th>Flag</th>
+									<th>Description</th>
+									<th>Mandatory</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>&#8209;ti</td>
+									<td>Training images (one or more images)</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;di</td>
+									<td>Destination image (one image, aka simulation grid)</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;dt</td>
+									<td>Data type, array of to specify the type of each variable, 0 &rarr; continuous and 1 &rarr; categorical</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;ki</td>
+									<td>image of weighting kernel</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;k</td>
+									<td>the number of best candidates to consider to compute the narrowness &#x2208[5 &infin;]</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;n</td>
+									<td>the N closest neighbors to consider</td>
+									<td>&#x2714</td>
+								</tr>
+								<tr>
+									<td>&#8209;nw</td>
+									<td>narrowness range  0&rarr; max-min, 1 &rarr; median, default IQR &rarr; 0.5</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;nwv</td>
+									<td>number of variables to consider in the narrowness, (start from the end), default: 1</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;cs</td>
+									<td>chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;uds</td>
+									<td>area to update around each simulated pixel, the M closest pixel default: 10</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;mp</td>
+									<td>partial simulation, 0 &rarr; empty, 1 &rarr; 100%</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;s</td>
+									<td>seed value</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;j</td>
+									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;W_GPU</td>
+									<td>use integrated GPU if available</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;nV</td>
+									<td>no Verbatim (experimental)</td>
+									<td></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<h1>Example</h1>
+					<div class="progLangChoice buttonChoice">
+						<a data-progLang="python" class="button python">Python</a>
+						<a data-progLang="matlab" class="button matlab">MATLAB</a>
+						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+						</a>
+					</div>
+					<div class="algoChoice buttonChoice">
+						<a data-algo="qs" class="button qs">QS</a>
+						<a data-algo="nds" class="button nds">NDS</a>
+						<a data-algo="asyncMode" class="button asyncMode">Mode asynchronous</a>
+						<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+						</a>-->
+					</div>
+					<div class="quickSelect algoSens qs">
+						<h2>Example of using QS</h2>
+						<div class="exampleChoice buttonChoice">
+							<a data-example="unconditionalSimulation" class="button unconditionalSimulation">Unconditional simulation</a>
+							<a data-example="conditionalSimulation" class="button conditionalSimulation">Conditional simulation</a>
+							<a data-example="gapFilling" class="button gapFilling">Gap filling</a>
+							<a data-example="downsacling" class="button downsacling">Downscaling</a>
+							<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
+								<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+							</a>-->
+						</div>
+						<div class="quickSelect unconditionalSimulation exampleSens python langSens">
+							<h3>Unconditional simulation using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/unconditionalSimulation.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect unconditionalSimulation exampleSens matlab langSens">
+							<h3>Unconditional simulation using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/unconditionalSimulation.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect conditionalSimulation exampleSens python langSens">
+							<h3>Conditional simulation using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/conditionalSimulation.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect conditionalSimulation exampleSens matlab langSens">
+							<h3>Conditional simulation using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/conditionalSimulation.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect gapFilling exampleSens python langSens">
+							<h3>Gap filling using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/gapFilling.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect gapFilling exampleSens matlab langSens">
+							<h3>Gap filling using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/gapFilling.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect downsacling exampleSens python langSens">
+							<h3>Downscaling using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/downsacling.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect downsacling exampleSens matlab langSens">
+							<h3>Downscaling using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/downsacling.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+					</div>
+
+					<br>
+					<div class="quickSelect algoSens nds">
+						<h2>Example of using NDS</h2>
+						<div class="exampleChoice buttonChoice">
+							<a data-example="RGB2IR" class="button RGB2IR">RGB&#x21d2IR</a>
+							<a data-example="Pan2RGB" class="button Pan2RGB">Pan&#x21d2RGB</a>
+							<a data-example="Pan2IR" class="button Pan2IR">Pan&#x21d2IR</a> 
+						</div>
+						<div class="quickSelect RGB2IR exampleSens python langSens">
+							<h3>Spectral ehancemenet: RGB&#x21d2IR using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/RGB2IR.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect RGB2IR exampleSens matlab langSens">
+							<h3>Spectral ehancemenet: RGB&#x21d2IR using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/RGB2IR.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect Pan2RGB exampleSens python langSens">
+							<h3>Spectral ehancemenet: Pan&#x21d2RGB  using Python/h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/Pan2RGB.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect Pan2RGB exampleSens matlab langSens">
+							<h3>Spectral ehancemenet: Pan&#x21d2RGB using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/Pan2RGB.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect Pan2IR exampleSens python langSens">
+							<h3>Spectral ehancemenet: Pan&#x21d2IR using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./python/Pan2IR.py" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<div class="quickSelect Pan2IR exampleSens matlab langSens">
+							<h3>Spectral ehancemenet: Pan&#x21d2IR using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="./matlab/Pan2IR.m" onload="this.before((this.contentDocument.body.innerHTML||this.contentDocument.children[0]));this.remove()"></iframe></code></pre>
+						</div>
+						<!--
+						<div class="quickSelect downsacling exampleSens">
+							<h3>Spectral ehancemenet: RGB&#x21d2IR </h3>
+							<p></p>
+							<pre class="highlight"><code></code></pre>
+						</div>
+					-->
+				</div>
+
+
+				<h1>Benchmarking</h1>
+				<p>This code <strong><u>CAN</u></strong> be used for benchmarking ( and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>, the version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
+
+				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or trough WSL on Windows 10.</p>
+			</section>
+			<aside id="sidebar">
+
+				<a href="https://github.com/GAIA-UNIL/G2S/zipball/master" class="button">
+					<small>Download</small>
+					.zip file
+				</a>
+				<a href="https://github.com/GAIA-UNIL/G2S/tarball/master" class="button">
+					<small>Download</small>
+					.tar.gz file
+				</a>
+
+
+
+				<p class="repo-owner"><a href="https://github.com/GAIA-UNIL/G2S">G2S</a> is maintained by <a href="https://github.com/GAIA-UNIL/"> the GAIAlab from University of Lausanne</a>.</p>
+
+			</aside>
+		</div>
+	</div>
+	<footer>
+
+	</footer>
+</body>
+</html>

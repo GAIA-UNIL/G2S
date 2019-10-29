@@ -1,0 +1,10 @@
+*
+!.gitignore
+!*/
+
+!*.html
+!*.js
+!*.css
+
+!*.jpg
+!*.png
