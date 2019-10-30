@@ -9,7 +9,7 @@ elseif isunix
 elseif ispc
     if(exist('C:\Program Files\ZeroMQ 4.0.4')==0)
         websave('ZeroMQ-4.0.4~miru1.0-x64.exe','https://miru.hk/archive/ZeroMQ-4.0.4~miru1.0-x64.exe');
-        winopen('ZeroMQ-4.0.4~miru1.0-x64.exe')
+        !start /w ZeroMQ-4.0.4~miru1.0-x64.exe
     end
     if(exist('cppzmq-master')==0)
         websave('cppzmq-master.zip','https://codeload.github.com/zeromq/cppzmq/zip/master');
