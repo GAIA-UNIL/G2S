@@ -68,7 +68,7 @@
 							<h4>using MacPort</h4>
 							<ol>
 								<li>First clone the code from this GitHub.</li>
-								<li>Install a package manager like macPort</li>
+								<li>Install the package manager macPort (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl</code> (curl is optional)</li>
 								<li>Go to the build subfolder.</li>
@@ -76,7 +76,13 @@
 							</ol>
 							<h4>using Homebrew</h4>
 							<ol>
-								<li></li>
+								<li>First clone the code from this GitHub.</li>
+								<li>Install the package manager Homebrew (if not already done)</li>
+								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
+								<li>To install them with macPort:<code>brew install fftw zmq jsoncpp curl</code> (curl is optional)</li>
+								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>curl -o /usr/local/include/zmq.hpp "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp"</code></li>
+								<li>Go to the build subfolder.</li>
+								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
 							</ol>
 						</div>
 						<div class="quickSelect windows server osSens">
