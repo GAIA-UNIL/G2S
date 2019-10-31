@@ -102,21 +102,40 @@ int main(int argc, char const *argv[]) {
 	unsigned nbThreads=1;
 	unsigned nbThreadsOverTi=1;
 	unsigned nbThreadsLastLevel=1;
+	unsigned totalNumberOfThreadVailable=1;
 	bool verbose=false;
+
+
+	#if _OPENMP
+		totalNumberOfThreadVailable=omp_get_max_threads();
+	#endif	
 
 	if (arg.count("-j") >= 1)
 	{
 		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+
 		if(jobsString!=arg.upper_bound("-j")){
-			nbThreads=atoi((jobsString->second).c_str());
+			float nbThreadsLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLoc) == nbThreadsLoc){
+				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreads=(int)(nbThreadsLoc);
 			++jobsString;
 		}
-	    if(jobsString!=arg.upper_bound("-j")){
-			nbThreadsOverTi=atoi((jobsString->second).c_str());
+		if(jobsString!=arg.upper_bound("-j")){
+			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsOverTiLoc) == nbThreadsOverTiLoc){
+				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
 			++jobsString;
 		}
 		if(jobsString!=arg.upper_bound("-j")){
-			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLastLevelLoc) == nbThreadsLastLevelLoc){
+				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
 			++jobsString;
 		}
 	}
@@ -124,17 +143,29 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("--jobs") >= 1)
 	{
-		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("--jobs");
 		if(jobsString!=arg.upper_bound("--jobs")){
-			nbThreads=atoi((jobsString->second).c_str());
+			float nbThreadsLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLoc) == nbThreadsLoc){
+				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreads=(int)(nbThreadsLoc);
 			++jobsString;
 		}
-	    if(jobsString!=arg.upper_bound("--jobs")){
-			nbThreadsOverTi=atoi((jobsString->second).c_str());
+		if(jobsString!=arg.upper_bound("--jobs")){
+			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsOverTiLoc) == nbThreadsOverTiLoc){
+				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
 			++jobsString;
 		}
 		if(jobsString!=arg.upper_bound("--jobs")){
-			nbThreadsLastLevel=atoi((jobsString->second).c_str());
+			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLastLevelLoc) == nbThreadsLastLevelLoc){
+				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
 			++jobsString;
 		}
 	}
@@ -142,10 +173,10 @@ int main(int argc, char const *argv[]) {
 
 	if(nbThreads<1)
 	#if _OPENMP
-		nbThreads=omp_get_max_threads();
+		nbThreads=totalNumberOfThreadVailable;
 	#else
 		nbThreads=1;
-	#endif		
+	#endif
 
 	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
 	{
