@@ -117,7 +117,7 @@ int main(int argc, char const *argv[]) {
 
 		if(jobsString!=arg.upper_bound("-j")){
 			float nbThreadsLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsLoc) == nbThreadsLoc){
+			if(std::roundf(nbThreadsLoc) != nbThreadsLoc){
 				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreads=(int)(nbThreadsLoc);
@@ -125,7 +125,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(jobsString!=arg.upper_bound("-j")){
 			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsOverTiLoc) == nbThreadsOverTiLoc){
+			if(std::roundf(nbThreadsOverTiLoc) != nbThreadsOverTiLoc){
 				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
@@ -133,7 +133,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(jobsString!=arg.upper_bound("-j")){
 			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsLastLevelLoc) == nbThreadsLastLevelLoc){
+			if(std::roundf(nbThreadsLastLevelLoc) != nbThreadsLastLevelLoc){
 				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
@@ -147,7 +147,7 @@ int main(int argc, char const *argv[]) {
 		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("--jobs");
 		if(jobsString!=arg.upper_bound("--jobs")){
 			float nbThreadsLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsLoc) == nbThreadsLoc){
+			if(std::roundf(nbThreadsLoc) != nbThreadsLoc){
 				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreads=(int)(nbThreadsLoc);
@@ -155,7 +155,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(jobsString!=arg.upper_bound("--jobs")){
 			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsOverTiLoc) == nbThreadsOverTiLoc){
+			if(std::roundf(nbThreadsOverTiLoc) != nbThreadsOverTiLoc){
 				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
@@ -163,7 +163,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(jobsString!=arg.upper_bound("--jobs")){
 			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
-			if(std::roundf(nbThreadsLastLevelLoc) == nbThreadsLastLevelLoc){
+			if(std::roundf(nbThreadsLastLevelLoc) != nbThreadsLastLevelLoc){
 				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
 			}
 			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
