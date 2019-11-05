@@ -195,9 +195,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			cumulated=0;
 			for (size_t i = 0; i < TIs.size(); ++i)
 			{
-				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
+				if(position*TIs[0]._nbVariable<cumulated+TIs[i].dataSize()){
 					importIndex.TI=i;
-					importIndex.index=position-cumulated;
+					importIndex.index=position*TIs[0]._nbVariable-cumulated;
 					break;
 				}else{
 					cumulated+=TIs[i].dataSize();
@@ -415,9 +415,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			cumulated=0;
 			for (size_t i = 0; i < TIs.size(); ++i)
 			{
-				if(position*TIs[0]._nbVariable<cumulated*TIs[0]._nbVariable+TIs[i].dataSize()){
+				if(position*TIs[0]._nbVariable<cumulated+TIs[i].dataSize()){
 					importIndex.TI=i;
-					importIndex.index=position-cumulated;
+					importIndex.index=position*TIs[0]._nbVariable-cumulated;
 					break;
 				}else{
 					cumulated+=TIs[i].dataSize();
