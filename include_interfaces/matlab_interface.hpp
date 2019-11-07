@@ -130,7 +130,7 @@ public:
 
 
 	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
-		printf("%s\n", dataType.type().name());
+		
 		mxArray const* prh=std::any_cast<mxArray const*>(matrix);
 		mxArray const* variableTypeArray=nullptr;
 		if(dataType.type()==typeid(mxArray const*)) variableTypeArray=std::any_cast<mxArray const*>(dataType);
