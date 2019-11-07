@@ -269,6 +269,12 @@ class DataImage{
 		return result;
 	}
 
+	inline void convertFirstDimInVariable(){
+		_nbVariable=_dims.back();
+		_dims.pop_back();
+		_types=std::vector<VaraibleType>(_nbVariable, _types[0]);
+	}
+
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
