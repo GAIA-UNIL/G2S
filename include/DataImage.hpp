@@ -275,6 +275,16 @@ class DataImage{
 		_types=std::vector<VaraibleType>(_nbVariable, _types[0]);
 	}
 
+
+	inline DataImage flipDataDimensions(){
+		DataImage result(_dims.size(),_dims.data(),_dims.back());
+		for (unsigned int i = 0; i < dataSize(); ++i)
+		{
+			result._data[i]=_data[flippedCoordinates(i)];
+		}
+		return result;
+	}
+
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
@@ -586,6 +596,20 @@ class DataImage{
 			return result;
 		}
 
+	public:
+		unsigned flippedCoordinates(unsigned index){
+			unsigned result=0;
+
+			std::vector<unsigned> localDim=_dims;
+			localDim.insert(localDim.begin(),_nbVariable);
+			for (size_t i = 0; i < localDim.size(); ++i)
+			{
+				result*=localDim[i];
+				result+=(index%localDim[i]);
+				index/=localDim[i];
+			}
+			return result;
+		}
 
 	public:
 		inline static DataImage readSGEMS(const char * fileName){

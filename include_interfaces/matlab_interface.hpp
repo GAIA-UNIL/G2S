@@ -104,6 +104,7 @@ public:
 		{
 			dimsArray[i]=image._dims[i];
 		}
+		std::reverse(dimsArray,dimsArray+image._dims.size());
 		dimsArray[image._dims.size()]=image._nbVariable;
 		mxArray *array=nullptr;
 		if(image._encodingType==g2s::DataImage::Float)
@@ -112,24 +113,24 @@ public:
 			array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxINT32_CLASS , mxREAL);
 		if(image._encodingType==g2s::DataImage::UInteger)
 			array=mxCreateNumericArray(image._dims.size()+1, dimsArray, mxUINT32_CLASS , mxREAL);
+		free(dimsArray);
 
 		float* data=(float*)mxGetPr(array);
 		unsigned nbOfVariable=image._nbVariable;
 		unsigned dataSize=image.dataSize();
-		for (unsigned int i = 0; i < dataSize/nbOfVariable; ++i)
+		
+
+		for (int i = 0; i < dataSize; ++i)
 		{
-			for (unsigned int j = 0; j < nbOfVariable; ++j)
-			{
-				data[i+j*(dataSize/nbOfVariable)]=image._data[i*nbOfVariable+j];
-			}
+			data[image.flippedCoordinates(i)]=image._data[i];
 		}
-		free(dimsArray);
+		
 		return std::any(array);
 	}
 
 
 	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
-		
+		printf("%s\n", dataType.type().name());
 		mxArray const* prh=std::any_cast<mxArray const*>(matrix);
 		mxArray const* variableTypeArray=nullptr;
 		if(dataType.type()==typeid(mxArray const*)) variableTypeArray=std::any_cast<mxArray const*>(dataType);
@@ -144,6 +145,8 @@ public:
 		{
 			dimArray[i]=dim_array[i];
 		}
+
+		std::reverse(dimArray,dimArray+dimData);		
 
 		g2s::DataImage image(dimData,dimArray,nbOfVariable);
 		free(dimArray);
@@ -175,118 +178,84 @@ public:
 		//manage data
 		if(mxIsDouble(prh)){
 			double *matrixData=(double *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxIsSingle(prh)){
 			float *matrixData=(float *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxUINT8_CLASS){
 			uint8_t *matrixData=(uint8_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxUINT16_CLASS){
 			uint16_t *matrixData=(uint16_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxUINT32_CLASS){
 			uint32_t *matrixData=(uint32_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxUINT64_CLASS){
 			uint64_t *matrixData=(uint64_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxINT8_CLASS){
 			int8_t *matrixData=(int8_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxINT16_CLASS){
 			int16_t *matrixData=(int16_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxINT32_CLASS){
 			int32_t *matrixData=(int32_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 		if(mxGetClassID(prh)==mxINT64_CLASS){
 			int64_t *matrixData=(int64_t *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 
 		if(mxGetClassID(prh)==mxLOGICAL_CLASS){
 			bool *matrixData=(bool *)mxGetPr(prh);
-			for (int i = 0; i < dataSize/nbOfVariable; ++i)
+			for (int i = 0; i < dataSize; ++i)
 			{
-				for (int j = 0; j < nbOfVariable; ++j)
-				{
-					data[i*nbOfVariable+j]=matrixData[i+j*(dataSize/nbOfVariable)];
-				}
+				data[i]=matrixData[image.flippedCoordinates(i)];
 			}
 		}
 
 		return image;
-		//compute hash
 	}
 
 
