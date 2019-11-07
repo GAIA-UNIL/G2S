@@ -571,6 +571,7 @@ public:
 		if(kill && !done) {
 			sendKill(socket, id);
 			done=true;
+			sendError("canceled job");
 		}
 
 
