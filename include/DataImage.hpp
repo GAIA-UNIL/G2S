@@ -270,8 +270,8 @@ class DataImage{
 	}
 
 	inline void convertFirstDimInVariable(){
-		_nbVariable=_dims.back();
-		_dims.pop_back();
+		_nbVariable=_dims.front();
+		_dims.erase(_dims.begin());
 		_types=std::vector<VaraibleType>(_nbVariable, _types[0]);
 	}
 
