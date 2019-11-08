@@ -25,6 +25,10 @@
 #include "matrix.h"
 #include "inerfaceTemplate.hpp"
 
+#ifndef MATLAB_VERSION
+#define MATLAB_VERSION 0
+#endif
+
 class InerfaceTemplateMatlab: public InerfaceTemplate
 {
 
@@ -261,6 +265,26 @@ public:
 
 	void runStandardCommunicationMatlab(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 		
+		if(nrhs>0 && mxIsChar(prhs[0])){
+			std::string str=mxArrayToString(prhs[0]);
+			if(str=="--version"){ 
+				if(nlhs>0 && nrhs==1){
+					for (int i = 0; i < nlhs; ++i)
+					{
+						if(i==0) plhs[0]=mxCreateString(VERSION);
+						if(i==1) plhs[1]=mxCreateString(__DATE__);
+						if(i==2) plhs[2]=mxCreateString(__TIME__);
+					}
+				}else{
+					char buff[1000];
+					snprintf(buff, sizeof(buff), "G2S version %s, compiled the %s %s with R%x",VERSION,__DATE__,__TIME__,MATLAB_VERSION);
+					std::string buffAsStdStr = buff;
+					eraseAndPrint(buffAsStdStr);
+				}
+				return;
+			}
+		}
+
 		std::multimap<std::string, std::any> inputs;
 		std::multimap<std::string, std::any> outputs;
 

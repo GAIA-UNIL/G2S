@@ -18,6 +18,10 @@
 #ifndef PYTHON_3_INTERFACE_HPP
 #define PYTHON_3_INTERFACE_HPP
 
+#ifndef PYTHON_VERSION
+#define PYTHON_VERSION "unknown"
+#endif
+
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include "inerfaceTemplate.hpp"
@@ -307,6 +311,24 @@ public:
 
 		// the tuple
 		if(args && PyTuple_Check(args)){
+			if(PyTuple_Size(args)>0 && PyUnicode_Check(PyTuple_GetItem(args,0))){
+				std::string str=std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,0)));
+				if(str=="--version"){ 
+					if(numberOfOutput!=INT_MAX){
+						PyObject* pyResult=PyTuple_New(3);
+						PyTuple_SetItem(pyResult,0,PyUnicode_FromString(VERSION));
+						PyTuple_SetItem(pyResult,1,PyUnicode_FromString(__DATE__));
+						PyTuple_SetItem(pyResult,2,PyUnicode_FromString(__TIME__));
+						return pyResult;
+					}else{
+						char buff[1000];
+						snprintf(buff, sizeof(buff), "G2S version %s, compiled the %s %s with Python %s",VERSION,__DATE__,__TIME__,PYTHON_VERSION);
+						std::string buffAsStdStr = buff;
+						printf("%s\n",buffAsStdStr.c_str());
+					}
+					return Py_None;
+				}
+			}
 			std::vector<int> listOfIndex;
 			for (int i = 0; i < PyTuple_Size(args); ++i)
 			{

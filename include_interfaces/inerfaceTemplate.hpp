@@ -1,6 +1,12 @@
 #ifndef INERFACE_TEMPLATE_HPP
 #define INERFACE_TEMPLATE_HPP
 
+#ifndef VERSION
+	#define VERSION "unknown"
+#endif
+
+
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
