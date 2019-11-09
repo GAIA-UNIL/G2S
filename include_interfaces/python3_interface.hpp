@@ -39,7 +39,7 @@ void createLink(char* outputFullFilename, char* fullFilename){}
 class InerfaceTemplatePython3: public InerfaceTemplate
 {
 private:
-	PyThreadState *_save;
+	PyThreadState *_save=nullptr;
 public:
 
 	void unlockThread(){
@@ -51,9 +51,14 @@ public:
 	}
 
 	bool userRequestInteruption(){
-		lockThread();
-		bool status=PyErr_CheckSignals();
-		unlockThread();
+		bool status=false;
+		if(_save){
+			lockThread();
+			status=PyErr_CheckSignals();
+			unlockThread();
+		}else{
+			status=PyErr_CheckSignals();
+		}
 		return status;
 	}
 
@@ -89,15 +94,26 @@ public:
 	};
 
 	void sendError(std::string val){
-		lockThread();
-		PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
-		unlockThread();
+		if(_save){
+			lockThread();
+			PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
+			throw "G2S interrupt";
+			//unlockThread();
+		}else{
+			PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
+			throw "G2S interrupt";
+		}
+
 	}
 
 	void sendWarning(std::string val){
-		lockThread();
-		PyErr_WarnFormat(PyExc_Warning,2,"%s ==> %s","g2s:warning", val.c_str());
-		unlockThread();
+		if(_save){
+			lockThread();
+			PyErr_WarnFormat(PyExc_Warning,2,"%s ==> %s","g2s:warning", val.c_str());
+			unlockThread();
+		}else{
+			PyErr_WarnFormat(PyExc_Warning,2,"%s ==> %s","g2s:warning", val.c_str());
+		}
 	}
 
 	void eraseAndPrint(std::string val){
@@ -365,8 +381,11 @@ public:
 			}
 		}
 
-
-		runStandardCommunication(inputs, outputs, numberOfOutput);
+		try{
+			runStandardCommunication(inputs, outputs, numberOfOutput);
+		}catch(const char* msg){
+			return Py_None;
+		}
 
 		if(outputs.size()==0){
 			return Py_None;
