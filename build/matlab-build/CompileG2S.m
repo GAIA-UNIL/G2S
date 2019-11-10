@@ -1,6 +1,6 @@
 clc; clear all;
 
-communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-lzmq','-ljsoncpp','-lut',strcat('-DMATLAB_VERSION=0x',version('-release'))};
+communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-lzmq','-ljsoncpp','-lut',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
 
 if ismac
     mex(communMacLinux{:},'-L/opt/local/lib/','CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=10.14', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=10.14');
@@ -22,7 +22,7 @@ elseif ispc
         ! python amalgamate.py
         cd ..
     end
-    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I../../include_interfaces','-I../../include','-I"C:\Program Files\ZeroMQ 4.0.4\include"','-I"cppzmq-master"','-L"C:\Program Files\ZeroMQ 4.0.4\lib"','-llibzmq-v120-mt-4_0_4','-I"jsoncpp-master\dist"',strcat("-L",matlabroot,"\extern\lib\win64\microsoft"),'-lut','-DNOMINMAX','-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
+    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I../../include_interfaces','-I../../include','-I"C:\Program Files\ZeroMQ 4.0.4\include"','-I"cppzmq-master"','-L"C:\Program Files\ZeroMQ 4.0.4\lib"','-llibzmq-v120-mt-4_0_4','-I"jsoncpp-master\dist"',strcat("-L",matlabroot,"\extern\lib\win64\microsoft"),'-lut','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
     path=getenv('PATH');
     newpath=strcat(path,'C:\Program Files\ZeroMQ 4.0.4\bin;');
     setenv('PATH',newpath);

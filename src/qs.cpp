@@ -493,7 +493,7 @@ int main(int argc, char const *argv[]) {
 	else {
 		kernel=g2s::DataImage::createFromFile(kernelFileName);
 		if(kernel._dims.size()-1==TIs[0]._dims.size()){
-			kernel=kernel.convertLastDimInVariable();
+			kernel.convertFirstDimInVariable();
 		}
 	}
 
@@ -623,7 +623,7 @@ int main(int argc, char const *argv[]) {
 		fullSimulation=false;
 		if(simulationPath._dims.size()!=DI._dims.size()){
 			if(simulationPath._dims.size()-1==DI._dims.size()){
-				simulationPath=simulationPath.convertLastDimInVariable();
+				simulationPath.convertFirstDimInVariable();
 				fullSimulation=true;
 			}else dimAgree=false;
 		}

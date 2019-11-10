@@ -44,6 +44,11 @@
 
 #include <stdio.h>
 #include <dirent.h>
+
+#ifndef SERVER_TYPE
+#define SERVER_TYPE 0
+#endif
+
  
 void removeAllFile(char* dir, double olderThan)
 {
@@ -328,7 +333,7 @@ int main(int argc, char const *argv[]) {
 						}
 					case SERVER_STATUS :
 						{
-							int status=1;
+							int status=SERVER_TYPE+1; // (1 everything is ok)
 							zmq::message_t reply(sizeof(status));
 							memcpy (reply.data (), &status, sizeof(status));
 							receiver.send(reply,zmq::send_flags::none);

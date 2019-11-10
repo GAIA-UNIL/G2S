@@ -1,6 +1,12 @@
 #ifndef INERFACE_TEMPLATE_HPP
 #define INERFACE_TEMPLATE_HPP
 
+#ifndef VERSION
+	#define VERSION "unknown"
+#endif
+
+
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
@@ -193,7 +199,9 @@ public:
 		jobIdType id=0;
 		bool stop=false;
 		bool withTimeout=true;
+		int timeout=30000;
 		bool noOutput=false;
+		bool spectifiedTimeout=false;
 
 		bool submit=true;
 		bool statusOnly=false;
@@ -201,10 +209,16 @@ public:
 		bool kill=false;
 		bool serverShutdown=false;
 		bool silentMode=false;
+		bool requestServerStatus=false; // to check programmatically if the server is running
 
 		if(input.count("-noTO")>0)
 		{
 			withTimeout=false;
+		}
+		if(input.count("-TO")>0)
+		{
+			timeout=nativeToUint32(input.find("-TO")->second);
+			spectifiedTimeout=true;
 		}
 		if(input.count("-submitOnly")>0)
 		{
@@ -237,6 +251,9 @@ public:
 			input.insert(std::pair<std::string, std::any>("-id",input.find("-kill")->second));
 		}
 
+		if(input.count("-serverStatus")>0){
+			requestServerStatus=true;
+		}
 
 		std::atomic<bool> serverRun;
 		serverRun=true;
@@ -266,11 +283,17 @@ public:
 
 		zmq::context_t context (1);
 		zmq::socket_t socket (context, ZMQ_REQ);
-		int timeout=10000; // put 30000
-		socket.setsockopt(ZMQ_LINGER, timeout);
+		
+		socket.setsockopt(ZMQ_LINGER, 500);
 		if(withTimeout){
-			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
-			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
+			socket.setsockopt(ZMQ_RCVTIMEO, 500);
+			socket.setsockopt(ZMQ_SNDTIMEO, 500);
+		}
+
+		if(spectifiedTimeout){
+			socket.setsockopt(ZMQ_LINGER, spectifiedTimeout);
+			socket.setsockopt(ZMQ_RCVTIMEO, spectifiedTimeout);
+			socket.setsockopt(ZMQ_SNDTIMEO, spectifiedTimeout);
 		}
 
 		short port=8128;
@@ -279,6 +302,30 @@ public:
 		char address[4096];
 		sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
 		socket.connect (address);
+
+		if (requestServerStatus){
+
+			int serverStatus=0;
+
+			infoContainer task;
+			task.version=1;
+			task.task=SERVER_STATUS;
+
+			zmq::message_t request (sizeof(infoContainer));
+			memcpy(request.data (), &task, sizeof(infoContainer));
+			if(!socket.send (request,zmq::send_flags::none) ){
+				serverStatus=-1;
+			}
+			zmq::message_t reply;
+			if(serverStatus==0 && !socket.recv (reply) ){
+				serverStatus=-2;
+			}
+			if(serverStatus==0 && reply.size()==sizeof(int))
+				serverStatus=*((int*)reply.data());
+			outputs.insert({"1",ScalarToNative(double(serverStatus))});
+			done=true;
+			return;
+		}
 
 
 		{// check if server is available
@@ -289,10 +336,8 @@ public:
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
 			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
-			{
 				done=true;
 				sendError("the server is probably off-line, please execute first ./server ");
-			}
 			}
 			zmq::message_t reply;
 			if(!socket.recv (reply) && withTimeout){
@@ -306,6 +351,11 @@ public:
 			}
 		}
 
+		socket.setsockopt(ZMQ_LINGER, timeout);
+		if(spectifiedTimeout){
+			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
+			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
+		}
 
 		if(serverShutdown){
 			infoContainer task;
@@ -571,6 +621,7 @@ public:
 		if(kill && !done) {
 			sendKill(socket, id);
 			done=true;
+			sendError("canceled job");
 		}
 
 
