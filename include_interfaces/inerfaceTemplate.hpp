@@ -199,8 +199,9 @@ public:
 		jobIdType id=0;
 		bool stop=false;
 		bool withTimeout=true;
-		int timeout=500; // put 30000
+		int timeout=30000;
 		bool noOutput=false;
+		bool spectifiedTimeout=false;
 
 		bool submit=true;
 		bool statusOnly=false;
@@ -217,6 +218,7 @@ public:
 		if(input.count("-TO")>0)
 		{
 			timeout=nativeToUint32(input.find("-TO")->second);
+			spectifiedTimeout=true;
 		}
 		if(input.count("-submitOnly")>0)
 		{
@@ -282,10 +284,16 @@ public:
 		zmq::context_t context (1);
 		zmq::socket_t socket (context, ZMQ_REQ);
 		
-		socket.setsockopt(ZMQ_LINGER, timeout);
+		socket.setsockopt(ZMQ_LINGER, 500);
 		if(withTimeout){
-			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
-			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
+			socket.setsockopt(ZMQ_RCVTIMEO, 500);
+			socket.setsockopt(ZMQ_SNDTIMEO, 500);
+		}
+
+		if(spectifiedTimeout){
+			socket.setsockopt(ZMQ_LINGER, spectifiedTimeout);
+			socket.setsockopt(ZMQ_RCVTIMEO, spectifiedTimeout);
+			socket.setsockopt(ZMQ_SNDTIMEO, spectifiedTimeout);
 		}
 
 		short port=8128;
@@ -343,6 +351,11 @@ public:
 			}
 		}
 
+		socket.setsockopt(ZMQ_LINGER, timeout);
+		if(spectifiedTimeout){
+			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
+			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
+		}
 
 		if(serverShutdown){
 			infoContainer task;
