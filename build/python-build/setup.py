@@ -8,7 +8,7 @@ import platform
 print(numpy.distutils.misc_util.get_numpy_include_dirs())
 
 setup(name='G2S',
-	version='0.94.0',
+	version=open('../../version', 'r').read(),
 	description='G2S interface',
 	author='Mathieu Gravey',
 	author_email='mathieu.gravey@unil.ch',
