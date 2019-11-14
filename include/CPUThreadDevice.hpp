@@ -37,7 +37,7 @@
 class CPUThreadDevice : public ComputeDeviceModule
 {
 public:
-	CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio=1, bool withCrossMesurement=false);
+	CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio=1, bool withCrossMesurement=false, bool circularTI=false);
 	~CPUThreadDevice();
 
 	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
@@ -107,6 +107,7 @@ private:
 
 	bool _trueMismatch=true;
 	bool _crossMesurement=false;
+	bool _circularTI=false;
 };
 
 #endif

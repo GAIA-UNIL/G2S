@@ -281,6 +281,8 @@ int main(int argc, char const *argv[]) {
 	float nbCandidate=std::nanf("0");		// 1/f for QS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+	bool conciderTiAsCircular=false;
+	bool circularSimulation=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -343,6 +345,18 @@ int main(int argc, char const *argv[]) {
 		searchDistance=g2s::MANAHTTAN;
 	}
 	arg.erase("-md");
+
+	if (arg.count("-cti") == 1)
+	{
+		conciderTiAsCircular=true;
+	}
+	arg.erase("-cti");
+
+	if (arg.count("-csim") == 1)
+	{
+		circularSimulation=true;
+	}
+	arg.erase("-csim");
 
 
 	//add extra paremetre here
@@ -767,7 +781,7 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -775,14 +789,14 @@ int main(int argc, char const *argv[]) {
 				bool deviceCreated=false;
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement,conciderTiAsCircular);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement,conciderTiAsCircular);
 					signleThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -799,7 +813,7 @@ int main(int argc, char const *argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads);
+	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads,circularSimulation);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);

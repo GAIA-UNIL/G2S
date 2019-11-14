@@ -72,12 +72,13 @@ std::vector<unsigned> OpenCLGPUDevice::DeviceWithHostUnifiedMemory(unsigned plat
 	return result;
 }
 
-OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platformIndex, unsigned int deviceIndex, bool withCrossMesurement){
+OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platformIndex, unsigned int deviceIndex, bool withCrossMesurement, bool circularTI){
 	_coeficientMatrix=coeficientMatrix;
 	_deviceType=DT_gpuOpenCL;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
 	_crossMesurement=withCrossMesurement;
+	_circularTI=circularTI;
 	//printf("core %d, chip %d\n",core, chip );
 	_deviceID=chip;
 	_sharedMemoryManager=sharedMemoryManager;
@@ -393,7 +394,7 @@ unsigned OpenCLGPUDevice::cvtIndexToPosition(unsigned index){
 	for (int i = _fftSize.size()-1; i>=0; --i)
 	{
 		divFactor/=_fftSize[i];
-		position=position*_srcSize[i] + (_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1);
+		position=position*_srcSize[i] + ((_fftSize[i]-(index/(divFactor))%_fftSize[i]-_min[i]-1)+_srcSize[i])%_srcSize[i];
 	}
 
 	return position;
@@ -525,25 +526,28 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			dataType* realSpace= _realSpaceArray[dataArrayIndex];
 			//Remove fobidden/wrong value
-			for (int i = 0; i < _fftSize.size(); ++i)
+			if (!_circularTI)
 			{
-				unsigned blockSize=1;
-				for (int j = 0; j < i; ++j)
+				for (int i = 0; i < _fftSize.size(); ++i)
 				{
-					blockSize*=_fftSize[j];
-				}
-				blockSize*=_fftSize[i]-(_srcSize[i]-(_max[i]-_min[i]));
+					unsigned blockSize=1;
+					for (int j = 0; j < i; ++j)
+					{
+						blockSize*=_fftSize[j];
+					}
+					blockSize*=_fftSize[i]-(_srcSize[i]-(_max[i]-_min[i]));
 
-				unsigned delta=1;
-				for (int j = 0; j <= i; ++j)
-				{
-					delta*=_fftSize[j];
-				}
+					unsigned delta=1;
+					for (int j = 0; j <= i; ++j)
+					{
+						delta*=_fftSize[j];
+					}
 
-				#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize,realSpace)
-				for (int j = 0; j < _realSpaceSize; j+=delta)
-				{
-					fillVectorized(realSpace,j,blockSize,-INFINITY);
+					#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize,realSpace)
+					for (int j = 0; j < _realSpaceSize; j+=delta)
+					{
+						fillVectorized(realSpace,j,blockSize,-INFINITY);
+					}
 				}
 			}
 

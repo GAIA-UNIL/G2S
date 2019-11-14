@@ -240,9 +240,8 @@ class DataImage{
 		{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+deltaVect[i];
-			if((val[i]<0)|| (val[i] >= int(_dims[i]))){
-				isOk=false;
-			}
+			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
+			val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
 			position/=_dims[i];
 		}
 
@@ -251,7 +250,6 @@ class DataImage{
 			finalValue*=_dims[i];
 			finalValue+=val[i];
 		}
-
 
 		location=finalValue;
 
@@ -483,8 +481,8 @@ class DataImage{
 			int subVariablePosition=0;
 			for (unsigned int i = 0; i < _nbVariable; ++i)
 			{
-				convertionTypeVectorConstXmeassurement[i].push_back(P0);
-				convertionCoefVectorConstXmeassurement[i].push_back(1.f);
+				//convertionTypeVectorConstXmeassurement[i].push_back(P0);
+				//convertionCoefVectorConstXmeassurement[i].push_back(1.f);
 
 				if(_types[i]==Continuous){
 					std::vector<convertionType> convType;
@@ -528,14 +526,14 @@ class DataImage{
 				}
 			}
 			coeficientMatrix.push_back(regular);
-			coeficientMatrix.push_back(Xmeassurement);
+			if(forXMesurement)coeficientMatrix.push_back(Xmeassurement);
 
 			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstRegular);
-			convertionTypeVectorConstVector.push_back(std::vector<std::vector<convertionType> >(_nbVariable));
-			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstXmeassurement);
+			//convertionTypeVectorConstVector.push_back(std::vector<std::vector<convertionType> >(_nbVariable));
+			//convertionTypeVectorConstVector.push_back(convertionTypeVectorConstXmeassurement);
 			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstRegular);
-			convertionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
-			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstXmeassurement);
+			//convertionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
+			//convertionCoefVectorConstVector.push_back(convertionCoefVectorConstXmeassurement);
 		}
 
 		/*void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){

@@ -42,7 +42,7 @@ public:
 	static std::vector<unsigned> DeviceWithHostUnifiedMemory(unsigned platform_id);
 
 
-	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platform, unsigned int device, bool withCrossMesurement=false);
+	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platform, unsigned int device, bool withCrossMesurement=false, bool circularTI=false);
 	~OpenCLGPUDevice();
 
 	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
@@ -112,6 +112,7 @@ private:
 
 	bool _trueMismatch=true;
 	bool _crossMesurement=false;
+	bool _circularTI=false;
 
 	std::vector<cl_mem> frenquencySpaceOutputArray_d;
 	std::vector<cl_mem> realSpaceArray_d;
