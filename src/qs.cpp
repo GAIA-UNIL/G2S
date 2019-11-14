@@ -284,6 +284,8 @@ int main(int argc, char const *argv[]) {
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 	bool requestFullSimulation=false;
+	bool conciderTiAsCircular=false;
+	bool circularSimulation=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -357,6 +359,18 @@ int main(int argc, char const *argv[]) {
 		fullStationary=true;
 	}
 	arg.erase("-far");
+
+	if (arg.count("-cti") == 1)
+	{
+		conciderTiAsCircular=true;
+	}
+	arg.erase("-cti");
+
+	if (arg.count("-csim") == 1)
+	{
+		circularSimulation=true;
+	}
+	arg.erase("-csim");
 
 	//add extra paremetre here
 	float alpha=0;
@@ -804,14 +818,14 @@ int main(int argc, char const *argv[]) {
 				bool deviceCreated=false;
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement, conciderTiAsCircular);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
@@ -831,11 +845,11 @@ int main(int argc, char const *argv[]) {
 	if(fullSimulation){
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
 	}else{
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary);
+			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();

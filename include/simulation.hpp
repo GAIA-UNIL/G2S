@@ -26,7 +26,7 @@
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
@@ -83,7 +83,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				unsigned dataIndex;
 				std::vector<int> vectorInDi=pathPosition[positionSearch];
 				vectorInDi.resize(di._dims.size(),0);
-				if(di.indexWithDelta(dataIndex, currentCell, vectorInDi))
+				if(di.indexWithDelta(dataIndex, currentCell, vectorInDi) || circularSim)
 				{
 					//add for
 					if(posterioryPath[dataIndex]<=indexPath){
@@ -271,7 +271,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize());
@@ -320,7 +320,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				unsigned dataIndex;
 				std::vector<int> vectorInDi=pathPosition[positionSearch];
 				vectorInDi.resize(di._dims.size(),0);
-				if(di.indexWithDelta(dataIndex, currentPosition, vectorInDi))
+				if(di.indexWithDelta(dataIndex, currentPosition, vectorInDi) || circularSim)
 				{
 					bool needToBeadd=false;
 					for (unsigned int i = 0; i < di._nbVariable; ++i)

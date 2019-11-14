@@ -25,7 +25,7 @@ endif
 
 export OS
 
-dosentSupportOpenCL:= $(shell sh -c "echo 'int main(){}' | c++ -xc - -o /dev/null $OPENCL_LIB 2>/dev/null && echo 0 || echo 1 ")
+dosentSupportOpenCL:= $(shell sh -c "echo 'int main(){}' | c++ -xc - -o /dev/null ${OPENCL_LIB} 2>/dev/null && echo 0 || echo 1 ")
 ifeq ("$(dosentSupportOpenCL)","0")
 	export OPENCL_INC=-DWITH_OPENCL=1
 	export OPENCL_LIB
