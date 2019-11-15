@@ -77,9 +77,44 @@ public:
 	};
 
 	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
+
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
+
+		distribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, moduleID, fullStationary, variableOfInterest, idTI4Sampling);
+
+		int extendK=int(ceil(_k));
+		unsigned localPosition[extendK*vectorSize];
+		std::iota(localPosition,localPosition+extendK*vectorSize,0);
+		
+		//printf("%d %d %d %d\n", updated[0],updated[1],updated[2],updated[3]);
+
+		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
+			return errors[a] > errors[b];
+		});
+		//printf("%f %f %f %f\n", errors[localPosition[0]],errors[localPosition[1]],errors[localPosition[2]],errors[localPosition[3]]);
+		//fprintf(stderr, "%f\n", errors[0]);
+		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
+
+		unsigned slectedIndex=int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
+		unsigned selectedTI=localPosition[slectedIndex]/extendK;
+		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
+		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
+		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[slectedIndex]] );
+		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
+		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[slectedIndex],slectedIndex,extendK, errors[localPosition[slectedIndex]]);
+
+		matchLocation result;
+		result.TI=selectedTI;
+		result.index=indexInTI;
+
+		return result;
+
+	}
+
+	inline void distribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
+		unsigned vectorSize=_cdmV[moduleID].size();;
 		bool updated[vectorSize];
 		memset(updated,false,vectorSize);
 
@@ -279,31 +314,7 @@ public:
 			}
 		}
 
-		unsigned localPosition[extendK*vectorSize];
-		std::iota(localPosition,localPosition+extendK*vectorSize,0);
 		
-		//printf("%d %d %d %d\n", updated[0],updated[1],updated[2],updated[3]);
-
-		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
-			return errors[a] > errors[b];
-		});
-		//printf("%f %f %f %f\n", errors[localPosition[0]],errors[localPosition[1]],errors[localPosition[2]],errors[localPosition[3]]);
-		//fprintf(stderr, "%f\n", errors[0]);
-		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
-
-		unsigned slectedIndex=int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
-		unsigned selectedTI=localPosition[slectedIndex]/extendK;
-		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
-		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
-		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[slectedIndex]] );
-		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
-		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[slectedIndex],slectedIndex,extendK, errors[localPosition[slectedIndex]]);
-
-		matchLocation result;
-		result.TI=selectedTI;
-		result.index=indexInTI;
-
-		return result;
 	}
 
 	narrownessMeasurment narrowness(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
