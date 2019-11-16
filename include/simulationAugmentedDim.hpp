@@ -205,16 +205,14 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 			importIndexs4EachDim.push_back(importIndexs);
 		}
 
-
-
-
 		// average over the dimentions
 
 		//int sumElement=0;
 		std::vector<float> avergaeOverDim(categoriesValues[0].size(),0);
-
+		int numberOfDim=0;
 		for (int i = 0; i <importIndexs4EachDim.size() ; ++i)
 		{
+			numberOfDim+=importIndexs4EachDim[i].size()>0;
 			for (int j = 0; j < importIndexs4EachDim[i].size(); ++j)
 			{
 				SamplingModule::matchLocation importIndex=importIndexs4EachDim[i][j];
@@ -222,30 +220,33 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 				
 				for (int k = 0; k < categoriesValues[0].size(); ++k)
 				{
-					avergaeOverDim[j]+=(val==categoriesValues[0][k]);
+					avergaeOverDim[k]+=(val==categoriesValues[0][k]);
 				}
 				//sumElement+=1;
 			}
 		}
 
-
-		std::transform(avergaeOverDim.begin(), avergaeOverDim.end(), avergaeOverDim.begin(),
-			std::bind2nd(std::divides<float>(), std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
-
-		/*for (int j = 0; j < avergaeOverDim.size(); ++j)
-		{
-			avergaeOverDim[j]/=sumElement;
-		}*/
-
-		//Sample
-
-		float cumulate=0.f;
 		int classIndex=0;
+		if(numberOfDim>0){
+			std::transform(avergaeOverDim.begin(), avergaeOverDim.end(), avergaeOverDim.begin(),
+				std::bind2nd(std::divides<float>(), std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
 
-		for (int i = 0; i < avergaeOverDim.size(); ++i)
-		{
-			cumulate+=avergaeOverDim[i];
-			classIndex+=(cumulate<localSeed);
+			/*for (int j = 0; j < avergaeOverDim.size(); ++j)
+			{
+				avergaeOverDim[j]/=sumElement;
+			}*/
+
+			//Sample
+
+			float cumulate=0.f;
+			for (int i = 0; i < avergaeOverDim.size(); ++i)
+			{
+				cumulate+=avergaeOverDim[i];
+				classIndex+=(cumulate<localSeed);
+			}
+
+		}else{
+			classIndex=0;
 		}
 
 		for (unsigned int j = 0; j < 1 /*TIs[importIndex.TI]._nbVariable*/; ++j)
