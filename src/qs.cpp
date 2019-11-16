@@ -33,7 +33,16 @@
 #endif
 
 #include "simulation.hpp"
+#include "simulationAugmentedDim.hpp"
 #include "quantileSamplingModule.hpp"
+
+enum simType
+{
+	vectorSim,
+	fullSim,
+	augmentedDimSim
+};
+
 
 void printHelp(){
 	printf ("that is the help");
@@ -286,6 +295,7 @@ int main(int argc, char const *argv[]) {
 	bool requestFullSimulation=false;
 	bool conciderTiAsCircular=false;
 	bool circularSimulation=false;
+	bool augmentedDimentionSimulation=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -371,6 +381,12 @@ int main(int argc, char const *argv[]) {
 		circularSimulation=true;
 	}
 	arg.erase("-csim");
+
+	if (arg.count("-adsim") == 1)
+	{
+		augmentedDimentionSimulation=true;
+	}
+	arg.erase("-adsim");
 
 	//add extra paremetre here
 	float alpha=0;
@@ -465,6 +481,9 @@ int main(int argc, char const *argv[]) {
 	}
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+
+	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimention augmentation, if the dimention is not good
+		augmentedDimentionSimulation=false;
 
 
 	g2s::DataImage kernel;
@@ -587,7 +606,7 @@ int main(int argc, char const *argv[]) {
 	unsigned beginPath=0;
 	bool fullSimulation=false;
 
-	if(simuationPathFileName.empty()) {
+	if(simuationPathFileName.empty()) {  //todo, need to be redsign to handle augmentedDimentionSimulation
 		//fprintf(stderr, "generate simulation path\n");
 		if (requestFullSimulation)
 		{
@@ -835,22 +854,35 @@ int main(int argc, char const *argv[]) {
 		smm->allowNewModule(false);
 		sharedMemoryManagerVector.push_back(smm);
 	}
-	
+
 	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 	// run QS
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	if(fullSimulation){
-		fprintf(reportFile, "%s\n", "full sim");
-		simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
-	}else{
-		fprintf(reportFile, "%s\n", "vector sim");
-		simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+	simType st=vectorSim;
+	if(fullSimulation) st=fullSim;
+	if(augmentedDimentionSimulation) st=augmentedDimSim;
+
+	switch (st){
+		case fullSim:
+			fprintf(reportFile, "%s\n", "full sim");
+			simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+		break;
+		case vectorSim:
+			fprintf(reportFile, "%s\n", "vector sim");
+			simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+		break;
+		case augmentedDimSim:
+			fprintf(reportFile, "%s\n", "augmented dimention sim");
+			simulationAD(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+		break;
 	}
+
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
