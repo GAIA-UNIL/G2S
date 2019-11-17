@@ -67,11 +67,15 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		float localSeed=seedAray[indexPath];
 
 		bool withDataInCenter=false;
+		bool withOnlyData=true;
 
 		for (unsigned int i = 0; i < di._nbVariable; ++i)
 		{
 			withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
+			withOnlyData&=!std::isnan(di._data[currentCell*di._nbVariable+i]);
 		}
+
+		if(withOnlyData) continue;
 
 
 		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);

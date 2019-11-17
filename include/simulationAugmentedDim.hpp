@@ -83,11 +83,15 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		float localSeed=seedAray[indexPath];
 
 		bool withDataInCenter=false;
+		bool withOnlyData=true;
 
 		for (unsigned int i = 0; i < di._nbVariable; ++i)
 		{
 			withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
+			withOnlyData&=!std::isnan(di._data[currentCell*di._nbVariable+i]);
 		}
+
+		if(withOnlyData) continue;
 
 		std::vector<int> combi(TIs[0]._dims.size(),1);
 		combi.resize(di._dims.size());
