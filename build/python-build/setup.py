@@ -15,6 +15,9 @@ with open("README.md", "r") as fh:
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
+	extra='';
+	if(systemName=='Linux' and platform.python_version()<'3.7'):
+		extra='\\';
 	setup(name='G2S',
 		version=open('../../version', 'r').read()+'.dev10',
 		description='G2S interface',
@@ -34,7 +37,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		],
 		ext_modules=[Extension("g2s/g2s", sources=["../../src_interfaces/python3_interface.cpp"],
 			language="c++", 
-			extra_compile_args=["-std=c++17",'-DVERSION=\"'+open('../../version', 'r').read()+'\"','-DPYTHON_VERSION=\"'+platform.python_version()+'\"'],
+			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION=\"'+platform.python_version()+'\"'],
 			extra_link_args=["-std=c++17"],
 			include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 			libraries = ['zmq','jsoncpp'],
