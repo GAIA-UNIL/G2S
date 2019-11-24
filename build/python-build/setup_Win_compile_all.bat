@@ -1,6 +1,6 @@
-if NOT exist "C:\Program Files\ZeroMQ 4.0.4" (
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://miru.hk/archive/ZeroMQ-4.0.4~miru1.0-x64.exe', 'ZeroMQ-4.0.4~miru1.0-x64.exe')"
-	start /w ZeroMQ-4.0.4~miru1.0-x64.exe
+if NOT exist "libzmq-v141-x64-4_3_2" (
+	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://dl.bintray.com/zeromq/generic/libzmq-v141-x64-4_3_2.zip', 'libzmq-v141-x64-4_3_2.zip')"
+	powershell Expand-Archive libzmq-v141-x64-4_3_2.zip -DestinationPath libzmq-v141-x64-4_3_2
 )
 if NOT exist "cppzmq-master" (
 	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://codeload.github.com/zeromq/cppzmq/zip/master', 'cppzmq-master.zip')"
@@ -13,10 +13,3 @@ if NOT exist "jsoncpp-master" (
 	py amalgamate.py
 	cd ..
 )
-
-rem for %%x in ( 3.8, 3.7, 3.6, 3.5) do (
-rem 	py -%%x -m pip install --upgrade pip
-rem 	py -%%x -m pip install numpy setuptools wheel
-rem 	py -%%x setup.py bdist --format=wininst
-rem 	del build /s /f /q
-rem )
