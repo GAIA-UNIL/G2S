@@ -14,9 +14,9 @@ if NOT exist "jsoncpp-master" (
 	cd ..
 )
 
-for %%x in ( 3.8, 3.7, 3.6, 3.5) do (
-	py -%%x -m pip install --upgrade pip
-	py -%%x -m pip install numpy setuptools wheel
-	py -%%x setup.py bdist --format=wininst
-	del build /s /f /q
-)
+rem for %%x in ( 3.8, 3.7, 3.6, 3.5) do (
+rem 	py -%%x -m pip install --upgrade pip
+rem 	py -%%x -m pip install numpy setuptools wheel
+rem 	py -%%x setup.py bdist --format=wininst
+rem 	del build /s /f /q
+rem )

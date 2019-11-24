@@ -45,14 +45,33 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python }}
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install numpy setuptools wheel twine
+        cd build/python-build
+
+    - name: Install Ubuntu dependencies
+      if : contains( matrix.OS, 'ubuntu' )
+      run: |
+        sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: Install macOS dependencies
+      if : contains( matrix.OS, 'macOS' )
+      run: |
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        brew install zeromq jsoncpp zlib wget
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: Install Windows dependencies
+      if : contains( matrix.OS, 'windows' )
+      run: |
+        setup_Win_compile_all.bat
+    
     - name: Build
       run: |
-        cd build/python-build
         python setup.py --setuptools sdist bdist_wheel
+    
     - name: Correct whl for Linux
       if : contains( matrix.OS, 'ubuntu' )
       run: |
@@ -63,6 +82,7 @@ jobs:
       run: |
         pip install delocate
         delocate-wheel -v dist/*.whl
+    
     - name: Publish
       env:
         TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
