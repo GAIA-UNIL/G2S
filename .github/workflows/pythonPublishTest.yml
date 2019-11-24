@@ -88,8 +88,8 @@ jobs:
     
     - name: Publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
       run: |
         cd build/python-build
-        twine upload dist/* -r pypitest
+        twine upload dist/* --repository-url https://test.pypi.org/legacy/
