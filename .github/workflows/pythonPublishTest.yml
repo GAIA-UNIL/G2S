@@ -92,4 +92,5 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
       run: |
         cd build/python-build
-        twine upload dist/* --repository-url https://test.pypi.org/legacy/ --verbose
+        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose 
+# --skip-existing
