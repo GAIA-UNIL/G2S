@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
+import os
 from sys import argv
 if "--setuptools" in argv:
 	argv.remove("--setuptools")
@@ -13,13 +14,17 @@ systemName=platform.system();
 with open("README.md", "r") as fh:
 	long_description = fh.read()
 
+buildNumber=os.environ.get('BUILD_NUMBER');
+if buildNumber:
+	versionExtention='.dev'+buildNumber;
+
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
 	extra='';
 	if(systemName=='Linux' and platform.python_version()<'3.7'):
 		extra='\\';
 	setup(name='G2S',
-		version=open('../../version', 'r').read()+'.dev10',
+		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
 		author='Mathieu Gravey',
@@ -49,7 +54,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 if(systemName=='Windows'):
 	import numpy
 	setup(name='G2S',
-		version=open('../../version', 'r').read()+'.dev10',
+		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
 		author='Mathieu Gravey',

@@ -1,0 +1,53 @@
+name: Upload Python Package on test server
+
+on: [push]
+  # push:
+  #   paths:
+  #   - 'src_interfaces/python3_interface.cpp'
+  #   - 'include_interfaces/inerfaceTemplate.hpp'
+  #   - 'include_interfaces/python3_interface.hpp'
+
+jobs:
+  generate-build-number:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v2 
+      with:
+        token: ${{secrets.github_token}}
+    - name: Print new build number
+      run: echo "Build number is $BUILD_NUMBER"        
+    - name: Upload build number
+      uses: actions/upload-artifact@v1
+      with:
+        name: BUILD_NUMBER
+        path: BUILD_NUMBER
+
+  deploy:
+    needs: generate-build-number
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download build number
+      uses: actions/download-artifact@v1
+      with:
+        name: BUILD_NUMBER
+    - name: Restore build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v2 
+    - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy setuptools wheel twine
+    - name: Build and publish
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
+      run: |
+        python setup.py --setuptools sdist bdist_wheel
+        twine upload dist/* -r pypitest
