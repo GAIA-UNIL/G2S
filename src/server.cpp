@@ -222,7 +222,7 @@ int main(int argc, char const *argv[]) {
 		zmq::message_t request;
 		bool newRequest=false;
 		//  Wait for next request from client
-		zmq::detail::recv_result_t reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
+		auto reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
 		if( reciveMessage )
 		{
 			newRequest=true;
