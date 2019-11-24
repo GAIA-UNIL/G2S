@@ -29,7 +29,7 @@ jobs:
     name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
     strategy:
       matrix:
-        OS: [ubuntu-latest, macOS-latest]
+        OS: [ubuntu-latest]
         python: ['3.8' ]
     runs-on: ${{ matrix.OS }}
     steps:
@@ -54,13 +54,13 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.OS, 'ubuntu' )
       run: |
-        sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev
+        sudo apt install build-essential libzmq3-dev libjsoncpp-dev
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
     - name: Install macOS dependencies
       if : contains( matrix.OS, 'macOS' )
       run: |
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-        brew install zeromq jsoncpp zlib wget
+        brew install zeromq jsoncpp wget
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
     - name: Install Windows dependencies
       if : contains( matrix.OS, 'windows' )
