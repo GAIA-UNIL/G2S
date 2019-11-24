@@ -1,0 +1,1 @@
+from .g2s import run as g2s
