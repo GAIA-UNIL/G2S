@@ -45,8 +45,12 @@ build/matlab-build/*.mex*
 *.m~
 *.DS_Store
 *.npz
-build/python-build/__pycache__/variogram.cpython-36.pyc
+build/python-build/__pycache__
+build/python-build/G2S.egg-info
+build/python-build/build
+build/python-build/dist
 *.pyc
 
 *.config
 *.Rhistory
+
