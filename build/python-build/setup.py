@@ -82,5 +82,5 @@ if(systemName=='Windows'):
 			library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-x64-4_3_2"]
 		)],
 		include_dirs=numpy.get_include(),
-		data_files=[('lib\\site-packages\\',["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll"])]
+		data_files=[('lib\\site-packages\\g2s',["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll"])]
 	);
