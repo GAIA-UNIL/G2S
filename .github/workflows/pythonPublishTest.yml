@@ -77,7 +77,8 @@ jobs:
       if : contains( matrix.OS, 'ubuntu' )
       run: |
         cd build/python-build
-        pip install auditwheel
+        # pip install auditwheel
+        # auditwheel repair dist/*.wh
         for wheel in $(find . -iname "*.whl") ; do \
           mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/') \
         done
