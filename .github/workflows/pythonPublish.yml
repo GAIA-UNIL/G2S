@@ -1,31 +1,12 @@
-name: Upload Python Package on test server
+name: Upload Python Package on PyPI server
 
 on:
   push:
     paths:
-    - 'src_interfaces/python3_interface.cpp'
-    - 'include_interfaces/inerfaceTemplate.hpp'
-    - 'include_interfaces/python3_interface.hpp'
+    - 'version'
 
 jobs:
-  generate-build-number:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Generate build number
-      id: buildnumber
-      uses: einaregilsson/build-number@v2 
-      with:
-        token: ${{secrets.github_token}}
-    - name: Print new build number
-      run: echo "Build number is $BUILD_NUMBER"        
-    - name: Upload build number
-      uses: actions/upload-artifact@v1
-      with:
-        name: BUILD_NUMBER
-        path: BUILD_NUMBER
-
   deploy:
-    needs: generate-build-number
     name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
     strategy:
       matrix:
@@ -33,13 +14,6 @@ jobs:
         python: [ '3.6', '3.7', '3.8' ]
     runs-on: ${{ matrix.OS }}
     steps:
-    - name: Download build number
-      uses: actions/download-artifact@v1
-      with:
-        name: BUILD_NUMBER
-    - name: Restore build number
-      id: buildnumber
-      uses: einaregilsson/build-number@v2 
     - uses: actions/checkout@v1
     - name: Set up Python
       uses: actions/setup-python@v1
@@ -89,9 +63,9 @@ jobs:
     
     - name: Publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
         cd build/python-build
-        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose 
+        twine upload dist/*.whl --verbose 
 # --skip-existing
