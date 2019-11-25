@@ -80,9 +80,7 @@ jobs:
         # pip install auditwheel
         # auditwheel repair dist/*.wh
         cd dist
-        for wheel in $(find . -iname "*.whl") ; do \
-          mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/') \
-        done
+        for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
     - name: Correct whl for macOS
       if : contains( matrix.OS, 'macOS' )
       run: |
