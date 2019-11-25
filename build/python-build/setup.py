@@ -22,8 +22,8 @@ if buildNumber:
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
 	extra='';
-	if(systemName=='Linux' and platform.python_version()<'3.7'):
-		extra='\\';
+	# if(systemName=='Linux' and platform.python_version()<'3.7'):
+	# 	extra='\\';
 	setup(name='G2S',
 		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
