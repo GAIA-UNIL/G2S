@@ -2,8 +2,10 @@
 # -*- coding: UTF-8 -*-
 import os
 from sys import argv
+isST=False;
 if "--setuptools" in argv:
 	argv.remove("--setuptools")
+	isST=True;
 	from setuptools import setup, Extension
 else:
 	from distutils.core import setup, Extension
@@ -28,6 +30,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
+		**{'long_description_content_type':'text/markdown'} if isST else {},
 		author='Mathieu Gravey',
 		author_email='mathieu.gravey@unil.ch',
 		url='https://github.com/GAIA-UNIL/G2S',
@@ -59,6 +62,7 @@ if(systemName=='Windows'):
 		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
+		**{'long_description_content_type':'text/markdown'} if isST else {},
 		author='Mathieu Gravey',
 		author_email='mathieu.gravey@unil.ch',
 		url='https://github.com/GAIA-UNIL/G2S',
