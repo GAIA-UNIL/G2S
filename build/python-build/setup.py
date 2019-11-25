@@ -71,11 +71,11 @@ if(systemName=='Windows'):
 			'Programming Language :: C++',
 			'Programming Language :: Python :: 3 :: Only'
 		],
-		ext_modules=[Extension("g2s/g2s", sources=["../../src_interfaces/python3_interface.cpp","jsoncpp-master/dist/jsoncpp.cpp"],
+		ext_modules=[Extension("g2s\\g2s", sources=["../../src_interfaces/python3_interface.cpp","jsoncpp-master/dist/jsoncpp.cpp"],
 			language="c++", 
 			extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION=\\\"'+open('../../version', 'r').read()+'\\\"','/DPYTHON_VERSION=\\\"'+platform.python_version()+'\\\"'],
 			extra_link_args=[],
-			include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "libzmq-v141-x64-4_3_2", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+			include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./libzmq-v141-x64-4_3_2", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 			libraries = ['libzmq-v141-mt-4_3_2'],
 			library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-x64-4_3_2"]
 		)],
