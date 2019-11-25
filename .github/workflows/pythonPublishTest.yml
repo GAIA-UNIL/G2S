@@ -71,7 +71,7 @@ jobs:
     - name: Build
       run: |
         cd build/python-build
-        python setup.py --setuptools sdist bdist_wheel
+        python setup.py --setuptools bdist_wheel
     
     # - name: Correct whl for Linux
     #   if : contains( matrix.OS, 'ubuntu' )
