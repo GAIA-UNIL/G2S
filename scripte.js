@@ -50,3 +50,11 @@ $(document).ready(function(){
 	});
 });
 
+function removeIframe(iframeObject){
+	if(iframeObject.contentDocument){
+		iframeObject.before((iframeObject.contentDocument.body.innerHTML||iframeObject.contentDocument.children[0]));
+		iframeObject.remove()
+	}else{
+		$.ajax($(iframeObject).attr('src')).done(function(data){iframeObject.before(data);iframeObject.remove()});
+	};
+}
