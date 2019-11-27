@@ -354,7 +354,7 @@ td, th {
 }
 body {
     font-family: 'Helvetica Neue', Helvetica, Arial, serif;
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 400;
     line-height: 1.5;
     color: #666;
@@ -490,6 +490,7 @@ hr {
 }
 table {
     width: 100%;
+    font-size: 16px;
     border: 1px solid #ebebeb;
 }
 th {
@@ -520,7 +521,8 @@ form {
     color: #9ddcff;
     content: "/"}
 #main-content h2 {
-    margin-bottom: 8px;
+    margin: 0;
+    padding-top: 8px;
     font-family: 'Architects Daughter', 'Helvetica Neue', Helvetica, Arial, serif;
     font-size: 22px;
     font-weight: bold;
@@ -769,11 +771,11 @@ section a.button[selected]{
 }
 
 div.quickSelect.server{
-    max-height: 1500px;
+    max-height: 1608px;
 }
 
 div.quickSelect.interface{
-    max-height: 1000px;
+    max-height: 2220px;
 }
 
 div.quickSelect{

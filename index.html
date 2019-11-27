@@ -18,6 +18,10 @@
 	<div id="content-wrapper">
 		<div class="inner clearfix">
 			<section id="main-content">
+
+				<p style="font-size: 25px;color:red;border: 2px solid;padding: 0px 18px; text-align: center">
+					<strong>&#10132;</strong> Preprint of Quantile Sampling available <a href="https://doi.org/10.5194/gmd-2019-211">here</a>,<br> under open review, please fil free to contribute.
+				</p>
 				<h1>Brief overview</h1>
 				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-artu <strong>Multiple Point Statistics (MPS)</strong> algorithm to run simulation</p>
 
@@ -26,7 +30,9 @@
 				<p>Currently, the framework is provided with:
 					<ul>
 						<li><strong>Quantile Sampling (QS)</strong> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous, categorial or a combination of both. The code was developed with any restriction on the dimention.</li>
+						<strong>&#10132;</strong> Curently under open review, please fil free to contribute <a href="https://doi.org/10.5194/gmd-2019-211">here</a>.
 						<li><strong>Narrow Distribution Selection (NDS)</strong> is an algorithm specific targeted to simulate spectral enhanced remote sensed imagery. It realizes simulations of most probable realization. It requires an external variable (for example, a gray image) to control the simulation (of colors) </li>
+						&#10132; Paper about <a href="https://doi.org/10.1016/j.isprsjprs.2018.11.003">Analogue-based colorization of remote sensing images using textural information</a>.
 					</ul>
 
 					<p>However, the framework can be easily exetneded to handle most of the code that uses grided data. Currently any compiled code, and python code can be handled.</p>
@@ -47,7 +53,7 @@
 						<h2>Installation of the server</h2>
 						<div class="quickSelect linux server osSens">
 							<h3>Installation of the server on Ubuntu</h3>
-							<h4>Automatic with GCC</h4>
+							<h4>Automatic with GCC on Ubuntu</h4>
 							<ol>
 								<li>First clone the code from this GitHub.</li>
 								<li>run <code>build/c++-build/install_needs_W_VM.sh</code></li>
@@ -58,9 +64,11 @@
 								<li>Basics for compiling are needed, (e.g. on Ubuntu: build-essential).</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-devlibfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
-								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>sudo wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O /usr/include/zmq.hpp</code></li>
+								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O ./include/zmq.hpp</code></li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
+								</li>
 							</ol>
 						</div>
 						<div class="quickSelect macOS server osSens">
@@ -68,28 +76,30 @@
 							<h4>using MacPort</h4>
 							<ol>
 								<li>First clone the code from this GitHub.</li>
-								<li>Install the package manager macPort (if not already done)</li>
+								<li>Install the package manager <a href="https://www.macports.org/install.php">MacPort</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl</code> (curl is optional)</li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 							</ol>
 							<h4>using Homebrew</h4>
 							<ol>
 								<li>First clone the code from this GitHub.</li>
-								<li>Install the package manager Homebrew (if not already done)</li>
+								<li>Install the package manager <a href="https://brew.sh/">Homebrew</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>brew install fftw zmq jsoncpp curl</code> (curl is optional)</li>
 								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>curl -o /usr/local/include/zmq.hpp "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp"</code></li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make c++ -j</code> or <code>make intel -j</code> if the Intel C++ compiler is installed. The intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a></li>
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 							</ol>
 						</div>
 						<div class="quickSelect windows server osSens">
 							<h3>Installation of the server on Windows 10</h3>
 							<ol>
 								<li>Check that the last updates of Windows are installed</li>
-								<li>Install WSL follwing instruction <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">here</a></li>
+								<li>Install WSL follwing instructions <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">here</a>, and select an Linux distribution (we advise Ubuntu for beginners).</li>
 								<li>Go to the directory <code>build/c++-build</code></li>
 								<li>Run <code>install.bat</code></li>
 							</ol>
@@ -106,11 +116,16 @@
 						</div>
 						<div class="quickSelect linux interface python osSens langSens">
 							<h3>Installation of the Python interface on Ubuntu</h3>
+							<h4>Automatic installation</h4>
+							<p>Use simply <code>pip install G2S</code></p>
+							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed Python and Numpy: <code>sudo apt install python3-distutils python3-dev python3-numpy -y</code></li>
 								<li>Go to <code>build/python-build</code></li>
-								<li>Run <code>sudo python3 setup.py install</code></li>
+								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect linux interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Ubuntu</h3>
@@ -120,17 +135,24 @@
 								<li>Run <code>CompileG2S</code></li>
 								<li>Add compiled file in the MATLAB path</li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <code>g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect linux interface R-lang osSens langSens progLang2hide">
 							<h3>Installation of the R interface on Ubuntu</h3>
 						</div>
 						<div class="quickSelect macOS interface python osSens langSens">
 							<h3>Installation of the Python interface on macOS</h3>
+							<h4>Automatic installation</h4>
+							<p>Use simply <code>pip install G2S</code></p>
+							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed Python and Numpy:<code>sudo port install python37 py37-numpy</code></li>
 								<li>Go to <code>build/python-build</code></li>
-								<li>Run <code>sudo python3 setup.py install</code></li>
+								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect macOS interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on macOS</h3>
@@ -140,21 +162,31 @@
 								<li>Run <code>CompileG2S</code></li>
 								<li>Add compiled file in the MATLAB path</li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <code>g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect macOS interface R-lang osSens langSens progLang2hide">
 							<h3>Installation of the R interface on macOS</h3>
 						</div>
 						<div class="quickSelect windows interface python osSens langSens">
 							<h3>Installation of the Python interface on Windows 10</h3>
+							<h4>Automatic installation</h4>
+							<p>Use simply <code>pip install G2S</code></p>
+							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed, install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
-								<li>Install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable</a> that is needed for scipy (don't ask me why)</li>
-								<li>Install needed package <code>pip install pillow scipy scikit-misc matplotlib</code></li>
-								<li>Download precompiled interfaces here</li>
+								<li>Go to <code>build/python-build</code></li>
+								<li>Run <code>python3 setup.py install</code></li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect windows interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Windows 10</h3>
+							<h4>Downlod precompiled interfaces</h4>
+							<p>Download <a href="https://github.com/GAIA-UNIL/G2S-compiled-interfaces/raw/master/0.95/MATLAB/Windows/G2S-0.95.000.win-amd64-matlab.zip">here</a>.
+							brUnzip and add the folder to MATLAB path.
+							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
 								<li>Open MATLAB</li>
@@ -163,6 +195,8 @@
 								<li>Run <code>CompileG2S</code></li>
 								<li>Add compiled file in the MATLAB path</li>
 							</ol>
+							<h4>Check proper interface installation</h4>
+							<p>Simply run <code>g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect windows interface R-lang osSens langSens progLang2hide">
 							<h3>Installation of the R interface on Windows 10</h3>
@@ -170,7 +204,7 @@
 					</div>
 
 					<h1>Run the server</h1>
-					<p>&#x26A0 The utilization of the server generate logs- and data-files, in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
+					<p>⚠️The utilization of the server generate logs- and data-files, in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
 
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
@@ -263,6 +297,10 @@
 						</thead>
 						<tbody>
 							<tr>
+								<td>&#8209;&#8209;version</td>
+								<td>return the version and compilation date of the interface</td>
+							</tr>
+							<tr>
 								<td>&#8209;a</td>
 								<td>the algorithm, it can be 'qs', 'nds', 'ds-l'</td>
 							</tr>
@@ -275,8 +313,21 @@
 								<td>don't display the progression, nice for scripts</td>
 							</tr>
 							<tr>
+								<td>&#8209;serverStatus</td>
+								<td>inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; indefined <br>>1 &#8594; server is operational
+								<ul style="margin:0 0 0 15px">
+									<li>1: standard server working normaly</li>
+										<li>(more is comming soon!)</li>
+								</ul>
+								</td>
+							</tr>
+							<tr>
 								<td>&#8209;noTO</td>
 								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., trough internet)</td>
+							</tr>
+							<tr>
+								<td>&#8209;TO</td>
+								<td>specify a custom timeout on ZMQ communication( uint32 in millisecond )</td>
 							</tr>
 							<tr>
 								<td>&#8209;shutdown</td>
@@ -308,6 +359,10 @@
 								<td>download the result</td>
 							</tr>
 							<tr>
+								<td>&#8209;kill</td>
+								<td>kill a given task</td>
+							</tr>
+							<tr>
 								<td>&#8209;after</td>
 								<td>execute the task after an other on is finished (e.g. '-after',previousTaskId )</td>
 							</tr>
@@ -335,7 +390,7 @@
 					</div>
 
 					<div class="quickSelect algoSens qs">
-						<h3>Paremeter for QS</h3>
+						<h2>Paremeter for QS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -392,7 +447,7 @@
 								</tr>
 								<tr>
 									<td>&#8209;j</td>
-									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
+									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use decimal values &isin;]0,1[ for fraction of the maximum number of cores (e.g., 0.5 repreent 50% of all available logical cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
 									<td></td>
 								</tr>
 								<tr>
@@ -400,6 +455,21 @@
 									<td>index of trining in with to sample from (experimental)</td>
 									<td></td>
 								</tr>
+								<tr>
+									<td>&#8209;cti</td>
+									<td>for a circular/cyclic/periodic training images over each dimention</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td>&#8209;csim</td>
+									<td>for a circular/cyclic/periodic simulation over each dimention</td>
+									<td></td>
+								</tr>
+								<!--<tr>
+									<td>&#8209;adsim</td>
+									<td>augmented dimentionality simulation, allow to do 3D simulation using 2D training image, only for categories</td>
+									<td></td>
+								</tr>-->
 								<tr>
 									<td>&#8209;far</td>
 									<td>fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
@@ -423,10 +493,8 @@
 							</tbody>
 						</table>
 					</div>
-
-					<br>
 					<div class="quickSelect algoSens nds">
-						<h3>Paremeter for NDS</h3>
+						<h2>Paremeter for NDS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
