@@ -1,8 +1,8 @@
 $(document).ready(function(){
-	$("div.quickSelect").each(function(){
+	/*$("div.quickSelect").each(function(){
 		$(this).css("max-height", $(this).height());
 		//.addClass("height_"+Math.ceil($(this).height()/10)*10);
-	});
+	});*/
 	//OS
 	$("div.osChoice a.button:not([disabled])").click(function(){
 		$("div.osChoice a.button").attr('selected', false);
@@ -52,12 +52,19 @@ $(document).ready(function(){
 	autoSetOs();
 });
 
+function setMaxHeight(parent){
+	$(parent).css("max-height", $(parent).height());
+}
+
 function removeIframe(iframeObject){
+	var parentObject=$(iframeObject).closest('div.quickSelect.exampleSens');
+	console.log(parentObject)
 	if(iframeObject.contentDocument){
 		iframeObject.before((iframeObject.contentDocument.body.innerHTML||iframeObject.contentDocument.children[0]));
 		iframeObject.remove()
+		setMaxHeight(parentObject)
 	}else{
-		$.ajax($(iframeObject).attr('src')).done(function(data){iframeObject.before(data);iframeObject.remove()});
+		$.ajax($(iframeObject).attr('src')).done(function(data){iframeObject.before(data);iframeObject.remove();setMaxHeight(parentObject)});
 	};
 }
 
