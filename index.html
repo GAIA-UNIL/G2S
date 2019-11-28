@@ -125,7 +125,7 @@
 								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
 							<h4>Check proper interface installation</h4>
-							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
+							<p>Simply run <br><code>from g2s import g2s; g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect linux interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Ubuntu</h3>
@@ -152,7 +152,7 @@
 								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
 							<h4>Check proper interface installation</h4>
-							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
+							<p>Simply run <br><code>from g2s import g2s; g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect macOS interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on macOS</h3>
@@ -179,7 +179,7 @@
 								<li>Run <code>python3 setup.py install</code></li>
 							</ol>
 							<h4>Check proper interface installation</h4>
-							<p>Simply run <br><code>from g2s import g2s <br> g2s('--version')</code></p>
+							<p>Simply run <br><code>from g2s import g2s; g2s('--version')</code></p>
 						</div>
 						<div class="quickSelect windows interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Windows 10</h3>
@@ -276,7 +276,7 @@
 
 					<div class="quickSelect python langSens osSens">
 						<h3>Use g2s in Python</h3>
-						<pre class="highlight"><code>from g2s import run as g2s<br>data=g2s(...)	# it returns an array that contains all the output maps and the computing duration</code></pre>
+						<pre class="highlight"><code>from g2s import run as g2s<br>data=g2s(...)	# it returns an tuple that contains all the output maps and the computing duration</code></pre>
 					</div>
 					<div class="quickSelect matlab langSens osSens">
 						<h3>Use g2s in MATLAB</h3>
