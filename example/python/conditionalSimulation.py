@@ -31,5 +31,3 @@ ax3.imshow(simulation)
 ax3.set_title('Simulation');
 ax3.axis('off');
 plt.show()
-
-

@@ -12,4 +12,3 @@ title('Training image');
 subplot(1,2,2);
 imshow(simulation);
 title('Simulation');
-
