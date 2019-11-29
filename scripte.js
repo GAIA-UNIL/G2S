@@ -85,7 +85,7 @@ function autoSetOs() {
 	}
 
 	if(os){
-		$("div.osChoice.buttonChoice a.button."+os).click();
+		//$("div.osChoice.buttonChoice a.button."+os).click();
 	}
 }
 
