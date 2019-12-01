@@ -31,7 +31,7 @@ unsigned nChoosek( unsigned n, unsigned k )
 	if (k == 0) return 1;
  
 	int result = n;
-	for( int i = 2; i <= k; ++i ) {
+	for( unsigned int i = 2; i <= k; ++i ) {
 		result *= (n-i+1);
 		result /= i;
 	}
@@ -41,14 +41,13 @@ unsigned nChoosek( unsigned n, unsigned k )
 
 void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, QuantileSamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false){
 
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		marginals.push_back(TIs[i].computeMagninals(categoriesValues));
 	}
-
 
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
@@ -72,9 +71,18 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+
+	int combinatory=nChoosek(di._dims.size(),TIs[0]._dims.size());
+
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(combinatory, nbThreadsLv2, marginals, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
+		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
+		// 	unsigned currentCell=solvingPath[indexPath];
+		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
+		// 	continue;
+		// }
+
 		unsigned moduleID=0;
 		#if _OPENMP
 			moduleID=omp_get_thread_num();
@@ -96,14 +104,33 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		std::vector<int> combi(TIs[0]._dims.size(),1);
 		combi.resize(di._dims.size());
 
-		std::vector<std::vector<SamplingModule::matchLocation> > importIndexs4EachDim;
-
-		for (int combinatoryIdx = 0; combinatoryIdx < nChoosek(di._dims.size(),TIs[0]._dims.size()); ++combinatoryIdx)
+		std::vector<std::vector<int> > combiArray(combinatory);
+		for (int i = 0; i < combinatory; ++i)
 		{
+			combiArray[i]=combi;
 			std::next_permutation(combi.begin(),combi.end(),[](const int &a, const int &b){return (a!=0)<(b!=0);});
+		}
+
+		std::vector<int> radius4EachDim(combinatory);
+		std::vector<int> numberElement4EachDim(combinatory);
+		std::vector<float> distFrist4EachDim(combinatory,INFINITY);
+		std::vector<std::vector<SamplingModule::matchLocation> > importIndexs4EachDim(combinatory);
+
+		#pragma omp parallel for num_threads(nbThreadsLv2) default(none) firstprivate(logFile, combinatory, numberNeighbor, currentCell, circularSim, posterioryPath, indexPath, numberOfVariable, categoriesValues, importDataIndex, fullStationary, moduleID, localSeed, withDataInCenter) shared(combiArray, importIndexs4EachDim, di, samplingModule, TIs, combi, pathPosition, numberElement4EachDim, radius4EachDim)
+		for (int combinatoryIdx = 0; combinatoryIdx < combinatory; ++combinatoryIdx)
+		{
+			
 			std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 			std::vector<std::vector<int> > neighborArrayVector;
 			std::vector<std::vector<float> > neighborValueArrayVector;
+
+			std::vector<int> localCombi=combiArray[combinatoryIdx];
+			/*
+			for (int i = 0; i < localCombi.size(); ++i)
+			{
+				fprintf(logFile, "%d, ",localCombi[i] );
+			}
+			fprintf(logFile, "\n");*/
 
 			{
 				unsigned positionSearch=0;
@@ -111,7 +138,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 					unsigned dataIndex;
 					std::vector<int> vectorInDi=pathPosition[positionSearch];
 					vectorInDi.resize(di._dims.size(),0);
-					if(di.indexWithDelta(dataIndex, currentCell, vectorInDi, combi) || circularSim)
+					if(di.indexWithDelta(dataIndex, currentCell, vectorInDi, localCombi) || circularSim)
 					{
 						//add for
 						if(posterioryPath[dataIndex]<=indexPath){
@@ -151,6 +178,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 					}
 					positionSearch++;
 				}
+				radius4EachDim[combinatoryIdx]=positionSearch;
 			}
 			// conversion from one variable to many
 			for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
@@ -178,6 +206,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 			}
 
 			std::vector<SamplingModule::matchLocation> importIndexs;
+			numberElement4EachDim[combinatoryIdx]=neighborArrayVector.size();
 
 			if(neighborArrayVector.size()>1){
 				unsigned dataIndex;
@@ -193,34 +222,29 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 					reverseVector[i]*=-1;
 				}
 				TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
-				/*for (int i = 0; i < 10; ++i)
-				{
-					SamplingModule::matchLocation importIndex;
-					importIndex.TI=combinatoryIdx % TIs[0]._dims.size();
-					importIndex.index=25;
-					importIndexs.push_back(importIndex);
-				}*/
-				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs[0]._dims.size());
+				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs.size());
 			}else if(withDataInCenter){
 				SamplingModule::matchLocation verbatimRecord;
 				verbatimRecord.TI=TIs.size();
-				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs[0]._dims.size());
+				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs.size());
 			}
-			importIndexs4EachDim.push_back(importIndexs);
+			importIndexs4EachDim[combinatoryIdx]=importIndexs;
 		}
-
-		// average over the dimentions
 
 		//int sumElement=0;
 		std::vector<float> avergaeOverDim(categoriesValues[0].size(),0);
+		std::vector<float> avergaeMarginal(categoriesValues[0].size(),0);
+		
 		int numberOfDim=0;
+		float minDist=*(std::min_element(distFrist4EachDim.begin(),distFrist4EachDim.end()));
 		for (int i = 0; i <importIndexs4EachDim.size() ; ++i)
 		{
+			//if(distFrist4EachDim[i]>minDist)continue;
 			numberOfDim+=importIndexs4EachDim[i].size()>0;
 			for (int j = 0; j < importIndexs4EachDim[i].size(); ++j)
 			{
 				SamplingModule::matchLocation importIndex=importIndexs4EachDim[i][j];
-				float val=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
+				float val=TIs[importIndex.TI]._data[importIndex.index];
 				
 				for (int k = 0; k < categoriesValues[0].size(); ++k)
 				{
@@ -230,50 +254,43 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 			}
 		}
 
+		for (int i = 0; i <marginals.size() ; ++i)
+		{
+			for (int k = 0; k < categoriesValues[0].size(); ++k)
+			{
+				avergaeMarginal[k]+=marginals[i][0][k];
+			}
+		}
+
+		if(numberOfDim==0){
+			avergaeOverDim=avergaeMarginal;
+		}
+		
+		for (int i = 0; i < avergaeOverDim.size(); ++i)
+		{
+			avergaeOverDim[i]=sqrt(pow(avergaeOverDim[i]/avergaeMarginal[i],3.0))*avergaeMarginal[i];
+			//avergaeOverDim[i]=avergaeOverDim[i]/avergaeMarginal[i];
+		}
+
+		std::transform(avergaeOverDim.begin(), avergaeOverDim.end(), avergaeOverDim.begin(),
+			std::bind2nd(std::divides<float>(), std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
+
+
+		//Sample
+
+		float cumulate=0.f;
 		int classIndex=0;
-		if(numberOfDim>0){
-			std::transform(avergaeOverDim.begin(), avergaeOverDim.end(), avergaeOverDim.begin(),
-				std::bind2nd(std::divides<float>(), std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
-
-			/*for (int j = 0; j < avergaeOverDim.size(); ++j)
-			{
-				avergaeOverDim[j]/=sumElement;
-			}*/
-
-			//Sample
-
-			float cumulate=0.f;
-			for (int i = 0; i < avergaeOverDim.size(); ++i)
-			{
-				cumulate+=avergaeOverDim[i];
-				classIndex+=(cumulate<localSeed);
-			}
-
-		}else{
-			classIndex=0;
+		for (int i = 0; i < avergaeOverDim.size(); ++i)
+		{
+			cumulate+=avergaeOverDim[i];
+			classIndex+=(cumulate<localSeed);
 		}
 
-		for (unsigned int j = 0; j < 1 /*TIs[importIndex.TI]._nbVariable*/; ++j)
-		{
-			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
-				#pragma omp atomic write
-				di._data[currentCell*di._nbVariable+j]=categoriesValues[0][classIndex];
-			}
+		if(std::isnan(di._data[currentCell])){
+			#pragma omp atomic write
+			di._data[currentCell]=categoriesValues[0][classIndex];
 		}
 
-		//sqrt(prod(x/marginalLocal))*Globalmarginal
-
-		/*// import data
-		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
-		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
-		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
-		for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
-		{
-			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
-				#pragma omp atomic write
-				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
-			}
-		}//*/
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 

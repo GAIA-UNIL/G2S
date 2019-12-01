@@ -879,7 +879,7 @@ int main(int argc, char const *argv[]) {
 		case augmentedDimSim:
 			fprintf(reportFile, "%s\n", "augmented dimention sim");
 			simulationAD(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation);
 		break;
 	}
 

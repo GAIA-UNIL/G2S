@@ -83,10 +83,9 @@ public:
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
-
-		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, moduleID, fullStationary, variableOfInterest, idTI4Sampling);
-
 		int extendK=int(ceil(_k));
+		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
+		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, moduleID, fullStationary, variableOfInterest, idTI4Sampling);
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
 		
@@ -117,16 +116,20 @@ public:
 	std::vector<matchLocation> distribution(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
 
 		unsigned vectorSize=_cdmV[moduleID].size();
+		int extendK=int(ceil(_k));
+		//std::vector<float> errorsArray(extendK*3);
+		//float *errors=(float*)errorsArray.data();
 		float *errors=_errors[moduleID];
+		std::fill(errors+idTI4Sampling*extendK,errors+(idTI4Sampling+1)*extendK,-INFINITY);
 		unsigned* encodedPosition=_encodedPosition[moduleID];
 
 		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, moduleID, fullStationary, variableOfInterest, idTI4Sampling);
 
-		int extendK=int(ceil(_k));
+		
 		unsigned localPosition[extendK*vectorSize];
-		std::iota(localPosition,localPosition+extendK*vectorSize,0);
+		std::iota(localPosition+idTI4Sampling*extendK,localPosition+(idTI4Sampling+1)*extendK,idTI4Sampling*extendK);
 
-		std::sort(localPosition,localPosition+extendK*vectorSize,[errors](unsigned a, unsigned b){
+		std::sort(localPosition+idTI4Sampling*extendK,localPosition+(idTI4Sampling+1)*extendK,[errors](unsigned a, unsigned b){
 			return errors[a] > errors[b];
 		});
 
@@ -134,8 +137,8 @@ public:
 
 		for (int i = 0; i < extendK; ++i)
 		{
-			unsigned slectedIndex=int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
-			unsigned selectedTI=localPosition[slectedIndex]/extendK;
+			unsigned slectedIndex=idTI4Sampling*extendK+i;//int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
+			unsigned selectedTI=idTI4Sampling;
 			unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
 			matchLocation result;
 			result.TI=selectedTI;
@@ -147,6 +150,7 @@ public:
 	}
 
 	narrownessMeasurment narrowness(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, unsigned moduleID=0, bool fullStationary=false){
+		unsigned localNbThreadOverTI=_nbThreadOverTI;
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
@@ -255,7 +259,7 @@ public:
 			}
 		}
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
@@ -264,7 +268,7 @@ public:
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
@@ -317,6 +321,7 @@ public:
 
 private:
 	inline void determineDistribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
+		unsigned localNbThreadOverTI=_nbThreadOverTI;
 		unsigned vectorSize=_cdmV[moduleID].size();;
 		bool updated[vectorSize];
 		memset(updated,false,vectorSize);
@@ -439,9 +444,10 @@ private:
 		if(idTI4Sampling>=0){
 			std::fill(toUpdate,toUpdate+vectorSize,false);
 			toUpdate[idTI4Sampling]=true;
+			localNbThreadOverTI=1;
 		}
 
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			if(toUpdate[i]){
@@ -450,9 +456,8 @@ private:
 		}
 
 		int extendK=int(ceil(_k));
-		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
-
-		#pragma omp parallel for default(none) num_threads(_nbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		
+		//#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			
