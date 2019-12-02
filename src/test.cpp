@@ -41,6 +41,7 @@ void printHelp(){
 
 int main(int argc, char const *argv[]) {
 
+	bool allRight=true;
 	std::multimap<std::string, std::string> arg=g2s::argumentReader(argc,argv);
 
 	char logFileName[2048]={0};
@@ -424,6 +425,7 @@ int main(int argc, char const *argv[]) {
 						auto importIndex=QSM.sample(neighborArrayVector,neighborValueArrayVector,0.0,verbatimRecord,0,false,0,0);
 
 						fprintf(reportFile, "is %d and should be %d%s\n", importIndex.index,currentCell,importIndex.index==currentCell ? "": ", is wrong");
+						allRight&=importIndex.index==currentCell;
 					}
 
 				}
@@ -451,5 +453,5 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	return 0;
+	return (allRight ? 0 : -1);
 }
