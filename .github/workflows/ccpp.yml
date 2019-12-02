@@ -25,6 +25,9 @@ jobs:
       run: |
         cd build/
         make c++ -j
+    - name: run unit test
+      run: |
+        ./build/c++-build/test -sampling 1D 2D 3D
   macOS-build:
     name: Test on  ${{ matrix.macOS }} on ${{ matrix.python }} using ${{ matrix.packageManager }} as packages manager
     runs-on: ${{ matrix.macOS }}
@@ -56,4 +59,7 @@ jobs:
       run: |
         cd build/
         make c++ -j
+    - name: run unit test
+      run: |
+        ./build/c++-build/test -sampling 1D 2D 3D
 
