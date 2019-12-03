@@ -93,6 +93,7 @@ int main(int argc, char const *argv[]) {
 	float timeoutDuration=std::nanf("0");
 	double maxFileAge=24*3600.;
 	short port=8128;
+	unsigned maxNumberOfConcurrentJob=500;
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -105,6 +106,7 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
+		if(0==strcmp(argv[i], "-maxCJ")) maxNumberOfConcurrentJob=atoi(argv[i+1]);
 		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
 		{
 			maxFileAge=atof(argv[i+1]);
@@ -222,7 +224,7 @@ int main(int argc, char const *argv[]) {
 		zmq::message_t request;
 		bool newRequest=false;
 		//  Wait for next request from client
-		zmq::detail::recv_result_t reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
+		auto reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
 		if( reciveMessage )
 		{
 			newRequest=true;
@@ -343,7 +345,7 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 		if(cleanJobs(jobIds) || newRequest){
-			runJobInQueue(jobQueue, jobIds, singleTask, functionMode);
+			runJobInQueue(jobQueue, jobIds, singleTask, functionMode, maxNumberOfConcurrentJob);
 		}else{
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}

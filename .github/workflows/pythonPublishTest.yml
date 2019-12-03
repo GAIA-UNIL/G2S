@@ -1,0 +1,97 @@
+name: Upload Python Package on test server
+
+on:
+  push:
+    paths:
+    - 'src_interfaces/python3_interface.cpp'
+    - 'include_interfaces/inerfaceTemplate.hpp'
+    - 'include_interfaces/python3_interface.hpp'
+
+jobs:
+  generate-build-number:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v2 
+      with:
+        token: ${{secrets.github_token}}
+    - name: Print new build number
+      run: echo "Build number is $BUILD_NUMBER"        
+    - name: Upload build number
+      uses: actions/upload-artifact@v1
+      with:
+        name: BUILD_NUMBER
+        path: BUILD_NUMBER
+
+  deploy:
+    needs: generate-build-number
+    name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
+    strategy:
+      matrix:
+        OS: [ ubuntu-latest, windows-latest, macOS-latest]
+        python: [ '3.6', '3.7', '3.8' ]
+    runs-on: ${{ matrix.OS }}
+    steps:
+    - name: Download build number
+      uses: actions/download-artifact@v1
+      with:
+        name: BUILD_NUMBER
+    - name: Restore build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v2 
+    - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy setuptools wheel twine
+
+    - name: Install Ubuntu dependencies
+      if : contains( matrix.OS, 'ubuntu' )
+      run: |
+        sudo apt install build-essential libzmq3-dev libjsoncpp-dev patchelf
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: Install macOS dependencies
+      if : contains( matrix.OS, 'macOS' )
+      run: |
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        brew install zeromq jsoncpp
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: Install Windows dependencies
+      if : contains( matrix.OS, 'windows' )
+      run: |
+        cd build/python-build
+        cmd.exe /c setup_Win_compile_all.bat
+    
+    - name: Build
+      run: |
+        cd build/python-build
+        python setup.py --setuptools bdist_wheel
+    
+    - name: Correct whl for Linux
+      if : contains( matrix.OS, 'ubuntu' )
+      run: |
+        cd build/python-build/dist
+        # pip install auditwheel
+        # auditwheel repair *.wh
+        for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
+    - name: Correct whl for macOS
+      if : contains( matrix.OS, 'macOS' )
+      run: |
+        cd build/python-build
+        pip install delocate
+        delocate-wheel -v dist/*.whl
+    
+    - name: Publish
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
+      run: |
+        cd build/python-build
+        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose 
+# --skip-existing
