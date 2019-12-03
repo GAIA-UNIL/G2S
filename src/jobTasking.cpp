@@ -286,7 +286,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 	return uniqueId;
 }
 
-bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool functionMode){
+bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool functionMode, unsigned maxNumberOfJob){
 	bool runNewJob=false;
 	if(queue.empty()) return false;
 
@@ -295,6 +295,7 @@ bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool func
 		queue.pop_front();
 		runNewJob=true;
 	}else{
+		if(jobIds.look4pid.size()>maxNumberOfJob) return false;  // to add with man extra parameter 
 		for (size_t i = 0; i < queue.size(); ++i)
 		{
 			std::vector<jobIdType> jobDependency=std::get<2>(queue[i]);
