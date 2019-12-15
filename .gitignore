@@ -54,3 +54,4 @@ build/python-build/dist
 *.config
 *.Rhistory
 
+*.depend

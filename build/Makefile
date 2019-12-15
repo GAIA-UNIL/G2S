@@ -73,10 +73,15 @@ em:
 intel:
 	$(MAKE) -C intel-build
 
-c++-extension:
+update-extension:
+	git submodule init
+	git submodule update
+	git submodule foreach git pull origin master
+
+c++-extension:update-extension
 	$(MAKE) -C c++-build extension
 
-intel-extension:
+intel-extension:update-extension
 	$(MAKE) -C intel-build extension
 
 extension: c++-extension intel-extension
