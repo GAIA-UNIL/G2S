@@ -48,10 +48,11 @@ To install them with macPort: (to adapt for brew)
 	The intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software)
 
 #### Windows 10
-1. Check that the last updates of Windows are installed
-2. Install WSL follwing instruction [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-3. Go to the directory `build/c++-build`
-4. Run `install.bat`
+1. First clone the code from this GitHub.
+2. Check that the last updates of Windows are installed
+3. Install WSL follwing instruction [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+4. Go to the directory `build/c++-build`
+5. Run `install.bat`
 
 ### Installation of interfaces
 
