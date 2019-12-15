@@ -121,6 +121,7 @@
 							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed Python and Numpy: <code>sudo apt install python3-distutils python3-dev python3-numpy -y</code></li>
+								<li>(A C++ compiler with c++17 is required)</li>
 								<li>Go to <code>build/python-build</code></li>
 								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
@@ -130,6 +131,7 @@
 						<div class="quickSelect linux interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Ubuntu</h3>
 							<ol>
+								<li>(A C++ compiler with c++17 is required)</li>
 								<li>Open MATLAB</li>
 								<li>Go to <code>build/build-matlab</code></li>
 								<li>Run <code>CompileG2S</code></li>
@@ -174,6 +176,7 @@
 							<p>Use simply <code>pip install G2S</code></p>
 							<h4>Manual compilation</h4>
 							<ol>
+								<li>(A C++ compiler with c++17 is required)</li>
 								<li>If needed, install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
 								<li>Go to <code>build/python-build</code></li>
 								<li>Run <code>python3 setup.py install</code></li>
@@ -190,7 +193,7 @@
 							<ol>
 								<li>If needed install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
 								<li>Open MATLAB</li>
-								<li>Install a compiler, available <a href="https://mathworks.com/matlabcentral/fileexchange/52848-matlab-support-for-mingw-w64-c-c-compiler">here</a></li>
+								<li>Install a compiler with c++17, available <a href="https://visualstudio.microsoft.com/en/downloads">here (2017 or later)</a></li>
 								<li>Go to <code>build/build-matlab</code></li>
 								<li>Run <code>CompileG2S</code></li>
 								<li>Add compiled file in the MATLAB path</li>
