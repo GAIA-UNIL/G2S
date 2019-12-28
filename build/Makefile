@@ -56,7 +56,7 @@ endif
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ em intel c++-extension intel-extension extension python python-extension-module
+.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
 
 .DEFAULT:
 	$(MAKE) -C c++-build $@
@@ -78,10 +78,10 @@ update-extension:
 	git submodule update
 	git submodule foreach git pull origin master
 
-c++-extension:update-extension
+c++-extension:
 	$(MAKE) -C c++-build extension
 
-intel-extension:update-extension
+intel-extension:
 	$(MAKE) -C intel-build extension
 
 extension: c++-extension intel-extension
