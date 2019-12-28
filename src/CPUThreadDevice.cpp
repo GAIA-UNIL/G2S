@@ -339,7 +339,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			if(patialFFT && (_fftSize.size()>1)){
 				
-				#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) shared(lines)
+				#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) firstprivate(lines)
 				for (unsigned int i = 0; i < _fftSize.back(); ++i)
 				{
 					if(lines[i]){

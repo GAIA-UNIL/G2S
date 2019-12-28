@@ -6,9 +6,9 @@
 
 **G2S** is composed of 2 parts:
 - the first one is a server that manages computations and can be compiled for each hardware to obtain optimal performance.
-- the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software, in the same way G2S can be extended for any other algorithm.
+- the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
 
-Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with both algorithm **QS** (Quantile Sampling) and **NDS** (Narrow Distribution Selection).
+Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with both simulation algorithms **QS** (Quantile Sampling) and **NDS** (Narrow Distribution Selection).
 
 **G2S** is currently only available for *UNIX*-based system, *Linux* and *macOS*. A solution for *Windows 10* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
@@ -48,10 +48,11 @@ To install them with macPort: (to adapt for brew)
 	The intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software)
 
 #### Windows 10
-1. Check that the last updates of Windows are installed
-2. Install WSL follwing instruction [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-3. Go to the directory `build/c++-build`
-4. Run `install.bat`
+1. First clone the code from this GitHub.
+2. Check that the last updates of Windows are installed
+3. Install WSL follwing instruction [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+4. Go to the directory `build/c++-build`
+5. Run `install.bat`
 
 ### Installation of interfaces
 
