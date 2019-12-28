@@ -256,6 +256,34 @@ class DataImage{
 		return isOk;
 	}
 
+	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect, std::vector<int> combi){
+		unsigned finalValue=0;
+		std::vector<int> dists(_dims.size());
+
+		bool isOk=true;
+
+		std::vector<int> val(_dims.size());
+		int deltaVectoridx=0;
+		for (size_t i = 0; i < _dims.size(); ++i)
+		{
+			finalValue*=_dims[i];
+			val[i]=position%_dims[i]+( combi[i] ? deltaVect[deltaVectoridx++] : 0);
+			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
+			val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
+			position/=_dims[i];
+		}
+
+		for (int i = int(_dims.size()-1); i >= 0; i--)
+		{
+			finalValue*=_dims[i];
+			finalValue+=val[i];
+		}
+
+		location=finalValue;
+
+		return isOk;
+	}
+
 	inline DataImage convertLastDimInVariable(){
 		DataImage result(_dims.size()-1,_dims.data(),_dims.back());
 		unsigned newVariableSize=_dims.back();
@@ -448,6 +476,31 @@ class DataImage{
 			}
 
 			return output;
+		}
+
+		std::vector<std::vector<unsigned> > computeMagninals(  std::vector<std::vector<float> > categoriesValues){
+			std::vector<std::vector<unsigned> > marginal;
+			unsigned categoriesValuesIndex=0;
+			for (unsigned int i = 0; i < _nbVariable; ++i)
+			{
+				if(_types[i]==Continuous){
+					marginal.push_back(std::vector<unsigned>());
+				}
+
+				if(_types[i]==Categorical){
+					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
+					marginal.push_back(std::vector<unsigned>(numberOfCategorie,0));
+					for (unsigned int j = i; j < dataSize(); j+=_nbVariable)
+					{
+						for (unsigned int k = 0; k < numberOfCategorie; ++k)
+						{
+							marginal[i][k]+=(_data[j] == categoriesValues[categoriesValuesIndex][k]);
+						}
+					}
+				}
+			}
+
+			return marginal;
 		}
 
 		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector,
