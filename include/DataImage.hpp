@@ -503,6 +503,14 @@ class DataImage{
 			return marginal;
 		}
 
+		std::vector<unsigned> computeMagninals( std::vector<float> categoriesValues){
+			std::vector<std::vector<float> > cats;
+			cats.push_back(categoriesValues);
+			std::vector<std::vector<unsigned> > marginal=computeMagninals(cats);
+
+			return marginal[0];
+		}
+
 		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector,
 				 std::vector<std::vector<std::vector<convertionType> > > &convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > &convertionCoefVectorConstVector,
 				  bool forXMesurement, std::vector<std::vector<float> > categoriesValues){
