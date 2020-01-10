@@ -123,7 +123,7 @@ public:
 		unsigned nbOfVariable=image._nbVariable;
 		unsigned dataSize=image.dataSize();
 		
-
+		#pragma omp parallel for simd
 		for (int i = 0; i < dataSize; ++i)
 		{
 			data[image.flippedCoordinates(i)]=image._data[i];
@@ -182,6 +182,7 @@ public:
 		//manage data
 		if(mxIsDouble(prh)){
 			double *matrixData=(double *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -189,6 +190,7 @@ public:
 		}
 		if(mxIsSingle(prh)){
 			float *matrixData=(float *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -196,6 +198,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxUINT8_CLASS){
 			uint8_t *matrixData=(uint8_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -203,6 +206,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxUINT16_CLASS){
 			uint16_t *matrixData=(uint16_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -210,6 +214,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxUINT32_CLASS){
 			uint32_t *matrixData=(uint32_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -217,6 +222,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxUINT64_CLASS){
 			uint64_t *matrixData=(uint64_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -224,6 +230,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxINT8_CLASS){
 			int8_t *matrixData=(int8_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -231,6 +238,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxINT16_CLASS){
 			int16_t *matrixData=(int16_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -238,6 +246,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxINT32_CLASS){
 			int32_t *matrixData=(int32_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -245,6 +254,7 @@ public:
 		}
 		if(mxGetClassID(prh)==mxINT64_CLASS){
 			int64_t *matrixData=(int64_t *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
@@ -253,6 +263,7 @@ public:
 
 		if(mxGetClassID(prh)==mxLOGICAL_CLASS){
 			bool *matrixData=(bool *)mxGetPr(prh);
+			#pragma omp parallel for simd
 			for (int i = 0; i < dataSize; ++i)
 			{
 				data[i]=matrixData[image.flippedCoordinates(i)];
