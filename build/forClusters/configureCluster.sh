@@ -30,5 +30,12 @@ if [ -n "$submissionScriptName" ]; then
 		ln -fs $DIR/$submissionScriptName "$DIR/../c++-build/sub-${line:2}.sh"
 		ln -fs $DIR/$submissionScriptName "$DIR/../intel-build/sub-${line:2}.sh"
 	done
+
+	ln -fs $(which bash) "$DIR/../c++-build/bash"
+	ln -fs $(which bash) "$DIR/../intel-build/bash"
+
+	echo -e '/bin/bash\n$G2S_COMMAND_2_RUN\nexit\n' > $DIR/../c++-build/runAnny.sh
+	echo -e '/bin/bash\n$G2S_COMMAND_2_RUN\nexit\n' > $DIR/../intel-build/runAnny.sh
+
 fi
 
