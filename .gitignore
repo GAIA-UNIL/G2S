@@ -31,6 +31,8 @@
 *.out
 *.app
 
+*.bk
+
 *.bgrid
 build/c++-build/*
 !build/c++-build/Makefile
@@ -41,6 +43,8 @@ build/em-build/*
 build/intel-build/*
 !build/intel-build/Makefile
 build/matlab-build/*.mex*
+
+*build/*-build/sub-*.sh
 
 *.m~
 *.DS_Store

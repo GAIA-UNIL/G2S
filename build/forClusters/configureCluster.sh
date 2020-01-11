@@ -9,9 +9,6 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
-DIR="$DIR/.."
-
-echo $DIR
 
 if [[ "$1" == "SLURM" || "$1" == "slurm" ]]; then
 	submissionScriptName="sub-all-SLURM.sh"
@@ -22,10 +19,16 @@ if [[ "$1" == "PBS" || "$1" == "pbd"  || "$1" == "qsub" ]]; then
 fi
 
 if [ -n "$submissionScriptName" ]; then
-	if [ -f $DIR/algosName.config.bk ]; then
-		cp $DIR/algosName.config.bk $DIR/algosName.config
+	if [ -f $DIR/../algosName.config.bk ]; then
+		cp $DIR/../algosName.config.bk $DIR/../algosName.config
 	fi
-	mv $DIR/algosName.config $DIR/algosName.config.bk
-	cat $DIR/algosName.config.bk | sed 's/.\//.\/sub-/g' | sed 's/	/.sh	/2' >> $DIR/algosName.config
+	mv $DIR/../algosName.config $DIR/../algosName.config.bk
+	cat $DIR/../algosName.config.bk | sed 's/.\//.\/sub-/g' | sed 's/	/.sh	/2' >> $DIR/../algosName.config
+
+	cat $DIR/../algosName.config.bk | cut -f2 | while read line 
+	do
+		ln -fs $DIR/$submissionScriptName "$DIR/../c++-build/sub-${line:2}.sh"
+		ln -fs $DIR/$submissionScriptName "$DIR/../intel-build/sub-${line:2}.sh"
+	done
 fi
 
