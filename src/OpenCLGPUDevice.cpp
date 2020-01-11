@@ -483,7 +483,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			if(patialFFT && (_fftSize.size()>1)){
 				
-				#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) shared(lines)
+				//#pragma omp parallel for default(none) num_threads(_threadRatio) schedule(dynamic,1) shared(lines)
 				for (int i = 0; i < _fftSize.back(); ++i)
 				{
 					if(lines[i]){
@@ -543,7 +543,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 						delta*=_fftSize[j];
 					}
 
-					#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize,realSpace)
+					//#pragma omp parallel for default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta,blockSize,realSpace)
 					for (int j = 0; j < _realSpaceSize; j+=delta)
 					{
 						fillVectorized(realSpace,j,blockSize,-INFINITY);
@@ -553,7 +553,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			if(_trueMismatch && !_crossMesurement) // correct value needed
 			{
-				#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0,realSpace,dataArrayIndex)
+				//#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0,realSpace,dataArrayIndex)
 				for (int i = 0; i < _realSpaceSize; ++i)
 				{
 					realSpace[i]=realSpace[i]/(_realSpaceSize)+delta0[dataArrayIndex];

@@ -8,7 +8,7 @@ export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 export LDFLAGS=-lzmq -lz -ljsoncpp -lfftw3f -lfftw3f_threads -ldl -lpthread
-export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib
+export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
 
 
@@ -30,7 +30,7 @@ ifeq ("$(dosentSupportOpenCL)","0")
 	export OPENCL_INC=-DWITH_OPENCL=1
 	export OPENCL_LIB
 else
-	OPENCL_LIB=''
+	export OPENCL_LIB=''
 endif
 
 dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
