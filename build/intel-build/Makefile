@@ -42,11 +42,11 @@ echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
-qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
+qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o AcceleratorDevice.o CPUThreadAcceleratorDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
-nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o
+nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o AcceleratorDevice.o CPUThreadAcceleratorDevice.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
