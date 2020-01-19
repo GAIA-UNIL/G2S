@@ -54,7 +54,10 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	//printf("core %d, chip %d\n",core, chip );
 	_deviceID=chip;
 	_sharedMemoryManager=sharedMemoryManager;
-	sharedMemoryManager->addDevice(this);
+	#pragma omp critical (createDevices)
+	{
+		_sharedMemoryManager->addDevice(this);
+	}
 
 	_fftSize=_sharedMemoryManager->_fftSize;
 	_srcSize=sharedMemoryManager->_srcSize;

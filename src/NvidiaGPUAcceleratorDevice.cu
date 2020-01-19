@@ -212,8 +212,10 @@ NvidiaGPUAcceleratorDevice::NvidiaGPUAcceleratorDevice(int deviceId, SharedMemor
 	cudaStreamCreate(&_cudaLocalStream);
 	//_cudaLocalStream=0;
 	gpuErrchk(cudaEventCreate(&_cudaEventFinal));
-	_sharedMemoryManager->addDevice(this);
-
+	#pragma omp critical (createDevices)
+	{
+		_sharedMemoryManager->addDevice(this);
+	}
 	initDim();
 	gpuErrchk(cublasCreate(&_cublasHandle));
 	gpuErrchk(cublasSetStream(_cublasHandle, _cudaLocalStream));

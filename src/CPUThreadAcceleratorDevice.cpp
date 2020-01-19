@@ -46,7 +46,10 @@ CPUThreadAcceleratorDevice::CPUThreadAcceleratorDevice(SharedMemoryManager* shar
 	g2s::rdtscp(&chip, &core);	
 	_deviceID=chip;
 	
-	_sharedMemoryManager->addDevice(this);
+	#pragma omp critical (createDevices)
+	{
+		_sharedMemoryManager->addDevice(this);
+	}
 
 	initDim();
 
