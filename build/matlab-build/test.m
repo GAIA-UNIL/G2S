@@ -6,7 +6,7 @@ end
 source=single(imread('../TrainingImages/source.png'))/255.;
 destination=single(nan.*ones(200));
 set(0,'DefaultFigureWindowStyle','docked')
-serverAddress='tesla-k20c.gaia.unil.ch';
+serverAddress='localhost';
 
 % conditional
 pourcantage=0.25; %% 0.25%
