@@ -21,7 +21,7 @@
 #include "NvidiaGPUAcceleratorDevice.hpp"
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
-#include "complexMulti.hpp"
+#include <algorithm>
 
 #define PARTIAL_FFT
 

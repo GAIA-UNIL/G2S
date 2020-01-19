@@ -32,6 +32,7 @@
 #include "OpenCLGPUDevice.hpp"
 #endif
 #ifdef WITH_CUDA
+	#include <cuda_runtime.h>
 	#include "NvidiaGPUAcceleratorDevice.hpp"
 #endif // WITH_CUDA
 
@@ -442,15 +443,15 @@ int main(int argc, char const *argv[]) {
 		withCUDA=true;
 		int cudaDeviceAvailable=0;
 		cudaGetDeviceCount(&cudaDeviceAvailable);
-		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-j")
+		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
 		if(deviceString==arg.upper_bound("-W_CUDA")){
 			for (int i = 0; i < cudaDeviceAvailable; ++i)
 			{
-				cudaDeviceList.push_back();
+				cudaDeviceList.push_back(i);
 			}
 		}
-		while(jobsString!=arg.upper_bound("-W_CUDA")){
-			int deviceId=atoi((jobsString->second).c_str());
+		while(deviceString!=arg.upper_bound("-W_CUDA")){
+			int deviceId=atoi((deviceString->second).c_str());
 			cudaDeviceList.push_back(deviceId);
 		}
 	}
@@ -877,8 +878,9 @@ int main(int argc, char const *argv[]) {
 				}
 				#endif
 				#ifdef WITH_CUDA
+				int localDeviceId=INT_MAX;
 				#pragma omp atomic capture
-				int localDeviceId = cudaDeviceUsed++;
+				localDeviceId = cudaDeviceUsed++;
 				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
 					NvidiaGPUAcceleratorDevice* signleCudaThread=new NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
 					signleCudaThread->setTrueMismatch(true);

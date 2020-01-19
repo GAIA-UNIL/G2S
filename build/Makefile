@@ -34,7 +34,7 @@ ifeq ("$(dosentSupportOpenCL)","0")
 	export OPENCL_INC=-DWITH_OPENCL=1
 	export OPENCL_LIB
 else
-	export OPENCL_LIB=''
+	export OPENCL_LIB=
 endif
 
 dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
