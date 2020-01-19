@@ -453,6 +453,7 @@ int main(int argc, char const *argv[]) {
 		while(deviceString!=arg.upper_bound("-W_CUDA")){
 			int deviceId=atoi((deviceString->second).c_str());
 			cudaDeviceList.push_back(deviceId);
+			deviceString++;
 		}
 	}
 	arg.erase("-W_CUDA");

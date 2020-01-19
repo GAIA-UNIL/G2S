@@ -36,12 +36,17 @@ destination(50,75)=nan;
 destination(rand(size(destination))<0.98)=nan;
 %%
 
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',nan(1000),'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100,'-p',8129);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100);
 imshow(data);
 disp(t)
 
 %% simple unconditional simulation with QS with GPU if integrated GPU avaible
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100,'-W_GPU');
+imshow(data);
+disp(t)
+
+%% simple unconditional simulation with QS with CUDA-GPU if avaible
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_CUDA',0);
 imshow(data);
 disp(t)
 
@@ -74,19 +79,19 @@ kernel=zeros(101,101);
 kernel(51,51)=1;
 kernel=exp(-0.1*bwdist(kernel));
 
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-ki',kernel,'-p',8129);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-ki',kernel);
 imshow(data);
 
 %% Multivariate
 source3=cat(3,source,source,source);
 destination3=cat(3,destination,destination,destination);
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100,'-p',8129);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
 t
 imshow(data);
 
 %% Multi-threaded, if supported
 nbThreads=4;
-[data2,t]=g2s('-sa',serverAddress,'-a','qs','-ti',data,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads,'-p',8129);
+[data2,t]=g2s('-sa',serverAddress,'-a','qs','-ti',data,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
 t
 imshow(data);
 
