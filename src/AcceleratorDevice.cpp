@@ -38,8 +38,6 @@ AcceleratorDevice::AcceleratorDevice(SharedMemoryManager* sharedMemoryManager,st
 	_circularTI=circularTI;
 	
 	_sharedMemoryManager=sharedMemoryManager;
-
-
 }
 
 AcceleratorDevice::~AcceleratorDevice(){

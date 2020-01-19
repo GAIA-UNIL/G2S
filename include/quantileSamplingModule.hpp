@@ -537,12 +537,8 @@ private:
 
 					localCdmV->searchKBigest(errors+i*extendK,encodedPosition+i*extendK,extendK,seed);
 				}
-
-				
 			}
 		}
-
-		
 	}
 };
 

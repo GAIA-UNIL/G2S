@@ -574,8 +574,3 @@ void CPUThreadAcceleratorDevice::searchKBigest(float* errors,unsigned *encodedPo
 	}
 
 }
-
-
-
-
-

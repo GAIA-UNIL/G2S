@@ -6,7 +6,7 @@ end
 source=single(imread('../TrainingImages/source.png'))/255.;
 destination=single(nan.*ones(200));
 set(0,'DefaultFigureWindowStyle','docked')
-serverAddress='localhost';
+serverAddress='tesla-k20c.gaia.unil.ch';
 
 % conditional
 pourcantage=0.25; %% 0.25%
@@ -30,8 +30,13 @@ imshow(data);
 
 
 %% simple unconditional simulation with QS
+destination=source;
+destination(50,75)=nan;
 
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
+destination(rand(size(destination))<0.98)=nan;
+%%
+
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',nan(1000),'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100,'-p',8129);
 imshow(data);
 disp(t)
 
@@ -69,18 +74,20 @@ kernel=zeros(101,101);
 kernel(51,51)=1;
 kernel=exp(-0.1*bwdist(kernel));
 
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-ki',kernel);
+data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-ki',kernel,'-p',8129);
 imshow(data);
 
 %% Multivariate
 source3=cat(3,source,source,source);
 destination3=cat(3,destination,destination,destination);
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100,'-p',8129);
+t
 imshow(data);
 
 %% Multi-threaded, if supported
 nbThreads=4;
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
+[data2,t]=g2s('-sa',serverAddress,'-a','qs','-ti',data,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads,'-p',8129);
+t
 imshow(data);
 
 %% With missing data
