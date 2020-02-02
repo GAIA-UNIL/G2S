@@ -37,7 +37,7 @@
 
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
- #define gpuErrchk(ans) { ans; }
+//#define gpuErrchk(ans) { (ans); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
 	if (code != cudaSuccess) 
@@ -49,34 +49,34 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 static const char *_cudaGetErrorEnum(cublasStatus_t error)
 {
-    switch (error)
-    {
-        case CUBLAS_STATUS_SUCCESS:
-            return "CUBLAS_STATUS_SUCCESS";
+	switch (error)
+	{
+		case CUBLAS_STATUS_SUCCESS:
+			return "CUBLAS_STATUS_SUCCESS";
 
-        case CUBLAS_STATUS_NOT_INITIALIZED:
-            return "CUBLAS_STATUS_NOT_INITIALIZED";
+		case CUBLAS_STATUS_NOT_INITIALIZED:
+			return "CUBLAS_STATUS_NOT_INITIALIZED";
 
-        case CUBLAS_STATUS_ALLOC_FAILED:
-            return "CUBLAS_STATUS_ALLOC_FAILED";
+		case CUBLAS_STATUS_ALLOC_FAILED:
+			return "CUBLAS_STATUS_ALLOC_FAILED";
 
-        case CUBLAS_STATUS_INVALID_VALUE:
-            return "CUBLAS_STATUS_INVALID_VALUE";
+		case CUBLAS_STATUS_INVALID_VALUE:
+			return "CUBLAS_STATUS_INVALID_VALUE";
 
-        case CUBLAS_STATUS_ARCH_MISMATCH:
-            return "CUBLAS_STATUS_ARCH_MISMATCH";
+		case CUBLAS_STATUS_ARCH_MISMATCH:
+			return "CUBLAS_STATUS_ARCH_MISMATCH";
 
-        case CUBLAS_STATUS_MAPPING_ERROR:
-            return "CUBLAS_STATUS_MAPPING_ERROR";
+		case CUBLAS_STATUS_MAPPING_ERROR:
+			return "CUBLAS_STATUS_MAPPING_ERROR";
 
-        case CUBLAS_STATUS_EXECUTION_FAILED:
-            return "CUBLAS_STATUS_EXECUTION_FAILED";
+		case CUBLAS_STATUS_EXECUTION_FAILED:
+			return "CUBLAS_STATUS_EXECUTION_FAILED";
 
-        case CUBLAS_STATUS_INTERNAL_ERROR:
-            return "CUBLAS_STATUS_INTERNAL_ERROR";
-    }
+		case CUBLAS_STATUS_INTERNAL_ERROR:
+			return "CUBLAS_STATUS_INTERNAL_ERROR";
+	}
 
-    return "<unknown>";
+	return "<unknown>";
 }
 
 inline void gpuAssert(cublasStatus_t code, const char *file, int line, bool abort=true)
@@ -90,40 +90,40 @@ inline void gpuAssert(cublasStatus_t code, const char *file, int line, bool abor
 
 static const char *_cudaGetErrorEnum(cufftResult error)
 {
-    switch (error)
-    {
-        case CUFFT_SUCCESS:
-            return "CUFFT_SUCCESS";
+	switch (error)
+	{
+		case CUFFT_SUCCESS:
+			return "CUFFT_SUCCESS";
 
-        case CUFFT_INVALID_PLAN:
-            return "CUFFT_INVALID_PLAN";
+		case CUFFT_INVALID_PLAN:
+			return "CUFFT_INVALID_PLAN";
 
-        case CUFFT_ALLOC_FAILED:
-            return "CUFFT_ALLOC_FAILED";
+		case CUFFT_ALLOC_FAILED:
+			return "CUFFT_ALLOC_FAILED";
 
-        case CUFFT_INVALID_TYPE:
-            return "CUFFT_INVALID_TYPE";
+		case CUFFT_INVALID_TYPE:
+			return "CUFFT_INVALID_TYPE";
 
-        case CUFFT_INVALID_VALUE:
-            return "CUFFT_INVALID_VALUE";
+		case CUFFT_INVALID_VALUE:
+			return "CUFFT_INVALID_VALUE";
 
-        case CUFFT_INTERNAL_ERROR:
-            return "CUFFT_INTERNAL_ERROR";
+		case CUFFT_INTERNAL_ERROR:
+			return "CUFFT_INTERNAL_ERROR";
 
-        case CUFFT_EXEC_FAILED:
-            return "CUFFT_EXEC_FAILED";
+		case CUFFT_EXEC_FAILED:
+			return "CUFFT_EXEC_FAILED";
 
-        case CUFFT_SETUP_FAILED:
-            return "CUFFT_SETUP_FAILED";
+		case CUFFT_SETUP_FAILED:
+			return "CUFFT_SETUP_FAILED";
 
-        case CUFFT_INVALID_SIZE:
-            return "CUFFT_INVALID_SIZE";
+		case CUFFT_INVALID_SIZE:
+			return "CUFFT_INVALID_SIZE";
 
-        case CUFFT_UNALIGNED_DATA:
-            return "CUFFT_UNALIGNED_DATA";
-    }
+		case CUFFT_UNALIGNED_DATA:
+			return "CUFFT_UNALIGNED_DATA";
+	}
 
-    return "<unknown>";
+	return "<unknown>";
 }
 
 inline void gpuAssert(cufftResult code, const char *file, int line, bool abort=true)
@@ -191,6 +191,14 @@ __global__ void copyAndRemove(float* errosArray, unsigned int*  _encodedPosition
 	}
 	errosArray[_encodedPosition_d[i]]=val;
 }	
+
+__global__ void setConditionement(unsigned size, unsigned* listIndex, float* listValueAtIndex, float* realSpaceArray, unsigned nbVar, unsigned var){
+	int j = blockIdx.x * blockDim.x + threadIdx.x;
+	if (j < size)
+	{	
+		realSpaceArray[listIndex[j]]=listValueAtIndex[j*nbVar+var];
+	}
+}
 
 /* ------------- end kernels -----------------*/
 
@@ -297,6 +305,14 @@ NvidiaGPUAcceleratorDevice::~NvidiaGPUAcceleratorDevice(){
 		_mismatch_d=nullptr;
 		_encodedPosition_dSize=0;	
 	}
+
+	if(_listValueAtIndex_d){
+			gpuErrchk(cudaFree(_listValueAtIndex_d));
+			gpuErrchk(cudaFree(_listIndex_d));
+			_listValueAtIndex_d=nullptr;
+			_listIndex_d=nullptr;
+			_listIndexSize=0;
+		}
 
 	gpuErrchk(cudaEventDestroy(_cudaEventFinal));
 
@@ -423,6 +439,37 @@ void NvidiaGPUAcceleratorDevice::zerosFrenquencySpaceOutputArray(unsigned layer)
 
 void NvidiaGPUAcceleratorDevice::computeFreqMismatchMap(std::vector<std::vector<int> > neighborArray, std::vector<std::vector<float> >  &neighborValueArrayVector){
 	
+	int nbVar=_coeficientMatrix[0].getNumberOfVariable();
+
+	if(_listIndexSize<neighborValueArrayVector.size()){
+		if(_listValueAtIndex_d){
+			gpuErrchk(cudaFree(_listValueAtIndex_d));
+			gpuErrchk(cudaFree(_listIndex_d));
+			_listValueAtIndex_d=nullptr;
+			_listIndex_d=nullptr;
+			_listIndexSize=0;
+		}
+
+		_listIndexSize=neighborValueArrayVector.size();
+		gpuErrchk(cudaMalloc(&_listIndex_d,_listIndexSize*sizeof(unsigned)));
+		gpuErrchk(cudaMalloc(&_listValueAtIndex_d,_listIndexSize*nbVar*sizeof(float)));
+		_neighborValueArrayVectorFlatted.resize(_listIndexSize*nbVar);
+		_neighborArrayFlatted.resize(_listIndexSize);
+	}
+
+	
+	for (int i = 0; i < neighborValueArrayVector.size(); ++i)
+	{
+		_neighborArrayFlatted[i]=index(neighborArray[i]);
+		for (unsigned int var = 0; var < nbVar; ++var)
+		{
+			_neighborValueArrayVectorFlatted[nbVar*i+var]=neighborValueArrayVector[i][var];
+		}
+	}
+
+	gpuErrchk(cudaMemcpyAsync(_listIndex_d, _neighborArrayFlatted.data(), sizeof(unsigned) * _neighborArrayFlatted.size(), cudaMemcpyHostToDevice, _cudaLocalStream));
+	gpuErrchk(cudaMemcpyAsync(_listValueAtIndex_d, _neighborValueArrayVectorFlatted.data(), sizeof(float) * _neighborValueArrayVectorFlatted.size(), cudaMemcpyHostToDevice, _cudaLocalStream));
+
 	for (unsigned int var = 0; var <_coeficientMatrix[0].getNumberOfVariable() ; ++var)
 	{
 		bool lines[_fftSize.back()];
@@ -436,10 +483,17 @@ void NvidiaGPUAcceleratorDevice::computeFreqMismatchMap(std::vector<std::vector<
 
 		gpuErrchk(cudaMemsetAsync(_realSpaceArray[0],0,sizeof(dataType) * _realSpaceSize, _cudaLocalStream ));
 		gpuErrchk(cudaMemsetAsync(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(cufftComplex), _cudaLocalStream ));
+		
+		// for (int j = 0; j < _neighborArrayFlatted.size(); ++j)
+		// {
+		// 	printf("%d ==> %d\n",j,  _neighborArrayFlatted[j]);
+		// }
+
+		setConditionement<<<(_neighborArrayFlatted.size()+256-1)/256, 256,0, _cudaLocalStream >>>(_neighborArrayFlatted.size(), _listIndex_d, _listValueAtIndex_d, _realSpaceArray[0], nbVar, var);
+		gpuErrchk(cudaPeekAtLastError());
 
 		for (size_t i = 0; i < neighborArray.size(); ++i)
 		{
-			gpuErrchk(cudaMemcpyAsync(_realSpaceArray[0] + index(neighborArray[i]), &neighborValueArrayVector[i][var], sizeof(float), cudaMemcpyHostToDevice, _cudaLocalStream));
 			lines[neighborArray[i].back()]=true;
 		}
 

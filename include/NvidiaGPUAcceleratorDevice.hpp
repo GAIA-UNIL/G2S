@@ -91,6 +91,13 @@ private:
 	unsigned _reducedFftSize;
 	unsigned _reducedRealSize;
 
+
+	std::vector<float> _neighborValueArrayVectorFlatted;
+	std::vector<unsigned> _neighborArrayFlatted;
+	float *_listValueAtIndex_d=nullptr;
+	unsigned *_listIndex_d=nullptr;
+	unsigned _listIndexSize=0;
+
 };
 
 #endif
