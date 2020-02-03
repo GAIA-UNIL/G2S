@@ -55,15 +55,15 @@
 							<h3>Installation of the server on Ubuntu</h3>
 							<h4>Automatic with GCC on Ubuntu</h4>
 							<ol>
-								<li>First clone the code from this GitHub.</li>
+								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>run <code>build/c++-build/install_needs_W_VM.sh</code></li>
 							</ol>
 							<h4>Manual (included Intel C++ Compiler)</h4>
 							<ol>
-								<li>First clone the code from this GitHub.</li>
+								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Basics for compiling are needed, (e.g. on Ubuntu: build-essential).</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
-								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-devlibfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
+								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
 								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O ./include/zmq.hpp</code></li>
 								<li>Go to the build subfolder.</li>
 								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
@@ -75,7 +75,7 @@
 							<h3>Installation of the server on macOS</h3>
 							<h4>using MacPort</h4>
 							<ol>
-								<li>First clone the code from this GitHub.</li>
+								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Install the package manager <a href="https://www.macports.org/install.php">MacPort</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl</code> (curl is optional)</li>
@@ -85,7 +85,7 @@
 							</ol>
 							<h4>using Homebrew</h4>
 							<ol>
-								<li>First clone the code from this GitHub.</li>
+								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Install the package manager <a href="https://brew.sh/">Homebrew</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>brew install fftw zmq jsoncpp curl</code> (curl is optional)</li>
