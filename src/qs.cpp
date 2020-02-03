@@ -31,6 +31,13 @@
 #ifdef WITH_OPENCL
 #include "OpenCLGPUDevice.hpp"
 #endif
+#ifdef WITH_CUDA
+	#include <cuda_runtime.h>
+	#include "NvidiaGPUAcceleratorDevice.hpp"
+#endif // WITH_CUDA
+
+
+#include "CPUThreadAcceleratorDevice.hpp"
 
 #include "simulation.hpp"
 #include "simulationAugmentedDim.hpp"
@@ -427,6 +434,30 @@ int main(int argc, char const *argv[]) {
 		withGPU=true;//atof((arg.find("-W_GPU")->second).c_str());
 	}
 	arg.erase("-W_GPU");
+
+	bool withCUDA=false;
+	std::vector<int> cudaDeviceList;
+	#ifdef WITH_CUDA
+	if (arg.count("-W_CUDA") >= 1)
+	{
+		withCUDA=true;
+		int cudaDeviceAvailable=0;
+		cudaGetDeviceCount(&cudaDeviceAvailable);
+		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
+		if(deviceString==arg.upper_bound("-W_CUDA")){
+			for (int i = 0; i < cudaDeviceAvailable; ++i)
+			{
+				cudaDeviceList.push_back(i);
+			}
+		}
+		while(deviceString!=arg.upper_bound("-W_CUDA")){
+			int deviceId=atoi((deviceString->second).c_str());
+			cudaDeviceList.push_back(deviceId);
+			deviceString++;
+		}
+	}
+	arg.erase("-W_CUDA");
+	#endif
 
 
 	// precheck | check what is mandatory
@@ -830,7 +861,10 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+		int cudaDeviceNumber=cudaDeviceList.size();
+		int cudaDeviceUsed=0;
+
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -844,8 +878,21 @@ int main(int argc, char const *argv[]) {
 					deviceCreated=true;
 				}
 				#endif
+				#ifdef WITH_CUDA
+				int localDeviceId=INT_MAX;
+				#pragma omp atomic capture
+				localDeviceId = cudaDeviceUsed++;
+				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
+					NvidiaGPUAcceleratorDevice* signleCudaThread=new NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					signleCudaThread->setTrueMismatch(true);
+					computeDeviceModuleArray[i].push_back(signleCudaThread);
+					deviceCreated=true;
+
+				}
+				#endif
 				if(!deviceCreated){
 					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					//CPUThreadAcceleratorDevice* signleThread=new CPUThreadAcceleratorDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
 					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;

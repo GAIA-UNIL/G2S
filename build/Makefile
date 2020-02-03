@@ -10,7 +10,11 @@ export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 export LDFLAGS=-lzmq -lz -ljsoncpp -lfftw3f -lfftw3f_threads -ldl -lpthread
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
+export ExtraDevice=AcceleratorDevice.o
 
+export NVCC=nvcc
+export NVFLAGS=
+export NVLIB =
 
 
 UNAME_S := $(shell uname -s)
@@ -30,18 +34,27 @@ ifeq ("$(dosentSupportOpenCL)","0")
 	export OPENCL_INC=-DWITH_OPENCL=1
 	export OPENCL_LIB
 else
-	export OPENCL_LIB=''
+	export OPENCL_LIB=
 endif
 
 dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
 ifeq ("$(dosentSupportOMP)","0")
-	CFLAGS += -fopenmp
-	LDFLAGS += -fopenmp
+	export CFLAGS += -fopenmp
+	export LDFLAGS += -fopenmp
 endif
 
+dosentSupportCUDA:= $(shell sh -c 'echo "int main(){}" | ${NVCC} -x c - -o /dev/null 2>/dev/null && echo 0 || echo 1')
+ifeq ("$(dosentSupportCUDA)","0")
+	export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
+	export CFLAGS+= -DWITH_CUDA
+	export NVLIB =-L /usr/local/cuda-10.2/targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
+	export LIBINC+=-I/usr/local/cuda-10.2/targets/x86_64-linux/include/
+endif
+
+
 ifneq ("$(wildcard /usr/include/hbwmalloc.h)","")
-export CFLAGS+= -DHBW_MALLOC
-export LDFLAGS+= -lmemkind
+	export CFLAGS+= -DHBW_MALLOC
+	export LDFLAGS+= -lmemkind
 endif
 
 ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/local/include/curl/curl.h))

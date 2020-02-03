@@ -19,6 +19,7 @@
 #define QUANTILE_SAMPLING_MODULE_HPP
 
 #include "samplingModule.hpp"
+#include "AcceleratorDevice.hpp"
 #include "fKst.hpp"
 
 
@@ -463,66 +464,81 @@ private:
 			
 			if(updated[i])
 			{
-				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
-				float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
-				unsigned sizeArray=_cdmV[moduleID][i]->getErrorsArraySize();
+				AcceleratorDevice* localCdmV=dynamic_cast<AcceleratorDevice*>(_cdmV[moduleID][i]);
 
-				if(!_completeTIs)
-				{
-					_cdmV[moduleID][i]->maskCroossErrorWithVariable(variableOfInterest);
-					#pragma omp simd
-					for (unsigned int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
-					{
-						errosArray[j]=-std::fabs(errosArray[j]/(crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]));
-						if(crossErrosArray[j]==0.0f) errosArray[j]=-INFINITY;
-					}
-				}
-
-				if(_noVerbatim && (verbatimRecord.TI==i)){
-					errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
-				}
-				
 				float localError[extendK*_threadRatio];
 				float* localErrorPtr=localError;
 				unsigned localEncodedPosition[extendK*_threadRatio];
 				unsigned* localEncodedPositionPtr=localEncodedPosition;
-				#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
-				{
-					unsigned k=0;
-					#if _OPENMP
-					k=omp_get_thread_num();
-					#endif
-					std::mt19937 generator;// can be inprouved by only resetting the seed each time
-					generator.seed(floor(UINT_MAX*seed)+k);
-					std::uniform_real_distribution<float> distribution(0.0,1.0);
 
-					auto rng = std::bind(distribution, std::ref(generator));
-					unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
-					fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
-					for (int j = 0; j < extendK; ++j)
-					{
-						localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
-					}
-				}
-				//memcpy(encodedPosition,localEncodedPositionPtr,extendK*sizeof(unsigned));
-				//memcpy(errors,localError,extendK*sizeof(float));
+				if(localCdmV==nullptr){ // is not AcceleratorDevice
 
-				for (int j = 0; j <extendK ; ++j)
-				{
-					unsigned bestIndex=0;
-					for (unsigned int l = 1; l < _threadRatio*extendK; ++l)
+					float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
+					float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
+					unsigned sizeArray=_cdmV[moduleID][i]->getErrorsArraySize();
+
+					if(!_completeTIs)
 					{
-						if(localError[l] > localError[bestIndex]) bestIndex=l;
+						_cdmV[moduleID][i]->maskCroossErrorWithVariable(variableOfInterest);
+						#pragma omp simd
+						for (unsigned int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
+						{
+							errosArray[j]=-std::fabs(errosArray[j]/(crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]));
+							if(crossErrosArray[j]==0.0f) errosArray[j]=-INFINITY;
+						}
 					}
 
-					errors[i*extendK+j]=localError[bestIndex];
-					encodedPosition[i*extendK+j]=localEncodedPosition[bestIndex];
-					localError[bestIndex]=-INFINITY;
+					if(_noVerbatim && (verbatimRecord.TI==i)){
+						errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
+					}
+					
+					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
+					{
+						unsigned k=0;
+						#if _OPENMP
+						k=omp_get_thread_num();
+						#endif
+						std::mt19937 generator;// can be inprouved by only resetting the seed each time
+						generator.seed(floor(UINT_MAX*seed)+k);
+						std::uniform_real_distribution<float> distribution(0.0,1.0);
+
+						auto rng = std::bind(distribution, std::ref(generator));
+						unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
+						fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
+						for (int j = 0; j < extendK; ++j)
+						{
+							localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
+						}
+					}
+
+					for (int j = 0; j <extendK ; ++j)
+					{
+						unsigned bestIndex=0;
+						for (unsigned int l = 1; l < _threadRatio*extendK; ++l)
+						{
+							if(localError[l] > localError[bestIndex]) bestIndex=l;
+						}
+
+						errors[i*extendK+j]=localError[bestIndex];
+						encodedPosition[i*extendK+j]=localEncodedPosition[bestIndex];
+						localError[bestIndex]=-INFINITY;
+					}
+				}else{	//is AcceleratorDevice
+					if(!_completeTIs)
+					{
+
+						localCdmV->maskCroossErrorWithVariable(variableOfInterest);
+						localCdmV->compensateMissingData();
+					}
+
+					if(_noVerbatim && (verbatimRecord.TI==i)){
+						localCdmV->setValueInErrorArray(localCdmV->cvtPositionToIndex(verbatimRecord.index),-INFINITY);
+					}
+
+					localCdmV->searchKBigest(errors+i*extendK,encodedPosition+i*extendK,extendK,seed);
 				}
 			}
 		}
-
-		
 	}
 };
 

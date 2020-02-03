@@ -30,13 +30,23 @@ imshow(data);
 
 
 %% simple unconditional simulation with QS
+destination=source;
+destination(50,75)=nan;
 
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
+destination(rand(size(destination))<0.98)=nan;
+%%
+
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100);
 imshow(data);
 disp(t)
 
 %% simple unconditional simulation with QS with GPU if integrated GPU avaible
-[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_GPU');
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100,'-W_GPU');
+imshow(data);
+disp(t)
+
+%% simple unconditional simulation with QS with CUDA-GPU if avaible
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-W_CUDA',0);
 imshow(data);
 disp(t)
 
@@ -75,12 +85,14 @@ imshow(data);
 %% Multivariate
 source3=cat(3,source,source,source);
 destination3=cat(3,destination,destination,destination);
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
+[data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source3,'-di',destination3,'-dt',zeros(1,3),'-k',1.5,'-n',50,'-s',100);
+t
 imshow(data);
 
 %% Multi-threaded, if supported
 nbThreads=4;
-data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
+[data2,t]=g2s('-sa',serverAddress,'-a','qs','-ti',data,'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100,'-j',nbThreads);
+t
 imshow(data);
 
 %% With missing data
