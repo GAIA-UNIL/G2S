@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         ubuntuOS: [ubuntu-18.04, ubuntu-latest]
+      fail-fast: false
     steps:
     - uses: actions/checkout@v1
     - name: install requested
@@ -35,6 +36,7 @@ jobs:
       matrix:
         macOS: [macOS-latest]
         packageManager: ['Brew', 'macPort']
+      fail-fast: false
     steps:
     - uses: actions/checkout@v1
     - name: install requested macPort
@@ -48,7 +50,7 @@ jobs:
           sudo make install
           export PATH=$PATH:/opt/local/bin
           sudo port -v selfupdate
-          sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl
+          sudo port install zmq-devel jsoncpp-devel zlib cppzmq fftw-3 fftw-3-single curl
     - name: install requested Homebrew
       if : contains( matrix.packageManager, 'Brew' )
       run: |
