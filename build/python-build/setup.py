@@ -12,7 +12,7 @@ else:
 
 import platform
 systemName=platform.system();
-
+import sys
 is_64bits = sys.maxsize > 2**32;
 
 with open("README.md", "r") as fh:
