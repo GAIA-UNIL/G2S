@@ -1,6 +1,10 @@
 # G2S: The GeoStatistical Server
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+![](https://github.com/GAIA-UNIL/G2S//workflows/C/C++ CI/badge.svg)
+![](https://github.com/GAIA-UNIL/G2S//workflows/Upload Python Package on PyPI server/badge.svg)
+
+
 
 ## Brief overview
 
