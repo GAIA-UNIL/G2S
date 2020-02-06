@@ -26,11 +26,12 @@ jobs:
 
   deploy:
     needs: generate-build-number
-    name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
+    name: Compile for ${{ matrix.OS }} using ${{ matrix.python }}-${{ matrix.architecture }} and upload on packages manager
     strategy:
       matrix:
         OS: [ ubuntu-latest, windows-latest, macOS-latest]
         python: [ '3.6', '3.7', '3.8' ]
+        architecture: ['x64', 'x86']
     runs-on: ${{ matrix.OS }}
     steps:
     - name: Download build number
