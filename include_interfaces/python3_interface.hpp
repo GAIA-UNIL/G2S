@@ -472,4 +472,3 @@ public:
 
 
 #endif // PYTHON_3_INTERFACE_HPP
-
