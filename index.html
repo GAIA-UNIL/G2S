@@ -11,7 +11,7 @@
 	<header>
 		<div class="inner">
 			<a><h1>G2S: The GeoStatistical Server</h1></a>
-			<h2>A free and flexible multiple point (geo)statistics framework including state of the art algorithm:<br>Quantile Sampling and Narrow Distribution Selection</h2>
+			<h2>A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:<br>Quantile Sampling and Narrow Distribution Selection</h2>
 			<a href="https://github.com/GAIA-UNIL/G2S" class="button"><small>View project on</small> GitHub</a>
 		</div>
 	</header>
@@ -20,26 +20,26 @@
 			<section id="main-content">
 
 				<p style="font-size: 25px;color:red;border: 2px solid;padding: 0px 18px; text-align: center">
-					<strong>&#10132;</strong> Preprint of Quantile Sampling available <a href="https://doi.org/10.5194/gmd-2019-211">here</a>,<br> under open review, please fil free to contribute.
+					<strong>&#10132;</strong> Preprint of Quantile Sampling available <a href="https://doi.org/10.5194/gmd-2019-211">here</a>,<br> under open review, please feel free to contribute.
 				</p>
 				<h1>Brief overview</h1>
-				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-artu <strong>Multiple Point Statistics (MPS)</strong> algorithm to run simulation</p>
+				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-art <strong>Multiple Point Statistics (MPS)</strong> algorithms to run stochastic simulations.</p>
 
-				<p><strong>G2S</strong>  is designed to run simulation code independently of the code we used to run this simulation. For example, it enable to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (and any other combination :) )</p>
+				<p><strong>G2S</strong> is designed to run simulations in a generic way, independently of the code used or language it is written in. For example, it enables to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (or any other combination)</p>
 
 				<p>Currently, the framework is provided with:
 					<ul>
-						<li><strong>Quantile Sampling (QS)</strong> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous, categorial or a combination of both. The code was developed with any restriction on the dimention.</li>
-						<strong>&#10132;</strong> Curently under open review, please fil free to contribute <a href="https://doi.org/10.5194/gmd-2019-211">here</a>.
-						<li><strong>Narrow Distribution Selection (NDS)</strong> is an algorithm specific targeted to simulate spectral enhanced remote sensed imagery. It realizes simulations of most probable realization. It requires an external variable (for example, a gray image) to control the simulation (of colors) </li>
-						&#10132; Paper about <a href="https://doi.org/10.1016/j.isprsjprs.2018.11.003">Analogue-based colorization of remote sensing images using textural information</a>.
+						<li><strong>Quantile Sampling (QS)</strong> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous or categorial variable or a combination of both. The code was developed without restrictions regarding the dimentionality of the data (e.g. 1D, 2D, 3D, nD).</li>
+						<strong>&#10132;</strong> Paper curently under open review, please feel free to contribute <a href="https://doi.org/10.5194/gmd-2019-211">here</a>.
+						<li><strong>Narrow Distribution Selection (NDS)</strong> is an algorithm specifically targeted to simulate spectrally enhanced remote sensed imagery. It requires an external variable (for example, a grayscale image) to control the simulation (of colors) </li>
+						&#10132; A paper describing it is abailable here: <a href="https://doi.org/10.1016/j.isprsjprs.2018.11.003">Analogue-based colorization of remote sensing images using textural information</a>.
 					</ul>
 
-					<p>However, the framework can be easily exetneded to handle most of the code that uses grided data. Currently any compiled code, and python code can be handled.</p>
+					<p>The framework can be easily extended to handle most codes that use grided data. Currently any compiled code or python code can be handled.</p>
 
 					<h1>Installation</h1>
 
-					<p>Because life is short, we design a tools to get straight to the goal. &#x1F609 <br> Except if you plan to run simulation on a remote computer you need to install both the server and the interfaces. Please choose the options regarding your needs.</p>
+					<p>Because life is short, we designed tools to make it simple. &#x1F609 <br> Except if you plan to run simulations on a remote computer you need to install both the server and the interfaces on the same machine. Please choose the options regarding your needs.</p>
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
 						<a data-os="macOS" class="button macOS">macOS</a>
@@ -66,7 +66,7 @@
 								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
 								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O ./include/zmq.hpp</code></li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed, the adaped version will be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
 								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 								</li>
 							</ol>
@@ -207,7 +207,7 @@
 					</div>
 
 					<h1>Run the server</h1>
-					<p>⚠️The utilization of the server generate logs- and data-files, in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
+					<p>⚠️The server generates logs- and data-files in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
 
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
@@ -267,13 +267,13 @@
 						It is possible to run the server with <code>runServer.bat</code> or <code>runDaemon.bat</code> as daemon available in <code>build/c++-build</code>
 					</div>
 
-					<h1>Use the interfaces</h1>
-					<p>To do any computation a call to <strong>g2s</strong> is needed and parameter do <strong>NOT</strong> have a specific order.</p>
+					<h1>Using the interfaces</h1>
+					<p>A call to <strong>g2s</strong> is needed to launch any computation. Parameters do <strong>NOT</strong> have a specific order.</p>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python">Python</a>
 						<a data-progLang="matlab" class="button matlab">MATLAB</a>
 						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
-							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: mathieu.gravey@unil.ch</span>
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: mathieu.gravey@unil.ch</span>
 						</a>
 					</div>
 
@@ -372,7 +372,7 @@
 						</tbody>
 					</table>
 
-					<h1>Algorithm</h1>
+					<h1>Simulation algorithms</h1>
 					<p><b>G2S</b> is provided with standard state-of-the-art algorithms:
 						<ul>
 							<li>
@@ -709,7 +709,7 @@
 
 
 				<h1>Benchmarking</h1>
-				<p>This code <strong><u>CAN</u></strong> be used for benchmarking ( and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>, the version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
+				<p>This code <strong><u>CAN</u></strong> be used for benchmarking (and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>. The version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
 
 				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or trough WSL on Windows 10.</p>
 			</section>
