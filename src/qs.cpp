@@ -528,12 +528,7 @@ int main(int argc, char const *argv[]) {
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
 	}
 
-	g2s::DataImage id=g2s::DataImage::createFromFile(std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"));
-	g2s::DataImage DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
-	if(DI._dims.size()<1){
-		DI=g2s::DataImage::createFromFile(targetFileName);
-	}
-	
+	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
 
 	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimention augmentation, if the dimention is not good
 		augmentedDimentionSimulation=false;
@@ -737,9 +732,13 @@ int main(int argc, char const *argv[]) {
 
 	}
 
-	if(id._dims.size()>0){
+	g2s::DataImage id=g2s::DataImage::createFromFile(std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"));
+
+	if(id._dims.size()<1){
 		id=DI.emptyCopy(!fullSimulation);
 		memset(id._data,0,sizeof(unsigned)*simulationPathSize);
+	}else{
+		DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
 	}
 	
 	unsigned* importDataIndex=(unsigned *)id._data;
@@ -955,7 +954,7 @@ int main(int argc, char const *argv[]) {
 	std::thread saveThread;
 	std::atomic<bool> computationIsDone(false);
 	if(interval>0){
-		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(id), std::ref(computationIsDone), interval, uniqueID);
+		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID);
 	}
 
 	switch (st){
