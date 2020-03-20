@@ -20,7 +20,8 @@
 #include <random>
 #include <algorithm>
 
-
+#include <thread>
+#include <atomic>
 
 #include "utils.hpp"
 #include "DataImage.hpp"
@@ -286,8 +287,24 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-oi");
 
+	
 
-
+	// autoSave
+	unsigned interval=0;
+	jobIdType previousID=0;
+	if (arg.count("-as") >0)
+	{
+		std::multimap<std::string, std::string>::iterator autoSaveParam=arg.lower_bound("-as");
+		if(autoSaveParam!=arg.upper_bound("-as")){
+			interval=atoi((autoSaveParam->second).c_str());
+			++autoSaveParam;
+		}
+		if(autoSaveParam!=arg.upper_bound("-as")){
+			previousID=atol((autoSaveParam->second).c_str());
+			++autoSaveParam;
+		}
+	}
+	arg.erase("-as");
 
 
 	// LOOK FOR SETINGS
@@ -494,7 +511,7 @@ int main(int argc, char const *argv[]) {
 
 #if _OPENMP
 	//omp_set_num_threads(nbThreads);
-	omp_set_nested(true);
+	//omp_set_nested(true);
 	fftwf_init_threads();
 	omp_set_max_active_levels(3);
 	#ifdef WITH_MKL
@@ -511,7 +528,12 @@ int main(int argc, char const *argv[]) {
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
 	}
 
-	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	g2s::DataImage id=g2s::DataImage::createFromFile(std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"));
+	g2s::DataImage DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
+	if(DI._dims.size()<1){
+		DI=g2s::DataImage::createFromFile(targetFileName);
+	}
+	
 
 	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimention augmentation, if the dimention is not good
 		augmentedDimentionSimulation=false;
@@ -715,10 +737,13 @@ int main(int argc, char const *argv[]) {
 
 	}
 
-	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
-	memset(importDataIndex,0,sizeof(unsigned)*simulationPathSize);
-	float* seedForIndex=( float* )malloc( sizeof(float) * simulationPathSize );
+	if(id._dims.size()>0){
+		id=DI.emptyCopy(!fullSimulation);
+		memset(id._data,0,sizeof(unsigned)*simulationPathSize);
+	}
 	
+	unsigned* importDataIndex=(unsigned *)id._data;
+	float* seedForIndex=( float* )malloc( sizeof(float) * simulationPathSize );
 	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
 
 	for ( unsigned int i = 0; i < simulationPathSize; ++i)
@@ -913,6 +938,26 @@ int main(int argc, char const *argv[]) {
 	if(fullSimulation) st=fullSim;
 	if(augmentedDimentionSimulation) st=augmentedDimSim;
 
+	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID){
+			unsigned last=0;
+			while (!computationIsDone)
+			{
+				if(last>=interval){
+					id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+					DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				}
+				last++;
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			}
+		};
+
+
+	std::thread saveThread;
+	std::atomic<bool> computationIsDone(false);
+	if(interval>0){
+		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(id), std::ref(computationIsDone), interval, uniqueID);
+	}
+
 	switch (st){
 		case fullSim:
 			fprintf(reportFile, "%s\n", "full sim");
@@ -930,8 +975,9 @@ int main(int argc, char const *argv[]) {
 				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation);
 		break;
 	}
-
+ 
 	auto end = std::chrono::high_resolution_clock::now();
+	computationIsDone=true;
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
@@ -955,11 +1001,6 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
-	
-	g2s::DataImage id=DI.emptyCopy(!fullSimulation);
-	id.setEncoding(g2s::DataImage::UInteger);
-	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
-
 	// to remove later
 	id.write(outputIndexFilename);
 	DI.write(outputFilename);
@@ -969,10 +1010,12 @@ int main(int argc, char const *argv[]) {
 	id.write(std::string("im_2_")+std::to_string(uniqueID));
 	DI.write(std::string("im_1_")+std::to_string(uniqueID));
 
+	if(saveThread.joinable()){
+		saveThread.join();
+	}
+
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;
-	free(importDataIndex);
-	importDataIndex=nullptr;
 
 #if _OPENMP
 	fftwf_cleanup_threads();
