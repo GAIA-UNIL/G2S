@@ -273,7 +273,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		}
 
 		std::transform(avergaeOverDim.begin(), avergaeOverDim.end(), avergaeOverDim.begin(),
-			std::bind2nd(std::divides<float>(), std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
+			std::bind(std::divides<float>(), std::placeholders::_1, std::accumulate(avergaeOverDim.begin(), avergaeOverDim.end(),0.f)));
 
 
 		//Sample

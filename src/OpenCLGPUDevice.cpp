@@ -26,11 +26,8 @@
 
 #define FFTW_PLAN_OPTION FFTW_PATIENT
 
-#if __cilk
-	#define fillVectorized(name, begin, amount, value) name[begin:amount]=value;
-#else
-	#define fillVectorized(name, begin, amount, value) std::fill(name+begin,name+begin+amount-1,value);
-#endif
+#define fillVectorized(name, begin, amount, value) std::fill(name+begin,name+begin+amount-1,value);
+
 
 std::vector<unsigned> OpenCLGPUDevice::DeviceWithHostUnifiedMemory(unsigned platform_id){
 

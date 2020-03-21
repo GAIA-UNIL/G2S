@@ -30,11 +30,11 @@ imshow(data);
 
 
 %% simple unconditional simulation with QS
-destination=source;
-destination(50,75)=nan;
+% destination=source;
+% destination(50,75)=nan;
+% 
+% destination(rand(size(destination))<0.98)=nan;
 
-destination(rand(size(destination))<0.98)=nan;
-%%
 
 [data,t]=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',zeros(1,1),'-k',1,'-n',50,'-s',100);
 imshow(data);
