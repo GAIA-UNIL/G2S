@@ -38,8 +38,8 @@ include .depend
 	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(OPENCL_INC)
 
 server: server.o dataManagement.o jobManager.o jobTasking.o status.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
-	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
+	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
 
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)

@@ -7,7 +7,8 @@ export CFLAGS=-O3 -std=c++11 -fPIC -Wall -Wno-unused
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
-export LDFLAGS=-lzmq -lz -ljsoncpp -lfftw3f -lfftw3f_threads -ldl -lpthread
+export LDFLAGS= -lz -lfftw3f -lfftw3f_threads -ldl -lpthread
+export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
 export ExtraDevice=AcceleratorDevice.o

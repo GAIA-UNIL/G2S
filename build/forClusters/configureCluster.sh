@@ -16,6 +16,9 @@ fi
 
 if [[ "$1" == "PBS" || "$1" == "pbd"  || "$1" == "qsub" ]]; then
     submissionScriptName="sub-all-PBS.sh"
+    echo -e '#!/bin/bash \npwd\n$G2S_COMMAND_2_RUN\nexit\n' >"$DIR/../c++-build/runAny.sh"
+    echo -e '#!/bin/bash \npwd\n$G2S_COMMAND_2_RUN\nexit\n' >"$DIR/../intel-build/runAny.sh"
+    chmod +x "$DIR/../c++-build/runAny.sh" "$DIR/../intel-build/runAny.sh"
 fi
 
 if [ -n "$submissionScriptName" ]; then
