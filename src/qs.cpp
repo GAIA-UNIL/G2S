@@ -944,6 +944,7 @@ int main(int argc, char const *argv[]) {
 				if(last>=interval){
 					id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
 					DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+					last=0;
 				}
 				last++;
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
