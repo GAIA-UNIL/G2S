@@ -163,9 +163,19 @@ __global__ void removeBorder(float* dst, const unsigned int size, const unsigned
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int blockId = blockIdx.y * blockDim.y + threadIdx.y;
 	int pos = i * delta + blockId;
-	// if (pos < size && blockId < blockSize){
-	// 	dst[pos]=remplace;
-	// }
+	if (pos < size && blockId < blockSize){
+		dst[pos]=remplace;
+	}
+}
+
+__global__ void removeBorderGridFlipd(float* dst, const unsigned int size, const unsigned int delta, const unsigned int blockSize, const float remplace){
+
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int blockId = blockIdx.y * blockDim.y + threadIdx.y;
+	int pos = i + blockId * delta;
+	if (pos < size && blockId < blockSize){
+		dst[pos]=remplace;
+	}
 }
 
 __global__ void fma(float* realSpace, const unsigned int size,  const float alpha,  const float delta){
@@ -563,13 +573,18 @@ void NvidiaGPUAcceleratorDevice::computeRealMissmatchAndRemoveWrongPattern(float
 					delta*=_fftSize[j];
 				}
 
-				dim3 grid((_realSpaceSize/delta+(chunk-1))/chunk,(blockSize+(chunk-1))/chunk,1);
+				dim3 grid((_realSpaceSize/delta+(chunk-1))/chunk, (blockSize+(chunk-1))/chunk, 1);
+				dim3 gridFliped((blockSize+(chunk-1))/chunk, (_realSpaceSize/delta+(chunk-1))/chunk, 1);
 				dim3 block(chunk,chunk,1);
 				
 				//fprintf(stderr, "blockSize ==> %d, %d ==> %d, %d \n", (_realSpaceSize/delta+(chunk-1))/chunk, (blockSize+(chunk-1))/chunk, delta, blockSize );
 
-				if(blockSize!=0)
-					removeBorder<<<grid, block, 0, _cudaLocalStream >>>(realSpace,_realSpaceSize,delta,blockSize,-INFINITY);
+				if(blockSize!=0){
+					if(grid.x>=grid.y)
+						removeBorder<<<grid, block, 0, _cudaLocalStream >>>(realSpace,_realSpaceSize,delta,blockSize,-INFINITY);
+					else
+						removeBorderGridFlipd<<<gridFliped, block, 0, _cudaLocalStream >>>(realSpace,_realSpaceSize,delta,blockSize,-INFINITY);
+				}
 				gpuErrchk(cudaPeekAtLastError());
 			}
 		}
