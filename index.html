@@ -17,12 +17,34 @@
 	</header>
 	<div id="content-wrapper">
 		<div class="inner clearfix">
+			<div class='sideMenuBar'>
+				<div>
+					<aside id="menu">
+						<ul class='sideMenu'>							
+							<li><a href="#briefOverview">Brief overview</a></li>
+							<li><a href="#install">Installation</a></li>
+							<ul>
+								<li><a href="#installServer">Installation of the server</a></li>
+								<li><a href="#installInter">Installation of interfaces</a></li>
+							</ul>
+							<li><a href="#runServer">Run the server</a></li>
+							<li><a href="#userInterface">Using the interfaces</a></li>
+							<li><a href="#SimAlgo">Simulation algorithms</a></li>
+							<ul>
+								<li><a href="#QS">Paremeter for QS</a></li>
+								<li><a href="#NDS">Paremeter for NDS</a></li>
+							</ul>
+							<li><a href="#example">Example</a></li>
+						</ul>
+					</aside>
+				</div>
+			</div>
 			<section id="main-content">
 
 				<p style="font-size: 25px;color:red;border: 2px solid;padding: 0px 18px; text-align: center">
 					<strong>&#10132;</strong> Preprint of Quantile Sampling available <a href="https://doi.org/10.5194/gmd-2019-211">here</a>,<br> under open review, please feel free to contribute.
 				</p>
-				<h1>Brief overview</h1>
+				<h1  id='briefOverview'>Brief overview</h1>
 				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-art <strong>Multiple Point Statistics (MPS)</strong> algorithms to run stochastic simulations.</p>
 
 				<p><strong>G2S</strong> is designed to run simulations in a generic way, independently of the code used or language it is written in. For example, it enables to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (or any other combination)</p>
@@ -37,7 +59,7 @@
 
 					<p>The framework can be easily extended to handle most codes that use grided data. Currently any compiled code or python code can be handled.</p>
 
-					<h1>Installation</h1>
+					<h1 id='install'>Installation</h1>
 
 					<p>Because life is short, we designed tools to make it simple. &#x1F609 <br> Except if you plan to run simulations on a remote computer you need to install both the server and the interfaces on the same machine. Please choose the options regarding your needs.</p>
 					<div class="osChoice buttonChoice">
@@ -50,7 +72,7 @@
 						<a data-install="interface" class="button interface">Interface</a>
 					</div>
 					<div class="quickSelect server installSens">
-						<h2>Installation of the server</h2>
+						<h2 id='installServer'>Installation of the server</h2>
 						<div class="quickSelect linux server osSens">
 							<h3>Installation of the server on Ubuntu</h3>
 							<h4>Automatic with GCC on Ubuntu</h4>
@@ -106,7 +128,7 @@
 						</div>
 					</div>
 					<div class="quickSelect interface installSens">
-						<h2>Installation of interfaces</h2>
+						<h2 id='installInter'>Installation of interfaces</h2>
 						<div class="progLangChoice buttonChoice">
 							<a data-progLang="python" class="button python">Python</a>
 							<a data-progLang="matlab" class="button matlab">MATLAB</a>
@@ -206,7 +228,7 @@
 						</div>
 					</div>
 
-					<h1>Run the server</h1>
+					<h1 id='runServer'>Run the server</h1>
 					<p>⚠️The server generates logs- and data-files in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
 
 					<div class="osChoice buttonChoice">
@@ -267,7 +289,7 @@
 						It is possible to run the server with <code>runServer.bat</code> or <code>runDaemon.bat</code> as daemon available in <code>build/c++-build</code>
 					</div>
 
-					<h1>Using the interfaces</h1>
+					<h1 id='userInterface'>Using the interfaces</h1>
 					<p>A call to <strong>g2s</strong> is needed to launch any computation. Parameters do <strong>NOT</strong> have a specific order.</p>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python">Python</a>
@@ -372,7 +394,7 @@
 						</tbody>
 					</table>
 
-					<h1>Simulation algorithms</h1>
+					<h1 id='SimAlgo'>Simulation algorithms</h1>
 					<p><b>G2S</b> is provided with standard state-of-the-art algorithms:
 						<ul>
 							<li>
@@ -393,7 +415,7 @@
 					</div>
 
 					<div class="quickSelect algoSens qs">
-						<h2>Paremeter for QS</h2>
+						<h2 id='QS'>Paremeter for QS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -502,7 +524,7 @@
 						</table>
 					</div>
 					<div class="quickSelect algoSens nds">
-						<h2>Paremeter for NDS</h2>
+						<h2 id='NDS'>Paremeter for NDS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -591,7 +613,7 @@
 						</table>
 					</div>
 
-					<h1>Example</h1>
+					<h1 id='example'>Example</h1>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python">Python</a>
 						<a data-progLang="matlab" class="button matlab">MATLAB</a>

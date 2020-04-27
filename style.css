@@ -871,3 +871,73 @@ pre code{
   border-style: solid;
   border-color: transparent transparent black transparent;
 }
+
+div.sideMenuBar {
+    float: left;
+    position: fixed;
+    width: min(334px,calc(50vw - 525px));
+    display: none;
+}
+
+div.sideMenuBar div{
+    background: transparent url(./images/sidebar-bg.jpg) 0 0 no-repeat;
+    height: 550px;
+}
+
+div.sideMenuBar aside, div.sideMenuBar div{
+    transform:scaleX(-1);
+}
+
+div.sideMenuBar div{
+    position: relative;
+    right: min(381px,calc(50vw - 480px));
+}
+
+
+@media only screen and (min-width: 1480px) {
+
+    div.sideMenuBar {
+        display: block;
+    }
+}
+
+@media only screen and (min-width: 16120px) {
+
+    div.sideMenuBar {
+        display: block;
+    }
+}
+
+.sideMenu a{
+    color: #474747;
+    font-family: 'Architects Daughter', 'Helvetica Neue', Helvetica, Arial, serif;
+    font-size: 25px
+}
+
+.sideMenuBar ul{
+    margin-bottom:0px;
+}
+
+ul.sideMenu *{
+    list-style-type: none;
+}
+
+ul.sideMenu > li:before {
+    padding-right: 0.3em;
+    margin-left: -0.9em;
+    color: #9ddcff;
+    content: "/"}
+
+ul.sideMenu ul > li:before  {
+    padding-right: 0.3em;
+    margin-left: -1.5em;
+    content: "//";
+    color: #9ddcff;
+}
+
+ul.sideMenu ul ul > li:before  {
+    padding-right: 0.3em;
+    margin-left: -2em;
+    content: "///";
+    color: #9ddcff;
+}
