@@ -199,7 +199,7 @@ public:
 		jobIdType id=0;
 		bool stop=false;
 		bool withTimeout=true;
-		int timeout=30000;
+		int timeout=60000;
 		bool noOutput=false;
 		bool spectifiedTimeout=false;
 
@@ -352,10 +352,8 @@ public:
 		}
 
 		socket.setsockopt(ZMQ_LINGER, timeout);
-		if(spectifiedTimeout){
-			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
-			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
-		}
+		socket.setsockopt(ZMQ_RCVTIMEO, timeout);
+		socket.setsockopt(ZMQ_SNDTIMEO, timeout);
 
 		if(serverShutdown){
 			infoContainer task;

@@ -159,6 +159,8 @@ public:
 		PyObject * variableTypeArray=nullptr;
 		if(dataType.type()==typeid(PyObject *))
 			variableTypeArray=std::any_cast<PyObject *>(dataType);
+
+		prh=PyArray_ContiguousFromAny(prh,PyArray_TYPE(prh),0,0);
 		int dataSize=PyArray_SIZE(prh);
 		int nbOfVariable=1;
 		if(variableTypeArray)nbOfVariable=PyArray_SIZE(variableTypeArray);
