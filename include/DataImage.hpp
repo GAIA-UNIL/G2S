@@ -228,13 +228,16 @@ class DataImage{
 		return result;
 	}
 
-	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect){
+	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect, int* externalMemory=nullptr){
 		unsigned finalValue=0;
-		std::vector<int> dists(_dims.size());
 
 		bool isOk=true;
-
-		std::vector<int> val(_dims.size());
+		int *val=nullptr;
+		if(!externalMemory){
+			val=new int[_dims.size()];
+		}else{
+			val=externalMemory;
+		}
 
 		for (size_t i = 0; i < _dims.size(); ++i)
 		{
@@ -252,13 +255,15 @@ class DataImage{
 		}
 
 		location=finalValue;
+		if(!externalMemory){
+			delete[] val;
+		}
 
 		return isOk;
 	}
 
 	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect, std::vector<int> combi){
 		unsigned finalValue=0;
-		std::vector<int> dists(_dims.size());
 
 		bool isOk=true;
 
