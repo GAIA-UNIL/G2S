@@ -492,7 +492,9 @@ private:
 						errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
 					}
 					
+			#ifndef __GNUC__  // remove OpenMP in this section for GCC compiler, some GCC compiler produce a code that crash without any reasons
 					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
+			#endif
 					{
 						unsigned k=0;
 						#if _OPENMP
