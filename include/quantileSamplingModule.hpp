@@ -492,12 +492,12 @@ private:
 						errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
 					}
 					
-			#ifndef __GNUC__  // remove OpenMP in this section for GCC compiler, some GCC compiler produce a code that crash without any reasons
+			#if !defined( __GNUC__) || defined(__INTEL_COMPILER)  // remove OpenMP in this section for GCC compiler, some GCC compiler produce a code that crash without any reasons
 					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
 			#endif
 					{
 						unsigned k=0;
-						#if _OPENMP
+						#if _OPENMP && (!defined( __GNUC__) || defined(__INTEL_COMPILER))
 						k=omp_get_thread_num();
 						#endif
 						std::mt19937 generator;// can be inprouved by only resetting the seed each time
