@@ -575,7 +575,7 @@ class DataImage{
 					if(forXMesurement){
 						std::vector<convertionType> convType;
 						convType.push_back(P0);
-						regular.setVariableAt(subVariablePosition,subVariablePosition,1.f);
+						regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
 						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition,1.f);
 						subVariablePosition+=1;
 						convertionTypeVectorMainVector.push_back(convType);
