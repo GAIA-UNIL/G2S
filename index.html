@@ -11,13 +11,13 @@
 	<header>
 		<div class="inner">
 			<a><h1>G2S: The GeoStatistical Server</h1></a>
-			<h2>A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:<br>Quantile Sampling and Narrow Distribution Selection</h2>
+			<h2>A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:<br>QuickSampling and Narrow Distribution Selection</h2>
 			<a href="https://github.com/GAIA-UNIL/G2S" class="button"><small>View project on</small> GitHub</a>
 		</div>
 	</header>
 	<div id="content-wrapper">
 		<div class="inner clearfix">
-			<div class='sideMenuBar'>
+			<aside id='menuSidebar' class='sideMenuBar'>
 				<div>
 					<aside id="menu">
 						<ul class='sideMenu'>							
@@ -35,14 +35,16 @@
 								<li><a href="#NDS">Paremeter for NDS</a></li>
 							</ul>
 							<li><a href="#example">Example</a></li>
+							<li><a href="#Benchmarking">Benchmarking</a></li>
+							<li><a href="#How2Cite">How to cite ?</a></li>
 						</ul>
 					</aside>
 				</div>
-			</div>
+			</aside>
 			<section id="main-content">
 
 				<p style="font-size: 25px;color:red;border: 2px solid;padding: 0px 18px; text-align: center">
-					<strong>&#10132;</strong> Preprint of Quantile Sampling available <a href="https://doi.org/10.5194/gmd-2019-211">here</a>,<br> under open review, please feel free to contribute.
+					<strong>&#10132;</strong> Final version of QuickSampling available <a href="https://doi.org/10.5194/gmd-13-2611-2020">here</a>.
 				</p>
 				<h1  id='briefOverview'>Brief overview</h1>
 				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-art <strong>Multiple Point Statistics (MPS)</strong> algorithms to run stochastic simulations.</p>
@@ -51,7 +53,7 @@
 
 				<p>Currently, the framework is provided with:
 					<ul>
-						<li><strong>Quantile Sampling (QS)</strong> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous or categorial variable or a combination of both. The code was developed without restrictions regarding the dimentionality of the data (e.g. 1D, 2D, 3D, nD).</li>
+						<li><strong>QuickSampling (QS)</strong> <i>(aka. Quantile Sampling)</i> is a general-purpose pixel-based MPS algorithm, that is designed to be robust, efficient and run in constant time. QS was designed to adapt to your problem, it can be used to do (un)conditional simulation, gap filling or even downscaling, using continuous or categorial variable or a combination of both. The code was developed without restrictions regarding the dimentionality of the data (e.g. 1D, 2D, 3D, nD).</li>
 						<strong>&#10132;</strong> Paper curently under open review, please feel free to contribute <a href="https://doi.org/10.5194/gmd-2019-211">here</a>.
 						<li><strong>Narrow Distribution Selection (NDS)</strong> is an algorithm specifically targeted to simulate spectrally enhanced remote sensed imagery. It requires an external variable (for example, a grayscale image) to control the simulation (of colors) </li>
 						&#10132; A paper describing it is abailable here: <a href="https://doi.org/10.1016/j.isprsjprs.2018.11.003">Analogue-based colorization of remote sensing images using textural information</a>.
@@ -398,7 +400,7 @@
 					<p><b>G2S</b> is provided with standard state-of-the-art algorithms:
 						<ul>
 							<li>
-								QS (aka. Quantile Sampling)
+								QS (aka. QuickSampling)
 							</li>
 							<li>
 								NDS (aka. Narrow Distribution Selection)
@@ -730,11 +732,19 @@
 				</div>
 
 
-				<h1>Benchmarking</h1>
+				<h1 id="Benchmarking">Benchmarking</h1>
 				<p>This code <strong><u>CAN</u></strong> be used for benchmarking (and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>. The version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
 
 				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or trough WSL on Windows 10.</p>
-			</section>
+
+				<h1 id="How2Cite" >How to cite ?</h1>
+				<div>
+					<h2>For QuickSampling</h2>
+					<p>Gravey, M., & Mariethoz, G. (2020). QuickSampling v1.0: a robust and simplified pixel-based multiple-point simulation approach. Geoscientific Model Development, 13(6), 2611–2630. https://doi.org/10.5194/gmd-13-2611-2020</p>
+					<h2>For Narrow Distribution Selection</h2>
+					<p>Gravey, M., Rasera, L. G., & Mariethoz, G. (2019). Analogue-based colorization of remote sensing images using textural information. ISPRS Journal of Photogrammetry and Remote Sensing, 147, 242–254. https://doi.org/10.1016/j.isprsjprs.2018.11.003</p>
+				</div>
+ 			</section>
 			<aside id="sidebar">
 
 				<a href="https://github.com/GAIA-UNIL/G2S/zipball/master" class="button">

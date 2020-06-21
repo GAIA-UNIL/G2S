@@ -1,9 +1,23 @@
 /*! normalize.css v3.0.2 | MIT License | git.io/normalize */
 @import url("https://fonts.googleapis.com/css?family=Architects+Daughter");
-    html {
+
+:root {
+  --mainContentWidth: 690px;
+  --rightMenuWidth:200px;
+  --leftMenuWidth: min( calc( 100vw - var(--mainContentWidth) - var(--rightMenuWidth) - 116px), 325px)
+}
+
+@media only screen and (max-width: 1195px) {
+    :root {
+      --leftMenuWidth: 93%;
+    }
+}
+
+html {
     font-family: sans-serif;
     -ms-text-size-adjust: 100%;
-    -webkit-text-size-adjust: 100%}
+    -webkit-text-size-adjust: 100%
+}
 body {
     margin: 0;
 }
@@ -398,7 +412,7 @@ header h2 {
 }
 .inner {
     position: relative;
-    width: 940px;
+    width: calc( var(--leftMenuWidth) + var(--mainContentWidth) + var(--rightMenuWidth) + 100px) ;
     margin: 0 auto;
 }
 #content-wrapper {
@@ -407,13 +421,14 @@ header h2 {
 }
 #main-content {
     float: left;
-    width: 690px;
+    width: var(--mainContentWidth);
+    margin-left: 45px;
 }
 #main-content img {
     max-width: 100%}
 aside#sidebar {
     float: right;
-    width: 200px;
+    width: var(--rightMenuWidth);
     min-height: 504px;
     padding-left: 20px;
     font-size: 12px;
@@ -648,29 +663,8 @@ footer a:hover {
 .clearfix {
     display: block;
 }
-@media only screen and (min-width: 768px) and (max-width: 959px) {
-    .inner {
-    width: 740px;
-}
-header h1, header h2 {
-    width: 340px;
-}
-header h1 {
-    font-size: 60px;
-}
-header h2 {
-    font-size: 30px;
-}
-#main-content {
-    width: 490px;
-}
-#main-content h1:before, #main-content h2:before, #main-content h3:before, #main-content h4:before, #main-content h5:before, #main-content h6:before {
-    padding-right: 0;
-    margin-left: 0;
-    content: none;
-}
-}
-@media only screen and (max-width: 767px) {
+
+@media only screen and (max-width: 1195px) {
     .inner {
     width: 93%}
 header {
@@ -709,8 +703,9 @@ header a.button small {
     font-size: 13px;
 }
 #main-content, aside#sidebar {
-    float: none;
+    /*float: none;*/
     width: 100% !important;
+    margin-left: 0;
 }
 aside#sidebar {
     min-height: 0;
@@ -775,7 +770,7 @@ div.quickSelect.server{
 }
 
 div.quickSelect.interface{
-    max-height: 2220px;
+    max-height: 2253px;
 }
 
 div.quickSelect{
@@ -875,10 +870,11 @@ pre code{
 div.sideMenuBar {
     float: left;
     position: fixed;
-    width: min(334px,calc(50vw - 525px));
+    width: min(334px,calc(50vw - var(--leftMenuWidth) ));
     display: none;
+    z-index: -99;
 }
-
+/*
 div.sideMenuBar div{
     background: transparent url(./images/sidebar-bg.jpg) 0 0 no-repeat;
     height: 550px;
@@ -890,23 +886,16 @@ div.sideMenuBar aside, div.sideMenuBar div{
 
 div.sideMenuBar div{
     position: relative;
-    right: min(381px,calc(50vw - 480px));
+    right: min(381px,calc(50vw + 45px - var(--leftMenuWidth) ));
 }
 
 
-@media only screen and (min-width: 1480px) {
+@media only screen and (min-width: 1290px) {
 
     div.sideMenuBar {
         display: block;
     }
-}
-
-@media only screen and (min-width: 16120px) {
-
-    div.sideMenuBar {
-        display: block;
-    }
-}
+}*/
 
 .sideMenu a{
     color: #474747;
@@ -940,4 +929,29 @@ ul.sideMenu ul ul > li:before  {
     margin-left: -2em;
     content: "///";
     color: #9ddcff;
+}
+
+aside#menuSidebar {
+    position: sticky;
+    top: 0px;
+    float: left;
+    width: var(--leftMenuWidth);
+    min-height: 504px;
+    padding-left: 20px;
+    line-height: 1.3;
+    background: transparent url(./images/sidebar-bg.jpg) 0 0 no-repeat;
+}
+aside#menuSidebar {
+    font-weight: bold;
+}
+@media only screen and (max-width: 1195px) {
+    aside#menuSidebar {
+        position: relative;
+        top: 0px;
+
+    }
+}
+
+#How2Cite + div p{
+    background-color: #e9e9e9;
 }
