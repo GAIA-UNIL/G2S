@@ -736,6 +736,7 @@ int main(int argc, char const *argv[]) {
 
 	if(id._dims.size()<1){
 		id=DI.emptyCopy(!fullSimulation);
+		id.setEncoding(g2s::DataImage::EncodingType::UInteger);
 		memset(id._data,0,sizeof(unsigned)*simulationPathSize);
 	}else{
 		DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
