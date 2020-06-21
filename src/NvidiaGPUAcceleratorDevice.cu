@@ -187,7 +187,7 @@ __global__ void fma(float* realSpace, const unsigned int size,  const float alph
 __global__ void updateMask(float* realSpace1, float* realSpace2, const unsigned int size, const unsigned int deltaCross){
 	int i = blockIdx.x*blockDim.x + threadIdx.x;
 	if (i < size)
-		realSpace1[i]*=realSpace2[(i+deltaCross)%_realSpaceSize];
+		realSpace1[i]*=realSpace2[(i+deltaCross)%size];
 }
 
 __global__ void compensateMissingDatakernel(float* errosArray, float* crossErrosArray, const unsigned int size, float val){
