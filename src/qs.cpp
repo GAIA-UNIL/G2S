@@ -839,6 +839,8 @@ int main(int argc, char const *argv[]) {
 			{
 				for (unsigned int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
 				{
+					if(std::isnan(TIs[im]._data[j]))
+						continue;
 					bool isPresent=false;
 					for (size_t k = 0; k < currentVariable.size(); ++k)
 					{

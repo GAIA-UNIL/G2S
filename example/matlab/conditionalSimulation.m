@@ -9,7 +9,7 @@ conditioning(randperm(numel(conditioning),50))=ti(randperm(numel(ti),50));
 simulation=g2s('-a','qs','-ti',ti,'-di',conditioning,'-dt',[0],'-k',1.2,'-n',50,'-j',0.5);
 
 %Display results 
-suptitle('Conditional simulation');
+sgtitle('Conditional simulation');
 subplot(1,3,1);
 imshow(ti);
 title('Training image');

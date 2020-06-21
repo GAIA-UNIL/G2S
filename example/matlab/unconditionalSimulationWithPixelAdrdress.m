@@ -6,7 +6,7 @@ tis={ti, rot90(ti,2),rot90(ti,3)};
 [simulation,position,t]=g2s('-a','qs','-ti',tis{:},'-di',nan(200,200),'-dt',[0],'-k',1.2,'-n',50,'-j',0.5);
 
 %% Display results 
-suptitle('Unconditional simulation');
+sgtitle('Unconditional simulation');
 subplot(3,2,1);
 imshow(ti);
 title('Training image');

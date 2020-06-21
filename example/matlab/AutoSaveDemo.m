@@ -28,7 +28,7 @@ end
 
 
 %Display results 
-suptitle('AutoSave');
+sgtitle('AutoSave');
 subplot(2,3,1);
 imshow(simulation);
 title('Sim1');

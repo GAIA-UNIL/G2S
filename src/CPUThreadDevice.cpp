@@ -438,9 +438,9 @@ void CPUThreadDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	}
 	int convertedVariable=0;
 	int tmp=variable;
-	for (unsigned int var = 0; var <_coeficientMatrix[layer].getNumberOfVariable() ; ++var)
+	for (unsigned int var = 0; var <_coeficientMatrix[1].getNumberOfVariable() ; ++var)
 	{
-		tmp-=_coeficientMatrix[layer].needVariableAlongA(var);
+		tmp-=_coeficientMatrix[1].needVariableAlongA(var);
 		if(tmp<0)
 		{
 			convertedVariable=var;

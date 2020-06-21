@@ -184,6 +184,12 @@ __global__ void fma(float* realSpace, const unsigned int size,  const float alph
 		realSpace[i]=fmaf(realSpace[i],alpha,delta);
 }
 
+__global__ void updateMask(float* realSpace1, float* realSpace2, const unsigned int size, const unsigned int deltaCross){
+	int i = blockIdx.x*blockDim.x + threadIdx.x;
+	if (i < size)
+		realSpace1[i]*=realSpace2[(i+deltaCross)%_realSpaceSize];
+}
+
 __global__ void compensateMissingDatakernel(float* errosArray, float* crossErrosArray, const unsigned int size, float val){
 	int j = blockIdx.x*blockDim.x + threadIdx.x;
 	if (j < size)
@@ -599,7 +605,6 @@ void NvidiaGPUAcceleratorDevice::computeRealMissmatchAndRemoveWrongPattern(float
 
 
 void NvidiaGPUAcceleratorDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
-
 	int deltaCross=0;
 	for (int k = int(_min.size())-1; k >=0; k--)
 	{
@@ -607,21 +612,25 @@ void NvidiaGPUAcceleratorDevice::maskLayerWithVariable(unsigned layer, unsigned 
 	}
 	int convertedVariable=0;
 	int tmp=variable;
-	for (unsigned int var = 0; var <_coeficientMatrix[layer].getNumberOfVariable() ; ++var)
+	for (unsigned int var = 0; var <_coeficientMatrix[1].getNumberOfVariable() ; ++var)
 	{
-		tmp-=_coeficientMatrix[layer].needVariableAlongA(var);
+		tmp-=_coeficientMatrix[1].needVariableAlongA(var);
 		if(tmp<0)
 		{
 			convertedVariable=var;
 			break;
 		}
 	}
-	//TODO : to remove missing data point
-	/*for (unsigned int i = 0; i < _realSpaceSize; ++i){
-		_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
 
-		//-((1.f-[j])*1.1f)*FLT_MAX);
-	}*/
+	updateMask<<<(_realSpaceSize+255)/256, 256, 0, _cudaLocalStream >>>(_realSpaceArray[layer],(dataType*)_srcCplx[convertedVariable].space, _realSpaceSize,deltaCross);
+	gpuErrchk(cudaPeekAtLastError());
+
+	//TODO : to remove missing data point
+	// for (unsigned int i = 0; i < _realSpaceSize; ++i){
+	// 	_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
+
+	// 	//-((1.f-[j])*1.1f)*FLT_MAX);
+	// }
 }
 
 void NvidiaGPUAcceleratorDevice::setValueInErrorArray(unsigned position, float value){

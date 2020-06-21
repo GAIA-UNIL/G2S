@@ -571,15 +571,15 @@ void OpenCLGPUDevice::maskCroossErrorWithVariable(unsigned variable){
 
 void OpenCLGPUDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	int deltaCross=0;
-	for (int k = _min.size()-1; k >=0; k--)
+	for (int k = int(_min.size())-1; k >=0; k--)
 	{
 		deltaCross=deltaCross*_fftSize[k]+_min[k];
 	}
 	int convertedVariable=0;
 	int tmp=variable;
-	for (int var = 0; var <_coeficientMatrix[layer].getNumberOfVariable() ; ++var)
+	for (unsigned int var = 0; var <_coeficientMatrix[1].getNumberOfVariable() ; ++var)
 	{
-		tmp-=_coeficientMatrix[layer].needVariableAlongA(var);
+		tmp-=_coeficientMatrix[1].needVariableAlongA(var);
 		if(tmp<0)
 		{
 			convertedVariable=var;
@@ -587,7 +587,7 @@ void OpenCLGPUDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 		}
 	}
 
-	for (int i = 0; i < _realSpaceSize; ++i){
+	for (unsigned int i = 0; i < _realSpaceSize; ++i){
 		_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
 
 		//-((1.f-[j])*1.1f)*FLT_MAX);
