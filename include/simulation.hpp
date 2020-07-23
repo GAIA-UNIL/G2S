@@ -28,6 +28,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
+	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
 	for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
@@ -50,7 +51,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -267,7 +268,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 			}
 		}
-		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+		if(indexPath%(displayRatio)==0)
+			fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 
 	free(posterioryPath);
@@ -277,6 +279,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
+	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
 	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize());
 	for (unsigned int i = 0; i < di.dataSize(); ++i)
@@ -299,7 +302,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
@@ -478,7 +481,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			#pragma omp atomic write
 			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];
 		}
-		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+		if(indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 	free(posterioryPath);
 }
