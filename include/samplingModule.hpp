@@ -33,6 +33,11 @@ public:
 		float narrowness;
 	};
 
+	struct simValues{
+		unsigned index;
+		std::vector<float> values;
+	};
+
 
 protected:
 	std::vector<ComputeDeviceModule*> *_cdmV;

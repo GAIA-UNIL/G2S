@@ -72,14 +72,14 @@ public:
 
 
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
-	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr)=0;
+	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypedataTypeVariable=nullptr)=0;
 
 		//to improuve
-	std::string uploadData(zmq::socket_t &socket, std::any matrix, std::any dataType=nullptr){
+	std::string uploadData(zmq::socket_t &socket, std::any matrix, std::any dataTypedataTypeVariable=nullptr){
 		bool withTimeout=false;
 		char sourceName[65]={0};
 
-		char* rawData=convertNativeMatrix2DataImage(matrix, dataType).serialize();
+		char* rawData=convertNativeMatrix2DataImage(matrix, dataTypedataTypeVariable).serialize();
 		size_t fullsize=*((size_t*)rawData);
 		std::vector<unsigned char> hash(32);
 		picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
@@ -158,18 +158,18 @@ public:
 
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
-		auto dataType=input.find("-dt");
-		std::set<std::string> listOfParameterToUploadIfNeededWithDataType= {"-ti","-di"};
-		std::set<std::string> listOfParameterToUploadIfNeededWithoutDataType= {"-ki","-sp","-ii"};
+		auto dataTypedataTypeVariable=input.find("-dt");
+		std::set<std::string> listOfParameterToUploadIfNeededWithDataTypedataTypeVariable= {"-ti","-di"};
+		std::set<std::string> listOfParameterToUploadIfNeededWithoutDataTypedataTypeVariable= {"-ki","-sp","-ii"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
-			if(listOfParameterToUploadIfNeededWithDataType.find(it->first) != listOfParameterToUploadIfNeededWithDataType.end())
+			if(listOfParameterToUploadIfNeededWithDataTypedataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithDataTypedataTypeVariable.end())
 				if(isDataMatrix(it->second)){
-					if(dataType!=input.end())
-						it->second=std::any(uploadData(socket, it->second,dataType->second));
+					if(dataTypedataTypeVariable!=input.end())
+						it->second=std::any(uploadData(socket, it->second,dataTypedataTypeVariable->second));
 					else
 						sendError("-dt is missing, impossible to uplaod a matrix without data type");
 					}
-			if(listOfParameterToUploadIfNeededWithoutDataType.find(it->first) != listOfParameterToUploadIfNeededWithoutDataType.end()){
+			if(listOfParameterToUploadIfNeededWithoutDataTypedataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithoutDataTypedataTypeVariable.end()){
 				if(isDataMatrix(it->second))
 					it->second=std::any(uploadData(socket, it->second));
 			}

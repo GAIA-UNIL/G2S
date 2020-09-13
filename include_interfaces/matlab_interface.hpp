@@ -133,11 +133,11 @@ public:
 	}
 
 
-	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
+	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr){
 		
 		mxArray const* prh=std::any_cast<mxArray const*>(matrix);
 		mxArray const* variableTypeArray=nullptr;
-		if(dataType.type()==typeid(mxArray const*)) variableTypeArray=std::any_cast<mxArray const*>(dataType);
+		if(dataTypeVariable.type()==typeid(mxArray const*)) variableTypeArray=std::any_cast<mxArray const*>(dataTypeVariable);
 
 		int dataSize=mxGetNumberOfElements(prh);
 		int nbOfVariable=1;

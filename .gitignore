@@ -59,3 +59,5 @@ build/python-build/dist
 *.Rhistory
 
 *.depend
+build/PyDevAlgo
+build/algosName.config

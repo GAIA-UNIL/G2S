@@ -127,14 +127,14 @@ public:
 	}
 
 
-	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
+	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr){
 		Rcpp::NumericVector arrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(matrix));
 	
 		int dataSize=arrayRcpp.size();
 		int nbOfVariable=1;
-		if(dataType.type()==typeid(Rcpp::RObject))
+		if(dataTypeVariable.type()==typeid(Rcpp::RObject))
 		{
-			Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(dataType));
+			Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(dataTypeVariable));
 			nbOfVariable=variableTypeArrayRcpp.size();
 		}
 		Rcpp::IntegerVector dim_array = Rcpp::as<Rcpp::IntegerVector>(arrayRcpp.attr("dim"));
@@ -151,9 +151,9 @@ public:
 		g2s::DataImage image(dimData,dimArray,nbOfVariable);
 		float *data=image._data;
 		
-		if (dataType.type()==typeid(Rcpp::RObject))
+		if (dataTypeVariable.type()==typeid(Rcpp::RObject))
 		{
-			Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(dataType));
+			Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(dataTypeVariable));
 			for (int i = 0; i < nbOfVariable; ++i)
 			{
 				if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;

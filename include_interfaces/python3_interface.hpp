@@ -26,16 +26,6 @@
 #include <numpy/arrayobject.h>
 #include "inerfaceTemplate.hpp"
 
-char* writeRawData(char* data, bool compresed){
-	return nullptr;
-}
-
-char* loadRawData(const char * hash){
-	return nullptr;
-}
-
-void createLink(char* outputFullFilename, char* fullFilename){}
-
 class InerfaceTemplatePython3: public InerfaceTemplate
 {
 private:
@@ -154,11 +144,11 @@ public:
 	}
 
 
-	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataType=nullptr){
+	g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr){
 		PyObject * prh=std::any_cast<PyObject *>(matrix);
 		PyObject * variableTypeArray=nullptr;
-		if(dataType.type()==typeid(PyObject *))
-			variableTypeArray=std::any_cast<PyObject *>(dataType);
+		if(dataTypeVariable.type()==typeid(PyObject *))
+			variableTypeArray=std::any_cast<PyObject *>(dataTypeVariable);
 
 		prh=PyArray_ContiguousFromAny(prh,PyArray_TYPE(prh),0,0);
 		int dataSize=PyArray_SIZE(prh);

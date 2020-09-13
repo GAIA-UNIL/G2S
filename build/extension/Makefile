@@ -1,5 +1,5 @@
 SUBDIRS := $(wildcard */.)
-SUBDIRS := "FastDS4G2S"
+# SUBDIRS := "FastDS4G2S"
 
 .DEFAULT_GOAL=build
 
