@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>G2S a free and flexible MPS framework, including QS and NDS  </title>
+	<link rel="stylesheet" href="./style.css" media="screen" type="text/css">
+	<link rel="stylesheet" href="./print.css" media="print" type="text/css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<!-- 	<script src="./scripte.js"></script> -->
+</head>
+<body>
+	<header>
+		<div class="inner">
+			<a><h1>G2S: The GeoStatistical Server</h1></a>
+			<h2>A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:<br>QuickSampling and Narrow Distribution Selection</h2>
+			<a href="https://github.com/GAIA-UNIL/G2S" class="button"><small>View project on</small> GitHub</a>
+		</div>
+	</header>
+	<div id="content-wrapper">
+		<div class="inner clearfix">
+			<aside id='menuSidebar' class='sideMenuBar'>
+				<div>
+					<aside id="menu">
+						<ul class='sideMenu'>							
+							<li><a href="#briefOverview">Brief overview</a></li>
+							<li><a href="#serverAutostart">Server autostart</a></li>
+							<li><a href="#cluster">Cluster</a></li>
+							<ul>
+								<li><a href="#installLib">Installation of libraries</a></li>
+								<li><a href="#runG2SServer">Execute the G2S server</a></li>
+								<li><a href="#efficentUse">How to efficiently use it</a></li>
+							</ul>
+						</ul>
+					</aside>
+				</div>
+			</aside>
+			<section id="main-content">
+
+				
+				<h1 id='briefOverview'>Brief overview</h1>
+				<p>This page provides some extra information on how to re G2S in a more practical and flexible way. This page I some note to myself too &#128513;</p>
+
+				<h1 id='serverAutostart'>Server autostart</h1>
+				<p>When running the server on a (powerfull worksation), it happens that when still need to reboot (e.g., update, power cut.... ). And it's really enjoying that we nee to login in to start again the server. In addition to machine reboots, it's still possible that the server crash (even if I did everything I can that it doesn’t happen &#128521)</p>
+
+				<p>On Linux machines it's possible to run software in background and automatically at a start-up. Here installation for Ubuntu, but it's very simple to adapt for other systems.</p>
+				<p>It exists many solutions to get to the expected result with cron, etc., but my favorite solution is with <code>systemd</code></p>
+
+				<ol>
+					<li>First follow the standard Linux installation.</li>
+					<li>Test if everything works correctly.</li>
+					
+					<li>We need to create a new service, let call it <code>G2S.service</code>, to do so create a new file <code>/etc/systemd/system/G2S.service</code></li>
+					<li>Past and complete : <pre><code>[Unit]
+Description=G2S service
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=tesla-k20c
+# update {pathToTheServer} with the path where "./server" is located,
+# intel-build or c++-build, regarding your choice 
+WorkingDirectory={pathToTheServer}
+# if you use the Intel version, you probably want to load the libraries
+# like : /bin/bash -c "source /opt/Intel/parallel_studio_xe_2019/bin/psxevars.sh intel64; ./server -kod -age 864000"
+ExecStart=/bin/bash -c "./server -kod -age 864000"
+# -age 864000	==> keep the file for 10 days
+# -kod		==> don't remove old files in case of reboot or crash
+
+[Install]
+WantedBy=multi-user.target</code></pre></li>
+					<li>start the service with <code>systemctl start G2S</code></li>
+					<li>Once everything works well, get it automatically started at boot with <code>systemctl enable G2S</code></li>
+					<li>Enjoy !</li>
+				</ol>
+				
+				<h1 id='cluster'>Cluster</h1>
+				<p>In this section I will do an overview of how to set up G2S on a cluster. In this mode the computation is not distributed through the cluster, but run in a single cluster node.</p>
+				<p> The installation on a cluster, can be a non-trivial task. Please don't hesitate to ask for help to the team that manage the cluster.</p>
+				<p>The installation can be highly dependent of what the cluster team allows you to do or not.</p>
+
+
+				<h2 id='installLib'>Installation of libraries</h2>
+				<p>In the best-case scenario fftw3 in installed in a non-standard path (not two clusters have the stuff at the same place. Why ? To make your life harder ! &#129322;). Potentially you can have the Intel compiler installed with all the libraries. Please refer to your cluster documentation for this.</p>
+
+				<p>Probably ZMQ is not installed, and don't expect that they will install it for you. And for sure jsoncpp is missing too. Because I know that life is hard I prepare a small script that downloads and compiles all this library for you, and even modify the Makefile for you.</p>
+
+				<ol>
+					<li>log in a computation node(or submit a task)</li>
+					<li>execute the script in <code> build/forClusters/compileExternalLibs.sh</code> (I assume that the front and the computational node are from the same generation, in other cases you can run in some unsupported instruction issue)</li>
+					<li>Wait until it's finished, take this time to pray &#128591; for the god of the clusters</li>
+				</ol>
+
+				<h2>Compilation of G2S</h2>
+				<p>The previous script updates the Makefile automatically, so refer to the standard Linux installation. ⚠️ Be careful to compile in a computational node and not on the front node, in other cases you can later have lots of painful issues</p>
+
+				<h2 id='runG2SServer' >Execute the G2S server</h2>
+				<p> Take a long brief and don't give up<strike>, it's almost finished</strike>!</p>
+				<p> Now the challenging part start and is highly dependent of how lucky you are and how much energy you want to spend to make it work. But losing some time now can make you win a lot later.</p>
+
+				<h3>Simple, ugly and inefficient solution</h3>
+				<p>The solution to use if you don't have queuing system. You don't? Are you sure to be on a cluster ?</p>
+				<ol>
+					<li>You simply start the G2S server on a node.</li>
+					<li>Once it running connects to the node using a ssh tunnel: <code>ssh -L 8128:theNodeName:8128 clusterAddress</code>, this will redirect your localhost to the computation node.</li>
+					<li>Then run any g2s computation like on your own computer.</li>
+					<li>Once you have all your computation finished shutdown the server with the '-shutdown' argument </li>
+					<li>⚠️ If this looks simple, in reality it's dangerous and relatively hard to use on a busy cluster. In fact, when you want to run the server you will probably finish in the waiting queue. If you pay the computation, you would be charged even no computation is used because the node is busy (waiting for jobs). And if you don’t pay, you still use resources that other people maybe need. Furthermore with this solution it's extremely difficult to distribute many jobs across all the cluster.</li>
+				</ol>
+
+
+				<h3>The way to go</h3>
+				<p>The goal here is to create a task for each simulation and to add it in the queue. Again each cluster is different, some use PBS (qsub), some SLURM(sbatch, srun),... (ok, it's not the place to debate about this). We need to convert each call to an algorithm to don't start the computation but instead to submit it in the queue.</p>
+				<p>⚠️ currently computation interruption does not work on some cluster Ctrl+C as well as <code>'-kill'</code>. Then you need to manage job interruption with the submission queue system. I will try to fix that when I have a moment, unfortunately it's not in my priority list.</p>
+				<ol>
+					<li>If you have a PBS or SLURM, check at the related file in the <code>forClusters</code> directory. If you use another system check on them and adapt for your situation. I will advise asking the cluster team to help you with this, and they are paid for that. (please contact mean <b>only</b> if they don't find out how to make it)</li>
+					<li>if needed, adapt <code>configureCluster.sh</code></li>
+					<li>execute <code>configureCluster.sh</code></li>
+					<li>Open a tunnel to the front node <code>ssh -L 8128:clusterAddress:8128 clusterAddress</code></li>
+					<li>start the server <code>./server -kod -age 864000</code> (adjust the 864000 regarding how long the file needs to be stored on the cluster (here 10 days))</li>
+					<li>Submit the jobs</li>
+					once all the jobs are submitted you can close the connection (it's possible that you run into trouble if you run many thousands of tasks at the same time, then keep the connection open)
+				</ol>
+
+				<h3>even better</h3>
+				<p>If you are lucky you would be able to keep the server running all the time on the front node. Then ....</p>
+				<p>You can try to run server in demons <code>-d</code>, if it's authorized. So you can always cut the connection even if you submit one million tasks at the same time.</p>
+				<p>Then... if you’re even luckier you can open a port on the front node (here 8128). Don't hesitate to ask the support if they can this favor to you. If you can, 1) invest in a good bottle of wine and gift it to the support department, seconde play lottery! <br> So, once the port is open and the server executed in as a deamon, you can close all the connection, and simply put the address of the front node in each call to g2s <code>'-sa',clusterAddress</code></p>
+
+				<h2 id='efficentUse' >How to efficiently use it</h2>
+				<p>
+					Once the server run on the front node use <code>'‑submitOnly'</code>,<code>'‑statusOnly'</code> and <code>'‑waitAndDownload'</code> to manage your computations.
+					The G2S server is coming with its own submission queue and dependency manager. By default because the dependencies are unknown, each job runs sequentially. To over pass this limitation we can simply specify dependency as :<code>'‑after',0</code>, that each job can start in parallel.
+				</p>
+				<p>A standard job submission should look like <code>id=g2s(... usualParameter,'‑statusOnly','‑after',0)</code>.<br> and to get the final result <code>sim=g2s('‑waitAndDownload',id)</code></p>
+				
+ 			</section>
+			<aside id="sidebar">
+
+				<!-- <a href="https://github.com/GAIA-UNIL/G2S/zipball/master" class="button">
+					<small>Download</small>
+					.zip file
+				</a>
+				<a href="https://github.com/GAIA-UNIL/G2S/tarball/master" class="button">
+					<small>Download</small>
+					.tar.gz file
+				</a>
+
+
+
+				<p class="repo-owner"><a href="https://github.com/GAIA-UNIL/G2S">G2S</a> is maintained by <a href="https://github.com/GAIA-UNIL/"> the GAIAlab from University of Lausanne</a>.</p>
+ -->
+			</aside>
+		</div>
+	</div>
+	<footer>
+
+	</footer>
+</body>
+</html>
