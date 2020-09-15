@@ -108,7 +108,7 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	{
 		FFTW_PRECISION(complex)* ptrCplx=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		_frenquencySpaceOutputArray.push_back(ptrCplx);
-		float* ptrReal=(dataType*)malloc(_realSpaceSize* sizeof(dataType));
+		float* ptrReal=(dataType_g2s*)malloc(_realSpaceSize* sizeof(dataType_g2s));
 		_realSpaceArray.push_back(ptrReal);
 	}
 
@@ -321,8 +321,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitShare
 	for (int i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
+		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
 		sharedMemoryAdress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 	
 		sharedMemory.push_back(sharedMemoryAdress);
@@ -331,7 +331,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitShare
 		#pragma omp critical (initPlan)
 		{
 			
-			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType*)sharedMemoryAdress.space, (FFTW_PRECISION(complex)*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
+			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType_g2s*)sharedMemoryAdress.space, (FFTW_PRECISION(complex)*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
 		}
 		FFTW_PRECISION(execute)(p);
 		FFTW_PRECISION(destroy_plan)(p);
@@ -352,7 +352,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::freeSharedMemory(
 
 //compute function
 
-dataType* OpenCLGPUDevice::getArray(unsigned arrayIndex){
+dataType_g2s* OpenCLGPUDevice::getArray(unsigned arrayIndex){
 	return _realSpaceArray[arrayIndex];
 }
 
@@ -365,7 +365,7 @@ float OpenCLGPUDevice::getValueAtPosition(unsigned arrayIndex, unsigned index){
 }
 
 
-dataType* OpenCLGPUDevice::getErrorsArray(){
+dataType_g2s* OpenCLGPUDevice::getErrorsArray(){
 	return _realSpaceArray.front();
 }
 
@@ -373,7 +373,7 @@ float OpenCLGPUDevice::getErrorAtPosition(unsigned index){
 	return _realSpaceArray.front()[index];
 }
 
-dataType* OpenCLGPUDevice::getCossErrorArray(){
+dataType_g2s* OpenCLGPUDevice::getCossErrorArray(){
 	return _realSpaceArray.back();
 }
 float OpenCLGPUDevice::getCroossErrorAtPosition(unsigned index){
@@ -463,7 +463,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 			if(!needTobeComputed) continue;
 
-			memset(_realSpaceArray[0],0,sizeof(dataType) * _realSpaceSize );
+			memset(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 			for (int i = 0; i < neighborArray.size(); ++i)
@@ -501,7 +501,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 					if (localCoef!=0.f)
 					{
 						unsigned shift=0;
-						g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutputArray[dataArrayIndex])+shift, ((dataType*)_srcCplx[varA].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, localCoef, std::min(_fftSpaceSize,_fftSpaceSize-shift));
+						g2s::complexAddAlphaxCxD(((dataType_g2s*)_frenquencySpaceOutputArray[dataArrayIndex])+shift, ((dataType_g2s*)_srcCplx[varA].fft)+shift, ((dataType_g2s*)_frenquencySpaceInput)+shift, localCoef, std::min(_fftSpaceSize,_fftSpaceSize-shift));
 					}
 				}
 			}
@@ -521,7 +521,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			err = clFinish(queue);
 			if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", 1002);
 
-			dataType* realSpace= _realSpaceArray[dataArrayIndex];
+			dataType_g2s* realSpace= _realSpaceArray[dataArrayIndex];
 			//Remove fobidden/wrong value
 			if (!_circularTI)
 			{
@@ -588,7 +588,7 @@ void OpenCLGPUDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	}
 
 	for (unsigned int i = 0; i < _realSpaceSize; ++i){
-		_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
+		_realSpaceArray[layer][i]*=((dataType_g2s*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
 
 		//-((1.f-[j])*1.1f)*FLT_MAX);
 	}

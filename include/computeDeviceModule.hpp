@@ -40,10 +40,10 @@ enum DeviceType
 
 //#if PRECISION == 1
 	//#define FFTW_PRECISION(Name) fftwf_##Name
-	#define dataType float
+	#define dataType_g2s float
 /*#else
 	//#define FFTW_PRECISION(Name) fftw_##Name
-	#define dataType double
+	#define dataType_g2s double
 #endif*/
 
 class ComputeDeviceModule
@@ -56,11 +56,11 @@ public:
 	virtual std::vector<g2s::spaceFrequenceMemoryAddress > allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
 	virtual std::vector<g2s::spaceFrequenceMemoryAddress > freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress > sharedMemoryAdress)=0;
 
-	virtual dataType* getErrorsArray()=0;
-	virtual dataType* getArray(unsigned)=0;
+	virtual dataType_g2s* getErrorsArray()=0;
+	virtual dataType_g2s* getArray(unsigned)=0;
 	virtual unsigned getErrorsArraySize()=0;
 	virtual unsigned getArraySize()=0;
-	virtual dataType* getCossErrorArray()=0;
+	virtual dataType_g2s* getCossErrorArray()=0;
 	virtual float getErrorAtPosition(unsigned)=0;
 	virtual float getValueAtPosition(unsigned, unsigned)=0;
 	virtual float getCroossErrorAtPosition(unsigned)=0;

@@ -71,16 +71,16 @@ void AcceleratorDevice::initDim(){
 
 //compute function
 
-dataType* AcceleratorDevice::getArray(unsigned arrayIndex){
+dataType_g2s* AcceleratorDevice::getArray(unsigned arrayIndex){
 	return nullptr;
 }
 
 
-dataType* AcceleratorDevice::getErrorsArray(){
+dataType_g2s* AcceleratorDevice::getErrorsArray(){
 	return nullptr;
 }
 
-dataType* AcceleratorDevice::getCossErrorArray(){
+dataType_g2s* AcceleratorDevice::getCossErrorArray(){
 	return nullptr;
 }
 

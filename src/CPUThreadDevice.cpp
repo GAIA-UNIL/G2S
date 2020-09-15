@@ -87,7 +87,7 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	{
 		FFTW_PRECISION(complex)* ptrCplx=(FFTW_PRECISION(complex)*)mem_malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		_frenquencySpaceOutputArray.push_back(ptrCplx);
-		float* ptrReal=(dataType*)mem_malloc(_realSpaceSize* sizeof(dataType));
+		float* ptrReal=(dataType_g2s*)mem_malloc(_realSpaceSize* sizeof(dataType_g2s));
 		_realSpaceArray.push_back(ptrReal);
 	}
 
@@ -183,8 +183,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 	for (size_t i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=mem_malloc(realSpaceSize * sizeof(dataType));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
+		sharedMemoryAdress.space=mem_malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
 		sharedMemoryAdress.fft=mem_malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		
 		sharedMemory.push_back(sharedMemoryAdress);
@@ -193,7 +193,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::allocAndInitShare
 		#pragma omp critical (initPlan)
 		{
 			
-			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType*)sharedMemoryAdress.space, (FFTW_PRECISION(complex)*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
+			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType_g2s*)sharedMemoryAdress.space, (FFTW_PRECISION(complex)*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
 		}
 		FFTW_PRECISION(execute)(p);
 		FFTW_PRECISION(destroy_plan)(p);
@@ -214,7 +214,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> CPUThreadDevice::freeSharedMemory(
 
 //compute function
 
-dataType* CPUThreadDevice::getArray(unsigned arrayIndex){
+dataType_g2s* CPUThreadDevice::getArray(unsigned arrayIndex){
 	return _realSpaceArray[arrayIndex];
 }
 
@@ -227,7 +227,7 @@ float CPUThreadDevice::getValueAtPosition(unsigned arrayIndex, unsigned index){
 }
 
 
-dataType* CPUThreadDevice::getErrorsArray(){
+dataType_g2s* CPUThreadDevice::getErrorsArray(){
 	return _realSpaceArray.front();
 }
 
@@ -235,7 +235,7 @@ float CPUThreadDevice::getErrorAtPosition(unsigned index){
 	return _realSpaceArray.front()[index];
 }
 
-dataType* CPUThreadDevice::getCossErrorArray(){
+dataType_g2s* CPUThreadDevice::getCossErrorArray(){
 	return _realSpaceArray.back();
 }
 float CPUThreadDevice::getCroossErrorAtPosition(unsigned index){
@@ -325,7 +325,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 			if(!needTobeComputed) continue;
 
-			memset(_realSpaceArray[0],0,sizeof(dataType) * _realSpaceSize );
+			memset(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 
 			for (size_t i = 0; i < neighborArray.size(); ++i)
@@ -369,7 +369,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 							//k=omp_get_thread_num();
 							#endif
 							unsigned shift=k*unsigned(ceil(_fftSpaceSize/float(_threadRatio)));
-							g2s::complexAddAlphaxCxD(((dataType*)_frenquencySpaceOutputArray[dataArrayIndex])+shift, ((dataType*)_srcCplx[varA].fft)+shift, ((dataType*)_frenquencySpaceInput)+shift, localCoef, std::min(_fftSpaceSize,_fftSpaceSize-shift));
+							g2s::complexAddAlphaxCxD(((dataType_g2s*)_frenquencySpaceOutputArray[dataArrayIndex])+shift, ((dataType_g2s*)_srcCplx[varA].fft)+shift, ((dataType_g2s*)_frenquencySpaceInput)+shift, localCoef, std::min(_fftSpaceSize,_fftSpaceSize-shift));
 						}
 					}
 				}
@@ -381,7 +381,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 		for (size_t dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
 		{
 			FFTW_PRECISION(execute_dft_c2r)(_pInv, _frenquencySpaceOutputArray[dataArrayIndex], _realSpaceArray[dataArrayIndex]);
-			dataType* realSpace= _realSpaceArray[dataArrayIndex];
+			dataType_g2s* realSpace= _realSpaceArray[dataArrayIndex];
 			//Remove fobidden/wrong value
 			if (!_circularTI)
 			{
@@ -449,7 +449,7 @@ void CPUThreadDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	}
 
 	for (unsigned int i = 0; i < _realSpaceSize; ++i){
-		_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
+		_realSpaceArray[layer][i]*=((dataType_g2s*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
 
 		//-((1.f-[j])*1.1f)*FLT_MAX);
 	}

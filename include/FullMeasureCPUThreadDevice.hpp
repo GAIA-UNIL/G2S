@@ -26,10 +26,10 @@
 #endif
 
 //#if PRECISION == 1
- #define dataType float
+ #define dataType_g2s float
 /*#else
  #define FFTW_PRECISION(Name) fftw_##Name
- #define dataType double
+ #define dataType_g2s double
 #endif*/
 
 
@@ -43,9 +43,9 @@ public:
 	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
 	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
 
-	dataType* getErrorsArray();
+	dataType_g2s* getErrorsArray();
 	unsigned getErrorsArraySize();
-	dataType* getCossErrorArray();
+	dataType_g2s* getCossErrorArray();
 	float getErrorAtPosition(unsigned);
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
@@ -55,8 +55,8 @@ private:
 
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
 
-	dataType* _realSpace=nullptr;
-	dataType* _realCrossSpace=nullptr;
+	dataType_g2s* _realSpace=nullptr;
+	dataType_g2s* _realCrossSpace=nullptr;
 
 
 	std::vector<int> _min,_max;// to init

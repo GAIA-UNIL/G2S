@@ -131,7 +131,7 @@ static PyObject *g2s_writeData(PyObject *self, PyObject *args, PyObject *keywds)
         return NULL;
     }
 	InerfaceTemplatePython3 inerfaceTemplatePython3;
-	g2s::DataImage image=inerfaceTemplatePython3.convertNativeMatrix2DataImage(std::any(pyImage),std::any(pyDataType));
+	g2s::DataImage image=inerfaceTemplatePython3.convertNativeMatrix2DataImage(std::any(pyImage),std::any(pydataType_g2s));
 	std::string filenameStr=inerfaceTemplatePython3.nativeToStandardString(std::any(filename));
 	image.write(filenameStr);
 #endif

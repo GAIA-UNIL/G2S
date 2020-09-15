@@ -26,10 +26,10 @@
 
 //#if PRECISION == 1
  #define FFTW_PRECISION(Name) fftwf_##Name
- #define dataType float
+ #define dataType_g2s float
 /*#else
  #define FFTW_PRECISION(Name) fftw_##Name
- #define dataType double
+ #define dataType_g2s double
 #endif*/
 
 

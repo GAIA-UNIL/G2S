@@ -253,7 +253,7 @@ NvidiaGPUAcceleratorDevice::NvidiaGPUAcceleratorDevice(int deviceId, SharedMemor
 		gpuErrchk( cudaMalloc(&ptrCplx,_fftSpaceSize * sizeof(cufftComplex)));
 		_frenquencySpaceOutputArray.push_back(ptrCplx);
 		float* ptrReal;
-		gpuErrchk( cudaMalloc(&ptrReal,_realSpaceSize* sizeof(dataType)));
+		gpuErrchk( cudaMalloc(&ptrReal,_realSpaceSize* sizeof(dataType_g2s)));
 		_realSpaceArray.push_back(ptrReal);
 	}
 
@@ -360,8 +360,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> NvidiaGPUAcceleratorDevice::allocA
 	for (size_t i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		gpuErrchk(cudaMalloc(&sharedMemoryAdress.space, realSpaceSize * sizeof(dataType)));
-		gpuErrchk(cudaMemcpyAsync(sharedMemoryAdress.space, srcMemoryAdress[i], realSpaceSize * sizeof(dataType), cudaMemcpyHostToDevice, _cudaLocalStream));
+		gpuErrchk(cudaMalloc(&sharedMemoryAdress.space, realSpaceSize * sizeof(dataType_g2s)));
+		gpuErrchk(cudaMemcpyAsync(sharedMemoryAdress.space, srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s), cudaMemcpyHostToDevice, _cudaLocalStream));
 		gpuErrchk(cudaMalloc(&sharedMemoryAdress.fft, fftSpaceSize * sizeof(cufftComplex)));
 		
 		sharedMemory.push_back(sharedMemoryAdress);
@@ -371,8 +371,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> NvidiaGPUAcceleratorDevice::allocA
 		cufftResult cufftError;
 		gpuErrchk(cufftPlan(&p,reverseFftSize.size(), reverseFftSize.data(),CUFFT_R2C));
 		gpuErrchk(cufftSetStream(p,_cudaLocalStream));
-		//FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType*)sharedMemoryAdress.space, (cufftComplex*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
-		gpuErrchk(cufftExecR2C(p, (dataType*)sharedMemoryAdress.space, (cufftComplex*)sharedMemoryAdress.fft));
+		//FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType_g2s*)sharedMemoryAdress.space, (cufftComplex*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
+		gpuErrchk(cufftExecR2C(p, (dataType_g2s*)sharedMemoryAdress.space, (cufftComplex*)sharedMemoryAdress.fft));
 		gpuErrchk(cufftDestroy(p));
 	}
 	return sharedMemory;
@@ -497,7 +497,7 @@ void NvidiaGPUAcceleratorDevice::computeFreqMismatchMap(std::vector<std::vector<
 		}
 		if(!needTobeComputed) return;
 
-		gpuErrchk(cudaMemsetAsync(_realSpaceArray[0],0,sizeof(dataType) * _realSpaceSize, _cudaLocalStream ));
+		gpuErrchk(cudaMemsetAsync(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize, _cudaLocalStream ));
 		gpuErrchk(cudaMemsetAsync(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(cufftComplex), _cudaLocalStream ));
 		
 		// for (int j = 0; j < _neighborArrayFlatted.size(); ++j)
@@ -558,7 +558,7 @@ void NvidiaGPUAcceleratorDevice::computeRealMissmatchAndRemoveWrongPattern(float
 		
 		gpuErrchk(cufftExecC2R(_pInv, _frenquencySpaceOutputArray[dataArrayIndex], _realSpaceArray[dataArrayIndex]));
 
-		dataType* realSpace= _realSpaceArray[dataArrayIndex];
+		dataType_g2s* realSpace= _realSpaceArray[dataArrayIndex];
 
 		//Remove fobidden/wrong value
 		if (!_circularTI)
@@ -622,12 +622,12 @@ void NvidiaGPUAcceleratorDevice::maskLayerWithVariable(unsigned layer, unsigned 
 		}
 	}
 
-	updateMask<<<(_realSpaceSize+255)/256, 256, 0, _cudaLocalStream >>>(_realSpaceArray[layer],(dataType*)_srcCplx[convertedVariable].space, _realSpaceSize,deltaCross);
+	updateMask<<<(_realSpaceSize+255)/256, 256, 0, _cudaLocalStream >>>(_realSpaceArray[layer],(dataType_g2s*)_srcCplx[convertedVariable].space, _realSpaceSize,deltaCross);
 	gpuErrchk(cudaPeekAtLastError());
 
 	//TODO : to remove missing data point
 	// for (unsigned int i = 0; i < _realSpaceSize; ++i){
-	// 	_realSpaceArray[layer][i]*=((dataType*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
+	// 	_realSpaceArray[layer][i]*=((dataType_g2s*)_srcCplx[convertedVariable].space)[(i+deltaCross)%_realSpaceSize];
 
 	// 	//-((1.f-[j])*1.1f)*FLT_MAX);
 	// }

@@ -80,8 +80,8 @@ std::vector<g2s::spaceFrequenceMemoryAddress> DirectMeasureCPUThreadDevice::allo
 	for (int i = 0; i < srcMemoryAdress.size(); ++i)
 	{
 		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType));
+		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
 		sharedMemoryAdress.fft=nullptr;
 	
 		sharedMemory.push_back(sharedMemoryAdress);
@@ -101,7 +101,7 @@ std::vector<g2s::spaceFrequenceMemoryAddress> DirectMeasureCPUThreadDevice::free
 
 //compute function
 
-dataType* DirectMeasureCPUThreadDevice::getErrorsArray(){
+dataType_g2s* DirectMeasureCPUThreadDevice::getErrorsArray(){
 	return nullptr;
 }
 
@@ -139,7 +139,7 @@ float DirectMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 	return error;
 }
 
-dataType* DirectMeasureCPUThreadDevice::getCossErrorArray(){
+dataType_g2s* DirectMeasureCPUThreadDevice::getCossErrorArray(){
 	return nullptr;
 }
 float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){

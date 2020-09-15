@@ -27,10 +27,10 @@
 
 //#if PRECISION == 1
  #define FFTW_PRECISION(Name) fftwf_##Name
- #define dataType float
+ #define dataType_g2s float
 /*#else
  #define FFTW_PRECISION(Name) fftw_##Name
- #define dataType double
+ #define dataType_g2s double
 #endif*/
 
 
@@ -44,11 +44,11 @@ public:
 	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
 	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
 
-	dataType* getErrorsArray();
-	dataType* getArray(unsigned);
+	dataType_g2s* getErrorsArray();
+	dataType_g2s* getArray(unsigned);
 	unsigned getErrorsArraySize();
 	unsigned getArraySize();
-	dataType* getCossErrorArray();
+	dataType_g2s* getCossErrorArray();
 	float getErrorAtPosition(unsigned);
 	float getValueAtPosition(unsigned, unsigned);
 	float getCroossErrorAtPosition(unsigned);
@@ -67,7 +67,7 @@ private:
 
 	FFTW_PRECISION(complex)* _frenquencySpaceInput=nullptr;
 	std::vector<FFTW_PRECISION(complex)*> _frenquencySpaceOutputArray;
-	std::vector<dataType*> _realSpaceArray;
+	std::vector<dataType_g2s*> _realSpaceArray;
 
 	FFTW_PRECISION(plan) _pInv;
 	FFTW_PRECISION(plan) _p;
