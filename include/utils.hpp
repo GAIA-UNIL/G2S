@@ -56,7 +56,7 @@ namespace g2s {
 		SILVERMAN
 	};
 
-	#define clamp( x,  a,  b) ( (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
+	//#define clamp( x,  a,  b) ( (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 
 	template <typename T>
 	struct positionVector2D{
