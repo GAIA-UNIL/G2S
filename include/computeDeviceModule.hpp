@@ -66,6 +66,7 @@ public:
 	virtual float getCroossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
 	virtual unsigned cvtPositionToIndex(unsigned)=0;
+	virtual void setValueInErrorArrayWithRadius(unsigned, float, float)=0;
 
 	virtual void maskCroossError()=0;
 	virtual void maskCroossErrorWithVariable(unsigned )=0;

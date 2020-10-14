@@ -684,7 +684,7 @@ public:
 				dataIndex++;
 				nbElement++;
 			}
-			if(maxOutput-2>nbElement) break;
+			if( nbElement-2 > maxOutput) break;
 		}
 
 		

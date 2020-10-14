@@ -54,6 +54,8 @@ public:
 	float getCroossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	unsigned cvtPositionToIndex(unsigned);
+
+	void setValueInErrorArrayWithRadius(unsigned, float, float);
 	void setTrueMismatch(bool value);
 
 	void maskCroossError();
@@ -61,6 +63,7 @@ public:
 	void maskLayerWithVariable(unsigned, unsigned );
 
 private:
+	void recursiveSetValueInRadius (unsigned position, float value, float radius2, unsigned level, unsigned distance2);
 	unsigned _threadRatio=1;
 
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;

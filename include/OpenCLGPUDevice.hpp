@@ -60,13 +60,14 @@ public:
 	unsigned cvtIndexToPosition(unsigned);
 	void setTrueMismatch(bool value);
 	unsigned cvtPositionToIndex(unsigned position);
+	void setValueInErrorArrayWithRadius(unsigned, float, float);
 
 	void maskCroossError();
 	void maskCroossErrorWithVariable(unsigned );
 	void maskLayerWithVariable(unsigned, unsigned );
 
 private:
-
+	void recursiveSetValueInRadius (unsigned position, float value, float radius2, unsigned level, unsigned distance2);
 	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
 
 	FFTW_PRECISION(complex)* _frenquencySpaceInput=nullptr;
