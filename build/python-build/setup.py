@@ -20,7 +20,7 @@ with open("README.md", "r") as fh:
 
 buildNumber=os.environ.get('GITHUB_RUN_NUMBER');
 versionExtention='';
-if buildNumber:
+if "Test" is in os.environ.get('GITHUB_WORKFLOW'):
 	versionExtention='.dev'+buildNumber;
 
 if(systemName=='Darwin' or systemName=='Linux'):
