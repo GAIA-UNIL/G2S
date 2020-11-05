@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.ubuntuOS }}
     strategy:
       matrix:
-        ubuntuOS: [ubuntu-18.04, ubuntu-latest]
+        ubuntuOS: [ubuntu-18.04, ubuntu-20.04, ubuntu-latest]
       fail-fast: false
     steps:
     - uses: actions/checkout@v1
@@ -42,9 +42,9 @@ jobs:
     - name: install requested macPort
       if : contains( matrix.packageManager, 'macPort' )
       run: |
-          curl -O https://distfiles.macports.org/MacPorts/MacPorts-2.5.4.tar.bz2
-          tar xf MacPorts-2.5.4.tar.bz2
-          cd MacPorts-2.5.4/
+          curl -O https://distfiles.macports.org/MacPorts/MacPorts-2.6.3.tar.bz2
+          tar xf MacPorts-2.6.3.tar.bz2
+          cd MacPorts-2.6.3/
           ./configure
           make -j
           sudo make install
