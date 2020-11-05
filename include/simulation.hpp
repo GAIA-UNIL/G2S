@@ -24,8 +24,8 @@
 #include <thread>
 
 
-void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
+void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -51,7 +51,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -59,6 +60,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
 		// 	continue;
 		// }
+
+		
+
 
 		unsigned moduleID=0;
 		#if _OPENMP
@@ -78,13 +82,40 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		if(withOnlyData) continue;
 
+		if(nii){
+			numberNeighbor.clear();
+			for (int i = 0; i < nii->_nbVariable; ++i)
+			{
+				numberNeighbor.push_back(int(nii->_data[currentCell*nii->_nbVariable+i]));
+			}
+		}
+
+		int kernelImageIndex=-1;
+
+		if(kii){
+			kernelImageIndex=int(kii->_data[currentCell*kii->_nbVariable+0]);
+		}
+
+		float localk=0.f;
+
+		if(kvi){
+			localk=kvi->_data[currentCell*kvi->_nbVariable+0];
+		}
+
 
 		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
+
+		bool needMoreNeighbours=false;
+		for (int l = 0; l < di._nbVariable; ++l)
+		{
+			needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+		}
+
 		{
 			unsigned positionSearch=0;
-			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
+			while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<pathPosition.size() )){
 				unsigned dataIndex;
 				std::vector<int> vectorInDi=pathPosition[positionSearch];
 				vectorInDi.resize(di._dims.size(),0);
@@ -117,6 +148,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 								data[i]=val;
 								cpt++;
 								numberOfNeighborsProVariable[i]++;
+								needMoreNeighbours=false;
+								for (int l = 0; l < di._nbVariable; ++l)
+								{
+									needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+								}
 							}else{
 								data[i]=std::nanf("0");
 							}
@@ -181,11 +217,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				reverseVector[i]*=-1;
 			}
 			TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,(ii!=nullptr ? int(ii->_data[currentCell]):-1));
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, (ii ? int(ii->_data[currentCell]):-1),(kii ? &(kernels[kernelImageIndex]):nullptr));
 		}else if(withDataInCenter){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,(ii!=nullptr ? int(ii->_data[currentCell]):-1));
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, (ii ? int(ii->_data[currentCell]):-1),(kii ? &(kernels[kernelImageIndex]):nullptr));
 		}else{
 
 			// sample from the marginal
@@ -275,8 +311,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	free(posterioryPath);
 }
 
-void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
+void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -302,8 +338,8 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -318,12 +354,39 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		unsigned currentVariable=currentCell%di._nbVariable;
 		unsigned currentPosition=currentCell/di._nbVariable;
 
+
+		if(nii){
+			numberNeighbor.clear();
+			for (int i = 0; i < nii->_nbVariable; ++i)
+			{
+				numberNeighbor.push_back(int(nii->_data[currentPosition*nii->_nbVariable+i]));
+			}
+		}
+
+		int kernelImageIndex=-1;
+
+		if(kii){
+			kernelImageIndex=int(kii->_data[currentPosition*kii->_nbVariable+currentVariable]);
+		}
+
+		float localk=0.f;
+
+		if(kvi){
+			localk=kvi->_data[currentCell*kvi->_nbVariable+currentVariable];
+		}
+
 		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 		std::vector<std::vector<int> > neighborArrayVector;
 		std::vector<std::vector<float> > neighborValueArrayVector;
+
+		bool needMoreNeighbours=false;
+		for (int l = 0; l < di._nbVariable; ++l)
+		{
+			needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+		}
 		{
 			unsigned positionSearch=0;
-			while((numberNeighbor.size()>1||(neighborArrayVector.size()<numberNeighbor[0]))&&(positionSearch<pathPosition.size())){
+			while((numberNeighbor.size()>1||needMoreNeighbours)&&(positionSearch<pathPosition.size())){
 				unsigned dataIndex;
 				std::vector<int> vectorInDi=pathPosition[positionSearch];
 				vectorInDi.resize(di._dims.size(),0);
@@ -361,6 +424,11 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 								data[i]=val;
 								cpt++;
 								numberOfNeighborsProVariable[i]++;
+								needMoreNeighbours=false;
+								for (int l = 0; l < di._nbVariable; ++l)
+								{
+									needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+								}
 							}else{
 								data[i]=std::nanf("0");
 							}
@@ -407,7 +475,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		if(neighborArrayVector.size()>1){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable ,(ii!=nullptr ? int(ii->_data[currentCell]):-1));
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable , localk, (ii ? int(ii->_data[currentCell]):-1),(kii ? &(kernels[kernelImageIndex]):nullptr));
 		}else{
 
 			// sample from the marginal

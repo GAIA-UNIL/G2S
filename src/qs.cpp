@@ -63,9 +63,13 @@ int main(int argc, char const *argv[]) {
 	char logFileName[2048]={0};
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
-	std::string kernelFileName;
+	std::vector<std::string> kernelFileName;
 	std::string simuationPathFileName;
 	std::string idImagePathFileName;
+
+	std::string numberOfNeigboursFileName;
+	std::string kernelIndexImageFileName;
+	std::string kValueImageFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -239,9 +243,13 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-di");
 
 	//look for -ki			: kernel image 
-	if (arg.count("-ki") ==1)
+	if (arg.count("-ki") > 0)
 	{
-		kernelFileName=arg.find("-ki")->second;
+		std::multimap<std::string, std::string>::iterator it;
+		for (it=arg.equal_range("-ki").first; it!=arg.equal_range("-ki").second; ++it)
+		{
+			kernelFileName.push_back(it->second);
+		}
 	}else{	
 		fprintf(reportFile,"non critical error : no kernel \n");
 	}
@@ -265,8 +273,26 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-ii");
 
+	//look for -ni			: image of neigbours
+	if (arg.count("-ni") ==1)
+	{
+		numberOfNeigboursFileName=arg.find("-ni")->second;
+	}
+	arg.erase("-ni");
 
+	//look for -ni			: image of neigbours
+	if (arg.count("-kii") ==1)
+	{
+		kernelIndexImageFileName=arg.find("-kii")->second;
+	}
+	arg.erase("-kii");
 
+	//look for -ni			: image of neigbours
+	if (arg.count("-kvi") ==1)
+	{
+		kValueImageFileName=arg.find("-kvi")->second;
+	}
+	arg.erase("-kvi");
 
 
 
@@ -479,7 +505,7 @@ int main(int argc, char const *argv[]) {
 
 	// precheck | check what is mandatory
 
-	if(nbNeighbors.size()<=0){
+	if(nbNeighbors.size()<=0 && numberOfNeigboursFileName.empty()){
 		run=false;
 		fprintf(reportFile, "%s\n", "number of neighbor parameter not valide" );
 	}
@@ -487,7 +513,8 @@ int main(int argc, char const *argv[]) {
 		run=false;
 		fprintf(reportFile, "%s\n", "threshold need to be seted" );
 	}*/
-	if(std::isnan(mer) && std::isnan(nbCandidate)){
+
+	if(std::isnan(mer) && std::isnan(nbCandidate) && kValueImageFileName.empty()){
 		run=false;
 		fprintf(reportFile, "%s\n", "maximum exploration ratio or numer of candidate need to be seted" );
 	}
@@ -532,13 +559,24 @@ int main(int argc, char const *argv[]) {
 
 	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimention augmentation, if the dimention is not good
 		augmentedDimentionSimulation=false;
-
-
-	g2s::DataImage kernel;
+	
 	g2s::DataImage simulationPath;
 	g2s::DataImage idImage;
+	g2s::DataImage numberOfNeigboursImage;
+	g2s::DataImage kernelIndexImage;
+	g2s::DataImage kValueImage;
 
-	if(kernelFileName.empty()) {
+	std::vector<g2s::DataImage > kernels;
+
+	for (size_t i = 0; i < kernelFileName.size(); ++i)
+	{
+		kernels.push_back(g2s::DataImage::createFromFile(kernelFileName[i]));
+		if(kernels[i]._dims.size()-1==TIs[0]._dims.size()){
+			kernels[i].convertFirstDimInVariable();
+		}
+	}
+
+	if(kernels.empty()) {
 		std::vector<unsigned> maxSize=TIs[0]._dims;
 		if(kernelSize!=-1){
 			for (size_t i = 0; i < maxSize.size(); ++i)
@@ -569,21 +607,15 @@ int main(int argc, char const *argv[]) {
 		{
 			kernelsTypeFG[i]=kernelTypeForGeneration;
 		}
-		kernel=g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas);
-	}
-	else {
-		kernel=g2s::DataImage::createFromFile(kernelFileName);
-		if(kernel._dims.size()-1==TIs[0]._dims.size()){
-			kernel.convertFirstDimInVariable();
-		}
+		kernels.push_back(g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas));
 	}
 
 	std::vector<std::vector<int> > pathPosition;
 	pathPosition.push_back(std::vector<int>(0));
-	for (size_t i = 0; i < kernel._dims.size(); ++i)
+	for (size_t i = 0; i < kernels[0]._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i]+1)/2;
+		int sizeInThisDim=(kernels[0]._dims[i]+1)/2;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (unsigned int k = 0; k < originalSize; ++k)
 		{
@@ -604,7 +636,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
+	g2s::DataImage wieghtKernel=kernels[0].emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
 		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
 		{
@@ -612,12 +644,12 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	if(searchDistance==g2s::KERNEL){
-		unsigned nbV=kernel._nbVariable;
+		unsigned nbV=kernels[0]._nbVariable;
 		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
 		{
 			for (unsigned int j = 0; j < nbV; ++j)
 			{
-				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
+				if(fabs(kernels[0]._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernels[0]._data[i*nbV+j]);
 			}
 		}
 	}
@@ -713,7 +745,7 @@ int main(int argc, char const *argv[]) {
 			if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
 		}
 		if(!dimAgree){
-			fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
+			fprintf(reportFile, "%s\n", "dimension between simulation path and destination grid disagree");
 			return 0;
 		}
 
@@ -759,6 +791,30 @@ int main(int argc, char const *argv[]) {
 	{
 		idImage=g2s::DataImage::createFromFile(idImagePathFileName);
 	}
+
+	if (!numberOfNeigboursFileName.empty())
+	{
+		numberOfNeigboursImage=g2s::DataImage::createFromFile(numberOfNeigboursFileName);
+	}
+
+	if (!kernelIndexImageFileName.empty())
+	{
+		kernelIndexImage=g2s::DataImage::createFromFile(kernelIndexImageFileName);
+	}
+
+	if (!kValueImageFileName.empty())
+	{
+		kValueImage=g2s::DataImage::createFromFile(kValueImageFileName);
+
+		if(std::isnan(nbCandidate))
+			nbCandidate=1.f;
+
+		for (int i = 0; i < kValueImage.dataSize(); ++i)
+		{
+			nbCandidate=std::max(nbCandidate,kValueImage._data[i]);
+		}
+	}
+
 
 
 	// init QS
@@ -858,8 +914,10 @@ int main(int argc, char const *argv[]) {
 	}
 
 	// correct the kernel to take in account categories
-	kernel=g2s::DataImage::offsetKernel4categories(kernel,numberDeComputedVariableProVariable);
-
+	for (int i = 0; i < kernels.size(); ++i)
+	{
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable);
+	}
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 	std::vector<g2s::OperationMatrix> coeficientMatrix;
@@ -930,7 +988,7 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,(kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 	// run QS
 
@@ -964,18 +1022,18 @@ int main(int argc, char const *argv[]) {
 	switch (st){
 		case fullSim:
 			fprintf(reportFile, "%s\n", "full sim");
-			simulationFull(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation);
 		break;
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector sim");
-			simulation(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, fullStationary, circularSimulation);
+			simulation(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation);
 		break;
 		case augmentedDimSim:
 			fprintf(reportFile, "%s\n", "augmented dimention sim");
-			simulationAD(reportFile, DI, TIs, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation);
+			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation);
 		break;
 	}
  

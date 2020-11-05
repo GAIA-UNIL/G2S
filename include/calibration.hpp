@@ -188,7 +188,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 					origin.TI=tiIndex;
 					origin.index=currentCell;
 					importIndex= samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,uniformDitributionOverSource(randomGenerator),
-						 origin, radius, moduleID, false, 0, -1,&(kernels[kernelIndex]));
+						 origin, radius, moduleID, false, 0, 0.f, -1,&(kernels[kernelIndex]));
 					
 					//fprintf(stderr, "local %d, best %d \n",currentCell ,importIndex[0].index);
 					fprintf(fp, "%d,%d,%d", densityIndex, kernelIndex, numberOfneihbours);

@@ -54,7 +54,7 @@ public:
 
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
 
 		if(moduleID>=_maxNumberOfElement.size()){
 			#pragma omp critical  (increaseSize_maxNumberOfElement)
@@ -72,6 +72,12 @@ public:
 			_maxNumberOfElement[moduleID]=numberElement;
 		}
 
+		g2s::DataImage* kernel=_kernel;
+
+		if(localKernel){
+			kernel=localKernel;
+		}
+
 		unsigned vectorSize=_cdmV[moduleID].size();
 		bool updated[vectorSize];
 		memset(updated,false,vectorSize);
@@ -83,9 +89,9 @@ public:
 		//	fprintf(stderr, "%s %d vs %d\n", "failure",_convertionTypeVector[0].size(),neighborValueArrayVector[0].size());
 
 		unsigned indexCenter=0;
-		for (int i =  _kernel->_dims.size()-1; i>=0 ; i--)
+		for (int i =  kernel->_dims.size()-1; i>=0 ; i--)
 		{
-			indexCenter=indexCenter*_kernel->_dims[i]+_kernel->_dims[i]/2;
+			indexCenter=indexCenter*kernel->_dims[i]+kernel->_dims[i]/2;
 		}
 
 		for (size_t i = 0; i < _convertionTypeVector.size(); ++i)
@@ -98,8 +104,8 @@ public:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
+							if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -108,9 +114,9 @@ public:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
-							//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+							//fprintf(stderr, "%d ==> %f\n", kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
+							if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -119,8 +125,8 @@ public:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
-							if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-								convertedNeighborValueArrayVector[k].push_back(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+							if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+								convertedNeighborValueArrayVector[k].push_back(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 							else
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
@@ -148,25 +154,25 @@ public:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
-									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
+									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
 								}
 							break;
 							case convertionType::P1:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
-									//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
-									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+									//fprintf(stderr, "%d ==> %f\n", kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
+									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 								}
 							break;
 							case convertionType::P2:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
-									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
+										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
 							break;
 							case convertionType::MinMinus1:

@@ -810,11 +810,11 @@ int main(int argc, char const *argv[]) {
 	
 	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement);
 	// run DS
-
+	std::vector<g2s::DataImage > kernels;
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs, TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	 seedForIndex, importDataIndex, nbNeighbors, categoriesValues, nbThreads,circularSimulation);
+	simulation(reportFile, DI, TIs,kernels , TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ), nullptr,
+	 seedForIndex, importDataIndex, nbNeighbors, nullptr, nullptr, categoriesValues, nbThreads,circularSimulation);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);

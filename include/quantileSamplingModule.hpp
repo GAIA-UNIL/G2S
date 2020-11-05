@@ -79,14 +79,17 @@ public:
 		}
 	};
 
-	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1){
+	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+
+		if(localk<=0.f)
+			localk=_k;
 
 		unsigned vectorSize=_cdmV[moduleID].size();
 		float *errors=_errors[moduleID];
 		unsigned* encodedPosition=_encodedPosition[moduleID];
-		int extendK=int(ceil(_k));
+		int extendK=int(ceil(localk));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
-		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, 0, moduleID, fullStationary, variableOfInterest, idTI4Sampling);
+		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, 0, moduleID, fullStationary, variableOfInterest, localk, idTI4Sampling, localKernel);
 		unsigned localPosition[extendK*vectorSize];
 		std::iota(localPosition,localPosition+extendK*vectorSize,0);
 		
@@ -99,7 +102,7 @@ public:
 		//fprintf(stderr, "%f\n", errors[0]);
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
-		unsigned slectedIndex=int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
+		unsigned slectedIndex=int(floor(seed*localk*(ceil(vectorSize/localk)/vectorSize)));
 		unsigned selectedTI=localPosition[slectedIndex]/extendK;
 		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
 		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
@@ -114,17 +117,20 @@ public:
 		return result;
 	}
 
-	std::vector<matchLocation> distribution(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+	std::vector<matchLocation> distribution(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+
+		if(localk<=0.f)
+			localk=_k;
 
 		unsigned vectorSize=_cdmV[moduleID].size();
-		int extendK=int(ceil(_k));
+		int extendK=int(ceil(localk));
 		//std::vector<float> errorsArray(extendK*3);
 		//float *errors=(float*)errorsArray.data();
 		float *errors=_errors[moduleID];
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 		unsigned* encodedPosition=_encodedPosition[moduleID];
 
-		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, verbatimRadius, moduleID, fullStationary, variableOfInterest, idTI4Sampling, localKernel);
+		determineDistribution(errors, encodedPosition, neighborArrayVector,neighborValueArrayVector, seed, verbatimRecord, verbatimRadius, moduleID, fullStationary, variableOfInterest, localk, idTI4Sampling, localKernel);
 
 		unsigned localPosition[extendK*vectorSize];
 		// std::iota(localPosition+idTI4Sampling*extendK,localPosition+(idTI4Sampling+1)*extendK,idTI4Sampling*extendK);
@@ -325,7 +331,11 @@ public:
 	}
 
 private:
-	inline void determineDistribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0.f, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+	inline void determineDistribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0.f, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+		
+		if(localk<=0.f)
+			localk=_k;
+
 		unsigned localNbThreadOverTI=_nbThreadOverTI;
 		unsigned vectorSize=_cdmV[moduleID].size();;
 		bool updated[vectorSize];
@@ -444,7 +454,7 @@ private:
 		if(fullStationary){
 			std::mt19937 generator;
 			generator.seed(floor(UINT_MAX*seed)-1);
-			for (int i = 0; i < vectorSize-ceil(vectorSize/_k); ++i)
+			for (int i = 0; i < vectorSize-ceil(vectorSize/localk); ++i)
 			{
 				toUpdate[i]=false;
 			}
@@ -464,7 +474,7 @@ private:
 			}
 		}
 
-		int extendK=int(ceil(_k));
+		int extendK=int(ceil(localk));
 		
 		//#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
