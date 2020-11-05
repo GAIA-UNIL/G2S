@@ -440,9 +440,9 @@ public:
 		}
 
 		for (auto it=outputs.begin(); it!=outputs.end(); ++it){
-    		if(it->second.type()==typeid(PyObject *)){
-    			Py_DECREF(std::any_cast<PyObject*>(it->second));
-    		}
+			if(it->second.type()==typeid(PyObject *)){
+				Py_DECREF(std::any_cast<PyObject*>(it->second));
+			}
 		}
 
 

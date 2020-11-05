@@ -6,26 +6,10 @@ on:
     - 'src_interfaces/python3_interface.cpp'
     - 'include_interfaces/inerfaceTemplate.hpp'
     - 'include_interfaces/python3_interface.hpp'
+    - '.github/workflows/pythonPublishTest.yml'
 
 jobs:
-  generate-build-number:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Generate build number
-      id: buildnumber
-      uses: einaregilsson/build-number@v2 
-      with:
-        token: ${{secrets.github_token}}
-    - name: Print new build number
-      run: echo "Build number is $BUILD_NUMBER"        
-    - name: Upload build number
-      uses: actions/upload-artifact@v1
-      with:
-        name: BUILD_NUMBER
-        path: BUILD_NUMBER
-
   deploy:
-    needs: generate-build-number
     name: Compile for ${{ matrix.os }} using ${{ matrix.python }}-${{ matrix.arch }} and upload on packages manager
     strategy:
       matrix:
@@ -40,13 +24,6 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Download build number
-      uses: actions/download-artifact@v1
-      with:
-        name: BUILD_NUMBER
-    - name: Restore build number
-      id: buildnumber
-      uses: einaregilsson/build-number@v2 
     - uses: actions/checkout@v1
     - name: Set up Python
       uses: actions/setup-python@v1
