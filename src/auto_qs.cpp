@@ -127,6 +127,7 @@ int main(int argc, char const *argv[]) {
 
 	unsigned maxNumberOfIteration=25000;
 	unsigned minNumberOfIteration=1000;
+	float metricPower=2;
 
 	float maxt=INFINITY;
 	std::vector<float> densityArray;
@@ -294,6 +295,12 @@ int main(int argc, char const *argv[]) {
 		maxt=atof((arg.find("-maxt")->second).c_str());
 	}
 	arg.erase("-maxt");
+
+	if (arg.count("-mpow") == 1)
+	{
+		metricPower=atof((arg.find("-mpow")->second).c_str());
+	}
+	arg.erase("-mpow");
 
 	if (arg.count("-densities") > 0)
 	{
@@ -639,14 +646,14 @@ int main(int argc, char const *argv[]) {
 	if(fullSimulation) st=fullSim;
 
 	switch (st){
-		case fullSim:
-			fprintf(reportFile, "%s\n", "full calib");
-			calibrationFull(reportFile, TIs, kernels, QSM, pathPosition, maxNbNeihbours,  categoriesValues, nbThreads );
-			break;
+		// case fullSim:
+		// 	fprintf(reportFile, "%s\n", "full calib");
+		// 	calibrationFull(reportFile, TIs, kernels, QSM, pathPosition, maxNbNeihbours,  categoriesValues, nbThreads );
+		// 	break;
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector calib");
 			calibration(reportFile, meanErrorimage, devErrorimage, numberOFsampleimage, TIs, kernels, QSM, pathPosition, 
-					maxNbNeihbours, densityArray, categoriesValues, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
+					maxNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
 			break;
 	}
 

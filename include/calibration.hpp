@@ -28,7 +28,7 @@
 
 void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &DevErrorimage, g2s::DataImage &NumberOFsampleimage, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels,
  	QuantileSamplingModule &samplingModule, std::vector<std::vector<int> > &pathPosition, std::vector<unsigned> maxNumberNeighbor, std::vector<float> &densityArray, std::vector<std::vector<float> > categoriesValues, 
- 	unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY){
+ 	float power, unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY){
 
 	int maxK=MeanErrorimage._types.size();
 	float radius=20;
@@ -65,7 +65,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 	auto startTime = std::chrono::high_resolution_clock::now();
 
 	std::atomic<bool> stop(false);
-	#pragma omp parallel num_threads(nbThreads)  default(none) firstprivate(minNumberOfIteration, maxT, startTime, maxNumberOfIteration, logFile, seed, computeArraySize,densityArray,\
+	#pragma omp parallel num_threads(nbThreads)  default(none) firstprivate(power, minNumberOfIteration, maxT, startTime, maxNumberOfIteration, logFile, seed, computeArraySize,densityArray,\
 	 	circularSim, numberOfVariable,categoriesValues, radius, cumulattedError, maxK, cumulattedSquaredError, numberOfSampling, bestProDensity, devBestProDensity ) \
 		shared(maxNumberNeighbor, samplingModule, pathPosition, TIs , kernels,stop)
 	{
@@ -194,7 +194,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 					fprintf(fp, "%d,%d,%d", densityIndex, kernelIndex, numberOfneihbours);
 					for (int i = 0; i < importIndex.size(); ++i)
 					{
-						double error=std::fabs(TIs[importIndex[i].TI]._data[importIndex[i].index]-TIs[tiIndex]._data[currentCell]);
+						double error=std::powf(std::fabs(TIs[importIndex[i].TI]._data[importIndex[i].index]-TIs[tiIndex]._data[currentCell]),power);
 						//fprintf(stderr, "%d\n", importIndex[i].index);
 						fprintf(fp, ",%f", error);
 						cumulattedError[setupIndex*maxK+i]+=error;
@@ -240,8 +240,9 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 	// #pragma omp parallel for num_threads(nbThreads)  default(none)
 	for (int i = 0; i < arraySize; ++i)
 	{
-		MeanErrorimage._data[i]=cumulattedError[i]/numberOfSampling[i];
-		DevErrorimage._data[i]=sqrt(cumulattedSquaredError[i]/numberOfSampling[i]-MeanErrorimage._data[i]*MeanErrorimage._data[i]);
+		float localMeanValue=cumulattedError[i]/numberOfSampling[i];
+		MeanErrorimage._data[i]=std::pow(localMeanValue,1/power);
+		DevErrorimage._data[i]=std::pow(cumulattedSquaredError[i]/numberOfSampling[i]-localMeanValue*localMeanValue,0.5/power);
 		((unsigned*) (NumberOFsampleimage._data))[i]=numberOfSampling[i];
 	}
 
