@@ -394,8 +394,8 @@ public:
 			return Py_None;
 		}
 
-		int nlhs=std::min(numberOfOutput,std::max(int(outputs.size())-1,1));
-		//printf("requested output %d\n",nlhs);
+		int nlhs=std::min(numberOfOutput,std::max(int(outputs.size()),1));
+		// printf("requested output %d\n",nlhs);
 		PyObject* pyResult=PyTuple_New(nlhs);
 		int position=0;
 		for (int i=0; i < nlhs; ++i)
@@ -406,7 +406,7 @@ public:
 				PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));
 				Py_INCREF(PyTuple_GetItem(pyResult,position));
 				position++;
-			}else break;
+			}
 		}
 
 		if(position<nlhs){
@@ -445,8 +445,7 @@ public:
 			}
 		}
 
-
-		if(nlhs==1){
+		if((nlhs==1) && (numberOfOutput==INT_MAX) && (PyTuple_Size(pyResult)==1 )){
 			PyObject* pyResultUnique=PyTuple_GetItem(pyResult,0);
 			Py_INCREF(pyResultUnique);
 			Py_DECREF(pyResult);
