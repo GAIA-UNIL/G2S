@@ -194,7 +194,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 					fprintf(fp, "%d,%d,%d", densityIndex, kernelIndex, numberOfneihbours);
 					for (int i = 0; i < importIndex.size(); ++i)
 					{
-						double error=std::powf(std::fabs(TIs[importIndex[i].TI]._data[importIndex[i].index]-TIs[tiIndex]._data[currentCell]),power);
+						double error=std::pow(std::fabs(TIs[importIndex[i].TI]._data[importIndex[i].index]-TIs[tiIndex]._data[currentCell]),power);
 						//fprintf(stderr, "%d\n", importIndex[i].index);
 						fprintf(fp, ",%f", error);
 						cumulattedError[setupIndex*maxK+i]+=error;
