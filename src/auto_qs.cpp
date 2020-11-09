@@ -64,6 +64,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> kernelFileName;
 	std::string simuationPathFileName;
 	std::string idImagePathFileName;
+	std::string listNumberNeigboursFilename;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -260,6 +261,12 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-maxN");
 
+	if (arg.count("-nl") == 1)
+	{
+		listNumberNeigboursFilename=arg.find("-nl")->second;
+	}
+	arg.erase("-nl");
+
 	if (arg.count("-maxIter") == 1)
 	{
 		maxNumberOfIteration=atoi((arg.find("-maxIter")->second).c_str());
@@ -386,9 +393,6 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile, "simulation interupted !!\n");
 		return 0;
 	}
-
-	if(maxNbNeihbours.size()<1)
-		maxNbNeihbours.push_back(150);
 
 #if _OPENMP
 	//omp_set_num_threads(nbThreads);
@@ -621,6 +625,35 @@ int main(int argc, char const *argv[]) {
 		densityArray.push_back(0.5000);
 	}
 
+	std::vector<std::vector<unsigned> > listNbNeihbours;
+	if(listNumberNeigboursFilename.empty()){
+		if(maxNbNeihbours.size()<1)
+			maxNbNeihbours.push_back(80);
+		for (int i = 1; i < maxNbNeihbours[0]; ++i)
+		{
+			std::vector<unsigned> aNConfig(maxNbNeihbours.size());
+			for (int j = 0; j < maxNbNeihbours.size(); ++j)
+			{
+				aNConfig[j]=unsigned(round(i*maxNbNeihbours[j]/maxNbNeihbours[0]));
+			}
+			listNbNeihbours.push_back(aNConfig);
+		}
+	}
+	else
+	{
+		g2s::DataImage neighboursImage=g2s::DataImage::createFromFile(listNumberNeigboursFilename);
+		listNbNeihbours.reserve(neighboursImage.dataSize()/neighboursImage._nbVariable);
+		for (int i = 0; i < neighboursImage.dataSize()/neighboursImage._nbVariable; ++i)
+		{
+			std::vector<unsigned> aNConfig(neighboursImage._nbVariable);
+			for (int j = 0; j < neighboursImage._nbVariable; ++j)
+			{
+				aNConfig[j]=unsigned(neighboursImage._data[i*neighboursImage._nbVariable+j]);
+			}
+			listNbNeihbours.push_back(aNConfig);
+		}
+	}
+
 	// fprintf(stderr, "Density : " );
 	// for (int i = 0; i < densityArray.size(); ++i)
 	// {
@@ -629,7 +662,7 @@ int main(int argc, char const *argv[]) {
 	// fprintf(stderr, "\n");
 
 	std::vector<unsigned> dims;
-	dims.push_back(maxNbNeihbours[0]);
+	dims.push_back(listNbNeihbours.size());
 	dims.push_back(kernels.size());
 	dims.push_back(densityArray.size());
 
@@ -653,7 +686,7 @@ int main(int argc, char const *argv[]) {
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector calib");
 			calibration(reportFile, meanErrorimage, devErrorimage, numberOFsampleimage, TIs, kernels, QSM, pathPosition, 
-					maxNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
+					listNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
 			break;
 	}
 

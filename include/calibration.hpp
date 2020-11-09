@@ -27,7 +27,7 @@
 
 
 void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &DevErrorimage, g2s::DataImage &NumberOFsampleimage, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels,
- 	QuantileSamplingModule &samplingModule, std::vector<std::vector<int> > &pathPosition, std::vector<unsigned> maxNumberNeighbor, std::vector<float> &densityArray, std::vector<std::vector<float> > categoriesValues, 
+ 	QuantileSamplingModule &samplingModule, std::vector<std::vector<int> > &pathPosition, std::vector<std::vector<unsigned> > listNbNeihbours, std::vector<float> &densityArray, std::vector<std::vector<float> > categoriesValues, 
  	float power, unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY){
 
 	int maxK=MeanErrorimage._types.size();
@@ -49,7 +49,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 		devBestProDensity[i]=0;
 	}
 
-	size_t computeArraySize=densityArray.size()*maxNumberNeighbor[0]*kernels.size();
+	size_t computeArraySize=densityArray.size()*listNbNeihbours.size()*kernels.size();
 	size_t arraySize=maxK*computeArraySize;
 	double *cumulattedError=(double*)malloc(sizeof(double)*arraySize);
 	memset(cumulattedError,0,sizeof(double)*arraySize);
@@ -66,8 +66,8 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 
 	std::atomic<bool> stop(false);
 	#pragma omp parallel num_threads(nbThreads)  default(none) firstprivate(power, minNumberOfIteration, maxT, startTime, maxNumberOfIteration, logFile, seed, computeArraySize,densityArray,\
-	 	circularSim, numberOfVariable,categoriesValues, radius, cumulattedError, maxK, cumulattedSquaredError, numberOfSampling, bestProDensity, devBestProDensity ) \
-		shared(maxNumberNeighbor, samplingModule, pathPosition, TIs , kernels,stop)
+	 	circularSim, numberOfVariable,categoriesValues, radius, cumulattedError, maxK, cumulattedSquaredError, numberOfSampling, bestProDensity, devBestProDensity) \
+		shared(listNbNeihbours, samplingModule, pathPosition, TIs , kernels,stop)
 	{
 
 
@@ -92,31 +92,32 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 			// }
 			
 			
-			#pragma omp for schedule(dynamic,1) nowait
+			#pragma omp for schedule(dynamic,1)
 			for (int setupIndex = 0; setupIndex < computeArraySize; ++setupIndex)
 			{
 
 				unsigned val=setupIndex;
 
-				unsigned numberOfneihbours=val % maxNumberNeighbor[0]+2;
-				val/=maxNumberNeighbor[0];
+				unsigned numberOfneihbours=val % listNbNeihbours.size();
+				val/=listNbNeihbours.size();
 				unsigned kernelIndex=val % kernels.size();
 				val/=kernels.size();
 				unsigned densityIndex=val % densityArray.size();
 				val/=densityArray.size();			
 
-				float localErrorBefore=cumulattedError[setupIndex*maxK]/numberOfSampling[setupIndex*maxK];
-				float localDevBefore=sqrt(cumulattedSquaredError[setupIndex*maxK]/numberOfSampling[setupIndex*maxK]-localErrorBefore*localErrorBefore);
+
+				float localErrorBefore=std::pow(cumulattedError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0],1/power);
+				float localDevBefore=std::pow(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorBefore*localErrorBefore,0.5/power);
 
 				float nbSigmas=1;
 
-				if( (iteration>minNumberOfIteration) && ((localErrorBefore-nbSigmas*localDevBefore) > (bestProDensity[densityIndex]+nbSigmas*devBestProDensity[densityIndex]) )){
+				if( (numberOfSampling[setupIndex*maxK+0]>minNumberOfIteration) && ((localErrorBefore-nbSigmas*localDevBefore) > (bestProDensity[densityIndex]+nbSigmas*devBestProDensity[densityIndex]) )){
 					continue;
 				}
 
 				// fprintf(logFile, "%d, ",densityIndex );
 				float density=densityArray[densityIndex];
-				std::vector<unsigned> numberNeighbor={numberOfneihbours};
+				std::vector<unsigned> numberNeighbor=listNbNeihbours[numberOfneihbours];
 
 				int tiIndex=int(floor(uniformDitributionOverSource(randomGenerator)*TIs.size()));
 				auto ti=&TIs[tiIndex];
@@ -191,20 +192,20 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						 origin, radius, moduleID, false, 0, 0.f, -1,&(kernels[kernelIndex]));
 					
 					//fprintf(stderr, "local %d, best %d \n",currentCell ,importIndex[0].index);
-					fprintf(fp, "%d,%d,%d", densityIndex, kernelIndex, numberOfneihbours);
+					// fprintf(fp, "%d,%d,%d", densityIndex, kernelIndex, numberOfneihbours);
 					for (int i = 0; i < importIndex.size(); ++i)
 					{
 						double error=std::pow(std::fabs(TIs[importIndex[i].TI]._data[importIndex[i].index]-TIs[tiIndex]._data[currentCell]),power);
 						//fprintf(stderr, "%d\n", importIndex[i].index);
-						fprintf(fp, ",%f", error);
+						// fprintf(fp, ",%f", error);
 						cumulattedError[setupIndex*maxK+i]+=error;
 						cumulattedSquaredError[setupIndex*maxK+i]+=error*error;
 						numberOfSampling[setupIndex*maxK+i]++;
 					}
 
-					fprintf(fp, "\n");
+					// fprintf(fp, "\n");
 
-					float localErrorAfter=cumulattedError[setupIndex*maxK]/numberOfSampling[setupIndex*maxK];
+					float localErrorAfter=cumulattedError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0];
 					if(localErrorBefore>localErrorAfter){
 						float bestInDensity;
 						#pragma omp atomic read
@@ -212,8 +213,8 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						if(bestInDensity>localErrorAfter){
 							#pragma omp critical (updateBestProDensity)
 							{
-								bestProDensity[densityIndex]=std::min(bestProDensity[densityIndex],localErrorAfter);
-								devBestProDensity[densityIndex]=sqrt(cumulattedSquaredError[setupIndex*maxK]/numberOfSampling[setupIndex*maxK]-bestProDensity[densityIndex]*bestProDensity[densityIndex]);
+								bestProDensity[densityIndex]=std::pow(localErrorAfter,1/power);
+								devBestProDensity[densityIndex]=std::pow(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorAfter*localErrorAfter,0.5/power);
 							}
 
 						}
