@@ -18,10 +18,9 @@ is_64bits = sys.maxsize > 2**32;
 with open("README.md", "r") as fh:
 	long_description = fh.read()
 
-buildNumber=os.environ.get('BUILD_NUMBER');
 versionExtention='';
-if buildNumber:
-	versionExtention='.dev'+buildNumber;
+if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
+	versionExtention='.dev'+os.environ.get('GITHUB_RUN_NUMBER','');
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
@@ -47,7 +46,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			'Programming Language :: Python :: 3 :: Only'
 		],
 		ext_package = 'g2s',
-		ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp"],
+		ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","../../src/DataImage.cpp"],
 			language="c++", 
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],

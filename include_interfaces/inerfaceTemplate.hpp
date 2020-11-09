@@ -159,8 +159,8 @@ public:
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
 		auto dataTypeVariable=input.find("-dt");
-		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di"};
-		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii"};
+		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
+		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())
 				if(isDataMatrix(it->second)){
@@ -629,7 +629,7 @@ public:
 		//look for imageData result
 		int dataIndex=1;
 		int nbElement=0;
-		while(true){
+		while(waitAndDownload){
 			char nameFile_local[65]={0};
 			sprintf(nameFile_local,"im_%d_%u",dataIndex,id);
 
@@ -684,7 +684,7 @@ public:
 				dataIndex++;
 				nbElement++;
 			}
-			if( nbElement-2 > maxOutput) break;
+			if(maxOutput-1<nbElement) break;
 		}
 
 		
