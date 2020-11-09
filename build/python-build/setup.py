@@ -18,10 +18,9 @@ is_64bits = sys.maxsize > 2**32;
 with open("README.md", "r") as fh:
 	long_description = fh.read()
 
-buildNumber=os.environ.get('GITHUB_RUN_NUMBER');
 versionExtention='';
-if "Test" in os.environ.get('GITHUB_WORKFLOW'):
-	versionExtention='.dev'+buildNumber;
+if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
+	versionExtention='.dev'+os.environ.get('GITHUB_RUN_NUMBER','');
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util

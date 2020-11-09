@@ -159,7 +159,7 @@ public:
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
 		auto dataTypeVariable=input.find("-dt");
-		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di"};
+		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
 		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())

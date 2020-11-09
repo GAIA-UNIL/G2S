@@ -86,11 +86,11 @@ public:
 	void sendError(std::string val){
 		if(_save){
 			lockThread();
-			PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
+			PyErr_Format(PyExc_Exception,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
 			throw "G2S interrupt";
 			//unlockThread();
 		}else{
-			PyErr_Format(PyExc_KeyboardInterrupt,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
+			PyErr_Format(PyExc_Exception,"%s ==> %s","g2s:error", val.c_str()); //PyExc_Exception
 			throw "G2S interrupt";
 		}
 
@@ -156,6 +156,8 @@ public:
 		if(variableTypeArray)nbOfVariable=PyArray_SIZE(variableTypeArray);
 		int dimData = PyArray_NDIM(prh)-(nbOfVariable>1);
 		const npy_intp * dim_array = PyArray_DIMS(prh);
+		if(nbOfVariable>1 && dim_array[dimData]!=nbOfVariable)
+			sendError("Last dimension of the inputed matrix do not fit dt parameter size");
 		unsigned *dimArray=new unsigned[dimData];
 		for (int i = 0; i < dimData; ++i)
 		{
@@ -383,6 +385,52 @@ public:
 				addInputsToInputsMap(inputs,std::string("-")+std::string(PyUnicode_AsUTF8(key)),value);
 			}
 		}
+
+		// manage '-dt'
+		PyObject* dt=std::any_cast<PyObject*>(inputs.find("-dt")->second);
+		if(!PyArray_Check(dt)){
+			PyObject* list=PyList_New(inputs.count("-dt"));
+			int i=0;
+			for (auto it=inputs.equal_range("-dt").first; it!=inputs.equal_range("-dt").second; ++it)
+			{
+				PyList_SetItem(list,i,std::any_cast<PyObject*>(it->second));
+				i++;
+			}
+			inputs.erase("-dt");
+			addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,NULL, 1,1, 0, NULL));
+		}
+		// fprintf(stderr, "%d\n", inputs.count("-dt"));
+		// if(inputs.count("-dt")==1){
+		// 	fprintf(stderr, "%s\n", inputs.find("-dt")->second.type().name());
+		// 	PyObject* dt=std::any_cast<PyObject*>(inputs.find("-dt")->second);
+		// 	if(!PyArray_Check(dt)){
+		// 		PyObject* newDt=PyArray_FromAny(dt,NULL, 1,1, 0, NULL);
+		// 		inputs.find("-dt")->second=newDt;
+		// 		PyObject* objectsRepresentation = PyObject_Repr(newDt);
+		// 		fprintf(stderr, "%s\n", PyUnicode_AsUTF8(objectsRepresentation));
+		// 	}
+		// }else{
+		// 	fprintf(stderr, "%s\n", inputs.find("-dt")->second.type().name());
+		// 	PyObject* dt=std::any_cast<PyObject*>(inputs.find("-dt")->second);
+			
+		// 	PyObject* objectsRepresentation = PyObject_Repr(dt);
+		// 	fprintf(stderr, "%s\n", PyUnicode_AsUTF8(objectsRepresentation));
+
+		// 	// if(!PyArray_Check(dt)){
+		// 	// 	PyObject* newDt=PyArray_FromAny(&dt,NULL, 1,1, 0, NULL);
+				
+		// 	// 	PyObject* objectsRepresentation = PyObject_Repr(newDt);
+		// 	// 	fprintf(stderr, "%s\n", PyUnicode_AsUTF8(&dt));
+
+		// 	// 	// fprintf(stderr, "%d\n",PyArray_NDIM(newDt) );
+		// 	// 	// for (int i = 0; i < PyArray_NDIM(newDt); ++i)
+		// 	// 	// {
+		// 	// 	// 	fprintf(stderr, "%d\n", PyArray_DIMS(newDt)[i]);
+		// 	// 	// }
+		// 	// 	inputs.find("-dt")->second=newDt;
+		// 	// }
+		// }
+
 
 		try{
 			runStandardCommunication(inputs, outputs, numberOfOutput);

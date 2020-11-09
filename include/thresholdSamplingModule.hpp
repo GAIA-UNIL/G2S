@@ -220,7 +220,7 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=-_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
+				float loaclError=_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
 
 				if(loaclError<bestValue){
 					bestValue=loaclError;
@@ -241,7 +241,7 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=-(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
+				float loaclError=(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
 
 				if(std::isnan(loaclError))continue;
 

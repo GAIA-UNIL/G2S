@@ -144,6 +144,8 @@ public:
 		if(variableTypeArray)nbOfVariable=mxGetNumberOfElements(variableTypeArray);
 		int dimData = mxGetNumberOfDimensions(prh)-(nbOfVariable>1);
 		const size_t * dim_array = mxGetDimensions(prh);
+		if(nbOfVariable>1 && dim_array[dimData]!=nbOfVariable)
+			sendError("Last dimension of the inputed matrix do not fit dt parameter size");
 		unsigned *dimArray=(unsigned *)malloc(sizeof(unsigned)*dimData);
 		for (int i = 0; i < dimData; ++i)
 		{
