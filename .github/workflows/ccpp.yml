@@ -50,7 +50,7 @@ jobs:
           sudo make install
           export PATH=$PATH:/opt/local/bin
           sudo port -v selfupdate
-          sudo port install zmq-devel jsoncpp-devel zlib cppzmq fftw-3 fftw-3-single curl
+          sudo port install zmq-devel jsoncpp zlib cppzmq fftw-3 fftw-3-single curl
     - name: install requested Homebrew
       if : contains( matrix.packageManager, 'Brew' )
       run: |
