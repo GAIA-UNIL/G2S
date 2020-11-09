@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - master
-    paths:
-      - '.github/workflows/pythonPublishTest.yml'
     paths-ignore:
       - 'example/**'
       - '.github/**'
+      - '!.github/workflows/ccpp.yml'
 
 jobs:
   Ubuntu-build:
