@@ -31,7 +31,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
  	float power, unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY){
 
 	int maxK=MeanErrorimage._types.size();
-	float radius=20;
+	float radius=std::pow((TIs[0].dataSize() / TIs[0]._nbVariable)*0.005,1.f/TIs[0]._dims.size());
 	
 	bool circularSim=false;
 
@@ -106,10 +106,10 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 				val/=densityArray.size();			
 
 
-				float localErrorBefore=std::pow(cumulattedError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0],1/power);
-				float localDevBefore=std::pow(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorBefore*localErrorBefore,0.5/power);
+				float localErrorBefore=cumulattedError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0];
+				float localDevBefore=sqrt(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorBefore*localErrorBefore);
 
-				float nbSigmas=1;
+				float nbSigmas=1/power;
 
 				if( (numberOfSampling[setupIndex*maxK+0]>minNumberOfIteration) && ((localErrorBefore-nbSigmas*localDevBefore) > (bestProDensity[densityIndex]+nbSigmas*devBestProDensity[densityIndex]) )){
 					continue;
@@ -213,8 +213,8 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						if(bestInDensity>localErrorAfter){
 							#pragma omp critical (updateBestProDensity)
 							{
-								bestProDensity[densityIndex]=std::pow(localErrorAfter,1/power);
-								devBestProDensity[densityIndex]=std::pow(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorAfter*localErrorAfter,0.5/power);
+								bestProDensity[densityIndex]=localErrorAfter;
+								devBestProDensity[densityIndex]=sqrt(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorAfter*localErrorAfter);
 							}
 
 						}
