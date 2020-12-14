@@ -76,10 +76,10 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 			moduleID=omp_get_thread_num();
 		#endif
 
-		FILE *fp;
-		char fileName[2048];
-		sprintf(fileName,"measure_%d.csv",moduleID);
-		fp=fopen(fileName, "w");
+		// FILE *fp;
+		// char fileName[2048];
+		// sprintf(fileName,"measure_%d.csv",moduleID);
+		// fp=fopen(fileName, "w");
 		
 		std::mt19937 randomGenerator(seed+moduleID);
 		std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
@@ -156,7 +156,13 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						}
 						positionSearch++;
 					}
+					if(positionSearch>=pathPosition.size())
+					{
+						continue;
+					}
 				}
+				
+
 				// conversion from one variable to many
 				for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
 				{
@@ -235,7 +241,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 
 			iteration++;
 		}
-		fclose(fp);
+		// fclose(fp);
 	}
 
 	// #pragma omp parallel for num_threads(nbThreads)  default(none)
