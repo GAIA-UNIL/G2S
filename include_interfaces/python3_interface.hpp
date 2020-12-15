@@ -387,8 +387,7 @@ public:
 		}
 
 		// manage '-dt'
-		PyObject* dt=std::any_cast<PyObject*>(inputs.find("-dt")->second);
-		if(!PyArray_Check(dt)){
+		if(inputs.count("-dt")>0 && !PyArray_Check(std::any_cast<PyObject*>(inputs.find("-dt")->second))){
 			PyObject* list=PyList_New(inputs.count("-dt"));
 			int i=0;
 			for (auto it=inputs.equal_range("-dt").first; it!=inputs.equal_range("-dt").second; ++it)

@@ -58,6 +58,10 @@ class DataImage{
 		_data=nullptr;
 	}
 
+	inline bool isEmpty(){
+		return _types.size()==0;
+	}
+
 	inline DataImage(unsigned nbDim,unsigned sizes[],unsigned nbVariable)
 	{
 		_nbVariable=nbVariable;

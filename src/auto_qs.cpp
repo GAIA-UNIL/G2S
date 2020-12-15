@@ -20,7 +20,8 @@
 #include <random>
 #include <algorithm>
 
-
+#include <thread>
+#include <atomic>
 
 #include "utils.hpp"
 #include "DataImage.hpp"
@@ -31,9 +32,24 @@
 #ifdef WITH_OPENCL
 #include "OpenCLGPUDevice.hpp"
 #endif
+#ifdef WITH_CUDA
+	#include <cuda_runtime.h>
+	#include "NvidiaGPUAcceleratorDevice.hpp"
+#endif // WITH_CUDA
 
-#include "simulation.hpp"
-#include "thresholdSamplingModule.hpp"
+
+#include "CPUThreadAcceleratorDevice.hpp"
+
+#include "calibration.hpp"
+#include "quantileSamplingModule.hpp"
+
+enum simType
+{
+	vectorSim,
+	fullSim,
+	augmentedDimSim
+};
+
 
 void printHelp(){
 	printf ("that is the help");
@@ -45,10 +61,10 @@ int main(int argc, char const *argv[]) {
 
 	char logFileName[2048]={0};
 	std::vector<std::string> sourceFileNameVector;
-	std::string targetFileName;
-	std::string kernelFileName;
+	std::vector<std::string> kernelFileName;
 	std::string simuationPathFileName;
 	std::string idImagePathFileName;
+	std::string listNumberNeigboursFilename;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -105,6 +121,17 @@ int main(int argc, char const *argv[]) {
 	unsigned totalNumberOfThreadVailable=1;
 	bool verbose=false;
 
+	bool fullSimulation=false;
+	bool conciderTiAsCircular=false;
+	unsigned maxNbCandidate=1;
+	std::vector<unsigned> maxNbNeihbours;
+
+	unsigned maxNumberOfIteration=25000;
+	unsigned minNumberOfIteration=1000;
+	float metricPower=2;
+
+	float maxt=INFINITY;
+	std::vector<float> densityArray;
 
 	#if _OPENMP
 		totalNumberOfThreadVailable=omp_get_max_threads();
@@ -191,160 +218,129 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("--verbose");
 
-
-
-
-
-
 	// LOOK FOR DATA FILES
 	//look for training images
 	if (arg.count("-ti") > 0)
 	{
 		std::multimap<std::string, std::string>::iterator it;
-	    for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
-	    {
-	    	sourceFileNameVector.push_back(it->second);
-	    }
+		for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
+		{
+			sourceFileNameVector.push_back(it->second);
+		}
 	}else{	
 		fprintf(reportFile,"error source\n");
 		run=false;
 	}
 	arg.erase("-ti");
 
-	//look for destination images (hard data)
-	if (arg.count("-di") ==1)
-	{
-		targetFileName=arg.find("-di")->second;
-	}else{	
-		fprintf(reportFile,"error target\n");
-		run=false;
-	}
-	arg.erase("-di");
-
 	//look for -ki			: kernel image 
-	if (arg.count("-ki") ==1)
+
+	if (arg.count("-maxk") == 1)
 	{
-		kernelFileName=arg.find("-ki")->second;
-	}else{	
-		fprintf(reportFile,"non critical error : no kernel \n");
+		maxNbCandidate=atof((arg.find("-maxk")->second).c_str());
 	}
-	arg.erase("-ki");
-
-	//look for -sp			: simulation path 
-	if (arg.count("-sp") ==1)
+	arg.erase("-maxk");
+	if (arg.count("-maxK") == 1)
 	{
-		simuationPathFileName=arg.find("-sp")->second;
-	}else{	
-		fprintf(reportFile,"non critical error : no simulation path\n");
+		maxNbCandidate=atof((arg.find("-maxK")->second).c_str());
 	}
-	arg.erase("-sp");
+	arg.erase("-maxK");
 
-	bool useUniqueTI4Sampling=false;
-	//look for -ii			: image of training index
-	if (arg.count("-ii") ==1)
+	if (arg.count("-maxn") >= 1)
 	{
-		idImagePathFileName=arg.find("-ii")->second;
-		useUniqueTI4Sampling=true;
-	}
-	arg.erase("-ii");
-
-
-
-
-
-	// LOOK FOR OUTPUT
-	if (arg.count("-o") ==1)
-	{
-		outputFilename=arg.find("-o")->second;
-		run=false;
-	}else{
-		outputFilename=std::to_string(uniqueID);
-		outputIndexFilename=std::string("id_")+std::to_string(uniqueID);
-	}
-	arg.erase("-o");
-
-	if (arg.count("-oi") ==1)
-	{
-		outputIndexFilename=arg.find("-oi")->second;
-	}
-	arg.erase("-oi");
-
-
-
-
-
-	// LOOK FOR SETINGS
-	bool noVerbatim=false;
-	float threshold=std::nanf("0");			// threshold for DS ...
-	std::vector<unsigned> nbNeighbors;		// number of nighbors QS, DS ...
-	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
-	float nbCandidate=std::nanf("0");		// 1/f for QS
-	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
-	bool conciderTiAsCircular=false;
-	bool circularSimulation=false;
-
-	if (arg.count("-nV") == 1)
-	{
-		noVerbatim=true;
-	}
-	arg.erase("-nV");
-
-	if (arg.count("-th") == 1)
-	{
-		threshold=atof((arg.find("-th")->second).c_str());
-	}
-	arg.erase("-th");
-
-	if (arg.count("-f") == 1)
-	{
-		mer=atof((arg.find("-f")->second).c_str());
-	}
-	arg.erase("-f");
-
-	if (arg.count("-mer") == 1)
-	{
-		mer=atof((arg.find("-mer")->second).c_str());
-	}
-	arg.erase("-mer");
-
-	if (arg.count("-k") == 1)
-	{
-		nbCandidate=atof((arg.find("-k")->second).c_str());
-	}
-	arg.erase("-k");
-
-	if (arg.count("-n") >= 1)
-	{
-		for (auto val=arg.lower_bound("-n"); val!=arg.upper_bound("-n"); val++){
-			nbNeighbors.push_back(atoi((val->second).c_str()));
+		for (auto val=arg.lower_bound("-maxn"); val!=arg.upper_bound("-maxn"); val++){
+			maxNbNeihbours.push_back(atoi((val->second).c_str()));
 		}
 	}
-	arg.erase("-n");
-
-	if (arg.count("-s") == 1)
+	arg.erase("-maxn");
+	if (arg.count("-maxN") >= 1)
 	{
-		seed=atoi((arg.find("-s")->second).c_str());
+		for (auto val=arg.lower_bound("-maxN"); val!=arg.upper_bound("-maxN"); val++){
+			maxNbNeihbours.push_back(atoi((val->second).c_str()));
+		}
 	}
-	arg.erase("-s");
+	arg.erase("-maxN");
 
-	if (arg.count("-wd") == 1)
+	if (arg.count("-nl") == 1)
 	{
-		searchDistance=g2s::KERNEL;
+		listNumberNeigboursFilename=arg.find("-nl")->second;
 	}
-	arg.erase("-wd");
+	arg.erase("-nl");
 
-	if (arg.count("-ed") == 1)
+	if (arg.count("-maxIter") == 1)
 	{
-		searchDistance=g2s::EUCLIDIEN;
+		maxNumberOfIteration=atoi((arg.find("-maxIter")->second).c_str());
 	}
-	arg.erase("-ed");
+	arg.erase("-maxIter");
 
-	if (arg.count("-md") == 1)
+	if (arg.count("-maxiter") == 1)
 	{
-		searchDistance=g2s::MANAHTTAN;
+		maxNumberOfIteration=atoi((arg.find("-maxiter")->second).c_str());
 	}
-	arg.erase("-md");
+	arg.erase("-maxiter");
+
+	if (arg.count("-minIter") == 1)
+	{
+		minNumberOfIteration=atoi((arg.find("-minIter")->second).c_str());
+	}
+	arg.erase("-minIter");
+	
+	if (arg.count("-minIter") == 1)
+	{
+		minNumberOfIteration=atoi((arg.find("-minIter")->second).c_str());
+	}
+	arg.erase("-minIter");
+
+	if (arg.count("-maxT") == 1)
+	{
+		maxt=atof((arg.find("-maxT")->second).c_str());
+	}
+	arg.erase("-maxT");
+
+	if (arg.count("-maxt") == 1)
+	{
+		maxt=atof((arg.find("-maxt")->second).c_str());
+	}
+	arg.erase("-maxt");
+
+	if (arg.count("-mpow") == 1)
+	{
+		metricPower=atof((arg.find("-mpow")->second).c_str());
+	}
+	arg.erase("-mpow");
+
+	if (arg.count("-densities") > 0)
+	{
+		std::multimap<std::string, std::string>::iterator it;
+		for (it=arg.equal_range("-densities").first; it!=arg.equal_range("-densities").second; ++it)
+		{
+			densityArray.push_back(atof(it->second.c_str()));
+		}
+	}
+	arg.erase("-densities");
+	if (arg.count("-density") > 0)
+	{
+		std::multimap<std::string, std::string>::iterator it;
+		for (it=arg.equal_range("-density").first; it!=arg.equal_range("-density").second; ++it)
+		{
+			densityArray.push_back(atof(it->second.c_str()));
+		}
+	}
+	arg.erase("-density");
+
+
+	if (arg.count("-ki") > 0)
+	{
+		std::multimap<std::string, std::string>::iterator it;
+		for (it=arg.equal_range("-ki").first; it!=arg.equal_range("-ki").second; ++it)
+		{
+			kernelFileName.push_back(it->second);
+		}
+	}else{	
+		fprintf(reportFile,"error: no kernel\n");
+		run=false;
+	}
+	arg.erase("-ki");
 
 	if (arg.count("-cti") == 1)
 	{
@@ -352,47 +348,11 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-cti");
 
-	if (arg.count("-csim") == 1)
-	{
-		circularSimulation=true;
-	}
-	arg.erase("-csim");
-
-
-	//add extra paremetre here
-	float alpha=0;
-	g2s::KernelType kernelTypeForGeneration=g2s::UNIFORM;
-	int kernelSize=-1;
-	if (arg.count("-kernel") == 1)
-	{
-		//TODO implement the selecteur 
-		// UNIFORM,
-		// TRIANGULAR,
-		// EXPONENTIAL,
-		// EPANECHNIKOV,
-		// QUARTIC,
-		// TRIWEIGHT,
-		// TRICUBE,
-		// GAUSSIAN,
-		// COSINE,
-		// LOGISTIC,
-		// SIGMOID,
-		// SILVERMAN
-	}
-	arg.erase("-kernel");
-	if (arg.count("-ks") == 1)
-	{
-		kernelSize=atof((arg.find("-ks")->second).c_str());
-	}
-	arg.erase("-ks");
-	if (arg.count("-alpha") == 1)
-	{
-		alpha=atof((arg.find("-alpha")->second).c_str());
-	}
-	arg.erase("-alpha");
-
-
-	arg.erase("-ks");
+	// LOOK FOR SETINGS	
+							// number of nighbors QS, DS ...
+	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
+	
 	bool withGPU=false;
 	if (arg.count("-W_GPU") == 1)
 	{
@@ -400,28 +360,29 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-W_GPU");
 
-
-	// precheck | check what is mandatory
-
-	if(nbNeighbors.size()<=0){
-		run=false;
-		fprintf(reportFile, "%s\n", "number of neighbor parameter not valide" );
+	bool withCUDA=false;
+	std::vector<int> cudaDeviceList;
+	#ifdef WITH_CUDA
+	if (arg.count("-W_CUDA") >= 1)
+	{
+		withCUDA=true;
+		int cudaDeviceAvailable=0;
+		cudaGetDeviceCount(&cudaDeviceAvailable);
+		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
+		if(deviceString==arg.upper_bound("-W_CUDA")){
+			for (int i = 0; i < cudaDeviceAvailable; ++i)
+			{
+				cudaDeviceList.push_back(i);
+			}
+		}
+		while(deviceString!=arg.upper_bound("-W_CUDA")){
+			int deviceId=atoi((deviceString->second).c_str());
+			cudaDeviceList.push_back(deviceId);
+			deviceString++;
+		}
 	}
-	if(std::isnan(threshold)){
-		run=false;
-		fprintf(reportFile, "%s\n", "threshold need to be seted" );
-	}
-	if(std::isnan(mer) && std::isnan(nbCandidate)){
-		run=false;
-		fprintf(reportFile, "%s\n", "maximum exploration ratio or numer of candidate need to be seted" );
-	}
-	if(std::isnan(nbCandidate)){
-		nbCandidate=1/mer;
-	}
-	/*if(std::isnan(narrowness)){
-		run=false;
-		fprintf(reportFile, "%s\n", "narrowness need to be seted" );
-	}*/
+	arg.erase("-W_CUDA");
+	#endif
 
 	// print all ignored parameters
 	for (std::multimap<std::string, std::string>::iterator it=arg.begin(); it!=arg.end(); ++it){
@@ -435,7 +396,7 @@ int main(int argc, char const *argv[]) {
 
 #if _OPENMP
 	//omp_set_num_threads(nbThreads);
-	omp_set_nested(true);
+	//omp_set_nested(true);
 	fftwf_init_threads();
 	omp_set_max_active_levels(3);
 	#ifdef WITH_MKL
@@ -444,7 +405,6 @@ int main(int argc, char const *argv[]) {
 	#endif
 #endif
 	std::mt19937 randomGenerator(seed);
-
 	std::vector<g2s::DataImage > TIs;
 
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
@@ -452,59 +412,22 @@ int main(int argc, char const *argv[]) {
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
 	}
 
-	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	std::vector<g2s::DataImage > kernels;
 
-
-	g2s::DataImage kernel;
-	g2s::DataImage simulationPath;
-	g2s::DataImage idImage;
-
-	if(kernelFileName.empty()) {
-		std::vector<unsigned> maxSize=TIs[0]._dims;
-		if(kernelSize!=-1){
-			for (size_t i = 0; i < maxSize.size(); ++i)
-			{
-				maxSize[i]=kernelSize;
-			}
-		}else{
-			for (size_t j = 0; j < TIs.size(); ++j)
-			{
-				for (size_t i = 0; i < maxSize.size(); ++i)
-				{
-					maxSize[i]=std::min(TIs[j]._dims[i]/2+1,maxSize[i]);
-				}
-			}
-		}
-		std::vector<float> variableWeight(TIs[0]._nbVariable);
-		for (size_t i = 0; i < variableWeight.size(); ++i)
-		{
-			variableWeight[i]=1;
-		}
-		std::vector<float> alphas(TIs[0]._nbVariable);
-		for (size_t i = 0; i < alphas.size(); ++i)
-		{
-			alphas[i]=alpha;
-		}
-		std::vector<g2s::KernelType> kernelsTypeFG(TIs[0]._nbVariable);
-		for (size_t i = 0; i < kernelsTypeFG.size(); ++i)
-		{
-			kernelsTypeFG[i]=kernelTypeForGeneration;
-		}
-		kernel=g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas);
-	}
-	else {
-		kernel=g2s::DataImage::createFromFile(kernelFileName);
-		if(kernel._dims.size()-1==TIs[0]._dims.size()){
-			kernel=kernel.convertLastDimInVariable();
+	for (size_t i = 0; i < kernelFileName.size(); ++i)
+	{
+		kernels.push_back(g2s::DataImage::createFromFile(kernelFileName[i]));
+		if(kernels[i]._dims.size()-1==TIs[0]._dims.size()){
+			kernels[i].convertFirstDimInVariable();
 		}
 	}
 
 	std::vector<std::vector<int> > pathPosition;
 	pathPosition.push_back(std::vector<int>(0));
-	for (size_t i = 0; i < kernel._dims.size(); ++i)
+	for (size_t i = 0; i < kernels[0]._dims.size(); ++i)
 	{
 		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernel._dims[i]+1)/2;
+		int sizeInThisDim=(kernels[0]._dims[i]+1)/2;
 		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
 		for (unsigned int k = 0; k < originalSize; ++k)
 		{
@@ -525,27 +448,12 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	
-
-	
-
-	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
+	g2s::DataImage wieghtKernel=kernels[0].emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
 		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
 		{
 			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
 		}
-	}
-	if(searchDistance==g2s::KERNEL){
-		unsigned nbV=kernel._nbVariable;
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
-		{
-			for (unsigned int j = 0; j < nbV; ++j)
-			{
-				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
-			}
-		}
-		
 	}
 
 	unsigned center=0;
@@ -562,99 +470,7 @@ int main(int argc, char const *argv[]) {
 		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
 	});
 
-
-	/*for (int i = 0; i < 10; ++i)
-	{
-		for (size_t k = 0; k < pathPosition[i].size(); ++k)
-		{
-			fprintf(stderr, "%d ", pathPosition[i][k]);
-		}
-		unsigned position;
-		wieghtKernelPtr->indexWithDelta(position, center, pathPosition[i]);
-		fprintf(stderr, " ==> %f\n",wieghtKernelPtr->_data[position]);
-	}
-	fprintf(stderr, "\n\n" );*/
-
-	unsigned simulationPathSize=0;
-	unsigned* simulationPathIndex=nullptr;
-	unsigned beginPath=0;
-	bool fullSimulation=false;
-
-	if(simuationPathFileName.empty()) {
-		//fprintf(stderr, "generate simulation path\n");
-		simulationPathSize=DI.dataSize()/DI._nbVariable;
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
-		for (unsigned i = 0; i < simulationPathSize; ++i)
-		{
-			simulationPathIndex[i]=i;
-		}
-
-		for (unsigned int i = 0; i < simulationPathSize; ++i)
-		{
-			bool valueSeted=true;
-			for (unsigned int j = 0; j < DI._nbVariable; ++j)
-			{
-				if(std::isnan(DI._data[i*DI._nbVariable+j]))valueSeted=false;
-			}
-			if(valueSeted)
-			{
-				std::swap(simulationPathIndex[beginPath],simulationPathIndex[i]);
-				beginPath++;
-			}
-		}
-		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize, randomGenerator );
-		
-		
-	}
-	else {
-		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
-		simulationPathSize=simulationPath.dataSize();
-		bool dimAgree=true;
-		if(simulationPath._dims.size()!=DI._dims.size())dimAgree=false;
-		for (size_t i = 0; i < simulationPath._dims.size(); ++i)
-		{
-			if(simulationPath._dims[i]!=DI._dims[i])dimAgree=false;
-		}
-		if(!dimAgree){
-			fprintf(reportFile, "%s\n", "dimension bettwen simulation path and destination grid disagree");
-			return 0;
-		}
-
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
-		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
-		float* simulationPathData=simulationPath._data;
-		std::sort(simulationPathIndex, simulationPathIndex+simulationPathSize,
-			[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
-
-		//Search begin path
-		for ( beginPath=0 ; beginPath < simulationPathSize; ++beginPath)
-		{
-			float value=simulationPathData[simulationPathIndex[beginPath]];
-			if((!std::isinf(value))||(value>0)) break;
-		}
-
-	}
-
-	unsigned* importDataIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
-	memset(importDataIndex,0,sizeof(unsigned)*simulationPathSize);
-	float* seedForIndex=( float* )malloc( sizeof(float) * DI.dataSize()/DI._nbVariable );
-	
-	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
-
-	for ( unsigned int i = 0; i < DI.dataSize()/DI._nbVariable; ++i)
-	{
-		seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
-		if(seedForIndex[i]==1.f)seedForIndex[i]=uniformDitributionOverSource(randomGenerator);
-	}
-
-	// id Image
-
-	if (!idImagePathFileName.empty())
-	{
-		idImage=g2s::DataImage::createFromFile(idImagePathFileName);
-	}
-
-	// init DS
+	// init QS
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
@@ -670,8 +486,8 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	if(needCrossMesurement && !fullSimulation){
-
+	if(needCrossMesurement && !fullSimulation)
+	{
 		for (size_t i = 0; i < TIs.size(); ++i)
 		{
 			int nbVariable=TIs[i]._types.size();
@@ -692,47 +508,21 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	bool varaibleTypeAreCompatible=true;
-
-
-	for (size_t i = 0; i < TIs.size(); ++i)
-	{
-		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
-		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
-		}
-	}
-
-	if(!varaibleTypeAreCompatible) {
-
-		fprintf(reportFile, "TI(s) not compatible to gather or/and with the DI ==> simulation interupted !!\n");
-		return 0;
-	}
-
-	for (size_t i = 0; i < TIs.size(); ++i)
-	{
-		if((TIs[i]._types.size())!=(DI._types.size())){
-			varaibleTypeAreCompatible=false;
-			break;
-		}
-		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
-		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
-		}
-	}
 
 	std::vector<std::vector<float> > categoriesValues;
 	std::vector<unsigned> numberDeComputedVariableProVariable;
-	for (size_t i = 0; i < DI._types.size(); ++i)
+	for (size_t i = 0; i < TIs[0]._types.size(); ++i)
 	{
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
+		if(TIs[0]._types[i]==g2s::DataImage::VaraibleType::Continuous)
 			numberDeComputedVariableProVariable.push_back(1);
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+		if(TIs[0]._types[i]==g2s::DataImage::VaraibleType::Categorical){
 			std::vector<float> currentVariable;
 			for (size_t im = 0; im < TIs.size(); ++im)
 			{
 				for (unsigned int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
 				{
+					if(std::isnan(TIs[im]._data[j]))
+						continue;
 					bool isPresent=false;
 					for (size_t k = 0; k < currentVariable.size(); ++k)
 					{
@@ -749,11 +539,10 @@ int main(int argc, char const *argv[]) {
 	}
 
 	// correct the kernel to take in account categories
-	kernel=g2s::DataImage::offsetKernel4categories(kernel,numberDeComputedVariableProVariable);
-
-	//true error needed
-	//needCrossMesurement=true;
-
+	for (int i = 0; i < kernels.size(); ++i)
+	{
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable);
+	}
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
 	std::vector<g2s::OperationMatrix> coeficientMatrix;
@@ -782,7 +571,10 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+		int cudaDeviceNumber=cudaDeviceList.size();
+		int cudaDeviceUsed=0;
+
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -790,15 +582,28 @@ int main(int argc, char const *argv[]) {
 				bool deviceCreated=false;
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement,conciderTiAsCircular);
-					signleThread->setTrueMismatch(true);
+					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement, conciderTiAsCircular);
+					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
 				#endif
+				#ifdef WITH_CUDA
+				int localDeviceId=INT_MAX;
+				#pragma omp atomic capture
+				localDeviceId = cudaDeviceUsed++;
+				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
+					NvidiaGPUAcceleratorDevice* signleCudaThread=new NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					signleCudaThread->setTrueMismatch(true);
+					computeDeviceModuleArray[i].push_back(signleCudaThread);
+					deviceCreated=true;
+
+				}
+				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement,conciderTiAsCircular);
-					signleThread->setTrueMismatch(true);
+					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					//CPUThreadAcceleratorDevice* signleThread=new CPUThreadAcceleratorDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					signleThread->setTrueMismatch(false);
 					computeDeviceModuleArray[i].push_back(signleThread);
 					deviceCreated=true;
 				}
@@ -807,15 +612,86 @@ int main(int argc, char const *argv[]) {
 		smm->allowNewModule(false);
 		sharedMemoryManagerVector.push_back(smm);
 	}
-	
-	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement);
-	// run DS
-	std::vector<g2s::DataImage > kernels;
+
+	QuantileSamplingModule QSM(computeDeviceModuleArray,nullptr,maxNbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, true, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, false);
+
+	if(densityArray.size()<1){
+		densityArray.push_back(0.0078);
+		densityArray.push_back(0.0156);
+		densityArray.push_back(0.0312);
+		densityArray.push_back(0.0625);
+		densityArray.push_back(0.1250);
+		densityArray.push_back(0.2500);
+		densityArray.push_back(0.5000);
+	}
+
+	std::vector<std::vector<unsigned> > listNbNeihbours;
+	if(listNumberNeigboursFilename.empty()){
+		if(maxNbNeihbours.size()<1)
+			maxNbNeihbours.push_back(80);
+		for (int i = 1; i < maxNbNeihbours[0]; ++i)
+		{
+			std::vector<unsigned> aNConfig(maxNbNeihbours.size());
+			for (int j = 0; j < maxNbNeihbours.size(); ++j)
+			{
+				aNConfig[j]=unsigned(round(i*maxNbNeihbours[j]/maxNbNeihbours[0]));
+			}
+			listNbNeihbours.push_back(aNConfig);
+		}
+	}
+	else
+	{
+		g2s::DataImage neighboursImage=g2s::DataImage::createFromFile(listNumberNeigboursFilename);
+		listNbNeihbours.reserve(neighboursImage.dataSize()/neighboursImage._nbVariable);
+		for (int i = 0; i < neighboursImage.dataSize()/neighboursImage._nbVariable; ++i)
+		{
+			std::vector<unsigned> aNConfig(neighboursImage._nbVariable);
+			for (int j = 0; j < neighboursImage._nbVariable; ++j)
+			{
+				aNConfig[j]=unsigned(neighboursImage._data[i*neighboursImage._nbVariable+j]);
+			}
+			listNbNeihbours.push_back(aNConfig);
+		}
+	}
+
+	// fprintf(stderr, "Density : " );
+	// for (int i = 0; i < densityArray.size(); ++i)
+	// {
+	// 	fprintf(stderr, "%f, ", densityArray[i]);
+	// }
+	// fprintf(stderr, "\n");
+
+	std::vector<unsigned> dims;
+	dims.push_back(listNbNeihbours.size());
+	dims.push_back(kernels.size());
+	dims.push_back(densityArray.size());
+
+	g2s::DataImage meanErrorimage(dims.size(),dims.data(),maxNbCandidate);
+	g2s::DataImage devErrorimage(dims.size(),dims.data(),maxNbCandidate);
+	g2s::DataImage numberOFsampleimage(dims.size(),dims.data(),maxNbCandidate);
+	numberOFsampleimage.setEncoding(g2s::DataImage::EncodingType::UInteger);
+
+	// run calib
+	std::atomic<bool> computationIsDone(false);
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simulation(reportFile, DI, TIs,kernels , TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ), nullptr,
-	 seedForIndex, importDataIndex, nbNeighbors, nullptr, nullptr, categoriesValues, nbThreads,circularSimulation);
+	simType st=vectorSim;
+	if(fullSimulation) st=fullSim;
+
+	switch (st){
+		// case fullSim:
+		// 	fprintf(reportFile, "%s\n", "full calib");
+		// 	calibrationFull(reportFile, TIs, kernels, QSM, pathPosition, maxNbNeihbours,  categoriesValues, nbThreads );
+		// 	break;
+		case vectorSim:
+			fprintf(reportFile, "%s\n", "vector calib");
+			calibration(reportFile, meanErrorimage, devErrorimage, numberOFsampleimage, TIs, kernels, QSM, pathPosition, 
+					listNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
+			break;
+	}
+
 	auto end = std::chrono::high_resolution_clock::now();
+	computationIsDone=true;
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
@@ -839,24 +715,15 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
-	
-	g2s::DataImage id=DI.emptyCopy(true);
-	id.setEncoding(g2s::DataImage::UInteger);
-	memcpy(id._data,importDataIndex,id.dataSize()*sizeof(unsigned int));
-
-	// to remove later
-	id.write(outputIndexFilename);
-	DI.write(outputFilename);
-	//end to remove
-
 	// new filename 
-	id.write(std::string("im_2_")+std::to_string(uniqueID));
-	DI.write(std::string("im_1_")+std::to_string(uniqueID));
+	numberOFsampleimage.write(std::string("im_3_")+std::to_string(uniqueID));
+	devErrorimage.write(std::string("im_2_")+std::to_string(uniqueID));
+	meanErrorimage.write(std::string("im_1_")+std::to_string(uniqueID));
+	
 
-	free(simulationPathIndex);
-	simulationPathIndex=nullptr;
-	free(importDataIndex);
-	importDataIndex=nullptr;
+	// if(saveThread.joinable()){
+	// 	saveThread.join();
+	// }
 
 #if _OPENMP
 	fftwf_cleanup_threads();

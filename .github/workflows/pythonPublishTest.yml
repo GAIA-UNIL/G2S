@@ -1,6 +1,7 @@
 name: Upload Python Package on test server
 
 on:
+  workflow_dispatch:
   push:
     paths:
     - 'src_interfaces/python3_interface.cpp'

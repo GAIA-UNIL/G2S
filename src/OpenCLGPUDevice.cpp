@@ -397,6 +397,40 @@ unsigned OpenCLGPUDevice::cvtIndexToPosition(unsigned index){
 	return position;
 }
 
+void OpenCLGPUDevice::setValueInErrorArrayWithRadius(unsigned position, float value, float radius){
+	
+	recursiveSetValueInRadius(position, value, radius*radius, _fftSize.size(), 0);
+}
+
+void OpenCLGPUDevice::recursiveSetValueInRadius (unsigned position, float value, float radius2, unsigned level, unsigned distance2){
+	if(distance2<=radius2){
+		// if(level==0)
+		// {
+		// 	unsigned s=getErrorsArraySize();
+		// 	getErrorsArray()[(position+s)%s]=value;	
+		// }
+		if(level==1)
+		{
+			unsigned s=getErrorsArraySize();
+			float* errosArray=getErrorsArray();
+			int r=int(ceil(sqrt(radius2-distance2)));
+			# pragma omp simd
+			for (int i = -r; i <= r; ++i)
+			{
+				// if(distance2+i*i<radius2)
+				errosArray[(position+i*_fftSize[0]+s)%s]=value;
+			}
+		}
+		else{
+			int r=int(ceil(sqrt(radius2-distance2)));
+			for (int i = -r; i <= r; ++i)
+			{
+				recursiveSetValueInRadius(position+i*_fftSize[level-1], value, radius2, level-1, distance2+i*i);
+			}
+		}
+	}
+}
+
 void OpenCLGPUDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }

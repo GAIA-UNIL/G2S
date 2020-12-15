@@ -39,8 +39,8 @@ unsigned nChoosek( unsigned n, unsigned k )
 }
 
 
-void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, QuantileSamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor,
+void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, QuantileSamplingModule &samplingModule,
+ std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false){
 
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
@@ -74,7 +74,8 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 
 	int combinatory=nChoosek(di._dims.size(),TIs[0]._dims.size());
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(std::placeholders::_1,combinatory, nbThreadsLv2, marginals, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(kvi, nii, kii, std::placeholders::_1,combinatory, nbThreadsLv2, marginals, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,\
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -101,6 +102,26 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 
 		if(withOnlyData) continue;
 
+		if(nii){
+			numberNeighbor.clear();
+			for (int i = 0; i < nii->_nbVariable; ++i)
+			{
+				numberNeighbor.push_back(int(nii->_data[currentCell*nii->_nbVariable+i]));
+			}
+		}
+
+		int kernelImageIndex=-1;
+
+		if(kii){
+			kernelImageIndex=int(kii->_data[currentCell*kii->_nbVariable+0]);
+		}
+
+		float localk=0.f;
+
+		if(kvi){
+			localk=kvi->_data[currentCell*kii->_nbVariable+0];
+		}
+
 		std::vector<int> combi(TIs[0]._dims.size(),1);
 		combi.resize(di._dims.size());
 
@@ -116,7 +137,9 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		std::vector<float> distFrist4EachDim(combinatory,INFINITY);
 		std::vector<std::vector<SamplingModule::matchLocation> > importIndexs4EachDim(combinatory);
 
-		#pragma omp parallel for num_threads(nbThreadsLv2) default(none) firstprivate(logFile, combinatory, numberNeighbor, currentCell, circularSim, posterioryPath, indexPath, numberOfVariable, categoriesValues, importDataIndex, fullStationary, moduleID, localSeed, withDataInCenter) shared(combiArray, importIndexs4EachDim, di, samplingModule, TIs, combi, pathPosition, numberElement4EachDim, radius4EachDim)
+		#pragma omp parallel for num_threads(nbThreadsLv2) default(none) firstprivate(localk, kernelImageIndex, kii, logFile, combinatory, numberNeighbor, currentCell, circularSim, \
+			posterioryPath, indexPath, numberOfVariable, categoriesValues, importDataIndex, fullStationary, moduleID, localSeed, withDataInCenter) \
+			shared(combiArray, importIndexs4EachDim, di, samplingModule, TIs, kernels, combi, pathPosition, numberElement4EachDim, radius4EachDim)
 		for (int combinatoryIdx = 0; combinatoryIdx < combinatory; ++combinatoryIdx)
 		{
 			
@@ -222,11 +245,11 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 					reverseVector[i]*=-1;
 				}
 				TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector);
-				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs.size());
+				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord, 0.f, moduleID,fullStationary,0, localk, combinatoryIdx % TIs.size(),(kii ? &(kernels[kernelImageIndex]):nullptr));
 			}else if(withDataInCenter){
 				SamplingModule::matchLocation verbatimRecord;
 				verbatimRecord.TI=TIs.size();
-				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0,combinatoryIdx % TIs.size());
+				importIndexs=samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord, 0.f, moduleID,fullStationary,0, localk, combinatoryIdx % TIs.size(),(kii ? &(kernels[kernelImageIndex]):nullptr));
 			}
 			importIndexs4EachDim[combinatoryIdx]=importIndexs;
 		}

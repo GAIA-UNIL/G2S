@@ -63,6 +63,7 @@ public:
 	virtual void maskLayerWithVariable(unsigned, unsigned )=0;
 
 	virtual void setValueInErrorArray(unsigned position, float value)=0;
+	virtual void setValueInErrorArrayWithRadius(unsigned position, float value, float radius)=0;
 	virtual void compensateMissingData()=0;
 	virtual void searchKBigest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed)=0;
 
