@@ -1,9 +1,10 @@
 name: Upload Python Package on PyPI server
 
 on:
-  push:
-    paths:
-    - 'version'
+  workflow_dispatch:
+  # push:
+  #   paths:
+  #   - 'version'
 
 jobs:
   deploy:
