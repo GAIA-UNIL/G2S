@@ -83,12 +83,12 @@ if(systemName=='Windows'):
 				language="c++", 
 				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION=\\\"'+open('../../version', 'r').read()+'\\\"','/DPYTHON_VERSION=\\\"'+platform.python_version()+'\\\"'],
 				extra_link_args=[],
-				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./.libs", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./libzmq-v141-x64-4_3_2", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 				libraries = ['libzmq-v141-mt-4_3_2'],
-				library_dirs = ['/usr/lib','/opt/local/lib',"./.libs"]
+				library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-x64-4_3_2"]
 			)],
 			include_dirs=numpy.get_include(),
-			package_data={'g2s\\.libs':["./.libs/libzmq-v141-mt-4_3_2.dll","./.libs/libsodium.dll"]}
+			data_files=[('lib\\site-packages\\g2s',["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-x64-4_3_2/libsodium.dll"])]
 		);
 	else:
 		setup(name='G2S',
@@ -114,10 +114,10 @@ if(systemName=='Windows'):
 				language="c++", 
 				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION=\\\"'+open('../../version', 'r').read()+'\\\"','/DPYTHON_VERSION=\\\"'+platform.python_version()+'\\\"'],
 				extra_link_args=[],
-				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./.libs", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./libzmq-v141-4_3_2", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 				libraries = ['libzmq-v141-mt-4_3_2'],
-				library_dirs = ['/usr/lib','/opt/local/lib',"./.libs"]
+				library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-4_3_2"]
 			)],
 			include_dirs=numpy.get_include(),
-			package_data={'g2s\\.libs':["./.libs/libzmq-v141-mt-4_3_2.dll","./.libs/libsodium.dll"]}
+			data_files=[('lib\\site-packages\\g2s',["./libzmq-v141-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-4_3_2/libsodium.dll"])]
 		);
