@@ -88,7 +88,7 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-x64-4_3_2"]
 			)],
 			include_dirs=numpy.get_include(),
-			package_data={'g2s\\.libs',["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-x64-4_3_2/libsodium.dll"]}
+			package_data={'g2s\\.libs':["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-x64-4_3_2/libsodium.dll"]}
 		);
 	else:
 		setup(name='G2S',
@@ -119,5 +119,5 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',"./libzmq-v141-4_3_2"]
 			)],
 			include_dirs=numpy.get_include(),
-			package_data={'g2s\\.libs',["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-x64-4_3_2/libsodium.dll"]}
+			package_data={'g2s\\.libs':["./libzmq-v141-x64-4_3_2/libzmq-v141-mt-4_3_2.dll","./libzmq-v141-x64-4_3_2/libsodium.dll"]}
 		);
