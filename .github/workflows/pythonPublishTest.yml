@@ -22,6 +22,8 @@ jobs:
           arch: x86
         - os: macOS-latest
           arch: x86
+        - os: windows-latest
+          python: 3.9
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
