@@ -25,6 +25,10 @@ if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
 withEmbedded_JSONLib=True 
 if os.path.isfile("../../jsoncpp-master/dist/jsoncpp.cpp"):
 	extraCPP=["../../jsoncpp-master/dist/jsoncpp.cpp"];
+	extraLib+=[];
+else:
+	extraCPP=[];
+	extraLib+=['jsoncpp'];
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
@@ -55,7 +59,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
 			include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/"],
-			libraries = ['zmq','jsoncpp'],
+			libraries = ['zmq']+extraLib,
 			library_dirs = ['/usr/lib','/opt/local/lib']
 			)],
 		include_dirs=numpy.distutils.misc_util.get_numpy_include_dirs(),
