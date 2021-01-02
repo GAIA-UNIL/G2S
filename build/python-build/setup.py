@@ -22,6 +22,10 @@ versionExtention='';
 if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
 	versionExtention='.dev'+os.environ.get('GITHUB_RUN_NUMBER','');
 
+withEmbedded_JSONLib=True 
+if os.path.isfile("../../jsoncpp-master/dist/jsoncpp.cpp"):
+	extraCPP=["../../jsoncpp-master/dist/jsoncpp.cpp"];
+
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
 	extra='';
@@ -46,11 +50,11 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			'Programming Language :: Python :: 3 :: Only'
 		],
 		ext_package = 'g2s',
-		ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","../../src/DataImage.cpp"],
+		ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","../../src/DataImage.cpp"]+extraCPP,
 			language="c++", 
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
-			include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+			include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/"],
 			libraries = ['zmq','jsoncpp'],
 			library_dirs = ['/usr/lib','/opt/local/lib']
 			)],
