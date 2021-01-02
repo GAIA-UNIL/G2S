@@ -12,7 +12,14 @@ jobs:
     strategy:
       matrix:
         OS: [ ubuntu-latest, windows-latest, macOS-latest]
-        python: [ '3.6', '3.7', '3.8' ]
+        python: [ '3.6', '3.7', '3.8', '3.9' ]
+        exclude:
+        - os: ubuntu-latest
+          arch: x86
+        - os: macOS-latest
+          arch: x86
+        - os: windows-latest
+          python: 3.9
     runs-on: ${{ matrix.OS }}
     steps:
     - uses: actions/checkout@v1
@@ -29,8 +36,13 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.OS, 'ubuntu' )
       run: |
-        sudo apt install build-essential libzmq3-dev libjsoncpp-dev patchelf
+        sudo apt install build-essential libzmq3-dev patchelf
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+        wget 'https://codeload.github.com/open-source-parsers/jsoncpp/zip/master' -O jsoncpp.zip
+        unzip jsoncpp.zip
+        cd jsoncpp-master
+        python amalgamate.py
+        cd ..
     - name: Install macOS dependencies
       if : contains( matrix.OS, 'macOS' )
       run: |

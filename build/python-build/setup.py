@@ -22,13 +22,12 @@ versionExtention='';
 if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
 	versionExtention='.dev'+os.environ.get('GITHUB_RUN_NUMBER','');
 
-withEmbedded_JSONLib=True 
 if os.path.isfile("../../jsoncpp-master/dist/jsoncpp.cpp"):
 	extraCPP=["../../jsoncpp-master/dist/jsoncpp.cpp"];
-	extraLib+=[];
+	extraLib=[];
 else:
 	extraCPP=[];
-	extraLib+=['jsoncpp'];
+	extraLib=['jsoncpp'];
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
