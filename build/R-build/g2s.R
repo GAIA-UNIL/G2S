@@ -1,4 +1,4 @@
 g2s<-function(...){
-  test=list(...);
-  return(g2sInterface(test));
+  inputs=list(...);
+  return(g2sInterface(inputs));
 }
