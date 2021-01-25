@@ -17,6 +17,10 @@ Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** 
 **G2S** is currently only available for *UNIX*-based system, *Linux* and *macOS*. A solution for *Windows 10* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
 
-## An interactive and complete documentation is available [here](https://gaia-unil.github.io/G2S/).
+## Documentation
 
-### An interactive online version is available [here](http://g2s.online), to experiment with small unconditional simulations.
+An interactive and complete documentation is available [here](https://gaia-unil.github.io/G2S/).
+
+## Online Demo
+
+An interactive online version is available [here](http://g2s.online), to experiment with small unconditional simulations.
