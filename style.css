@@ -745,8 +745,18 @@ section a.button {
 section div.buttonChoice{
     margin: 5px 0px;
     display: flex;
-    justify-content: space-evenly;
+    justify-content: center;
 }
+
+.buttonChoice>.button:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.buttonChoice>.button:not(:last-child){
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
 
 section div.buttonChoice.algoChoice, section div.buttonChoice.exampleChoice{
     /*flex-direction: column;*/
