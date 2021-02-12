@@ -48,8 +48,8 @@ dosentSupportCUDA:= $(shell sh -c 'echo "int main(){}" | ${NVCC} -x c - -o /dev/
 ifeq ("$(dosentSupportCUDA)","0")
 	export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
-	export NVLIB =-L$(shell sh -c 'dirname $(which ${NVCC} )')/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
-	export LIBINC+=-I$(shell sh -c 'dirname $(which ${NVCC} )')/../targets/x86_64-linux/include/
+	export NVLIB =-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
+	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
 
 
