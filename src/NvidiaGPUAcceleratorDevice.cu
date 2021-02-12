@@ -633,6 +633,32 @@ void NvidiaGPUAcceleratorDevice::maskLayerWithVariable(unsigned layer, unsigned 
 	// }
 }
 
+void CPUThreadAcceleratorDevice::setValueInErrorArrayWithRadius(unsigned position, float value, float radius){
+	//TODO, write a kernel for that
+	// float* errosArray=getErrorsArray();
+	// #pragma omp simd
+	// for (unsigned int j = 0; j < getErrorsArraySize(); ++j)
+	// {
+	// 	unsigned delta=std::abs(int(j)-int(position));
+	// 	std::vector<unsigned> relativeCoordinates(_fftSize.size());
+	// 	for (int i = int(_fftSize.size()-1); i>=0; --i)
+	// 	{
+	// 		relativeCoordinates[i]=delta%_fftSize[i];
+	// 		delta/=_srcSize[i];
+	// 	}
+
+	// 	float distance=0;
+	// 	for (int i = 0; i < _fftSize.size(); ++i)
+	// 	{
+	// 		distance+=std::min(_fftSize[i]-relativeCoordinates[i],relativeCoordinates[i]);
+	// 	}
+
+	// 	if(distance<=radius*radius)
+	// 		errosArray[j]=value;
+	// }
+}
+
+
 void NvidiaGPUAcceleratorDevice::setValueInErrorArray(unsigned position, float value){
 	
 	float* errosArray=_realSpaceArray.front();

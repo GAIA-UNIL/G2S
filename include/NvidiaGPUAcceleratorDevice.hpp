@@ -53,6 +53,7 @@ public:
 	void maskLayerWithVariable(unsigned, unsigned );
 
 	void setValueInErrorArray(unsigned position, float value);
+	void setValueInErrorArrayWithRadius(unsigned position, float value, float radius);
 	void compensateMissingData();
 	void searchKBigest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed);
 
