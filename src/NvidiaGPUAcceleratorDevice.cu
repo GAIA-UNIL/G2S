@@ -633,7 +633,7 @@ void NvidiaGPUAcceleratorDevice::maskLayerWithVariable(unsigned layer, unsigned 
 	// }
 }
 
-void CPUThreadAcceleratorDevice::setValueInErrorArrayWithRadius(unsigned position, float value, float radius){
+void NvidiaGPUAcceleratorDevice::setValueInErrorArrayWithRadius(unsigned position, float value, float radius){
 	//TODO, write a kernel for that
 	// float* errosArray=getErrorsArray();
 	// #pragma omp simd
