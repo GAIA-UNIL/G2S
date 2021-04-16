@@ -14,25 +14,25 @@ export ARFLAGS= rcs
 export ExtraDevice=AcceleratorDevice.o
 
 export NVCC=nvcc
-export NVFLAGS=
-export NVLIB =
+export NVFLAGS +=
+export NVLIB +=
 
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     OS =linux
-    OPENCL_LIB= -lOpenCL -lclFFT
+    OPENCL_LIB+= -lOpenCL -lclFFT
 endif
 ifeq ($(UNAME_S),Darwin)
     OS =mac
-    OPENCL_LIB= -framework OpenCL -lclFFT
+    OPENCL_LIB+= -framework OpenCL -lclFFT
 endif
 
 export OS
 
 dosentSupportOpenCL:= $(shell sh -c "echo 'int main(){}' | c++ -xc - -o /dev/null ${OPENCL_LIB} 2>/dev/null && echo 0 || echo 1 ")
 ifeq ("$(dosentSupportOpenCL)","0")
-	export OPENCL_INC=-DWITH_OPENCL=1
+	export OPENCL_INC+=-DWITH_OPENCL=1
 	export OPENCL_LIB
 else
 	export OPENCL_LIB=
@@ -48,7 +48,7 @@ dosentSupportCUDA:= $(shell sh -c 'echo "int main(){}" | ${NVCC} -x c - -o /dev/
 ifeq ("$(dosentSupportCUDA)","0")
 	export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
-	export NVLIB =-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
+	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
 
