@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<title>G2S a free and flexible MPS framework, including QS and NDS  </title>
-	<link rel="stylesheet" href="./style.css" media="screen" type="text/css">
-	<link rel="stylesheet" href="./print.css" media="print" type="text/css">
+	<link rel="stylesheet" href="style.css" media="screen" type="text/css">
+	<link rel="stylesheet" href="print.css" media="print" type="text/css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 <!-- 	<script src="./scripte.js"></script> -->
 </head>
@@ -17,33 +16,28 @@
 	</header>
 	<div id="content-wrapper">
 		<div class="inner clearfix">
-<!-- 			<aside id='menuSidebar' class='sideMenuBar'>
+			<aside id='menuSidebar' class='sideMenuBar'>
 				<div>
 					<aside id="menu">
 						<ul class='sideMenu'>							
 							<li><a href="#briefOverview">Brief overview</a></li>
-							<li><a href="#serverAutostart">Server autostart</a></li>
-							<li><a href="#cluster">Cluster</a></li>
-							<ul>
-								<li><a href="#installLib">Installation of libraries</a></li>
-								<li><a href="#runG2SServer">Execute the G2S server</a></li>
-								<li><a href="#efficentUse">How to efficiently use it</a></li>
-							</ul>
+							<li><a href="#multiplRealisation">Multiple realization</a></li>
+							<li><a href="#segmentSimulation">How to do a simulation by segment</a></li>
 						</ul>
 					</aside>
 				</div>
-			</aside> -->
+			</aside>
 			<section id="main-content">
 
 				
-				<h1 id='briefOverview'>Brief overview</h1>
-				<p>This page provides some extra information on how to do some common task. This page as some note to myself too &#128513;</p>
+				<h1 id="briefOverview">Brief overview</h1>
+				<p>This page provides some additional information on how to do some common tasks. It also serves as personal note to myself 😁</p>
 
-				<h1 id='multiplRealisation'>Multiple realization</h1>
-				<p>A question that is frequently asked is how to do multiple realization </p>
+				<h1 id="multiplRealisation">Multiple realization</h1>
+				<p>A question that is frequently asked is how to do multiple realizations. Currently there are three different way to do it, each one of them have their pros and cons.  </p>
 
 				<h2>The lazy solution</h2>
-				<p>The simplest solution is to do a for-loop over the realization. Each step requires to wait the load of the data, this creates an over head</p>
+				<p>The simplest solution is to do a for-loop over the realizations. However, in each step the algorithm needs to wait for the data to load, this creates an overhead</p>
 				<pre><code>
 sims1=numpy.empty((250,250,numberOfSimulation));
 for i in range(numberOfSimulation):
@@ -51,7 +45,7 @@ for i in range(numberOfSimulation):
 				</code></pre>
 
 				<h2>For-loop without overhead</h2>
-				<p>By using the G2S submission queue, it's possible to remove major part of the over head.  This is the most versatile solution. This solution should be privileged over the lazy solution in case the computations are run on another machine. <br>Furthermore his solution as the advantage that the parameter can me change for each simulation.</p>
+				<p>By using the G2S submission queue, it's possible to remove most of the overhead. This is the most versatile solution and it is recomended over the first solution specially in case the computations are ran on another machine. <br>Furthermore, in this solution the parameters can be changed for each simulation.</p>
 				<pre><code>
 ids=numpy.empty((numberOfSimulation,), dtype='long');
 for i in range(numberOfSimulation):
@@ -63,17 +57,17 @@ for i in range(numberOfSimulation):
 				</code></pre>
 
 				<h2>Overdimensioning of the destination image</h2>
-				<p>It another solution to get multiple simulations at once. This solution looks easier, but as much more limitation (same size, same parameters…), and therefore is ⚠️ <b>not guaranteed </b> to stay functional in the future. This last solution should only be considered in case of extremely parallelized simulation (number of threads >50) and/or extremely small simulations (less than 1e4 pixels pro-simulation)</p>
+				<p>This is the third solution to get multiple simulations at once. Although this solution looks easier, it has much more limitations (e.g., being limited same size, same parameters, etc.), and therefore it is ⚠️ <b>not guaranteed </b> to stay functional in the future. This last solution should only be considered in case of extremely parallelized simulations (number of threads &gt;50) and/or extremely small simulations (less than 1e4 pixels pro-simulation)</p>
 				<pre><code>
 sims3,_=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((numberOfSimulation,250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5);
 				</code></pre>
 
 				
-				<h1 id='segmentSimulation'>How to do a simulation by segment</h1>
-				<p>Here the challenge is to respect each zone in case high non-stationarity. QS tend to reduce issues related to non-stationarity. But do not remove them completely. Therefore here we assume that we have multiple training images, each respectively to another area.</p>
+				<h1 id="segmentSimulation">How to do a simulation by segment</h1>
+				<p>Although QS tends to reduce issues related to non-stationarity, it won't remove them completely. Therefore in cases with high non-stationarity the challenge is to respect each zone separately. Here we assume that we have different training images for each specific zone.</p>
 
 				<h2>Using a secondary variable</h2>
-				<p>The first solution is to add a secondary variable with the information of non-stationarity. In this case the setting of the algorithm need to be identical between training images.</p>
+				<p>The first solution for doing a simulation by segment is to add a secondary variable with the information of non-stationarity. In this case the setting of the algorithm need to be identical between training images.</p>
 				<pre><code>
 ti1=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/bangladesh.tiff');
 ti2=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff');
@@ -95,7 +89,7 @@ pause(5)
 </code></pre>
 
 <h2>Using training image indices</h2>
-<p>The second solution is to use a training image index map, this requires that each training image represent a stationary subdomain. In this case the setting of the algorithm needs to be identical between training images too.</p>
+<p>The second solution for doing a simulation by segment is to use a training image index map, this requires that each training image represent a stationary subdomain. Alos in this case the setting of the algorithm needs to be identical between training images.</p>
 <pre><code>
 ti1=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/bangladesh.tiff');
 ti2=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff');
@@ -109,7 +103,7 @@ pause(5)
 </code></pre>
 
 <h2>Simulating each subdomain sequentially</h2>
-<p>The last solution is to do a simulation pro-domain, this allows changing the setting between each subdomain. However each subdomain is simulated sequential and therefore can be at the origin of some artifacts, regarding the order of simulations.</p>
+<p>The last solution for doing a simulation by segment is to do simulation per domain, this allows for changing the settings between each subdomain. However each subdomain is simulated sequentialy and therefore can be at the origin of some artifacts, regarding the order of simulations.</p>
 <pre><code>
 ti1=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/bangladesh.tiff');
 ti2=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff');
@@ -132,8 +126,8 @@ pause(5)
 				<p>Here the problem is to compensate ratio issue in case we use pixel that are not squared. Let me clairify directly this, there is no universal soolution to this problem ! &#128532; Here we will review many possible approch. </p>
  -->
 
-				<h2 id='SuperResolution'>How to setup the algorithm to do superresolution ?</h2>
-				<p>Here the challanges is to increase teh resolution using a HR-LR pair of training iamge and a low reoslution image as covariable to guide teh simulation</p>
+<!-- 				<h2 id="SuperResolution">How to setup the algorithm to do super resolution ?</h2>
+				<p>Here the challanges is to increase the resolution using a HR-LR pair of training images and a low reoslution image as covariable to guide teh simulation</p>
 
 <pre><code>
 </code></pre>
@@ -145,7 +139,7 @@ pause(5)
 </code></pre>
 
 <pre><code>
-</code></pre>
+</code></pre> -->
 				
 				
  			</section>
@@ -170,5 +164,6 @@ pause(5)
 	<footer>
 
 	</footer>
-</body>
-</html>
+
+
+</body></html>
