@@ -39,16 +39,16 @@
 				<p>This page provides some extra information on how to re G2S in a more practical and flexible way. It also serves as personal note to myself 😁</p>
 
 				<h1 id="serverAutostart">Server autostart</h1>
-				<p>When running the server on a powerfull worksation, some times an automatic reboot may be needed (e.g., update, power cut, etc.). To make the matters worse, we may need to login in to start again the server. In addition to machine reboots, it's still possible that the server crashes (even if we do everything we can that it doesn’t happen 😉)</p>
+				<p>When running the server on a worksation, sometimes an automatic reboot may be needed (e.g., update, power cut, etc). To make the matters worse, we may need to login to start again the server. In addition to machine reboots, sometimes servers can crash.</p>
 
-				<p>On Linux machines it's possible to run the software in background and run it automatically at the start-up. Here is the installation for Ubuntu, but it's very simple to adapt it for other systems.</p>
-				<p>It exists many solutions to get to the expected result with cron, etc., but my favorite solution is with <code>systemd</code></p>
+				<p>On Linux machines, it is possible to run the software in the background and launch it automatically at start-up. Here is the installation for Ubuntu, but it's very simple to adapt it for other systems.</p>
+				<p>Many solutions exist with cron, etc., but my favorite one is with <code>systemd</code></p>
 
 				<ol>
 					<li>First follow the standard Linux installation.</li>
 					<li>Test if everything works correctly.</li>
 					
-					<li>We need to create a new service, lets call it <code>G2S.service</code>, to do so create a new file <code>/etc/systemd/system/G2S.service</code></li>
+					<li>Create a new service, lets call it <code>G2S.service</code>, to do so create a new file <code>/etc/systemd/system/G2S.service</code></li>
 					<li>Past the following codes and it's done: <pre><code>[Unit]
 Description=G2S service
 After=network-online.target
@@ -76,19 +76,19 @@ WantedBy=multi-user.target</code></pre></li>
 				</ol>
 				
 				<h1 id="cluster">Cluster</h1>
-				<p>In this section I will give you a brief overview of how to set up G2S on a cluster. In this mode the computation is not distributed through the cluster, but run in a single cluster node.</p>
-				<p> The installation on a cluster, can be a quite difficult task. Please don't hesitate to ask for help from the team that manage the cluster.</p>
+				<p>In this section I will give you a brief overview of how to set up G2S on a cluster. In this mode the computation is not distributed through the cluster, but runs on a single cluster node.</p>
+				<p> The installation on a cluster, can be a quite difficult task. Please don't hesitate to ask for help from the team that manages the cluster.</p>
 				<p>The installation really depends on what the cluster team allows you to do or not.</p>
 
 
 				<h2 id="installLib">Installation of libraries</h2>
 				<p>In the best-case scenario fftw3 is installed in a non-standard path (you may not find two clusters that have the stuff at the same place. Why? To make your life harder of course! 🤪). Potentially you can have the Intel compiler installed with all the libraries. Please refer to your cluster documentation for this.</p>
 
-				<p>Probably ZMQ is not already installed, and don't expect that they will install it for you. Also jsoncpp is most probably missing too. In order to make life a bit easier for you, I prepared a small script that downloads and compiles all of these libraries, and even modifies the Makefile for you.</p>
+				<p>Probably ZMQ is not already installed, and don't expect that they will install it for you. Also jsoncpp is most probably missing too. In order to make life a bit easier for you, I prepared a small script that downloads and compiles all of these libraries, and even modifies the Makefile.</p>
 
 				<ol>
 					<li>log in a computation node(or submit a task)</li>
-					<li>execute the script in <code> build/forClusters/compileExternalLibs.sh</code> (I assume that the front and the computational node are from the same generation, in other cases you can run in some unsupported instruction issue)</li>
+					<li>execute the script in <code> build/forClusters/compileExternalLibs.sh</code> (I assume that the front and the computational nodes are from the same generation, in other cases you can run in some unsupported instruction issue)</li>
 					<li>Wait until it's finished, take this time to pray 🙏 to the god of the clusters</li>
 				</ol>
 
@@ -106,31 +106,31 @@ WantedBy=multi-user.target</code></pre></li>
 					<li>Once it's running connect to the node using a ssh tunnel: <code>ssh -L 8128:theNodeName:8128 clusterAddress</code>, this will redirect your localhost to the computation node.</li>
 					<li>Then run any g2s computation you like on your own computer.</li>
 					<li>Once you have all your computation finished, shutdown the server with the '-shutdown' argument </li>
-					<li>⚠️ Although this solution looks simple, in reality it's dangerous and relatively hard to use on a busy cluster. In fact, when you want to run the server you will probably finish in the waiting queue. If you are paying for the computations, you would be charged even when it isn't compute any simulations because the node is busy (waiting for jobs). And if you are not charged, you still use resources that other people maybe need. Furthermore with this solution it's extremely difficult to distribute many jobs across all the cluster.</li>
+					<li>⚠️ Although this solution looks simple, in reality it's dangerous and relatively hard to use on a busy cluster. In fact, when you want to run the server you will probably finish in the waiting queue. If you are paying for the computations, you would be charged even when it isn't computing any simulation because the node is busy (waiting for jobs). And if you are not charged, you still use resources that other people may need. Furthermore with this solution it's extremely difficult to distribute many jobs across all the cluster.</li>
 				</ol>
 
 
 				<h3>The way to go</h3>
-				<p>The goal here is to create a task for each simulation and to add it to the queue. Again each cluster is different, some use PBS (qsub), some use SLURM(sbatch, srun),... (ok, it's not the place to debate about this). We need to convert each calls to an algorithm that don't starts the computation but instead submit it in the queue.</p>
+				<p>The goal here is to create a task for each simulation and to add it to the queue. Again each cluster is different, some use PBS (qsub), some use SLURM(sbatch, srun),... (ok, it's not the place to debate about this). We need to convert each call to an algorithm that doesn't starts the computation, but instead submits it in the queue.</p>
 				<p>⚠️ currently computation interruption does not work on some clusters (Ctrl+C as well as <code>'-kill'</code>). Therefore, you need to manage job interruptions with the submission queue system. I will try to fix this issue as soon as I can, however it's not on my priority list now.</p>
 				<ol>
-					<li>If the cluater uses PBS or SLURM, check the related file in the <code>forClusters</code> directory. If it uses another system, check on and adapt for your situation. I will advise asking the cluster team to help you with this, and they are paid to do that. (please contact me <b>only</b> if they couldn't find out how to make it work)</li>
+					<li>If the cluster uses PBS or SLURM, check the related file in the <code>forClusters</code> directory. If it uses another system, check on and adapt for your situation. I advise asking the cluster team to help you with this, and they are paid to do that. (please contact me <b>only</b> if they couldn't find out how to make it work)</li>
 					<li>if needed, adapt <code>configureCluster.sh</code></li>
 					<li>execute <code>configureCluster.sh</code></li>
 					<li>Open a tunnel to the front node <code>ssh -L 8128:clusterAddress:8128 clusterAddress</code></li>
 					<li>start the server <code>./server -kod -age 864000</code> (adjust the 864000 regarding how long the file needs to be stored on the cluster (here 10 days))</li>
 					<li>Submit the jobs</li>
-					once all the jobs are submitted you can close the connection (it's possible that you run into trouble if you run many thousands of tasks at the same time, in that case keep the connection open)
+					once all the jobs are submitted you can close the connection (it is possible that you run into trouble if you run many thousands of tasks at the same time, in that case keep the connection open)
 				</ol>
 
 				<h3>even better</h3>
-				<p>If you are lucky you would be able to keep the server running all the time on the front node. Then ....</p>
+				<p>If you are lucky you may be able to keep the server running all the time on the front node. Then ....</p>
 				<p>You can try to run server in demons <code>-d</code>, if it's authorized. So you can always cut the connection even if you submit one million tasks at the same time.</p>
-				<p>Then... if you’re even luckier you can open a port on the front node (here 8128). Don't hesitate to ask the support if they can do this favor for you. If you can, 1) invest in a good bottle of wine and gift it to the support department, 2) If you are that lucky you should play lottery! <br> So, once the port is open and the server are executed as a deamon, you can close all the connection, and simply put the address of the front node in each call to g2s <code>'-sa',clusterAddress</code></p>
+				<p>Then... if you’re even luckier you can open a port on the front node (here 8128). Don't hesitate to ask the support if they can do this favor for you. If you can, 1) invest in a good bottle of wine for the support department, 2) If you are that lucky you should play lottery! <br> So, once the port is open and the server are executed as a deamon, you can close all connections, and simply put the address of the front node in each call to g2s <code>'-sa',clusterAddress</code></p>
 
 				<h2 id="efficentUse">How to efficiently use it</h2>
 				<p>
-					Once the server run on the front node use <code>'‑submitOnly'</code>,<code>'‑statusOnly'</code> and <code>'‑waitAndDownload'</code> to manage your computations.
+					Once the server runs on the front node use <code>'‑submitOnly'</code>,<code>'‑statusOnly'</code> and <code>'‑waitAndDownload'</code> to manage your computations.
 					The G2S server is coming with its own submission queue and dependency manager. Because the dependencies are unknown, each job runs sequentially by default. To over pass this limitation we can simply specify dependency as :<code>'‑after',0</code>, so each job can start in parallel.
 				</p>
 				<p>A standard job submission should look like <code>id=g2s(... usualParameter,'‑statusOnly','‑after',0)</code>.<br> and to get the final result <code>sim=g2s('‑waitAndDownload',id)</code></p>
