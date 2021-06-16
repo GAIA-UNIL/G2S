@@ -27,7 +27,7 @@ if os.path.isfile("../../jsoncpp-master/dist/jsoncpp.cpp"):
 	extraLib=[];
 else:
 	extraCPP=[];
-	extraLib=['jsoncpp'];
+	extraLib=['jsoncpp','z'];
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
