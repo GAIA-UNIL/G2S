@@ -2,9 +2,11 @@
 <html>
 <head>
 	<title>G2S a free and flexible MPS framework, including QS and NDS  </title>
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
 	<link rel="stylesheet" href="./style.css" media="screen" type="text/css">
 	<link rel="stylesheet" href="./print.css" media="print" type="text/css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	<script src="https://kit.fontawesome.com/7dc3015a44.js" crossorigin="anonymous"></script>
 	<script src="./scripte.js"></script>
 </head>
 <body>
@@ -37,7 +39,7 @@
 							<li><a href="#example">Example</a></li>
 							<li><a href="#Benchmarking">Benchmarking</a></li>
 							<li><a href="#How2Cite">How to cite ?</a></li>
-							<li><a href="faq.html">FAQ</a></li>
+							<li><a href="faq.html" target="_blank">FAQ</a></li>
 						</ul>
 					</aside>
 				</div>
@@ -258,31 +260,31 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td>&#8209;d</td>
+									<td class="addCopy">&#8209;d</td>
 									<td>run as daemon</td>
 								</tr>
 								<tr>
-									<td>&#8209;To&nbsp;n</td>
+									<td class="addCopy">&#8209;To&nbsp;n</td>
 									<td>shutdown the server if there is no activity after n second, 0 for &infin; (default : 0)</td>
 								</tr>
 								<tr>
-									<td>&#8209;p</td>
+									<td class="addCopy">&#8209;p</td>
 									<td>select a specific port for the server (default: 8128)</td>
 								</tr>
 								<tr>
-									<td>&#8209;kod</td>
+									<td class="addCopy">&#8209;kod</td>
 									<td>keep old data, if the flag is not present all files from previous runs are erased at launch</td>
 								</tr>
 								<tr>
-									<td>&#8209;age</td>
+									<td class="addCopy">&#8209;age</td>
 									<td>set the time in second after files need to be removed (default: 86400 s = 1d)</td>
 								</tr>
 								<tr>
-									<td>&#8209;mT</td>
+									<td class="addCopy">&#8209;mT</td>
 									<td>single job at the time (experimental)</td>
 								</tr>
 								<tr>
-									<td>&#8209;fM</td>
+									<td class="addCopy">&#8209;fM</td>
 									<td>Run as function, without fork (experimental)</td>
 								</tr>
 							</tbody>
@@ -326,23 +328,23 @@
 						</thead>
 						<tbody>
 							<tr>
-								<td>&#8209;&#8209;version</td>
+								<td class="addCopy">&#8209;&#8209;version</td>
 								<td>return the version and compilation date of the interface</td>
 							</tr>
 							<tr>
-								<td>&#8209;a</td>
+								<td class="addCopy">&#8209;a</td>
 								<td>the algorithm, it can be 'qs', 'nds', 'ds-l'</td>
 							</tr>
 							<tr>
-								<td>&#8209;sa</td>
+								<td class="addCopy">&#8209;sa</td>
 								<td>address of the computation server (default: localhost, the server is local)<br>Nice when we have a powerful machine dedicated for computation</td>
 							</tr>
 							<tr>
-								<td>&#8209;silent</td>
+								<td class="addCopy">&#8209;silent</td>
 								<td>don't display the progression, nice for scripts</td>
 							</tr>
 							<tr>
-								<td>&#8209;serverStatus</td>
+								<td class="addCopy">&#8209;serverStatus</td>
 								<td>inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; indefined <br>>1 &#8594; server is operational
 								<ul style="margin:0 0 0 15px">
 									<li>1: standard server working normaly</li>
@@ -351,15 +353,15 @@
 								</td>
 							</tr>
 							<tr>
-								<td>&#8209;noTO</td>
+								<td class="addCopy">&#8209;noTO</td>
 								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., trough internet)</td>
 							</tr>
 							<tr>
-								<td>&#8209;TO</td>
+								<td class="addCopy">&#8209;TO</td>
 								<td>specify a custom timeout on ZMQ communication( uint32 in millisecond )</td>
 							</tr>
 							<tr>
-								<td>&#8209;shutdown</td>
+								<td class="addCopy">&#8209;shutdown</td>
 								<td>shutdown the server, useful at the end of scripts</td>
 							</tr>
 						</tbody>
@@ -376,23 +378,23 @@
 						</thead>
 						<tbody>
 							<tr>
-								<td>&#8209;submitOnly</td>
+								<td class="addCopy">&#8209;submitOnly</td>
 								<td>submit a job</td>
 							</tr>
 							<tr>
-								<td>&#8209;statusOnly</td>
+								<td class="addCopy">&#8209;statusOnly</td>
 								<td>check progression</td>
 							</tr>
 							<tr>
-								<td>&#8209;waitAndDownload</td>
+								<td class="addCopy">&#8209;waitAndDownload</td>
 								<td>download the result</td>
 							</tr>
 							<tr>
-								<td>&#8209;kill</td>
+								<td class="addCopy">&#8209;kill</td>
 								<td>kill a given task</td>
 							</tr>
 							<tr>
-								<td>&#8209;after</td>
+								<td class="addCopy">&#8209;after</td>
 								<td>execute the task after an other on is finished (e.g. '-after',previousTaskId )</td>
 							</tr>
 						</tbody>
@@ -430,97 +432,97 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td>&#8209;ti</td>
+									<td class="addCopy">&#8209;ti</td>
 									<td>Training images (one or more images). If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;di</td>
+									<td class="addCopy">&#8209;di</td>
 									<td>Destination image (one image, aka simulation grid)</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;dt</td>
+									<td class="addCopy">&#8209;dt</td>
 									<td>Data type, array of to specify the type of each variable, 0 &rarr; continuous and 1 &rarr; categorical</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;sp</td>
+									<td class="addCopy">&#8209;sp</td>
 									<td>simulation path, image of the position in the path, small values first, -&infin; are not simulated</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;ki</td>
+									<td class="addCopy">&#8209;ki</td>
 									<td>Image of weighting kernel. Can be used to normalize the variables.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;k</td>
+									<td class="addCopy">&#8209;k</td>
 									<td>Number of best candidates to consider &#x2208[1 &infin;]</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;f</td>
+									<td class="addCopy">&#8209;f</td>
 									<td>f=1/k equivalent to f of DS with a threshold to 0</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;n</td>
+									<td class="addCopy">&#8209;n</td>
 									<td>N closest neighbors to consider:<br> - single value for vectors neighbors<br> - one for each variable</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;s</td>
+									<td class="addCopy">&#8209;s</td>
 									<td>random seed value</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;j</td>
+									<td class="addCopy">&#8209;j</td>
 									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use decimal values &isin;]0,1[ for fraction of the maximum number of cores (e.g., 0.5 repreent 50% of all available logical cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;ii</td>
+									<td class="addCopy">&#8209;ii</td>
 									<td>index of trining in with to sample from (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;cti</td>
+									<td class="addCopy">&#8209;cti</td>
 									<td>for a circular/cyclic/periodic training images over each dimention</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;csim</td>
+									<td class="addCopy">&#8209;csim</td>
 									<td>for a circular/cyclic/periodic simulation over each dimention</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;adsim</td>
+									<td class="addCopy">&#8209;adsim</td>
 									<td>augmented dimentionality simulation, allow to do 3D simulation using 2D training image, only for categories <i>(Comming soon!)</i></td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;far</td>
+									<td class="addCopy">&#8209;far</td>
 									<td>fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;W_GPU</td>
+									<td class="addCopy">&#8209;W_GPU</td>
 									<td>use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;W_CUDA</td>
+									<td class="addCopy">&#8209;W_CUDA</td>
 									<td>use Nvidia Cuda compatible GPU, specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use the two first GPU)</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;fs</td>
+									<td class="addCopy">&#8209;fs</td>
 									<td>full simulation, run the simulation of each pixel independentantly, i.e. dosen't simulate all the vector at the time (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;nV</td>
+									<td class="addCopy">&#8209;nV</td>
 									<td>no Verbatim (experimental)</td>
 									<td></td>
 								</tr>
@@ -539,77 +541,77 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td>&#8209;ti</td>
+									<td class="addCopy">&#8209;ti</td>
 									<td>Training images (one or more images). If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;di</td>
+									<td class="addCopy">&#8209;di</td>
 									<td>Destination image (one image, aka simulation grid)</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;dt</td>
+									<td class="addCopy">&#8209;dt</td>
 									<td>Data type, array of to specify the type of each variable, 0 &rarr; continuous and 1 &rarr; categorical</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;ki</td>
+									<td class="addCopy">&#8209;ki</td>
 									<td>Image of weighting kernel. Can be used to normalize the variables.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;k</td>
+									<td class="addCopy">&#8209;k</td>
 									<td>Number of best candidates to consider to compute the narrowness &#x2208[5 &infin;]</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;n</td>
+									<td class="addCopy">&#8209;n</td>
 									<td>N closest neighbors to consider</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td>&#8209;nw</td>
+									<td class="addCopy">&#8209;nw</td>
 									<td>narrowness range  0&rarr; max-min, 1 &rarr; median, default IQR &rarr; 0.5</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;nwv</td>
+									<td class="addCopy">&#8209;nwv</td>
 									<td>number of variables to consider in the narrowness, (start from the end), default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;cs</td>
+									<td class="addCopy">&#8209;cs</td>
 									<td>chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;uds</td>
+									<td class="addCopy">&#8209;uds</td>
 									<td>area to update around each simulated pixel, the M closest pixel default: 10</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;mp</td>
+									<td class="addCopy">&#8209;mp</td>
 									<td>partial simulation, 0 &rarr; empty, 1 &rarr; 100%</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;s</td>
+									<td class="addCopy">&#8209;s</td>
 									<td>seed value</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;j</td>
+									<td class="addCopy">&#8209;j</td>
 									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;W_GPU</td>
+									<td class="addCopy">&#8209;W_GPU</td>
 									<td>use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td>&#8209;nV</td>
+									<td class="addCopy">&#8209;nV</td>
 									<td>no Verbatim (experimental)</td>
 									<td></td>
 								</tr>

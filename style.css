@@ -808,7 +808,7 @@ table.parameter tr:nth-child(2n){
 
 table.parameter td:first-child{
     font-weight: 600;
-    width: 10%;
+    /*width: 10%;*/
     padding-left: 8px;
 }
 
@@ -964,4 +964,8 @@ aside#menuSidebar {
 
 #How2Cite + div p{
     background-color: #e9e9e9;
+}
+
+td i.fas.fa-copy:hover{
+    cursor:pointer
 }
