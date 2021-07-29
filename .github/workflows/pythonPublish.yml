@@ -21,6 +21,7 @@ jobs:
           arch: x86
         - os: windows-latest
           python: 3.9
+      fail-fast: false
     runs-on: ${{ matrix.OS }}
     steps:
     - uses: actions/checkout@v1
