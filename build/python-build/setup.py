@@ -24,7 +24,7 @@ if "Test" in os.environ.get('GITHUB_WORKFLOW',''):
 
 if os.path.isfile("../../jsoncpp-master/dist/jsoncpp.cpp"):
 	extraCPP=["../../jsoncpp-master/dist/jsoncpp.cpp"];
-	extraLib=[];
+	extraLib=['z'];
 else:
 	extraCPP=[];
 	extraLib=['jsoncpp','z'];
