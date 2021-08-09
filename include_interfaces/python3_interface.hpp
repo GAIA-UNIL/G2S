@@ -157,7 +157,7 @@ public:
 		int dimData = PyArray_NDIM(prh)-(nbOfVariable>1);
 		const npy_intp * dim_array = PyArray_DIMS(prh);
 		if(nbOfVariable>1 && dim_array[dimData]!=nbOfVariable)
-			sendError("Last dimension of the inputed matrix do not fit dt parameter size");
+			sendError("Last dimension of the inputed matrix do not fit -dt parameter size");
 		unsigned *dimArray=new unsigned[dimData];
 		for (int i = 0; i < dimData; ++i)
 		{

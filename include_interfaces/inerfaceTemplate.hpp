@@ -291,9 +291,9 @@ public:
 		}
 
 		if(spectifiedTimeout){
-			socket.setsockopt(ZMQ_LINGER, spectifiedTimeout);
-			socket.setsockopt(ZMQ_RCVTIMEO, spectifiedTimeout);
-			socket.setsockopt(ZMQ_SNDTIMEO, spectifiedTimeout);
+			socket.setsockopt(ZMQ_LINGER, timeout);
+			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
+			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
 		}
 
 		short port=8128;
@@ -337,12 +337,12 @@ public:
 			memcpy(request.data (), &task, sizeof(infoContainer));
 			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
 				done=true;
-				sendError("the server is probably off-line, please execute first ./server ");
+				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
 			zmq::message_t reply;
 			if(!socket.recv (reply) && withTimeout){
 				done=true;
-				sendError("the server is probably off-line, please execute first ./server ");
+				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
 			if(reply.size()!=sizeof(int)) sendError("wrong answer!");
 			int serverStatus=*((int*)reply.data());
@@ -386,6 +386,7 @@ public:
 			Json::Value object(Json::objectValue);
 			std::string test;
 			if(input.count("-a")>0) object["Algorithm"]=nativeToStandardString(input.find("-a")->second);
+			else if(!silentMode) sendWarning("Upload only! You maybe want to use '-a' to specify an algorithm.");
 			input.erase("-a");
 			{
 				object["Priority"]="1";
@@ -418,7 +419,6 @@ public:
 				}
 
 				object["Parameter"]=parameter;
-
 			}
 			/*
 			Json::FastWriter fast;
