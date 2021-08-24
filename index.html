@@ -478,12 +478,12 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;j</td>
-									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use decimal values &isin;]0,1[ for fraction of the maximum number of cores (e.g., 0.5 repreent 50% of all available logical cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images (node-level), work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (path-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
+									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use integer values to specify a number of threads (or logical cores). Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to parallelize over training images, work only if many TIs are available. Default: 1<br>- N3 threads used to parallelize FFTs (node-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but require more memory.</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;ii</td>
-									<td>index of trining in with to sample from (experimental)</td>
+									<td>index of training in with to sample from (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
