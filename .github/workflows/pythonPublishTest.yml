@@ -43,6 +43,8 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.os, 'ubuntu' )
       run: |
+        sudo apt-get autoremove -y libgcc-9-dev gcc-9 libgcc-10-dev gcc-10 libgcc-11-dev gcc-11
+        sudo apt-get install --allow-downgrades --no-remove --reinstall -y libstdc++6=8.4.0-1ubuntu1~18.04
         sudo apt install build-essential libzmq3-dev patchelf
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
         wget 'https://codeload.github.com/open-source-parsers/jsoncpp/zip/master' -O jsoncpp.zip
