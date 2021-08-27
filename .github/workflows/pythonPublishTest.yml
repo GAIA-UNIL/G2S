@@ -14,11 +14,11 @@ jobs:
     name: Compile for ${{ matrix.os }} using ${{ matrix.python }}-${{ matrix.arch }} and upload on packages manager
     strategy:
       matrix:
-        os: [ Ubuntu 18.04, windows-latest, macOS-latest]
+        os: [ ubuntu-latest, windows-latest, macOS-latest]
         python: [ '3.6', '3.7', '3.8', '3.9' ]
         arch: [ x64, x86 ]
         exclude:
-        - os: Ubuntu 18.04
+        - os: ubuntu-latest
           arch: x86
         - os: macOS-latest
           arch: x86
@@ -44,6 +44,9 @@ jobs:
       if : contains( matrix.os, 'ubuntu' )
       run: |
         sudo apt install build-essential libzmq3-dev patchelf
+        sudo apt -y install gcc-7 g++-7
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
         wget 'https://codeload.github.com/open-source-parsers/jsoncpp/zip/master' -O jsoncpp.zip
         unzip jsoncpp.zip
