@@ -19,8 +19,6 @@ jobs:
           arch: x86
         - os: macOS-latest
           arch: x86
-        - os: windows-latest
-          python: 3.9
       fail-fast: false
     runs-on: ${{ matrix.OS }}
     steps:
@@ -56,6 +54,9 @@ jobs:
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
         brew install zeromq jsoncpp
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+    - name: Add msbuild to PATH
+      if : contains( matrix.os, 'windows' )
+      uses: microsoft/setup-msbuild@v1.0.3
     - name: Install Windows dependencies
       if : contains( matrix.OS, 'windows' )
       run: |
