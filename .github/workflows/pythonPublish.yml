@@ -13,12 +13,12 @@ jobs:
       matrix:
         OS: [ ubuntu-latest, windows-latest, macOS-latest]
         python: [ '3.6', '3.7', '3.8', '3.9' ]
-        arch: [ x64, x86 ]
-        exclude:
-        - os: ubuntu-latest
-          arch: x86
-        - os: macOS-latest
-          arch: x86
+        arch: [ x64 ]
+        # exclude:
+        # - os: ubuntu-latest
+        #   arch: x86
+        # - os: macOS-latest
+        #   arch: x86
       fail-fast: false
     runs-on: ${{ matrix.OS }}
     steps:
