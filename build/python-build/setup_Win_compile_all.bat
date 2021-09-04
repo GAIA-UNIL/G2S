@@ -1,11 +1,10 @@
-if NOT exist "libzmq-v141-x64-4_3_2" (
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://dl.bintray.com/zeromq/generic/libzmq-v141-x64-4_3_2.zip', 'libzmq-v141-x64-4_3_2.zip')"
-	powershell Expand-Archive libzmq-v141-x64-4_3_2.zip -DestinationPath libzmq-v141-x64-4_3_2
-)
-
-if NOT exist "libzmq-v141-4_3_2" (
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://dl.bintray.com/zeromq/generic/libzmq-v141-4_3_2.zip','libzmq-v141-4_3_2.zip')"
-	powershell Expand-Archive libzmq-v141-4_3_2.zip -DestinationPath libzmq-v141-4_3_2
+if NOT exist "libzmq" (
+	git clone https://github.com/zeromq/libzmq
+	cd libzmq
+	mkdir action_build
+	cd action_build
+	cmake ..
+	msbuild ZeroMQ.sln /property:Configuration=Release /m:4
 )
 
 if NOT exist "cppzmq-master" (
