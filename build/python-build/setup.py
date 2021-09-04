@@ -128,9 +128,9 @@ if(systemName=='Windows'):
 				language="c++", 
 				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','/DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 				extra_link_args=[],
-				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "./", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
-				libraries = [x[:-4] for x in os.listdir("C:\\Users/Mathieu Gravey/Downloads/libzmq-master/libzmq-master/test2/lib/Release") if 'mt-s' not in x and '.lib' in x and 'libzmq' in x ],
-				library_dirs = ['/usr/lib','/opt/local/lib',"./pyzmq.libs"]
+				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "libzmq/include", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
+				libraries = [x[:-4] for x in os.listdir(zmqBuilDir+"lib/Release") if 'mt-s' not in x and '.lib' in x and 'libzmq' in x ],
+				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
