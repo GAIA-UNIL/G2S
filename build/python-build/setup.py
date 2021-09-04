@@ -66,7 +66,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 
 if(systemName=='Windows'):
 	import numpy
-	zmqBuilDir="libzmq/action_build/";
+	zmqBuilDir="./libzmq/action_build/";
 	if is_64bits:
 		setup(name='G2S',
 			version=open('../../version', 'r').read()+versionExtention,
@@ -97,7 +97,7 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
-			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x[:-4] for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
+			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);
 	# else:
 	# 	setup(name='G2S',
