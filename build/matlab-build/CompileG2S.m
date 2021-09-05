@@ -17,6 +17,7 @@ elseif ispc
         !cmake ..
         setenv('PATH',strcat(getenv('PATH'),'c:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin',';'))
         !msbuild ZeroMQ.sln /property:Configuration=Release /m:4
+        cd ..
     end
     if(exist('cppzmq-master')==0)
         websave('cppzmq-master.zip','https://codeload.github.com/zeromq/cppzmq/zip/master');
