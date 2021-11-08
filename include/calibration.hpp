@@ -28,7 +28,7 @@
 
 void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &DevErrorimage, g2s::DataImage &NumberOFsampleimage, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels,
  	QuantileSamplingModule &samplingModule, std::vector<std::vector<int> > &pathPosition, std::vector<std::vector<unsigned> > listNbNeihbours, std::vector<float> &densityArray, std::vector<std::vector<float> > categoriesValues, 
- 	float power, unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY){
+ 	float power, unsigned nbThreads=1,unsigned maxNumberOfIteration=25000,unsigned minNumberOfIteration=1000, float maxT=INFINITY, float noiseLevel=0.f){
 
 	int maxK=MeanErrorimage._types.size();
 	float radius=std::pow((TIs[0].dataSize() / TIs[0]._nbVariable)*0.005,1.f/TIs[0]._dims.size());
@@ -65,7 +65,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 	auto startTime = std::chrono::high_resolution_clock::now();
 
 	std::atomic<bool> stop(false);
-	#pragma omp parallel num_threads(nbThreads)  default(none) firstprivate(power, minNumberOfIteration, maxT, startTime, maxNumberOfIteration, logFile, seed, computeArraySize,densityArray,\
+	#pragma omp parallel num_threads(nbThreads)  default(none) firstprivate(noiseLevel,power, minNumberOfIteration, maxT, startTime, maxNumberOfIteration, logFile, seed, computeArraySize,densityArray,\
 	 	circularSim, numberOfVariable,categoriesValues, radius, cumulattedError, maxK, cumulattedSquaredError, numberOfSampling, bestProDensity, devBestProDensity) \
 		shared(listNbNeihbours, samplingModule, pathPosition, TIs , kernels,stop)
 	{
@@ -189,6 +189,27 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 				}
 
 				std::vector<SamplingModule::matchLocation> importIndex;
+
+				if(neighborArrayVector.size()>1 && noiseLevel>0){
+					float fraction=noiseLevel/neighborArrayVector.size()/2;
+					if(noiseLevel<1.0)
+					{
+						fraction=noiseLevel/2;
+					}
+
+					for (int j = 0; j < neighborValueArrayVector.size(); ++j)
+					{
+						if(uniformDitributionOverSource(randomGenerator)<fraction)
+						{
+							iter_swap(neighborArrayVector.begin() + floor(uniformDitributionOverSource(randomGenerator)/neighborValueArrayVector.size()) ,
+									  neighborArrayVector.begin() + + floor(uniformDitributionOverSource(randomGenerator)/neighborValueArrayVector.size()));
+
+						}
+					}
+
+					
+					
+				}
 
 				if(neighborArrayVector.size()>1){
 					SamplingModule::matchLocation origin;
