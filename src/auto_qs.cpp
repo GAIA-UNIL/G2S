@@ -350,9 +350,9 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-cti");
 
 
-	if (arg.count("-nl") == 1)
+	if (arg.count("-ln") == 1)
 	{
-		noiseLevel=atof((arg.find("-nl")->second).c_str());
+		noiseLevel=atof((arg.find("-ln")->second).c_str());
 	}
 
 
