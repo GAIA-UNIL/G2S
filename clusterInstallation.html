@@ -27,6 +27,7 @@
 								<li><a href="#installLib">Installation of libraries</a></li>
 								<li><a href="#runG2SServer">Execute the G2S server</a></li>
 								<li><a href="#efficentUse">How to efficiently use it</a></li>
+								<li><a href="#usingNP">Using nodeParallel</a></li>
 							</ul>
 						</ul>
 					</aside>
@@ -36,7 +37,7 @@
 
 				
 				<h1 id="briefOverview">Brief overview</h1>
-				<p>This page provides some extra information on how to re G2S in a more practical and flexible way. It also serves as personal note to myself 😁</p>
+				<p>This page provides some extra information on how to use G2S in a more practical and flexible way. It also serves as personal note to myself 😁</p>
 
 				<h1 id="serverAutostart">Server autostart</h1>
 				<p>When running the server on a worksation, sometimes an automatic reboot may be needed (e.g., update, power cut, etc). To make the matters worse, we may need to login to start again the server. In addition to machine reboots, sometimes servers can crash.</p>
@@ -106,7 +107,8 @@ WantedBy=multi-user.target</code></pre></li>
 					<li>Once it's running connect to the node using a ssh tunnel: <code>ssh -L 8128:theNodeName:8128 clusterAddress</code>, this will redirect your localhost to the computation node.</li>
 					<li>Then run any g2s computation you like on your own computer.</li>
 					<li>Once you have all your computation finished, shutdown the server with the '-shutdown' argument </li>
-					<li>⚠️ Although this solution looks simple, in reality it's dangerous and relatively hard to use on a busy cluster. In fact, when you want to run the server you will probably finish in the waiting queue. If you are paying for the computations, you would be charged even when it isn't computing any simulation because the node is busy (waiting for jobs). And if you are not charged, you still use resources that other people may need. Furthermore with this solution it's extremely difficult to distribute many jobs across all the cluster.</li>
+					<li>⚠️ Although this solution looks simple, in reality it's dangerous and relatively hard to use on a busy cluster. In fact, when you want to run the server you will probably finish in the waiting queue. If you are paying for the computations, you would be charged even when it isn't computing any simulation because the node is busy (waiting for jobs). And if you are not charged, you still use resources that other people may need. Furthermore with this solution it's extremely difficult to distribute many jobs across all the cluster. <br>
+					Using <a href="#usingNP">nodeParallel</a> could be a (smoother) solution too in particlar for mutiple node submission.</li>
 				</ol>
 
 
@@ -114,7 +116,7 @@ WantedBy=multi-user.target</code></pre></li>
 				<p>The goal here is to create a task for each simulation and to add it to the queue. Again each cluster is different, some use PBS (qsub), some use SLURM(sbatch, srun),... (ok, it's not the place to debate about this). We need to convert each call to an algorithm that doesn't starts the computation, but instead submits it in the queue.</p>
 				<p>⚠️ currently computation interruption does not work on some clusters (Ctrl+C as well as <code>'-kill'</code>). Therefore, you need to manage job interruptions with the submission queue system. I will try to fix this issue as soon as I can, however it's not on my priority list now.</p>
 				<ol>
-					<li>If the cluster uses PBS or SLURM, check the related file in the <code>forClusters</code> directory. If it uses another system, check on and adapt for your situation. I advise asking the cluster team to help you with this, and they are paid to do that. (please contact me <b>only</b> if they couldn't find out how to make it work)</li>
+					<li>If the cluster uses PBS or SLURM, check the related file in the <code>forClusters</code> directory. If it uses another system, check one and adapt for your situation. I advise asking the cluster team to help you with this, and they are paid to do that. (please contact me <b>only</b> if they couldn't find out how to make it work)</li>
 					<li>if needed, adapt <code>configureCluster.sh</code></li>
 					<li>execute <code>configureCluster.sh</code></li>
 					<li>Open a tunnel to the front node <code>ssh -L 8128:clusterAddress:8128 clusterAddress</code></li>
@@ -134,6 +136,28 @@ WantedBy=multi-user.target</code></pre></li>
 					The G2S server is coming with its own submission queue and dependency manager. Because the dependencies are unknown, each job runs sequentially by default. To over pass this limitation we can simply specify dependency as :<code>'‑after',0</code>, so each job can start in parallel.
 				</p>
 				<p>A standard job submission should look like <code>id=g2s(... usualParameter,'‑statusOnly','‑after',0)</code>.<br> and to get the final result <code>sim=g2s('‑waitAndDownload',id)</code></p>
+
+				<h2 id="usingNP">Using nodeParallel</h2>
+				<p>
+					NodeParallel (NP) allow to froward command from one node to another, in our context from the login node to some worker nodes. Therefore we can use NP to froward computation command to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue. <br>
+					To use it simple download NP from its <a href="https://github.com/mgravey/nodeParallel">github page</a>, follow the instruction to install and add it to the PATH (at least each time you want to use it :) ).
+					Then adapt the compilation for use on cluster using <code>./configureCluster.sh NP</code> available in the <code>forClusters</code> folder. This configuration is not compatible with a queue submission one, so if you plan to use both strategies in parallel you need to duplicate the G2S installation.
+					Run the NP and G2S servers, both on the login node.
+					<ol>
+						<li>
+							You can run NP in demon mode <code>./server -d</code>
+						</li>
+						<li>
+							When running the G2S server, add the <code>-maxCJ n</code> flag, with n between the number and few(<4x) times the number of jobs you plan to run in parallel.
+						</li>
+						<li>
+							Start (and you can even finish) to submit G2S tasks. (Refer to the previous sections to communicate with the login node, ssh tunneling, open ports on the login node ...)
+						</li>
+						<li>
+							Finally, run workers by submitting tasks to the normal submission queue(or directly to the computation nodes ) using the <code>np_client -sa $HOSTNAME -sac -w</code> in the folder that contain the G2S server. With $HOSTNAME the name or IP of the login node.
+						</li>
+					</ol>
+				</p>
 				
  			</section>
 			<aside id="sidebar">
