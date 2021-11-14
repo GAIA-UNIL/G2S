@@ -21,6 +21,10 @@ if [[ "$1" == "PBS" || "$1" == "pbd"  || "$1" == "qsub" ]]; then
     chmod +x "$DIR/../c++-build/runAny.sh" "$DIR/../intel-build/runAny.sh"
 fi
 
+if [[ "$1" == "NP" || "$1" == "np"  || "$1" == "nodeParallel" ]]; then
+    submissionScriptName="sub-all-NP.sh"
+fi
+
 if [ -n "$submissionScriptName" ]; then
 	if [ -f $DIR/../algosName.config.bk ]; then
 		cp $DIR/../algosName.config.bk $DIR/../algosName.config

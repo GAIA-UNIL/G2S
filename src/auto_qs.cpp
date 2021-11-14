@@ -128,7 +128,8 @@ int main(int argc, char const *argv[]) {
 
 	unsigned maxNumberOfIteration=25000;
 	unsigned minNumberOfIteration=1000;
-	float metricPower=2;
+	float metricPower=2.f;
+	float levelOfNoise=0.f;
 
 	float maxt=INFINITY;
 	std::vector<float> densityArray;
@@ -347,6 +348,14 @@ int main(int argc, char const *argv[]) {
 		conciderTiAsCircular=true;
 	}
 	arg.erase("-cti");
+
+
+	if (arg.count("-ln") == 1)
+	{
+		levelOfNoise=atof((arg.find("-ln")->second).c_str());
+	}
+
+
 
 	// LOOK FOR SETINGS	
 							// number of nighbors QS, DS ...
@@ -686,7 +695,7 @@ int main(int argc, char const *argv[]) {
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector calib");
 			calibration(reportFile, meanErrorimage, devErrorimage, numberOFsampleimage, TIs, kernels, QSM, pathPosition, 
-					listNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt);
+					listNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt, levelOfNoise);
 			break;
 	}
 
