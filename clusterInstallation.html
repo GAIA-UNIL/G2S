@@ -139,7 +139,7 @@ WantedBy=multi-user.target</code></pre></li>
 
 				<h2 id="usingNP">Using nodeParallel</h2>
 				<p>
-					NodeParallel (NP) allow to froward command from one node to another, in our context from the login node to some worker nodes. Therefore we can use NP to froward computation command to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue. <br>
+					NodeParallel (NP) allow to froward command from one node to another, in our context from the login node to some worker nodes (it require a shared file system). Therefore we can use NP to froward computation command to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue. <br>
 					To use it simple download NP from its <a href="https://github.com/mgravey/nodeParallel">github page</a>, follow the instruction to install and add it to the PATH (at least each time you want to use it :) ).
 					Then adapt the compilation for use on cluster using <code>./configureCluster.sh NP</code> available in the <code>forClusters</code> folder. This configuration is not compatible with a queue submission one, so if you plan to use both strategies in parallel you need to duplicate the G2S installation.
 					Run the NP and G2S servers, both on the login node.
@@ -151,7 +151,7 @@ WantedBy=multi-user.target</code></pre></li>
 							When running the G2S server, add the <code>-maxCJ n</code> flag, with n between the number and few(<4x) times the number of jobs you plan to run in parallel.
 						</li>
 						<li>
-							Start (and you can even finish) to submit G2S tasks. (Refer to the previous sections to communicate with the login node, ssh tunneling, open ports on the login node ...)
+							Start (and you can even finish) to submit G2S tasks. (Refer to the previous sections to communicate with the login node, ssh tunneling, open ports on the login node ...). Don't fogrot the <code>'-after',0</code> to allow parallel computations.
 						</li>
 						<li>
 							Finally, run workers by submitting tasks to the normal submission queue(or directly to the computation nodes ) using the <code>np_client -sa $HOSTNAME -sac -w</code> in the folder that contain the G2S server. With $HOSTNAME the name or IP of the login node.
