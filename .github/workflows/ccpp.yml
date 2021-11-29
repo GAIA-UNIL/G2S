@@ -37,7 +37,8 @@ jobs:
     strategy:
       matrix:
         macOS: [macOS-latest]
-        packageManager: ['Brew', 'macPort']
+        packageManager: ['Brew']
+        #'macPort'
       fail-fast: false
     steps:
     - uses: actions/checkout@v1
