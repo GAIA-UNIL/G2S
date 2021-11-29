@@ -17,7 +17,7 @@ elseif ispc
         !cmake ..
         setenv('PATH',strcat(getenv('PATH'),'c:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin',';'))
         !msbuild ZeroMQ.sln /property:Configuration=Release /m:4
-        cd ..
+        cd ../..
     end
     if(exist('cppzmq-master')==0)
         websave('cppzmq-master.zip','https://codeload.github.com/zeromq/cppzmq/zip/master');
@@ -32,7 +32,9 @@ elseif ispc
     end
     libsVal=cellstr(ls(strcat(zmqBuilDir,'lib/Release')));
     libName=libsVal(contains(libsVal,'.lib')&contains(libsVal,'libzmq')&(~contains(libsVal,'mt-s')));
-    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I../../include_interfaces','-I../../include','-I./libzmq-master/include','-I"cppzmq-master"',strcat('-L',zmqBuilDir,'lib/Release'),strcat('-l',libName{1}(4:end-4)),'-I"jsoncpp-master\dist"',strcat('-L',matlabroot,'\extern\lib\win64\microsoft'),'-lut','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
+    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I../../include_interfaces','-I../../include','-I./libzmq-master/include',...
+        '-I"cppzmq-master"',strcat('-L',zmqBuilDir,'lib/Release'),strcat('-l',libName{1}(4:end-4)),'-I"jsoncpp-master\dist"',strcat('-L',matlabroot,'\extern\lib\win64\microsoft'),...
+        '-lut','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
     path=getenv('PATH');
     newpath=strcat(path,strcat('-I',zmqBuilDir,'bin/Release'));
     setenv('PATH',newpath);
