@@ -449,7 +449,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;dt</td>
-									<td>Data type. Should be an array of the size of the nb of variables. 0 &rarr; continuous and 1 &rarr; categorical</td>
+									<td>Data type. <p style="color:red;">This is where the number of variables is defined.</p> <br> 0 &rarr; continuous and 1 &rarr; categorical <br> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -474,7 +474,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;n</td>
-									<td>N closest neighbors to consider. Should be an array of the size of the nb of variables. <br> - single value for vectors neighbors<br> - one for each variable</td>
+									<td>N closest neighbors to consider. If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
