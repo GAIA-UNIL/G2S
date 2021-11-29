@@ -39,8 +39,9 @@ elseif ispc
     newpath=strcat(path,strcat('-I',zmqBuilDir,'bin/Release'));
     setenv('PATH',newpath);
     copyfile(strcat(zmqBuilDir,'bin/Release/',libName{1}(1:end-3),'dll'))
-    zip('G2S-latest.win-amd64-matlab.zip',{'g2s.mexw64',strcat(libName{1}(1:end-3),'dll')});
-    copyfile('G2S-latest.win-amd64-matlab.zip',strcat('G2S-',fscanf(fopen('../../version'),'%s\n'),'.win-amd64-matlab.zip'))
+    zip('./../../../G2S-compiled-interfaces/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip',{'g2s.mexw64',strcat(libName{1}(1:end-3),'dll')});
+    mkdir('./../../../G2S-compiled-interfaces/',strcat(strjoin(string(fscanf(fopen('../../version'),'%d.%d\n')),'.'),'/MATLAB/Windows/'));
+    copyfile('./../../../G2S-compiled-interfaces/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip',strcat('./../../../G2S-compiled-interfaces/',strjoin(string(fscanf(fopen('../../version'),'%d.%d\n')),'.'),'/MATLAB/Windows/','G2S-',fscanf(fopen('../../version'),'%s\n'),'.win-amd64-matlab.zip'))
     
 else
     disp('Platform not supported')
