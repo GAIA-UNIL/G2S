@@ -34,8 +34,8 @@
 							<li><a href="#userInterface">Using the interfaces</a></li>
 							<li><a href="#SimAlgo">Simulation algorithms</a></li>
 							<ul>
-								<li><a href="#QS">Paremeter for QS</a></li>
-								<li><a href="#NDS">Paremeter for NDS</a></li>
+								<li><a href="#QS">Paremeters for QS</a></li>
+								<li><a href="#NDS">Paremeters for NDS</a></li>
 							</ul>
 							<li><a href="#example">Example</a></li>
 							<li><a href="#Benchmarking">Benchmarking</a></li>
@@ -427,7 +427,7 @@
 					</div>
 
 					<div class="quickSelect algoSens qs">
-						<h2 id='QS'>Paremeter for QS</h2>
+						<h2 id='QS'>Paremeters for QS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -449,7 +449,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;dt</td>
-									<td>Data type, array of to specify the type of each variable, 0 &rarr; continuous and 1 &rarr; categorical</td>
+									<td>Data type. Should be an array of the size of the nb of variables. 0 &rarr; continuous and 1 &rarr; categorical</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -474,7 +474,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;n</td>
-									<td>N closest neighbors to consider:<br> - single value for vectors neighbors<br> - one for each variable</td>
+									<td>N closest neighbors to consider. Should be an array of the size of the nb of variables. <br> - single value for vectors neighbors<br> - one for each variable</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -540,7 +540,7 @@
 						</table>
 					</div>
 					<div class="quickSelect algoSens nds">
-						<h2 id='NDS'>Paremeter for NDS</h2>
+						<h2 id='NDS'>Paremeters for NDS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
