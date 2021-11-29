@@ -439,7 +439,7 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;ti</td>
-									<td>Training images (one or more images). If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
+									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and this number should also match the size of the array given for the parameter dt. <br> If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -449,7 +449,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;dt</td>
-									<td>Data type. <p style="color:red;">This is where the number of variables is defined.</p> <br> 0 &rarr; continuous and 1 &rarr; categorical <br> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
+									<td>Data type. <p style="color:red;">This is where the number of variables is defined.</p> 0 &rarr; continuous and 1 &rarr; categorical <br> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -459,7 +459,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;ki</td>
-									<td>Image of weighting kernel. Can be used to normalize the variables.</td>
+									<td>Image of weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. THe number of kernels should then match the size of the array given for the parameter dt</td>
 									<td></td>
 								</tr>
 								<tr>
