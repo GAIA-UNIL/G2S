@@ -59,11 +59,11 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			language="c++", 
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
-			include_dirs=["../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/"],
+			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/"],
 			libraries = ['zmq']+extraLib,
 			library_dirs = ['/usr/lib','/opt/local/lib']
 			)],
-		include_dirs=numpy.distutils.misc_util.get_numpy_include_dirs(),
+		include_dirs=numpy.get_include(),
 	)
 
 if(systemName=='Windows'):

@@ -75,6 +75,58 @@ public:
 		return PyLong_AsLong(std::any_cast<PyObject *>(val));
 	};
 
+	unsigned anyNativeToUnsigned(std::any val){
+		PyObject * prh=std::any_cast<PyObject *>(val);
+		unsigned result;
+		//manage data
+		if(PyLong_Check(prh)){
+			result= PyLong_AsUnsignedLong(prh);
+		}
+		if(PyFloat_Check(prh)){
+			result= PyFloat_AsDouble(prh);
+		}
+		return result;
+	}
+
+	float anyNativeToFloat(std::any val){
+		PyObject * prh=std::any_cast<PyObject *>(val);
+		float result;
+		//manage data
+		if(PyLong_Check(prh)){
+			result= PyLong_AsDouble(prh);
+		}
+		if(PyFloat_Check(prh)){
+			result= PyFloat_AsDouble(prh);
+		}
+		return result;
+	}
+
+	double anyNativeToDouble(std::any val){
+		PyObject * prh=std::any_cast<PyObject *>(val);
+		double result;
+		//manage data
+		if(PyLong_Check(prh)){
+			result= PyLong_AsDouble(prh);
+		}
+		if(PyFloat_Check(prh)){
+			result= PyFloat_AsDouble(prh);
+		}
+		return result;
+	}
+
+	long unsigned anyNativeToLongUnsigned(std::any val){
+		PyObject * prh=std::any_cast<PyObject *>(val);
+		long unsigned result;
+		//manage data
+		if(PyLong_Check(prh)){
+			result= PyLong_AsUnsignedLong(prh);
+		}
+		if(PyFloat_Check(prh)){
+			result= PyFloat_AsDouble(prh);
+		}
+		return result;
+	}
+
 	std::any ScalarToNative(double val){
 		return std::any(PyFloat_FromDouble(val));
 	}

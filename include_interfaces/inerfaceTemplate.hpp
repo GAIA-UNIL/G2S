@@ -43,6 +43,11 @@ class InerfaceTemplate
 {
 public:
 
+	virtual unsigned anyNativeToUnsigned(std::any val)=0;
+	virtual float anyNativeToFloat(std::any val)=0;
+	virtual double anyNativeToDouble(std::any val)=0;
+	virtual long unsigned anyNativeToLongUnsigned(std::any val)=0;
+
 	virtual void unlockThread(){}
 	virtual void lockThread(){}
 	virtual void updateDisplay(){};
@@ -217,7 +222,7 @@ public:
 		}
 		if(input.count("-TO")>0)
 		{
-			timeout=nativeToUint32(input.find("-TO")->second);
+			timeout=anyNativeToUnsigned(input.find("-TO")->second);
 			spectifiedTimeout=true;
 		}
 		if(input.count("-submitOnly")>0)
@@ -291,6 +296,7 @@ public:
 		}
 
 		if(spectifiedTimeout){
+			printf( "%d\n", timeout);
 			socket.setsockopt(ZMQ_LINGER, timeout);
 			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
 			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
@@ -394,7 +400,7 @@ public:
 					Json::Value jsonArray(Json::arrayValue);
 					for (auto it=input.equal_range("-after").first; it!=input.equal_range("-after").second; ++it)
 					{
-						jsonArray.append(nativeToUint32(it->second));
+						jsonArray.append(anyNativeToUnsigned(it->second));
 					}
 					input.erase("-after");
 					object["Dependency"]=jsonArray;
@@ -457,7 +463,7 @@ public:
 			}
 		
 		}else if (!submit) {
-			id=nativeToUint32(input.find("-id")->second);
+			id=anyNativeToUnsigned(input.find("-id")->second);
 		}
 
 		outputs.insert(std::pair<std::string, std::any>("id",Uint32ToNative(id)));

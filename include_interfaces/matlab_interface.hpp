@@ -76,6 +76,71 @@ public:
 		return *(unsigned*)mxGetPr(std::any_cast<mxArray const*>(val));
 	};
 
+	template <typename type>
+	type anyNativeTo(std::any val){
+		type result;
+		mxArray const* prh=std::any_cast<mxArray const*>(val);
+		//manage data
+		if(mxIsDouble(prh)){
+			double *matrixData=(double *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxIsSingle(prh)){
+			float *matrixData=(float *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxUINT8_CLASS){
+			uint8_t *matrixData=(uint8_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxUINT16_CLASS){
+			uint16_t *matrixData=(uint16_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxUINT32_CLASS){
+			uint32_t *matrixData=(uint32_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxUINT64_CLASS){
+			uint64_t *matrixData=(uint64_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxINT8_CLASS){
+			int8_t *matrixData=(int8_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxINT16_CLASS){
+			int16_t *matrixData=(int16_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxINT32_CLASS){
+			int32_t *matrixData=(int32_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxINT64_CLASS){
+			int64_t *matrixData=(int64_t *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		if(mxGetClassID(prh)==mxLOGICAL_CLASS){
+			bool *matrixData=(bool *)mxGetPr(prh);
+			result=matrixData[0];
+		}
+		return result;
+	};
+
+	unsigned anyNativeToUnsigned(std::any val){
+		return anyNativeTo<unsigned>(val);
+	}
+	float anyNativeToFloat(std::any val){
+		return anyNativeTo<float>(val);
+	}
+	double anyNativeToDouble(std::any val){
+		return anyNativeTo<double>(val);
+	}
+	long unsigned anyNativeToLongUnsigned(std::any val){
+		return anyNativeTo<long unsigned>(val);
+	}
+
 	std::any ScalarToNative(double val){
 		size_t one=1;
 		mxArray *output=mxCreateNumericArray(1, &one, mxDOUBLE_CLASS, mxREAL);
