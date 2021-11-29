@@ -439,22 +439,22 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;ti</td>
-									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and this number should also match the size of the array given for the parameter dt. <br> If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
+									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. <br> NaN values in the training image will be ignored. <br> If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;di</td>
-									<td>Destination image (one image, aka simulation grid)</td>
+									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as td for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data, Except if the -sp option is set to overwrite this behavior.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;dt</td>
-									<td>Data type. <p style="color:red;">This is where the number of variables is defined.</p> 0 &rarr; continuous and 1 &rarr; categorical <br> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
+									<td>Data type. 0 &rarr; continuous and 1 &rarr; categorical <br> <p style="color:red;">This is where the number of variables is defined.</p> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;sp</td>
-									<td>simulation path, image of the position in the path, small values first, -&infin; are not simulated</td>
+									<td>simulation path, image of the position in the path. Small values are simulated first. -&infin; values are not simulated.</td>
 									<td></td>
 								</tr>
 								<tr>
