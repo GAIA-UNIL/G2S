@@ -34,8 +34,8 @@
 							<li><a href="#userInterface">Using the interfaces</a></li>
 							<li><a href="#SimAlgo">Simulation algorithms</a></li>
 							<ul>
-								<li><a href="#QS">Paremeters for QS</a></li>
-								<li><a href="#NDS">Paremeters for NDS</a></li>
+								<li><a href="#QS">Parameters for QS</a></li>
+								<li><a href="#NDS">Parameters for NDS</a></li>
 							</ul>
 							<li><a href="#example">Example</a></li>
 							<li><a href="#Benchmarking">Benchmarking</a></li>
@@ -68,7 +68,7 @@
 					<h1 id='install'>Installation</h1>
 
 					<p>Because life is short, we designed tools to make it simple. &#x1F609 <br> Except if you plan to run simulations on a remote computer, 
-						you need to install both the server and the interfaces on the same machine. Please choose the options below regarding your needs.</p>
+						you need to install both the server and the interfaces on the same machine. Please choose the options below that match your needs.</p>
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
 						<a data-os="macOS" class="button macOS">macOS</a>
@@ -85,19 +85,19 @@
 							<h3>Installation of the server on Ubuntu</h3>
 							<h4>Automatic with GCC on Ubuntu</h4>
 							<ol>
-								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
-								<li>run <code>build/c++-build/install_needs_W_VM.sh</code></li>
+								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
+								<li>Then run <code>build/c++-build/install_needs_W_VM.sh</code></li>
 							</ol>
 							<h4>Manual (included Intel C++ Compiler)</h4>
 							<ol>
-								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
-								<li>Basics for compiling are needed, (e.g. on Ubuntu: build-essential).</li>
-								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
+								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
+								<li>Basics for compiling are needed (e.g. on Ubuntu: build-essential).</li>
+								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S; fftw3 for QS and NDS.</li>
 								<li>To install them on Ubuntu:<code>sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libcurl4-openssl-dev -y</code>(libcurl4-openssl-dev is optional)</li>
 								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O ./include/zmq.hpp</code></li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed, the adaped version will be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
-								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed, the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manually select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 								</li>
 							</ol>
 						</div>
@@ -105,33 +105,32 @@
 							<h3>Installation of the server on macOS</h3>
 							<h4>using MacPort</h4>
 							<ol>
-								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
+								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Install the package manager <a href="https://www.macports.org/install.php">MacPort</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl</code> (curl is optional)</li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
-								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manually select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 							</ol>
 							<h4>using Homebrew</h4>
 							<ol>
-								<li>First clone the code from this GitHub.<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
+								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Install the package manager <a href="https://brew.sh/">Homebrew</a> (if not already done)</li>
 								<li>The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.</li>
 								<li>To install them with macPort:<code>brew install fftw zmq jsoncpp curl</code> (curl is optional)</li>
 								<li>The C++ extension for ZMQ is required too, and can be installed via: <code>curl -o /usr/local/include/zmq.hpp "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp"</code></li>
 								<li>Go to the build subfolder.</li>
-								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the addaped version would be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
-								<br> To manualy select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
+								<li>Run: <code>make -j</code>, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: <a href="https://software.intel.com/en-us/qualify-for-free-software">here</a>.
+								<br> To manually select between GCC or Intel compiler use <code>make c++ -j</code> or <code>make intel -j</code>, respectively.
 							</ol>
 						</div>
 						<div class="quickSelect windows server osSens">
 							<h3>Installation of the server on Windows 10</h3>
 							<ol>
-								<li>Check that the last updates of Windows are installed</li>
-								<li>Install WSL follwing instructions <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">here</a>, and select a Linux distribution (we advise Ubuntu for beginners).</li>
-								<li>Go to the directory <code>build/c++-build</code></li>
-								<li>Run <code>install.bat</code></li>
+								<li>Check that the latest updates of Windows are installed</li>
+								<li>Install WSL following <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">these instructions</a>, and select a Linux distribution (we recommend choosing Ubuntu for beginners).</li>
+								<li>In Windows, go to the directory <code>build/c++-build</code></li> and run/double-click <code>install.bat</code>. 
 							</ol>
 						</div>
 					</div>
@@ -141,13 +140,13 @@
 							<a data-progLang="python" class="button python">Python</a>
 							<a data-progLang="matlab" class="button matlab">MATLAB</a>
 							<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
-								<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: g2s@mgravey.com</span>
+								<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 							</a>
 						</div>
 						<div class="quickSelect linux interface python osSens langSens">
 							<h3>Installation of the Python interface on Ubuntu</h3>
 							<h4>Automatic installation</h4>
-							<p>Use simply <code>pip install G2S</code></p>
+							<p>Simply use <code>pip install G2S</code></p>
 							<h4>Manual compilation</h4>
 							<ol>
 								<li>If needed Python and Numpy: <code>sudo apt install python3-distutils python3-dev python3-numpy -y</code></li>
@@ -179,7 +178,7 @@
 							<p>Use simply <code>pip install G2S</code></p>
 							<h4>Manual compilation</h4>
 							<ol>
-								<li>If needed Python and Numpy:<code>sudo port install python37 py37-numpy</code></li>
+								<li>If needed, Python and Numpy:<code>sudo port install python37 py37-numpy</code></li>
 								<li>Go to <code>build/python-build</code></li>
 								<li>Run <code>python3 setup.py install --user</code></li>
 							</ol>
@@ -216,12 +215,14 @@
 						</div>
 						<div class="quickSelect windows interface matlab osSens langSens">
 							<h3>Installation of the MATLAB interface on Windows 10</h3>
-							<h4>Downlod precompiled interfaces</h4>
-							<p>Download <a href="https://github.com/GAIA-UNIL/G2S-compiled-interfaces/raw/master/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip">here</a>.
-							<br>Unzip and add the folder to MATLAB path.
+							<h4>Download precompiled interfaces</h4>
+							<ol>
+								<li> Download <a href="https://github.com/GAIA-UNIL/G2S-compiled-interfaces/raw/master/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip">here</a>.</li>
+								<li>Unzip and add the folder to MATLAB path.</li>
+							</ol>
 							<h4>Manual compilation</h4>
 							<ol>
-								<li>If needed install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
+								<li>If needed, install <a href="https://www.python.org/downloads/">python</a> with the option to add it to the Path</li>
 								<li>Open MATLAB</li>
 								<li>Install a compiler with c++17, available <a href="https://visualstudio.microsoft.com/en/downloads">here (2017 or later)</a></li>
 								<li>Go to <code>build/build-matlab</code></li>
@@ -291,7 +292,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;maxCJ&nbsp;n</td>
-									<td>limit the maximum number of jobs runing in parallel.</td>
+									<td>limit the maximum number of jobs running in parallel.</td>
 								</tr>
 							</tbody>
 						</table>
@@ -420,12 +421,12 @@
 						<a data-algo="qs" class="button qs">QS</a>
 						<a data-algo="nds" class="button nds">NDS</a>
 						<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
-							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: g2s@mgravey.com</span>
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>-->
 					</div>
 
 					<div class="quickSelect algoSens qs">
-						<h2 id='QS'>Paremeters for QS</h2>
+						<h2 id='QS'>Parameters for QS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -506,7 +507,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;adsim</td>
-									<td>augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories <i>(Comming soon!)</i></td>
+									<td>augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories <i>(Coming soon!)</i></td>
 									<td></td>
 								</tr>
 								<tr>
@@ -521,12 +522,12 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;W_CUDA</td>
-									<td>use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use thefirst two GPUs)</td>
+									<td>use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use the first two GPUs)</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;fs</td>
-									<td>full simulation: runs the simulation of each pixel independently, i.e. dosen't simulate all the vector at the time (experimental)</td>
+									<td>full simulation: runs the simulation of each pixel independently, i.e. doesn't simulate all the vector at the time (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
@@ -538,7 +539,7 @@
 						</table>
 					</div>
 					<div class="quickSelect algoSens nds">
-						<h2 id='NDS'>Paremeters for NDS</h2>
+						<h2 id='NDS'>Parameters for NDS</h2>
 						<table class="parameter">
 							<thead>
 								<tr>
@@ -636,7 +637,7 @@
 						<a data-progLang="python" class="button python">Python</a>
 						<a data-progLang="matlab" class="button matlab">MATLAB</a>
 						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
-							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: g2s@mgravey.com</span>
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>
 					</div>
 					<div class="algoChoice buttonChoice">
@@ -644,7 +645,7 @@
 						<a data-algo="nds" class="button nds">NDS</a>
 						<a data-algo="asyncMode" class="button asyncMode">Mode asynchronous</a>
 						<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
-							<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: g2s@mgravey.com</span>
+							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>-->
 					</div>
 					<div class="quickSelect algoSens qs">
@@ -655,7 +656,7 @@
 							<a data-example="gapFilling" class="button gapFilling">Gap filling</a>
 							<a data-example="downsacling" class="button downsacling">Downscaling</a>
 							<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
-								<span class="tooltiptext">No one reported to use the R interface, if you need it please concat me at: g2s@mgravey.com</span>
+								<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 							</a>-->
 						</div>
 						<div class="quickSelect unconditionalSimulation exampleSens python langSens">
@@ -709,38 +710,38 @@
 							<a data-example="Pan2IR" class="button Pan2IR">Pan&#x21d2IR</a> 
 						</div>
 						<div class="quickSelect RGB2IR exampleSens python langSens">
-							<h3>Spectral ehancemenet: RGB&#x21d2IR using Python</h3>
+							<h3>Spectral enhancement: RGB&#x21d2IR using Python</h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/RGB2IR.py" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect RGB2IR exampleSens matlab langSens">
-							<h3>Spectral ehancemenet: RGB&#x21d2IR using MATLAB</h3>
+							<h3>Spectral enhancement: RGB&#x21d2IR using MATLAB</h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/RGB2IR.m" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect Pan2RGB exampleSens python langSens">
-							<h3>Spectral ehancemenet: Pan&#x21d2RGB  using Python/h3>
+							<h3>Spectral enhancement: Pan&#x21d2RGB  using Python/h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2RGB.py" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect Pan2RGB exampleSens matlab langSens">
-							<h3>Spectral ehancemenet: Pan&#x21d2RGB using MATLAB</h3>
+							<h3>Spectral enhancement: Pan&#x21d2RGB using MATLAB</h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2RGB.m" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect Pan2IR exampleSens python langSens">
-							<h3>Spectral ehancemenet: Pan&#x21d2IR using Python</h3>
+							<h3>Spectral enhancement: Pan&#x21d2IR using Python</h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2IR.py" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect Pan2IR exampleSens matlab langSens">
-							<h3>Spectral ehancemenet: Pan&#x21d2IR using MATLAB</h3>
+							<h3>Spectral enhancement: Pan&#x21d2IR using MATLAB</h3>
 							<p></p>
 							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2IR.m" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<!--
 						<div class="quickSelect downsacling exampleSens">
-							<h3>Spectral ehancemenet: RGB&#x21d2IR </h3>
+							<h3>Spectral enhancement: RGB&#x21d2IR </h3>
 							<p></p>
 							<pre class="highlight"><code></code></pre>
 						</div>
