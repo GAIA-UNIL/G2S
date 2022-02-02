@@ -238,7 +238,7 @@
 					</div>
 
 					<h1 id='runServer'>Run the server</h1>
-					<p>⚠️The server generates logs- and data-files in subfolder build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
+					<p>⚠️The server generates logs- and data-files in subfolders build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
 
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
@@ -355,11 +355,11 @@
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;serverStatus</td>
-								<td>inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; indefined <br>>1 &#8594; server is operational <br>1: standard server working normaly</td>
+								<td>inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;noTO</td>
-								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., trough internet)</td>
+								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., through internet)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;TO</td>
@@ -458,7 +458,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;ki</td>
-									<td>Image of weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. THe number of kernels should then match the size of the array given for the parameter dt</td>
+									<td>Image of weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
 									<td></td>
 								</tr>
 								<tr>
@@ -497,7 +497,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;cti</td>
-									<td>for a circular/cyclic/periodic training images over each dimension</td>
+									<td>for a circular/cyclic/periodic training image over each dimension</td>
 									<td></td>
 								</tr>
 								<tr>
@@ -612,7 +612,7 @@
 								<tr>
 									<td class="addCopy">&#8209;j</td>									
 										<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use integer values to specify a number of threads (or logical cores). 
-										Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
+										Use decimal values &isin;[0,1] to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
 										cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to 
 										parallelize over training images (if many TIs are available, each is scanned on a different core). Default: 1<br>- N3 threads used to 
 										parallelize FFTs (node-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but requires more memory.</td>
@@ -752,7 +752,7 @@
 				<h1 id="Benchmarking">Benchmarking</h1>
 				<p>This code <strong><u>CAN</u></strong> be used for benchmarking (and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>. The version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
 
-				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or trough WSL on Windows 10.</p>
+				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or through WSL on Windows 10.</p>
 
 				<h1 id="How2Cite" >How to cite ?</h1>
 				<div>
