@@ -1,5 +1,3 @@
-# coming soon
-
 import numpy
 from PIL import Image
 import requests
@@ -20,18 +18,18 @@ conditioning.flat[numpy.random.permutation(conditioning.size)[:50]]=ti.flat[nump
 simulation,_=g2s('-a','qs', 
                  '-ti',ti,
                  '-di',conditioning,
-                 '-dt',numpy.zeros((1,)),
+                 '-dt',[0],
                  '-k',1.2,
                  '-n',30,
                  '-j',0.5);
 
 # Display results 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3,figsize=(7,4))
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3,figsize=(7,4),subplot_kw={'aspect':'equal'})
 fig.suptitle('QS Conditional simulation',size='xx-large',y=0.9)
 ax1.imshow(ti)
 ax1.set_title('Training image');
 ax1.axis('off');
-ax2.imshow(conditioning)
+ax2.scatter(*numpy.meshgrid(numpy.arange(200),numpy.arange(200,0,-1)),s=5,c=conditioning,marker='.')
 ax2.set_title('Conditioning');
 ax2.axis('off');
 ax3.imshow(simulation)
