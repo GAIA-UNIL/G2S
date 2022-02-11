@@ -284,7 +284,7 @@
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;mT</td>
-									<td>single job at the time (experimental)</td>
+									<td>single job at a time (experimental)</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;fM</td>
@@ -304,8 +304,8 @@
 
 					<h1 id='userInterface'>Using the interfaces</h1>
 					<p>A call to <strong>g2s</strong> is needed to launch any computation.<br><br>
-						Usage: [sim,index,time,finalprogress,jobid]=g2s(flag1,value1, flag2,value2, ...)<br>
-						outputs: sim=simulation, index=index of the simulated values in the TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID. <br><br>
+						Usage: <code>[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)</code><br>
+						Outputs: sim=simulation, index=index of the simulated values in the flattened TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID. <br><br>
 						Flags do <strong>NOT</strong> have a specific order.</p>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python">Python</a>
@@ -343,11 +343,11 @@
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;a</td>
-								<td>the algorithm, it can be 'qs', 'nds', 'ds-l'</td>
+								<td>the simulation algorithm to be used, it can be 'qs', 'nds', 'ds-l' (DS-like, not maintained)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;sa</td>
-								<td>address of the computation server (default: localhost, the server is local)<br>Nice when we have a powerful machine dedicated for computation</td>
+								<td>Server address (default: localhost, the server is local)<br>Nice when we have a powerful machine dedicated for computation</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;silent</td>
@@ -359,11 +359,11 @@
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;noTO</td>
-								<td>deactivate timeout on ZMQ communication, useful for slow network (e.g., through internet)</td>
+								<td>deactivate TimeOut on ZMQ communication, useful for slow network (e.g., through internet)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;TO</td>
-								<td>specify a custom timeout on ZMQ communication( uint32 in millisecond )</td>
+								<td>specify a custom TimeOut on ZMQ communication( uint32 in millisecond )</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;shutdown</td>
@@ -438,12 +438,12 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;ti</td>
-									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. <br> NaN values in the training image will be ignored. <br> If multiple variables, the variables are <b>not</b> automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
+									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. <br> NaN values in the training image will be ignored. <br> If there are multiple variables, they will <b>not</b> be automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;di</td>
-									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as td for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data.</td>
+									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as ti for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -655,6 +655,7 @@
 							<a data-example="conditionalSimulation" class="button conditionalSimulation">Conditional simulation</a>
 							<a data-example="gapFilling" class="button gapFilling">Gap filling</a>
 							<a data-example="downsacling" class="button downsacling">Downscaling</a>
+							<a data-example="downsacling" class="button downsacling">3D simulation</a>
 							<!--<a data-algo="ds-l" class="button ds-l" disabled>ds-l
 								<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 							</a>-->
@@ -692,12 +693,22 @@
 						<div class="quickSelect downsacling exampleSens python langSens">
 							<h3>Downscaling using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/downsacling.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/downscaling.py" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 						<div class="quickSelect downsacling exampleSens matlab langSens">
 							<h3>Downscaling using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/downsacling.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/downscaling.m" onload="removeIframe(this)"></iframe></code></pre>
+						</div>
+						<div class="quickSelect downsacling exampleSens python langSens">
+							<h3>3D simulation using Python</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/3D.py" onload="removeIframe(this)"></iframe></code></pre>
+						</div>
+						<div class="quickSelect downsacling exampleSens matlab langSens">
+							<h3>3D simulation using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/3D.m" onload="removeIframe(this)"></iframe></code></pre>
 						</div>
 					</div>
 
