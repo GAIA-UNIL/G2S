@@ -8,6 +8,10 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 	<script src="https://kit.fontawesome.com/7dc3015a44.js" crossorigin="anonymous"></script>
 	<script src="./scripte.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/intellij-light.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/highlight.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/languages/matlab.min.js"></script>
+	<!-- <script>hljs.highlightAll();</script> -->
 </head>
 <body>
 	<header>
@@ -137,8 +141,8 @@
 					<div class="quickSelect interface installSens">
 						<h2 id='installInter'>Installation of interfaces</h2>
 						<div class="progLangChoice buttonChoice">
-							<a data-progLang="python" class="button python">Python</a>
-							<a data-progLang="matlab" class="button matlab">MATLAB</a>
+							<a data-progLang="python" class="button python"><img class="logo python" src="https://www.mgravey.com/assets/logo/Python.svg">Python</a>
+							<a data-progLang="matlab" class="button matlab"><img class="logo matlab" src="https://www.mgravey.com/assets/logo/Matlab.png">MATLAB</a>
 							<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
 								<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 							</a>
@@ -308,8 +312,8 @@
 						Outputs: sim=simulation, index=index of the simulated values in the flattened TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID. <br><br>
 						Flags do <strong>NOT</strong> have a specific order.</p>
 					<div class="progLangChoice buttonChoice">
-						<a data-progLang="python" class="button python">Python</a>
-						<a data-progLang="matlab" class="button matlab">MATLAB</a>
+						<a data-progLang="python" class="button python"><img class="logo python" src="https://www.mgravey.com/assets/logo/Python.svg">Python</a>
+						<a data-progLang="matlab" class="button matlab"><img class="logo matlab" src="https://www.mgravey.com/assets/logo/Matlab.png">MATLAB</a>
 						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
 							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>
@@ -634,8 +638,8 @@
 
 					<h1 id='example'>Example</h1>
 					<div class="progLangChoice buttonChoice">
-						<a data-progLang="python" class="button python">Python</a>
-						<a data-progLang="matlab" class="button matlab">MATLAB</a>
+						<a data-progLang="python" class="button python"><img class="logo python" src="https://www.mgravey.com/assets/logo/Python.svg">Python</a>
+						<a data-progLang="matlab" class="button matlab"><img class="logo matlab" src="https://www.mgravey.com/assets/logo/Matlab.png">MATLAB</a>
 						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
 							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>
@@ -663,52 +667,52 @@
 						<div class="quickSelect unconditionalSimulation exampleSens python langSens">
 							<h3>Unconditional simulation using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe id='test' src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/unconditionalSimulation.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/unconditionalSimulation.py"></code></pre>
 						</div>
 						<div class="quickSelect unconditionalSimulation exampleSens matlab langSens">
 							<h3>Unconditional simulation using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/unconditionalSimulation.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-MATLAB" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/unconditionalSimulation.m"></code></pre>
 						</div>
 						<div class="quickSelect conditionalSimulation exampleSens python langSens">
 							<h3>Conditional simulation using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/conditionalSimulation.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/conditionalSimulation.py"></code></pre>
 						</div>
 						<div class="quickSelect conditionalSimulation exampleSens matlab langSens">
 							<h3>Conditional simulation using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/conditionalSimulation.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/conditionalSimulation.m"></code></pre>
 						</div>
 						<div class="quickSelect gapFilling exampleSens python langSens">
 							<h3>Gap filling using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/gapFilling.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/gapFilling.py"></code></pre>
 						</div>
 						<div class="quickSelect gapFilling exampleSens matlab langSens">
 							<h3>Gap filling using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/gapFilling.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/gapFilling.m"></code></pre>
 						</div>
 						<div class="quickSelect downsacling exampleSens python langSens">
 							<h3>Downscaling using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/downscaling.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/downscaling.py"></code></pre>
 						</div>
 						<div class="quickSelect downsacling exampleSens matlab langSens">
 							<h3>Downscaling using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/downscaling.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/downscaling.m"></code></pre>
 						</div>
 						<div class="quickSelect 3D exampleSens python langSens">
 							<h3>3D simulation using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/3D.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/3D.py"></code></pre>
 						</div>
 						<div class="quickSelect 3D exampleSens matlab langSens">
 							<h3>3D simulation using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/3D.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/3D.m"></code></pre>
 						</div>
 					</div>
 
@@ -723,47 +727,56 @@
 						<div class="quickSelect RGB2IR exampleSens python langSens">
 							<h3>Spectral enhancement: RGB&#x21d2IR using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/RGB2IR.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/RGB2IR.py"></code></pre>
 						</div>
 						<div class="quickSelect RGB2IR exampleSens matlab langSens">
 							<h3>Spectral enhancement: RGB&#x21d2IR using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/RGB2IR.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/RGB2IR.m"></code></pre>
 						</div>
 						<div class="quickSelect Pan2RGB exampleSens python langSens">
-							<h3>Spectral enhancement: Pan&#x21d2RGB  using Python/h3>
+							<h3>Spectral enhancement: Pan&#x21d2RGB  using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2RGB.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2RGB.py"></code></pre>
 						</div>
 						<div class="quickSelect Pan2RGB exampleSens matlab langSens">
 							<h3>Spectral enhancement: Pan&#x21d2RGB using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2RGB.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2RGB.m"></code></pre>
 						</div>
 						<div class="quickSelect Pan2IR exampleSens python langSens">
 							<h3>Spectral enhancement: Pan&#x21d2IR using Python</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2IR.py" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/Pan2IR.py"></code></pre>
 						</div>
 						<div class="quickSelect Pan2IR exampleSens matlab langSens">
 							<h3>Spectral enhancement: Pan&#x21d2IR using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code><iframe src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2IR.m" onload="removeIframe(this)"></iframe></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/Pan2IR.m"></code></pre>
 						</div>
-						<!--
-						<div class="quickSelect downsacling exampleSens">
-							<h3>Spectral enhancement: RGB&#x21d2IR </h3>
+					</div>
+					
+					<br>
+					<div class="quickSelect algoSens asyncMode">
+						<h2>Example of using asynchronous request to G2S</h2>
+						
+						<div class="quickSelect exampleSens python langSens">
+							<h3>Asynchronous call using Python</h3>
 							<p></p>
-							<pre class="highlight"><code></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/RGB2IR.py"></code></pre>
 						</div>
-					-->
-				</div>
+						<div class="quickSelect exampleSens matlab langSens">
+							<h3>Asynchronous call using MATLAB</h3>
+							<p></p>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/RGB2IR.m"></code></pre>
+						</div>
+					</div>
 
 
 				<h1 id="Benchmarking">Benchmarking</h1>
 				<p>This code <strong><u>CAN</u></strong> be used for benchmarking (and I invite you to do so &#x1F609), the code needs to run natively on macOS or on Linux <u>using the Intel Compiler with MKL library</u>. The version needs to be reported, and the time <u>needs</u> to be the time reported by the algorithm (that is the true execution time without taking into account interfaces overhead).</p>
 
-				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or through WSL on Windows 10.</p>
+				<p>When benchmarking, the code should <strong><u>NOT</u></strong> be used inside a Virtual Machine or through WSL on Windows 10+.</p>
 
 				<h1 id="How2Cite" >How to cite ?</h1>
 				<div>

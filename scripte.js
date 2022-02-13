@@ -37,7 +37,15 @@ $(document).ready(function(){
 		$("div.algoChoice a.button."+button.data('algo')).attr('selected', true);
 		$("div.quickSelect.algoSens."+button.data('algo')).removeClass("algo2hide");
 		$("div.quickSelect.algoSens:not('."+button.data('algo')+"')").addClass("algo2hide");
+		
 		if(event) event.stopPropagation();
+		var nativeButton=this;
+		setTimeout(function(){
+			let newPositionInView=nativeButton.getBoundingClientRect();
+			if(newPositionInView.top<0 || $(window).height()){
+				nativeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+			}		
+		},100);
 	});
 
 	$("div.exampleChoice a.button:not([disabled])").click(function(){
@@ -68,22 +76,23 @@ $(document).ready(function(){
 	// });
 
 	autoSetOs();
+
+	loadAllExmaples();
 });
 
 function setMaxHeight(parent){
 	$(parent).css("max-height", $(parent).height());
 }
 
-function removeIframe(iframeObject){
-	var parentObject=$(iframeObject).closest('div.quickSelect.exampleSens');
-	console.log(parentObject)
-	if(iframeObject.contentDocument){
-		iframeObject.before((iframeObject.contentDocument.body.innerHTML||iframeObject.contentDocument.children[0]));
-		iframeObject.remove()
-		setMaxHeight(parentObject)
-	}else{
-		$.ajax($(iframeObject).attr('src')).done(function(data){iframeObject.before(data);iframeObject.remove();setMaxHeight(parentObject)});
-	};
+function loadAllExmaples(){
+	$('code[src]').each(function(idx,el){
+		$.ajax($(el).attr('src')).done(function(data){
+			$(el).html(data)
+			hljs.highlightElement(el);
+			var parentObject=$(el).closest('div.quickSelect.exampleSens');
+			setMaxHeight(parentObject)
+		})
+	})
 }
 
 function autoSetOs() {
