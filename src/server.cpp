@@ -278,7 +278,7 @@ int main(int argc, char const *argv[]) {
 
 							jobIdType jobId;
 							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-							int error=statusJobs(jobIds,jobId);
+							int error=statusJobs(jobIds,jobQueue,jobId);
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
 							receiver.send(reply,zmq::send_flags::none);
@@ -297,7 +297,7 @@ int main(int argc, char const *argv[]) {
 							fprintf(stderr, "%s\n", "recieve KILL");
 							jobIdType jobId;
 							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-							recieveKill(jobIds,jobId);
+							recieveKill(jobIds,jobQueue,jobId);
 							int error=0;
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));

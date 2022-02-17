@@ -18,7 +18,14 @@
 #include "jobManager.hpp"
 
 
-void recieveKill(jobArray &jobIds, jobIdType jobId ){
+void recieveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId ){
+	
+	auto it = std::find_if (queue.begin(), queue.end(),[=](jobTask task){return std::get<0>(task)==jobId;});
+	if(std::get<0>(*it)==jobId){
+		queue.erase(it);
+		return;
+	}
+
 	pid_t pid=jobIds.look4pid[jobId];
 	kill(pid, SIGTERM);
 
@@ -33,6 +40,8 @@ void recieveKill(jobArray &jobIds, jobIdType jobId ){
 	if (!died) kill(pid, SIGKILL);
 	jobIds.look4jobId.erase(pid);
 	jobIds.look4pid.erase(jobId);
+
+
 }
 
 bool cleanJobs(jobArray &jobIds){
@@ -69,9 +78,9 @@ bool cleanJobs(jobArray &jobIds){
 	return cleanSomething;
 }
 
-int statusJobs(jobArray &jobIds, jobIdType jobId){
+int statusJobs(jobArray &jobIds, jobQueue &queue, jobIdType jobId){
 	cleanJobs(jobIds);
-	if(jobIds.look4pid.find(jobId)!=jobIds.look4pid.end())
+	if(jobIds.look4pid.find(jobId)!=jobIds.look4pid.end() || std::any_of(queue.begin(), queue.end(),[=](jobTask task){return std::get<0>(task)==jobId;}))
 		return -1;
 	else{
 		for (auto it = jobIds.errorsByJobId.cbegin(); it != jobIds.errorsByJobId.cend(); it++)

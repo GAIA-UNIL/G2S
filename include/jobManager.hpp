@@ -24,6 +24,8 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <stack>
+#include <deque>
+#include <json/json.h>
 #include <utility>
 
 typedef unsigned jobIdType;
@@ -35,8 +37,11 @@ struct jobArray{
 	std::deque<std::pair<pid_t, int> > errorsByPid;
 };
 
-void recieveKill(jobArray &jobIds, jobIdType jobId );
-int statusJobs(jobArray &jobIds, jobIdType jobId);
+typedef std::tuple<jobIdType, Json::Value, std::vector<jobIdType> > jobTask;
+typedef std::deque<jobTask > jobQueue;
+
+void recieveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId );
+int statusJobs(jobArray &jobIds, jobQueue &queue, jobIdType jobId);
 bool cleanJobs(jobArray &jobIds);
 
 #endif // JOB_MANAGER_HPP
