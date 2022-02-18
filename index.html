@@ -41,7 +41,7 @@
 								<li><a href="#QS">Parameters for QS</a></li>
 								<li><a href="#NDS">Parameters for NDS</a></li>
 							</ul>
-							<li><a href="#example">Example</a></li>
+							<li><a href="#example">Examples</a></li>
 							<li><a href="#Benchmarking">Benchmarking</a></li>
 							<li><a href="#How2Cite">How to cite ?</a></li>
 							<li><a href="faq.html" target="_blank">HowTo</a></li>
@@ -57,7 +57,7 @@
 				<h1  id='briefOverview'>Brief overview</h1>
 				<p>The <strong>GeoStatistical Server (G2S)</strong>  is a framework that allows you to use state-of-the-art <strong>Multiple Point Statistics (MPS)</strong> algorithms to run stochastic simulations.</p>
 
-				<p><strong>G2S</strong> is designed to run simulations in a generic way, independently of the code used or language it is written in. For example, it enables to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (or any other combination)</p>
+				<p><strong>G2S</strong> is designed to run simulations in a generic way, independently of the code used or language it is written in. For example, it enables to run a <em>C/C++</em> simulation code using <em>Python</em>, or <em>Python</em> using <em>MATLAB</em> (or any other combination).</p>
 
 				<p>Currently, the framework is provided with:
 					<ul>
@@ -68,11 +68,14 @@
 					</ul>
 
 					<p>The framework can be easily extended to handle most codes that use gridded data. Currently any compiled code or python code can be handled.</p>
+					<p>For a hands-on introduction to MPS (PPT slides, Colab Notebook & recorded tutorial), follow <a href="https://github.com/GAIA-UNIL/Short-course-MPS">this link</a>.
 
 					<h1 id='install'>Installation</h1>
 
 					<p>Because life is short, we designed tools to make it simple. &#x1F609 <br> Except if you plan to run simulations on a remote computer, 
-						you need to install both the server and the interfaces on the same machine. Please choose the options below that match your needs.</p>
+						you need to install both the server and the interfaces on the same machine. Please choose the options below that match your needs.
+						 <br> If you ever need to update G2S, simply pull the changes from the Github repository and recompile (last step of the manual installation). 
+						</p>
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
 						<a data-os="macOS" class="button macOS">macOS</a>
@@ -92,7 +95,7 @@
 								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Then run <code>build/c++-build/install_needs_W_VM.sh</code></li>
 							</ol>
-							<h4>Manual (included Intel C++ Compiler)</h4>
+							<h4>Manual (including Intel C++ Compiler)</h4>
 							<ol>
 								<li>First clone the code from this GitHub:<br><code>git clone https://github.com/GAIA-UNIL/G2S.git</code></li>
 								<li>Basics for compiling are needed (e.g. on Ubuntu: build-essential).</li>
@@ -134,6 +137,7 @@
 							<ol>
 								<li>Check that the latest updates of Windows are installed</li>
 								<li>Install WSL following <a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">these instructions</a>, and select a Linux distribution (we recommend choosing Ubuntu for beginners).</li>
+								<li>Clone the code from this GitHub repository: https://github.com/GAIA-UNIL/G2S.git (or download and unzip the zip-file on the top right of this page).
 								<li>In Windows, go to the directory <code>build/c++-build</code></li> and run/double-click <code>install.bat</code>. 
 							</ol>
 						</div>
@@ -166,7 +170,7 @@
 							<ol>
 								<li>(A C++ compiler with c++17 is required)</li>
 								<li>Open MATLAB</li>
-								<li>Go to <code>build/build-matlab</code></li>
+								<li>Go to <code>build/matlab-build</code></li>
 								<li>Run <code>CompileG2S</code></li>
 								<li>Add compiled file in the MATLAB path</li>
 							</ol>
@@ -268,35 +272,38 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;d</td>
-									<td>run as daemon</td>
+									<td>Run as daemon</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;To&nbsp;n</td>
-									<td>shutdown the server if there is no activity after n second, 0 for &infin; (default : 0)</td>
+									<td>Shutdown the server if there is no activity after n seconds, 0 for &infin; (default : 0)</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;p</td>
-									<td>select a specific port for the server (default: 8128)</td>
+									<td>Select a specific port for the server (default: 8128)</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;kod</td>
-									<td>keep old data, if the flag is not present all files from previous runs are erased at launch</td>
+									<td>Keep old data, if the flag is not present all files from previous runs are erased at launch</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;age</td>
-									<td>set the time in second after files need to be removed (default: 86400 s = 1d)</td>
+									<td>Set the time in second after files need to be removed (default: 86400 s = 1d)</td>
 								</tr>
+							<thead>
+								<th colspan="3"> Advanced parameters </th>
+							</thead>
 								<tr>
 									<td class="addCopy">&#8209;mT</td>
-									<td>single job at a time (experimental)</td>
+									<td>Single job at a time (excludes the use of -after, only use if you're sure to be the only one accessing the server)</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;fM</td>
-									<td>Run as function, without fork (experimental)</td>
+									<td>Run as a function, without fork</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;maxCJ&nbsp;n</td>
-									<td>limit the maximum number of jobs running in parallel.</td>
+									<td>Limit the maximum number of jobs running in parallel.</td>
 								</tr>
 							</tbody>
 						</table>
@@ -343,41 +350,42 @@
 						<tbody>
 							<tr>
 								<td class="addCopy">&#8209;&#8209;version</td>
-								<td>return the version and compilation date of the interface</td>
+								<td>Return the version and compilation date of the interface</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;a</td>
-								<td>the simulation algorithm to be used, it can be 'qs', 'nds', 'ds-l' (DS-like, not maintained)</td>
+								<td>The simulation algorithm to be used, it can be 'qs', 'nds', 'ds-l' (DS-like, not maintained)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;sa</td>
-								<td>Server address (default: localhost, the server is local)<br>Nice when we have a powerful machine dedicated for computation</td>
+								<td>Server address (default: localhost, the server is local, otherwise provide IP address)<br>Nice when we have a powerful machine dedicated for computation</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;silent</td>
-								<td>don't display the progression, nice for scripts</td>
+								<td>Don't display the progression, useful for scripts</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;serverStatus</td>
-								<td>inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly</td>
+								<td>Inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;noTO</td>
-								<td>deactivate TimeOut on ZMQ communication, useful for slow network (e.g., through internet)</td>
+								<td>Deactivate TimeOut on ZMQ communication, useful for slow network (e.g., through internet)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;TO</td>
-								<td>specify a custom TimeOut on ZMQ communication( uint32 in millisecond )</td>
+								<td>Specify a custom TimeOut on ZMQ communication( uint32 in millisecond )</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;shutdown</td>
-								<td>shutdown the server, useful at the end of scripts</td>
+								<td>Shutdown the server, useful at the end of scripts</td>
 							</tr>
 						</tbody>
 					</table>
 					<br>
-					<p>The following options represent the <b>Async mode</b>, check example in <i>MATLAB</i> and <i>Python</i> directory:</p>
-
+					<p>The following options represent the <b>Asynchronous mode</b>, which allows you to submit multiple jobs simultaneously and retrieve the results of each of them later on (as opposed to synchronous communication with the server, where 
+					you need to wait until a job is finished before you can submit a new one). You launch the async mode by simply adding the -submitOnly flag to your g2s call. This will give only the job ID as an output, so the g2s call becomes
+					<code>jobid = g2s(flag1,value1, flag2,value2, ...)</code>. See the example section for a demonstration in <i>MATLAB</i> and <i>Python</i>.</p>
 					<table class="parameter">
 						<thead>
 							<tr>
@@ -388,23 +396,23 @@
 						<tbody>
 							<tr>
 								<td class="addCopy">&#8209;submitOnly</td>
-								<td>submit a job</td>
+								<td>Submit a job</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;statusOnly</td>
-								<td>check progression</td>
+								<td>Check progression <br>Usage: <code>status = g2s('-statusOnly',jobid)</code></td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;waitAndDownload</td>
-								<td>download the result</td>
+								<td>Download the result <br>Usage: <code>sim,_ = g2s('-waitAndDownload',jobid</code>)</td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;kill</td>
-								<td>kill a given task</td>
+								<td>Kill a given task <br>Usage: <code>g2s('-kill',jobid)</code></td>
 							</tr>
 							<tr>
 								<td class="addCopy">&#8209;after</td>
-								<td>execute the task after an other on is finished (e.g. '-after',previousTaskId )</td>
+								<td>Execute the job after another one is finished (e.g. '-after',previousJobId )</td>
 							</tr>
 						</tbody>
 					</table>
@@ -442,7 +450,9 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;ti</td>
-									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. <br> NaN values in the training image will be ignored. <br> If there are multiple variables, they will <b>not</b> be automatically normalized to be in the same range. Either normalize them beforehand, or use the kernel to normalize them.</td>
+									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. 
+									<br> NaN values in the training image will be ignored. <br> Unlike other MPS-algorithms, if there are multiple variables they will <b>not</b> be automatically normalized to be in the same range. 
+									
 									<td>&#x2714</td>
 								</tr>
 								<tr>
@@ -456,24 +466,9 @@
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;sp</td>
-									<td>simulation path, image of the position in the path. Small values are simulated first. -&infin; values are not simulated.</td>
-									<td></td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;ki</td>
-									<td>Image of weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
-									<td></td>
-								</tr>
-								<tr>
 									<td class="addCopy">&#8209;k</td>
 									<td>Number of best candidates to consider &#x2208[1 &infin;]</td>
 									<td>&#x2714</td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;f</td>
-									<td>f=1/k equivalent to f of DS with a threshold to 0</td>
-									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;n</td>
@@ -481,62 +476,83 @@
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;s</td>
-									<td>random seed value</td>
+									<td class="addCopy">&#8209;ki</td>
+									<td>Image of the weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td class="addCopy">&#8209;f</td>
+									<td>f=1/k equivalent to f of DS with a threshold to 0</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;j</td>
-									<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use integer values to specify a number of threads (or logical cores). 
+									<td>To run in parallel (default is single core). To use as follows '-j', N1, N2, N3 (all three are optional but N3 needs N2, which in turn needs N1). <br> Use integer values to specify a number of threads (or logical cores). 
 										Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
 										cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to 
 										parallelize over training images (if many TIs are available, each is scanned on a different core). Default: 1<br>- N3 threads used to 
-										parallelize FFTs (node-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but requires more memory.</td>
+										parallelize FFTs (node-level). Default: 1<br>- N1 and N2 are recommended over N3. N1 is usually more efficient than N2, but requires more memory.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;ii</td>
-									<td>index of training in which to sample from (experimental)</td>
+									<td class="addCopy">&#8209;sp</td>
+									<td>Simulation path, array of the size of the simulation grid containing values that specify the simulation path (from low to high). 
+									Default is a random path. Equal values are accepted but will always be ordered in the same way (i.e. not random). -&infin; values are not simulated. 
+									In case of multiple variables, a vector simulation is default (same path for all variables) and the simulation path should be one dimension less than the number of variables. 
+									If you prefer a full simulation, provide an array containing the path for each variable and use the "-fs" flag below.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;cti</td>
-									<td>for a circular/cyclic/periodic training image over each dimension</td>
-									<td></td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;csim</td>
-									<td>for a circular/cyclic/periodic simulation over each dimension</td>
-									<td></td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;adsim</td>
-									<td>augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories <i>(Coming soon!)</i></td>
-									<td></td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;far</td>
-									<td>fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
+									<td class="addCopy">&#8209;s</td>
+									<td>Random seed value</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;W_GPU</td>
-									<td>use integrated GPU if available</td>
+									<td>Use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;W_CUDA</td>
-									<td>use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use the first two GPUs)</td>
+									<td>Use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use the first two GPUs)</td>
+									<td></td>
+								</tr>
+							<thead>
+								<th colspan="3"> Advanced parameters </th>
+							</thead>
+								<tr>
+									<td class="addCopy">&#8209;ii</td>
+									<td>Array that specifies for each pixel which training image to sample from. Default: all training images are searched for the best match. </td>
+									<td></td>
+								</tr>
+								<tr>
+									<td class="addCopy">&#8209;far</td>
+									<td>Fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td class="addCopy">&#8209;cti</td>
+									<td>With this flag QS will treat the training image(s) as periodic (aka circular or cyclic) over each dimension.</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td class="addCopy">&#8209;csim</td>
+									<td>With this flag QS will make sure to create a periodic (aka circular or cyclic) simulation over each dimension.</td>
+									<td></td>
+								</tr>
+								<tr>
+									<td class="addCopy">&#8209;adsim</td>
+									<td>Augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories <i>(Coming <del>soon</del> maybe some day!)</i></td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;fs</td>
-									<td>full simulation: runs the simulation of each pixel independently, i.e. doesn't simulate all the vector at the time (experimental)</td>
+									<td>Full simulation: follows a different simulation path for each variable (as opposed to vector simulation, where the same simulation path is used for all variables).</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;nV</td>
-									<td>no Verbatim (experimental)</td>
+									<td>No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental)</td>
 									<td></td>
 								</tr>
 							</tbody>
@@ -555,23 +571,22 @@
 							<tbody>
 								<tr>
 									<td class="addCopy">&#8209;ti</td>
-									<td>Same as in QS.</td>
+									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. 
+									<br> NaN values in the training image will be ignored. <br> Unlike other MPS-algorithms, if there are multiple variables they will <b>not</b> be automatically normalized to be in the same range. 
+									</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;di</td>
-									<td>Same as in QS.</td>
+									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as ti for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data.</td>
+									</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;dt</td>
-									<td>Same as in QS.</td>
+									<td>Data type. 0 &rarr; continuous and 1 &rarr; categorical <br> <p style="color:red;">This is where the number of variables is defined.</p> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
+									</td>
 									<td>&#x2714</td>
-								</tr>
-								<tr>
-									<td class="addCopy">&#8209;ki</td>
-									<td>Same as in QS.</td>
-									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;k</td>
@@ -584,64 +599,76 @@
 									<td>&#x2714</td>
 								</tr>
 								<tr>
+									<td class="addCopy">&#8209;ki</td>
+									<td>Image of the weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
+									</td>
+									<td></td>
+								</tr>
+								<tr>
 									<td class="addCopy">&#8209;nw</td>
-									<td>narrowness range  0&rarr; max-min, 1 &rarr; median, default IQR &rarr; 0.5</td>
+									<td>Narrowness range  0&rarr; max-min, 1 &rarr; median, default IQR &rarr; 0.5</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;nwv</td>
-									<td>number of variables to consider in the narrowness, (start from the end), default: 1</td>
+									<td>Number of variables to consider in the narrowness, (start from the end), default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;cs</td>
-									<td>chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1</td>
+									<td>Chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;uds</td>
-									<td>area to update around each simulated pixel, the M closest pixel default: 10</td>
+									<td>Area to update around each simulated pixel, the M closest pixel default: 10</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;mp</td>
-									<td>partial simulation, 0 &rarr; empty, 1 &rarr; 100%</td>
+									<td>Partial simulation, 0 &rarr; empty, 1 &rarr; 100%</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;s</td>
-									<td>seed value</td>
+									<td>Seed value</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;j</td>									
-										<td>to run in parallel (if specified), to use as follows '-j', N1, N2, N3. Use integer values to specify a number of threads (or logical cores). 
-										Use decimal values &isin;[0,1] to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
+										<td>To run in parallel (default is single core). To use as follows '-j', N1, N2, N3 (all three are optional but N3 needs N2, which in turn needs N1). <br> Use integer values to specify a number of threads (or logical cores). 
+										Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
 										cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to 
 										parallelize over training images (if many TIs are available, each is scanned on a different core). Default: 1<br>- N3 threads used to 
-										parallelize FFTs (node-level). Default: 1<br>- Favorize N1 and N2 over N3, N1 is usually more efficient than N2, but requires more memory.</td>
+										parallelize FFTs (node-level). Default: 1<br>- N1 and N2 are recommended over N3. N1 is usually more efficient than N2, but requires more memory.</td>
+									</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;W_GPU</td>
-									<td>use integrated GPU if available</td>
+									<td>Use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
 									<td class="addCopy">&#8209;nV</td>
-									<td>no Verbatim (experimental)</td>
+									<td>No Verbatim (experimental)</td>
 									<td></td>
 								</tr>
 							</tbody>
 						</table>
 					</div>
 
-					<h1 id='example'>Example</h1>
+					<h1 id='example'>Examples</h1>
+					<p> Some copy-paste examples are provided here for demonstration purposes. Feel free to play around with the parameters and with different training images (we collected some <a href="https://github.com/GAIA-UNIL/TrainingImagesTIFF">here</a>), 
+					but keep in mind that these are just quick examples. For proper implementations please check the literature. 
+						<br>
+						For additional examples with more detailed explanation check out the Colab notebook accompanying our <a href="https://github.com/GAIA-UNIL/Short-course-MPS">hands-on introduction to MPS</a>.
+					</p>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python"><img class="logo python" src="https://www.mgravey.com/assets/logo/Python.svg">Python</a>
 						<a data-progLang="matlab" class="button matlab"><img class="logo matlab" src="https://www.mgravey.com/assets/logo/Matlab.png">MATLAB</a>
 						<a data-progLang="R-lang" class="button tooltip R-lang" disabled>R
-							<span class="tooltiptext">No one reported to use the R interface, if you need it please contact me at: g2s@mgravey.com</span>
+							<span class="tooltiptext">So far no one reported the need for an R interface, if you need it please contact me at: g2s@mgravey.com</span>
 						</a>
 					</div>
 					<div class="algoChoice buttonChoice">
@@ -763,12 +790,12 @@
 						<div class="quickSelect exampleSens python langSens">
 							<h3>Asynchronous call using Python</h3>
 							<p></p>
-							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/RGB2IR.py"></code></pre>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/async_mode.py"></code></pre>
 						</div>
 						<div class="quickSelect exampleSens matlab langSens">
 							<h3>Asynchronous call using MATLAB</h3>
 							<p></p>
-							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/RGB2IR.m"></code></pre>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/async_mode.m"></code></pre>
 						</div>
 					</div>
 
