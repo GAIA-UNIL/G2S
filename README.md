@@ -21,6 +21,6 @@ Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** 
 
 An interactive and complete documentation is available [here](https://gaia-unil.github.io/G2S/).
 
-## Online Demo
+## Online Demo (temporarily out of service!)
 
 An interactive online version is available [here](http://g2s.online), to experiment with small unconditional simulations.
