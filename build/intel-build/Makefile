@@ -15,8 +15,8 @@ ifeq ($(MKLROOT),)
 	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
 endif
 
-CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -mkl
-LDFLAGS+=-fopenmp -mkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/
+CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl
+LDFLAGS+=-fopenmp -qmkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
 .PHONY: all depend algoNames extension clean
@@ -32,7 +32,7 @@ depend: .depend Makefile
 include .depend
 
 %.o: $(SRCS)/%.cu 
-	$(NVCC) -ccbin=$(CXX) -c -o $@ $< $(NVFLAGS) $(foreach option, $(CFLAGS) $(CXXFLAGS), --compiler-options $(option))  $(INC) $(LIBINC)
+	$(NVCC) -ccbin=$(CXX) -c -o $@ $< $(NVFLAGS) $(foreach option, $(CFLAGS) $(CXXFLAGS), --compiler-options $(option))  $(INC) $(LIBINC) -allow-unsupported-compiler
 
 %.o: $(SRCS)/%.cpp 
 	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(OPENCL_INC)
