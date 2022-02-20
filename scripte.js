@@ -39,13 +39,15 @@ $(document).ready(function(){
 		$("div.quickSelect.algoSens:not('."+button.data('algo')+"')").addClass("algo2hide");
 		
 		if(event) event.stopPropagation();
-		var nativeButton=this;
-		setTimeout(function(){
-			let newPositionInView=nativeButton.getBoundingClientRect();
-			if(newPositionInView.top<0 || $(window).height()){
-				nativeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-			}		
-		},100);
+		if(autoScrollOnClick){
+			var nativeButton=this;
+			setTimeout(function(){
+				let newPositionInView=nativeButton.getBoundingClientRect();
+				if(newPositionInView.top<0 || $(window).height()){
+					nativeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+				}		
+			},100);
+		}
 	});
 
 	$("div.exampleChoice a.button:not([disabled])").click(function(){
@@ -76,7 +78,9 @@ $(document).ready(function(){
 	// });
 
 	autoSetOs();
+	autoScrollOnClick=false;
 	autoSetAlgo();
+	autoScrollOnClick=true;
 	loadAllExmaples();
 
 });
