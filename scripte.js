@@ -76,8 +76,9 @@ $(document).ready(function(){
 	// });
 
 	autoSetOs();
-
+	autoSetAlgo();
 	loadAllExmaples();
+
 });
 
 function setMaxHeight(parent){
@@ -114,4 +115,9 @@ function autoSetOs() {
 	if(os){
 		$("div.osChoice.buttonChoice a.button."+os).click();
 	}
+}
+
+function autoSetAlgo() {
+	//automatically start with QS
+	$("div.algoChoice.buttonChoice a.button.qs").click();
 }
