@@ -36,6 +36,27 @@ private:
 
 public:
 
+unsigned anyNativeToUnsigned(std::any val){
+		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
+		return Rcpp::as<unsigned>(obj);
+	}
+
+	float anyNativeToFloat(std::any val){
+		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
+		return Rcpp::as<float>(obj);
+	}
+
+	double anyNativeToDouble(std::any val){
+		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
+		return Rcpp::as<double>(obj);
+	}
+
+	long unsigned anyNativeToLongUnsigned(std::any val){
+		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
+		return Rcpp::as<long unsigned>(obj);
+	}
+
+
 
 	bool userRequestInteruption(){
 		return pending_interrupt();
