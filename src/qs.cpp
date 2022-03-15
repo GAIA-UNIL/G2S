@@ -617,63 +617,91 @@ int main(int argc, char const *argv[]) {
 		kernels.push_back(g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas));
 	}
 
-	std::vector<std::vector<int> > pathPosition;
-	pathPosition.push_back(std::vector<int>(0));
-	for (size_t i = 0; i < kernels[0]._dims.size(); ++i)
+	std::vector<std::vector<std::vector<int> > > pathPositionArray;
+	for (int kernelIndex = 0; kernelIndex < kernels.size(); ++kernelIndex)
 	{
-		unsigned originalSize=pathPosition.size();
-		int sizeInThisDim=(kernels[0]._dims[i]+1)/2;
-		pathPosition.resize(originalSize*(2*sizeInThisDim-1));
-		for (unsigned int k = 0; k < originalSize; ++k)
+		std::vector<std::vector<int> > loaclPathPosition;
+		loaclPathPosition.push_back(std::vector<int>(0));
+		for (size_t i = 0; i < kernels[kernelIndex]._dims.size(); ++i)
 		{
-			pathPosition[k].push_back(0);
-		}
-		for (int j = 1; j < sizeInThisDim; ++j)
-		{
-			std::copy ( pathPosition.begin(), pathPosition.begin()+originalSize, pathPosition.begin()+originalSize*(-1+2*j+0) );
-			std::copy ( pathPosition.begin(), pathPosition.begin()+originalSize, pathPosition.begin()+originalSize*(-1+2*j+1) );
-			for (unsigned int k = originalSize*(-1+2*j+0); k < originalSize*(-1+2*j+1); ++k)
+			unsigned originalSize=loaclPathPosition.size();
+			int sizeInThisDim=(kernels[kernelIndex]._dims[i]+1)/2;
+			loaclPathPosition.resize(originalSize*(2*sizeInThisDim-1));
+			for (unsigned int k = 0; k < originalSize; ++k)
 			{
-				pathPosition[k][i]=j;
+				loaclPathPosition[k].push_back(0);
 			}
-			for (unsigned int k = originalSize*(-1+2*j+1); k < originalSize*(-1+2*j+2); ++k)
+			for (int j = 1; j < sizeInThisDim; ++j)
 			{
-				pathPosition[k][i]=-j;
-			}
-		}
-	}
-
-	g2s::DataImage wieghtKernel=kernels[0].emptyCopy(true);
-	if(searchDistance==g2s::EUCLIDIEN){
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
-		{
-			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
-		}
-	}
-	if(searchDistance==g2s::KERNEL){
-		unsigned nbV=kernels[0]._nbVariable;
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
-		{
-			for (unsigned int j = 0; j < nbV; ++j)
-			{
-				if(fabs(kernels[0]._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernels[0]._data[i*nbV+j]);
+				std::copy ( loaclPathPosition.begin(), loaclPathPosition.begin()+originalSize, loaclPathPosition.begin()+originalSize*(-1+2*j+0) );
+				std::copy ( loaclPathPosition.begin(), loaclPathPosition.begin()+originalSize, loaclPathPosition.begin()+originalSize*(-1+2*j+1) );
+				for (unsigned int k = originalSize*(-1+2*j+0); k < originalSize*(-1+2*j+1); ++k)
+				{
+					loaclPathPosition[k][i]=j;
+				}
+				for (unsigned int k = originalSize*(-1+2*j+1); k < originalSize*(-1+2*j+2); ++k)
+				{
+					loaclPathPosition[k][i]=-j;
+				}
 			}
 		}
+
+		g2s::DataImage wieghtKernel=kernels[kernelIndex].emptyCopy(true);
+		if(searchDistance==g2s::EUCLIDIEN){
+			for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+			{
+				wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+			}
+		}
+		if(searchDistance==g2s::KERNEL){
+			unsigned nbV=kernels[kernelIndex]._nbVariable;
+			for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+			{
+				for (unsigned int j = 0; j < nbV; ++j)
+				{
+					if(fabs(kernels[kernelIndex]._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernels[kernelIndex]._data[i*nbV+j]);
+				}
+			}
+		}
+
+		unsigned center=0;
+		g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
+		for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+		{
+			center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
+		}
+
+		// kernel NaN cleaning, remove all non from neighours to explore.
+		auto localKernel=&kernels[kernelIndex];
+		#if __cplusplus >= 202002L
+		std::erase_if(loaclPathPosition, [center, localKernel](std::vector<int> &v) {
+			unsigned l1;
+			unsigned nbV=localKernel->_nbVariable;
+			localKernel->indexWithDelta(l1, center, v);
+			return std::isnan(localKernel->_data[l1*nbV+0]);
+		});
+		#else
+
+		auto it = std::remove_if(loaclPathPosition.begin(), loaclPathPosition.end(), [center, localKernel](std::vector<int> &v) {
+			unsigned l1;
+			unsigned nbV=localKernel->_nbVariable;
+			localKernel->indexWithDelta(l1, center, v);
+			return std::isnan(localKernel->_data[l1*nbV+0]);
+		});
+		loaclPathPosition.erase(it, loaclPathPosition.end());
+
+		#endif
+
+		std::sort(loaclPathPosition.begin(),loaclPathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+			unsigned l1,l2;
+			wieghtKernelPtr->indexWithDelta(l1, center, a);
+			wieghtKernelPtr->indexWithDelta(l2, center, b);
+			return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
+		});
+		pathPositionArray.push_back(loaclPathPosition);
 	}
 
-	unsigned center=0;
-	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
-	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
-	{
-		center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
-	}
-
-	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
-		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
-	});
+	
 
 
 	/*for (int i = 0; i < 10; ++i)
@@ -1029,17 +1057,17 @@ int main(int argc, char const *argv[]) {
 	switch (st){
 		case fullSim:
 			fprintf(reportFile, "%s\n", "full sim");
-			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector sim");
-			simulation(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
 		case augmentedDimSim:
 			fprintf(reportFile, "%s\n", "augmented dimention sim");
-			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
 		break;
 	}
