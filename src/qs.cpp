@@ -346,6 +346,7 @@ int main(int argc, char const *argv[]) {
 	bool conciderTiAsCircular=false;
 	bool circularSimulation=false;
 	bool augmentedDimentionSimulation=false;
+	bool forceSimulation=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -390,6 +391,12 @@ int main(int argc, char const *argv[]) {
 		seed=atoi((arg.find("-s")->second).c_str());
 	}
 	arg.erase("-s");
+
+	if (arg.count("--forceSimulation") == 1)
+	{
+		forceSimulation=true;
+	}
+	arg.erase("--forceSimulation");
 
 	if (arg.count("-wd") == 1)
 	{
@@ -1023,17 +1030,17 @@ int main(int argc, char const *argv[]) {
 		case fullSim:
 			fprintf(reportFile, "%s\n", "full sim");
 			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation);
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector sim");
 			simulation(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation);
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
 		case augmentedDimSim:
 			fprintf(reportFile, "%s\n", "augmented dimention sim");
 			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation);
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
 		break;
 	}
  

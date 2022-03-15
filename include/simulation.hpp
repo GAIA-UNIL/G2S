@@ -26,7 +26,7 @@
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
@@ -51,7 +51,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
@@ -80,7 +80,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			withOnlyData&=!std::isnan(di._data[currentCell*di._nbVariable+i]);
 		}
 
-		if(withOnlyData) continue;
+		if(withOnlyData && !forceSimulation) continue;
 
 		if(nii){
 			numberNeighbor.clear();
@@ -299,7 +299,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
 		for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
-			if(std::isnan(di._data[currentCell*di._nbVariable+j])){
+			if(std::isnan(di._data[currentCell*di._nbVariable+j]) || forceSimulation){
 				#pragma omp atomic write
 				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 			}
@@ -313,7 +313,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
  std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
@@ -338,7 +338,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
@@ -348,7 +348,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			moduleID=omp_get_thread_num();
 		#endif
 		unsigned currentCell=solvingPath[indexPath];
-		if(!std::isnan(di._data[currentCell])) continue;
+		if(!std::isnan(di._data[currentCell]) && !forceSimulation) continue;
 		float localSeed=seedAray[indexPath];
 
 		unsigned currentVariable=currentCell%di._nbVariable;
@@ -545,7 +545,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
 		
-		if(std::isnan(di._data[currentCell])){
+		if(std::isnan(di._data[currentCell])|| forceSimulation){
 			#pragma omp atomic write
 			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];
 		}
