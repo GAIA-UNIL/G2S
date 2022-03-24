@@ -6,7 +6,7 @@ ti_coarse = imresize(imresize(ti_fine,0.2,'nearest'),5,'nearest');
 
 %display the full training image at both resolutions
 figure(1);
-tiledlayout(1,2);
+tiledlayout(2,1);
 nexttile;
 image(ti_fine);
 title('Fine TI');
@@ -26,10 +26,10 @@ di = cat(3,di_fine,di_coarse);
 
 
 % QS call using G2S
-[simulation,index,time,finalprogress,jobid]=g2s('-a','qs',...
+[simulation,index,time]=g2s('-a','qs',...
                 '-ti',ti,...
                 '-di',di,...
-                '-dt',[1],... #Zero for continuous variables
+                '-dt',[0],... #Zero for continuous variables
                 '-k',1.2,...
                 '-n',50,...
                 '-j',0.5);
