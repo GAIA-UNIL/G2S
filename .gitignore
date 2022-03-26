@@ -60,4 +60,4 @@ build/python-build/dist
 
 *.depend
 build/PyDevAlgo
-build/algosName.config
+!build/*.config

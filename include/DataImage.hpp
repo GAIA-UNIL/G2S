@@ -209,8 +209,8 @@ class DataImage{
 		char outputFullFilename[2048];
 		char extra[16]={0};
 		if(compresed) strcpy(extra,".gz");
-		sprintf(fullFilename,"./data/%s.bgrid%s",filename.c_str(),extra);
-		sprintf(outputFullFilename,"./%s.bgrid%s",outputName,extra);
+		sprintf(fullFilename,"/tmp/G2S/data/%s.bgrid%s",filename.c_str(),extra);
+		sprintf(outputFullFilename,"/tmp/G2S/%s.bgrid%s",outputName,extra);
 		createLink(outputFullFilename, fullFilename);
 		free(outputName);
 	}

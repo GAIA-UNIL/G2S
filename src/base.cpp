@@ -64,7 +64,7 @@ int main(int argc, char const *argv[]) {
 
 
 				jobIdType logId;
-				if(sscanf(logFileName,"logs/%d.log",&logId)==1){
+				if(sscanf(logFileName,"/tmp/G2S/logs/%d.log",&logId)==1){
 					std::to_string(logId);
 					//sprintf(outputFilename,"%d",logId);
 					//symlink(outputName, fullFilename);

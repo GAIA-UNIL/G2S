@@ -50,7 +50,7 @@ int main(int argc, char const *argv[]) {
 
 
 				jobIdType logId;
-				if(sscanf(logFileName,"logs/%u.log",&logId)==1){
+				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
 					sprintf(outputFilename,"%u",logId);
 					//symlink(outputName, fullFilename);
 					uniqueID=logId;

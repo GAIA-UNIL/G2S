@@ -32,7 +32,7 @@ char* loadRawData(const char * hash){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
-	sprintf(filename,"./data/%s.bgrid.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid.gz",hash);
 	if(!data &&   g2s::file_exist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
@@ -45,7 +45,7 @@ char* loadRawData(const char * hash){
 			gzclose(dataFile);
 		}
 	}
-	sprintf(filename,"./data/%s.bgrid",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid",hash);
 	//fprintf(stderr, "%s\n",filename );
 	if(!data &&  g2s::file_exist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
@@ -83,7 +83,7 @@ char* writeRawData(char* data, bool compresed){
 	char filename[4096];
 
 	if(compresed) {
-		sprintf(filename,"./data/%s.bgrid.gz",hashInHexa);
+		sprintf(filename,"/tmp/G2S/data/%s.bgrid.gz",hashInHexa);
 
 		gzFile dataFile=gzopen(filename,"wb");
 		if(dataFile) {
@@ -92,7 +92,7 @@ char* writeRawData(char* data, bool compresed){
 		}
 	}
 	else {
-			sprintf(filename,"./data/%s.bgrid",hashInHexa);
+			sprintf(filename,"/tmp/G2S/data/%s.bgrid",hashInHexa);
 
 		FILE* dataFile=fopen(filename,"wb");
 		if(dataFile) {

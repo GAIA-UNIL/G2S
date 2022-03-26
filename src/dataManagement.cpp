@@ -44,7 +44,7 @@ int storeData(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 			char filename[4096];
 			if(compressed)
 			{
-				sprintf(filename,"./data/%s.bgrid.gz",hash);
+				sprintf(filename,"/tmp/G2S/data/%s.bgrid.gz",hash);
 				if(!force && fileExist(filename))return 1;
 				gzFile dataFile=gzopen(filename,"wb");
 				if(dataFile) {
@@ -52,7 +52,7 @@ int storeData(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 					gzclose(dataFile);
 				}
 			}else{
-				sprintf(filename,"./data/%s.bgrid",hash);
+				sprintf(filename,"/tmp/G2S/data/%s.bgrid",hash);
 				if(!force && fileExist(filename))return 1;
 				FILE* dataFile=fopen(filename,"wb");
 				if(dataFile) {
@@ -76,7 +76,7 @@ zmq::message_t sendData( char* dataName){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
-	sprintf(filename,"./data/%s.bgrid.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid.gz",hash);
 	if(!buffer &&  fileExist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
@@ -87,7 +87,7 @@ zmq::message_t sendData( char* dataName){
 			gzclose(dataFile);
 		}
 	}
-	sprintf(filename,"./data/%s.bgrid",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid",hash);
 	//fprintf(stderr, "requested data %s\n", filename);
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
@@ -130,7 +130,7 @@ int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 			char filename[4096];
 			if(compressed)
 			{
-				sprintf(filename,"./data/%s.json.gz",hash);
+				sprintf(filename,"/tmp/G2S/data/%s.json.gz",hash);
 				if(!force && fileExist(filename))return 1;
 				gzFile dataFile=gzopen(filename,"wb");
 				if(dataFile) {
@@ -138,7 +138,7 @@ int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 					gzclose(dataFile);
 				}
 			}else{
-				sprintf(filename,"./data/%s.json",hash);
+				sprintf(filename,"/tmp/G2S/data/%s.json",hash);
 				if(!force && fileExist(filename))return 1;
 				FILE* dataFile=fopen(filename,"wb");
 				if(dataFile) {
@@ -162,7 +162,7 @@ zmq::message_t sendJson( char* dataName){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
-	sprintf(filename,"./data/%s.json.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.json.gz",hash);
 	if(!buffer &&  fileExist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
@@ -173,7 +173,7 @@ zmq::message_t sendJson( char* dataName){
 			gzclose(dataFile);
 		}
 	}
-	sprintf(filename,"./data/%s.json",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.json",hash);
 	//fprintf(stderr, "requested data %s\n", filename);
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"rb");
@@ -211,7 +211,7 @@ zmq::message_t sendText( char* dataName){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
-	sprintf(filename,"./data/%s.txt.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.txt.gz",hash);
 	if(!buffer &&  fileExist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
 		if(dataFile) {
@@ -222,7 +222,7 @@ zmq::message_t sendText( char* dataName){
 			gzclose(dataFile);
 		}
 	}
-	sprintf(filename,"./data/%s.txt",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.txt",hash);
 	//fprintf(stderr, "requested data %s\n", filename);
 	if(!buffer && fileExist(filename)){
 		FILE* dataFile=fopen(filename,"r");
@@ -254,17 +254,17 @@ int dataIsPresent(char* dataName){
 	memcpy(hash,dataName,64);
 	int isPresent=0;
 	char filename[4096];
-	sprintf(filename,"./data/%s.bgrid.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid.gz",hash);
 	if(fileExist(filename)) isPresent=1;
-	sprintf(filename,"./data/%s.bgrid",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.bgrid",hash);
 	if(fileExist(filename)) isPresent=1;
-	sprintf(filename,"./data/%s.json.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.json.gz",hash);
 	if(fileExist(filename)) isPresent=2;
-	sprintf(filename,"./data/%s.json",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.json",hash);
 	if(fileExist(filename)) isPresent=2;
-	sprintf(filename,"./data/%s.txt.gz",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.txt.gz",hash);
 	if(fileExist(filename)) isPresent=3;
-	sprintf(filename,"./data/%s.txt",hash);
+	sprintf(filename,"/tmp/G2S/data/%s.txt",hash);
 	if(fileExist(filename)) isPresent=3;
 	return isPresent;
 }
