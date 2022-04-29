@@ -347,6 +347,7 @@ int main(int argc, char const *argv[]) {
 	bool circularSimulation=false;
 	bool augmentedDimentionSimulation=false;
 	bool forceSimulation=false;
+	bool maxNK=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -444,6 +445,12 @@ int main(int argc, char const *argv[]) {
 		augmentedDimentionSimulation=true;
 	}
 	arg.erase("-adsim");
+
+	if (arg.count("-maxNK") == 1)
+	{
+		maxNK=true;
+	}
+	arg.erase("-maxNK");
 
 	//add extra paremetre here
 	float alpha=0;
@@ -1063,7 +1070,7 @@ int main(int argc, char const *argv[]) {
 		case vectorSim:
 			fprintf(reportFile, "%s\n", "vector sim");
 			simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
 		break;
 		case augmentedDimSim:
 			fprintf(reportFile, "%s\n", "augmented dimention sim");
