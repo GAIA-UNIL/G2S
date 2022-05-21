@@ -83,8 +83,8 @@ cd ../build
 # git checkout Makefile
 if [[ "$OSTYPE" == "darwin"* ]]; then
       sed -i '' "/export LIBINC=/s/$/ -I..\/..\/external\/selfCompiled\/include/" Makefile
-      sed -i '' "/export LIB_PATH=/s/$/ -L..\/..\/external\/selfCompiled\/lib/ -L..\/..\/external\/selfCompiled\/lib64/" Makefile
+      sed -i '' "/export LIB_PATH=/s/$/ -L..\/..\/external\/selfCompiled\/lib/" Makefile
 else
       sed -i "/export LIBINC=/s/$/ -I..\/..\/external\/selfCompiled\/include/" Makefile
-      sed -i "/export LIB_PATH=/s/$/ -L..\/..\/external\/selfCompiled\/lib/ -L..\/..\/external\/selfCompiled\/lib64/" Makefile
+      sed -i "/export LIB_PATH=/s/$/ -L..\/..\/external\/selfCompiled\/lib/" Makefile
 fi
