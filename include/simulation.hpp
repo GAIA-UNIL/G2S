@@ -53,8 +53,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) ordered default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -417,8 +417,8 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) ordered default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -671,7 +671,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 	
 		//unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
-		#pragma omp parallel for schedule(dynamic) ordered num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
+		#pragma omp parallel for schedule(monotonic:dynamic) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule)
 		for (size_t i = 0; i < placeToUpdate.size(); ++i)
 		{
 			unsigned moduleID=0;
