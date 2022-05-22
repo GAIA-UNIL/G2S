@@ -36,7 +36,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install numpy
-        pip install setuptools wheel twine
+        pip install setuptools wheel twine packaging
 
     - name: Install Ubuntu dependencies
       if : contains( matrix.os, 'ubuntu' )
