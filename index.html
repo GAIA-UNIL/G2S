@@ -262,7 +262,7 @@
 						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version</p>
 					</div>
 					<div class="quickSelect macOS linux osSens ">
-						<table class="parameter">
+						<table class="parameter g2s server">
 							<thead>
 								<tr>
 									<th>Flag</th>
@@ -271,38 +271,38 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td class="addCopy">&#8209;d</td>
+									<td class="addCopy">-d</td>
 									<td>Run as daemon</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;To&nbsp;n</td>
+									<td class="addCopy">-To&nbsp;n</td>
 									<td>Shutdown the server if there is no activity after n seconds, 0 for &infin; (default : 0)</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;p</td>
+									<td class="addCopy">-p</td>
 									<td>Select a specific port for the server (default: 8128)</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;kod</td>
+									<td class="addCopy">-kod</td>
 									<td>Keep old data, if the flag is not present all files from previous runs are erased at launch</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;age</td>
+									<td class="addCopy">-age</td>
 									<td>Set the time in second after files need to be removed (default: 86400 s = 1d)</td>
 								</tr>
 							<thead>
 								<th colspan="3"> Advanced parameters </th>
 							</thead>
 								<tr>
-									<td class="addCopy">&#8209;mT</td>
+									<td class="addCopy">-mT</td>
 									<td>Single job at a time (excludes the use of -after, only use if you're sure to be the only one accessing the server)</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;fM</td>
+									<td class="addCopy">-fM</td>
 									<td>Run as a function, without fork</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;maxCJ&nbsp;n</td>
+									<td class="addCopy">-maxCJ&nbsp;n</td>
 									<td>Limit the maximum number of jobs running in parallel.</td>
 								</tr>
 							</tbody>
@@ -340,7 +340,7 @@
 					</div>
 					<p>Each call to <strong>g2s</strong> is composed of parameters of G2S and of the name of the algorithm used.</p>
 
-					<table class="parameter">
+					<table class="parameter g2s interface">
 						<thead>
 							<tr>
 								<th>Flag</th>
@@ -349,35 +349,35 @@
 						</thead>
 						<tbody>
 							<tr>
-								<td class="addCopy">&#8209;&#8209;version</td>
+								<td class="addCopy">--version</td>
 								<td>Return the version and compilation date of the interface</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;a</td>
+								<td class="addCopy">-a</td>
 								<td>The simulation algorithm to be used, it can be 'qs', 'nds', 'ds-l' (DS-like, not maintained)</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;sa</td>
+								<td class="addCopy">-sa</td>
 								<td>Server address (default: localhost, the server is local, otherwise provide IP address)<br>Nice when we have a powerful machine dedicated for computation</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;silent</td>
+								<td class="addCopy">-silent</td>
 								<td>Don't display the progression, useful for scripts</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;serverStatus</td>
+								<td class="addCopy">-serverStatus</td>
 								<td>Inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;noTO</td>
+								<td class="addCopy">-noTO</td>
 								<td>Deactivate TimeOut on ZMQ communication, useful for slow network (e.g., through internet)</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;TO</td>
+								<td class="addCopy">-TO</td>
 								<td>Specify a custom TimeOut on ZMQ communication( uint32 in millisecond )</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;shutdown</td>
+								<td class="addCopy">-shutdown</td>
 								<td>Shutdown the server, useful at the end of scripts</td>
 							</tr>
 						</tbody>
@@ -386,7 +386,7 @@
 					<p>The following options represent the <b>Asynchronous mode</b>, which allows you to submit multiple jobs simultaneously and retrieve the results of each of them later on (as opposed to synchronous communication with the server, where 
 					you need to wait until a job is finished before you can submit a new one). You launch the async mode by simply adding the -submitOnly flag to your g2s call. This will give only the job ID as an output, so the g2s call becomes
 					<code>jobid = g2s(flag1,value1, flag2,value2, ...)</code>. See the example section for a demonstration in <i>MATLAB</i> and <i>Python</i>.</p>
-					<table class="parameter">
+					<table class="parameter g2s interface async">
 						<thead>
 							<tr>
 								<th>Flag</th>
@@ -395,23 +395,23 @@
 						</thead>
 						<tbody>
 							<tr>
-								<td class="addCopy">&#8209;submitOnly</td>
+								<td class="addCopy">-submitOnly</td>
 								<td>Submit a job</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;statusOnly</td>
+								<td class="addCopy">-statusOnly</td>
 								<td>Check progression <br>Usage: <code>status = g2s('-statusOnly',jobid)</code></td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;waitAndDownload</td>
+								<td class="addCopy">-waitAndDownload</td>
 								<td>Download the result <br>Usage: <code>sim,_ = g2s('-waitAndDownload',jobid</code>)</td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;kill</td>
+								<td class="addCopy">-kill</td>
 								<td>Kill a given task <br>Usage: <code>g2s('-kill',jobid)</code></td>
 							</tr>
 							<tr>
-								<td class="addCopy">&#8209;after</td>
+								<td class="addCopy">-after</td>
 								<td>Execute the job after another one is finished (e.g. '-after',previousJobId )</td>
 							</tr>
 						</tbody>
@@ -439,7 +439,7 @@
 
 					<div class="quickSelect algoSens qs">
 						<h2 id='QS'>Parameters for QS</h2>
-						<table class="parameter">
+						<table class="parameter qs">
 							<thead>
 								<tr>
 									<th>Flag</th>
@@ -449,44 +449,44 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td class="addCopy">&#8209;ti</td>
+									<td class="addCopy">-ti</td>
 									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. 
 									<br> NaN values in the training image will be ignored. <br> Unlike other MPS-algorithms, if there are multiple variables they will <b>not</b> be automatically normalized to be in the same range. 
 									
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;di</td>
+									<td class="addCopy">-di</td>
 									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as ti for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;dt</td>
+									<td class="addCopy">-dt</td>
 									<td>Data type. 0 &rarr; continuous and 1 &rarr; categorical <br> <p style="color:red;">This is where the number of variables is defined.</p> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;k</td>
+									<td class="addCopy">-k</td>
 									<td>Number of best candidates to consider &#x2208[1 &infin;]</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;n</td>
+									<td class="addCopy">-n</td>
 									<td>N closest neighbors to consider. If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;ki</td>
+									<td class="addCopy">-ki</td>
 									<td>Image of the weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;f</td>
+									<td class="addCopy">-f</td>
 									<td>f=1/k equivalent to f of DS with a threshold to 0</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;j</td>
+									<td class="addCopy">-j</td>
 									<td>To run in parallel (default is single core). To use as follows '-j', N1, N2, N3 (all three are optional but N3 needs N2, which in turn needs N1). <br> Use integer values to specify a number of threads (or logical cores). 
 										Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
 										cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to 
@@ -495,7 +495,7 @@
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;sp</td>
+									<td class="addCopy">-sp</td>
 									<td>Simulation path, array of the size of the simulation grid containing values that specify the simulation path (from low to high). 
 									Default is a random path. Equal values are accepted but will always be ordered in the same way (i.e. not random). -&infin; values are not simulated. 
 									In case of multiple variables, a vector simulation is default (same path for all variables) and the simulation path should be one dimension less than the number of variables. 
@@ -503,55 +503,55 @@
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;s</td>
+									<td class="addCopy">-s</td>
 									<td>Random seed value</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;W_GPU</td>
+									<td class="addCopy">-W_GPU</td>
 									<td>Use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;W_CUDA</td>
-									<td>Use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'&#8209;W_CUDA',0,1</code> to use the first two GPUs)</td>
+									<td class="addCopy">-W_CUDA</td>
+									<td>Use Nvidia Cuda compatible GPU: specify the device id. (e.g., <code>'-W_CUDA',0,1</code> to use the first two GPUs)</td>
 									<td></td>
 								</tr>
 							<thead>
 								<th colspan="3"> Advanced parameters </th>
 							</thead>
 								<tr>
-									<td class="addCopy">&#8209;ii</td>
+									<td class="addCopy">-ii</td>
 									<td>Array that specifies for each pixel which training image to sample from. Default: all training images are searched for the best match. </td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;far</td>
+									<td class="addCopy">-far</td>
 									<td>Fast and risky &#x1f604, like -ii but with a random input (experimental)</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;cti</td>
+									<td class="addCopy">-cti</td>
 									<td>With this flag QS will treat the training image(s) as periodic (aka circular or cyclic) over each dimension.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;csim</td>
+									<td class="addCopy">-csim</td>
 									<td>With this flag QS will make sure to create a periodic (aka circular or cyclic) simulation over each dimension.</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;adsim</td>
+									<td class="addCopy">-adsim</td>
 									<td>Augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories <i>(Coming <del>soon</del> maybe some day!)</i></td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;fs</td>
+									<td class="addCopy">-fs</td>
 									<td>Full simulation: follows a different simulation path for each variable (as opposed to vector simulation, where the same simulation path is used for all variables).</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;nV</td>
+									<td class="addCopy">-nV</td>
 									<td>No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental)</td>
 									<td></td>
 								</tr>
@@ -560,7 +560,7 @@
 					</div>
 					<div class="quickSelect algoSens nds">
 						<h2 id='NDS'>Parameters for NDS</h2>
-						<table class="parameter">
+						<table class="parameter nds">
 							<thead>
 								<tr>
 									<th>Flag</th>
@@ -570,72 +570,72 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td class="addCopy">&#8209;ti</td>
+									<td class="addCopy">-ti</td>
 									<td>Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. 
 									<br> NaN values in the training image will be ignored. <br> Unlike other MPS-algorithms, if there are multiple variables they will <b>not</b> be automatically normalized to be in the same range. 
 									</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;di</td>
+									<td class="addCopy">-di</td>
 									<td>Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as ti for gap-filing. <br> NaN values will be simulated. Non-NaN values will be considered as conditioning data.</td>
 									</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;dt</td>
+									<td class="addCopy">-dt</td>
 									<td>Data type. 0 &rarr; continuous and 1 &rarr; categorical <br> <p style="color:red;">This is where the number of variables is defined.</p> If multiple variables: <br> - use a single N value if identical for all variables<br> - Use an array of N values if each variable has a different N.</td>
 									</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;k</td>
+									<td class="addCopy">-k</td>
 									<td>Number of best candidates to consider to compute the narrowness &#x2208[5 &infin;]</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;n</td>
+									<td class="addCopy">-n</td>
 									<td>N closest neighbors to consider</td>
 									<td>&#x2714</td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;ki</td>
+									<td class="addCopy">-ki</td>
 									<td>Image of the weighting kernel. Can be used to normalize the variables. If multiple variables: <br> - use a single kernel value if identical for all variables<br> - If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt</td>
 									</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;nw</td>
+									<td class="addCopy">-nw</td>
 									<td>Narrowness range  0&rarr; max-min, 1 &rarr; median, default IQR &rarr; 0.5</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;nwv</td>
+									<td class="addCopy">-nwv</td>
 									<td>Number of variables to consider in the narrowness, (start from the end), default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;cs</td>
+									<td class="addCopy">-cs</td>
 									<td>Chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;uds</td>
+									<td class="addCopy">-uds</td>
 									<td>Area to update around each simulated pixel, the M closest pixel default: 10</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;mp</td>
+									<td class="addCopy">-mp</td>
 									<td>Partial simulation, 0 &rarr; empty, 1 &rarr; 100%</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;s</td>
+									<td class="addCopy">-s</td>
 									<td>Seed value</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;j</td>									
+									<td class="addCopy">-j</td>									
 										<td>To run in parallel (default is single core). To use as follows '-j', N1, N2, N3 (all three are optional but N3 needs N2, which in turn needs N1). <br> Use integer values to specify a number of threads (or logical cores). 
 										Use decimal values &isin;]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical 
 										cores).<br>- N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available.<br>- N2 threads used to 
@@ -645,12 +645,12 @@
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;W_GPU</td>
+									<td class="addCopy">-W_GPU</td>
 									<td>Use integrated GPU if available</td>
 									<td></td>
 								</tr>
 								<tr>
-									<td class="addCopy">&#8209;nV</td>
+									<td class="addCopy">-nV</td>
 									<td>No Verbatim (experimental)</td>
 									<td></td>
 								</tr>
