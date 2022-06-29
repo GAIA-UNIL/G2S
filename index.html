@@ -358,7 +358,7 @@
 							</tr>
 							<tr>
 								<td class="addCopy">-sa</td>
-								<td>Server address (default: localhost, the server is local, otherwise provide IP address)<br>Nice when we have a powerful machine dedicated for computation</td>
+								<td>Server address (default: localhost (the server is local), otherwise provide IP address)<br>Nice when we have a powerful machine dedicated for computation</td>
 							</tr>
 							<tr>
 								<td class="addCopy">-silent</td>
@@ -385,7 +385,7 @@
 					<br>
 					<p>The following options represent the <b>Asynchronous mode</b>, which allows you to submit multiple jobs simultaneously and retrieve the results of each of them later on (as opposed to synchronous communication with the server, where 
 					you need to wait until a job is finished before you can submit a new one). You launch the async mode by simply adding the -submitOnly flag to your g2s call. This will give only the job ID as an output, so the g2s call becomes
-					<code>jobid = g2s(flag1,value1, flag2,value2, ...)</code>. See the example section for a demonstration in <i>MATLAB</i> and <i>Python</i>.</p>
+					<code>jobid = g2s(flag1,value1, flag2,value2, ...)</code>. Don't forget to always include the server address if it's not local! See the example section for a demonstration in <i>MATLAB</i> and <i>Python</i>.</p>
 					<table class="parameter g2s interface async">
 						<thead>
 							<tr>
@@ -684,6 +684,7 @@
 						<div class="exampleChoice buttonChoice">
 							<a data-example="unconditionalSimulation" class="button unconditionalSimulation">Unconditional simulation</a>
 							<a data-example="conditionalSimulation" class="button conditionalSimulation">Conditional simulation</a>
+							<a data-example="multivariateSimulation" class="button multivariateSimulation">Multivariate simulation</a>
 							<a data-example="gapFilling" class="button gapFilling">Gap filling</a>
 							<a data-example="downsacling" class="button downsacling">Downscaling</a>
 							<a data-example="3D" class="button 3D">3D</a>
@@ -710,6 +711,16 @@
 							<h3>Conditional simulation using MATLAB</h3>
 							<p></p>
 							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/conditionalSimulation.m"></code></pre>
+						</div>
+						<div class="quickSelect multivariateSimulation exampleSens python langSens">
+							<h3>Multivariate simulation using Python</h3>
+							<p></p>
+							<pre class="highlight"><code class="language-python" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/multivariateSimulation.py"></code></pre>
+						</div>
+						<div class="quickSelect multivariateSimulation exampleSens matlab langSens">
+							<h3>Multivariate simulation using Matlab</h3>
+							<p></p>
+							<pre class="highlight"><code class="language-matlab" src="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/multivariateSimulation.py"></code></pre>
 						</div>
 						<div class="quickSelect gapFilling exampleSens python langSens">
 							<h3>Gap filling using Python</h3>
