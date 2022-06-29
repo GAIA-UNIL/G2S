@@ -547,6 +547,8 @@ section a.button {
     background: #2e7bcf 0 0 no-repeat;
     border: solid transparent 5px;
     cursor: pointer;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 section div.buttonChoice{
