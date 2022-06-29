@@ -8,11 +8,11 @@ import tifffile as tf
 ti = tf.imread(BytesIO(requests.get(
     'https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/ti_3_variables.tiff').content))
 
-# QS call using G2S
+# QS call using G2S (with dt set to two continuous and one categorical variable)
 simulation,index,_=g2s('-a','qs',
                  '-ti',ti,
                  '-di',numpy.zeros([400,400,3])*numpy.nan,
-                 '-dt',[0,0,1], #Zero for continuous variables
+                 '-dt',[0,0,1],
                  '-k',1.2,
                  '-n',50,
                  '-j',0.5);
