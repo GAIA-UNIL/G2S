@@ -67,7 +67,8 @@ if(systemName=='Darwin' or systemName=='Linux'):
 	)
 
 if(systemName=='Windows'):
-	if platform.python_version()<'3.9':
+	from packaging import version
+	if version.parse(platform.python_version())<version.parse('3.9'):
 		extra='\\';
 	import numpy
 	zmqBuilDir="./libzmq/action_build/";
