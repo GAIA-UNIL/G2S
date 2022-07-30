@@ -66,27 +66,38 @@ void SharedMemoryManager::allowNewModule(bool value){
 }
 
 void SharedMemoryManager::addDevice(ComputeDeviceModule *device){
+	bool newDevice=false;
 	#pragma omp critical (updateSharedMemory)
 	{
 		ComputeDeviceModule* sameDevice=findSameHostDevice(device);
 		if(nullptr==sameDevice){ //create shared memory
-			createSharedMemoryForDevice(device);
+			assert(_allowNewModule);
+			device->_memoryID=_memoryAddress.size();
+			newDevice=true;
 		}else{
 			device->_memoryID=sameDevice->_memoryID;
 		}
 		_devices.insert(device);
 	}
+	if (newDevice)
+	{
+		createSharedMemoryForDevice(device);
+	}
 }
 
 void SharedMemoryManager::removeDevice(ComputeDeviceModule *device){
+	bool removeDevice=false;
 	#pragma omp critical (updateSharedMemory)
 	{
 		_devices.erase(device);
 		if(nullptr==findSameHostDevice(device)){ //remove shared memory
-			removeSharedMemoryForDevice(device);
+			removeDevice=true;
 		}
 	}
-
+	if (removeDevice)
+	{
+		removeSharedMemoryForDevice(device);
+	}
 }
 
 SharedMemoryManager::~SharedMemoryManager(){
@@ -108,8 +119,6 @@ ComputeDeviceModule* SharedMemoryManager::findSameHostDevice(ComputeDeviceModule
 }
 
 void SharedMemoryManager::createSharedMemoryForDevice(ComputeDeviceModule *device){
-	assert(_allowNewModule);
-	device->_memoryID=_memoryAddress.size();
 	_memoryAddress.push_back(device->allocAndInitSharedMemory( _srcMemoryAdress, _srcSize, _fftSize));
 	
 }
