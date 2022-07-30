@@ -60,4 +60,6 @@ build/python-build/dist
 
 *.depend
 build/PyDevAlgo
-!build/*.config
+build/algosName.config
+*.asv
+
