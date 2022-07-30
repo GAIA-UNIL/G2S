@@ -35,7 +35,7 @@ jobs:
       run: python -c "import sys; print(sys.version)"
     - name: Install dependencies
       run: |
-        pip install numpy
+        pip install oldest-supported-numpy
         pip install setuptools wheel twine packaging
 
     - name: Install Ubuntu dependencies

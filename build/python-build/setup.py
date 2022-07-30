@@ -64,6 +64,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			library_dirs = ['/usr/lib','/opt/local/lib']
 			)],
 		include_dirs=numpy.get_include(),
+		install_requires=['numpy']
 	)
 
 if(systemName=='Windows'):
@@ -101,6 +102,7 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
+			install_requires=['numpy'],
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);
 	else:
@@ -132,5 +134,6 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
+			install_requires=['numpy'],
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);
