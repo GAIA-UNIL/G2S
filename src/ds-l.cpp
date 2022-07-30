@@ -812,8 +812,10 @@ int main(int argc, char const *argv[]) {
 	// run DS
 	std::vector<g2s::DataImage > kernels;
 	auto begin = std::chrono::high_resolution_clock::now();
+	std::vector<std::vector<std::vector<int> > > pathPositionArray;
+	pathPositionArray.push_back(pathPosition);
 
-	simulation(reportFile, DI, TIs,kernels , TSM, pathPosition, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ), nullptr,
+	simulation(reportFile, DI, TIs,kernels , TSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ), nullptr,
 	 seedForIndex, importDataIndex, nbNeighbors, nullptr, nullptr, categoriesValues, nbThreads,circularSimulation);
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();

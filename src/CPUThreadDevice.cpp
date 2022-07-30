@@ -349,6 +349,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 	
 	for (size_t i = 0; i < neighborArrayVector.size(); ++i)
 	{
+		if(std::isnan(neighborValueArrayVector[i][0]))continue;
 		for (size_t j = 0; j < neighborArrayVector[i].size(); ++j)
 		{
 			if(_min[j]>neighborArrayVector[i][j])_min[j]=neighborArrayVector[i][j];
@@ -388,6 +389,7 @@ bool  CPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 			for (size_t i = 0; i < neighborArray.size(); ++i)
 			{
+				if(std::isnan(neighborValueArrayVector[i][var]))continue;
 				_realSpaceArray[0][ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
 				lines[neighborArray[i].back()]=true;
 			}
