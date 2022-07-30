@@ -12,13 +12,12 @@ jobs:
     strategy:
       matrix:
         OS: [ ubuntu-latest, windows-latest, macOS-latest]
-        python: [ '3.6','3.7', '3.8', '3.9','3.10' ]
+        python: ['3.7', '3.8', '3.9','3.10' ]
         arch: [ x64 ]
-        # exclude:
-        # - os: ubuntu-latest
-        #   arch: x86
-        # - os: macOS-latest
-        #   arch: x86
+        include:
+          - os: ubuntu-latest
+            python: '3.6'
+            arch: x64
       fail-fast: false
     runs-on: ${{ matrix.OS }}
     steps:

@@ -21,15 +21,6 @@ jobs:
           - os: ubuntu-latest
             python: '3.6'
             arch: x64
-          - os: ubuntu-latest
-            python: '3.6'
-            arch: x32
-          - os: windows-2016
-            python: '3.6'
-            arch: x32
-          - os: windows-2016
-            python: '3.6'
-            arch: x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
