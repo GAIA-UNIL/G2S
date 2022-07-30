@@ -33,7 +33,7 @@ extra='';
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
-	if(platform.python_version()<'3.8'):
+	if version.parse(platform.python_version())<version.parse('3.8'):
 		extra='\\';
 	setup(name='G2S',
 		version=open('../../version', 'r').read()+versionExtention,
