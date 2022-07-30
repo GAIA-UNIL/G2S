@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 import os
 from sys import argv
+from packaging import version
 isST=False;
 if "--setuptools" in argv:
 	argv.remove("--setuptools")
@@ -67,7 +68,6 @@ if(systemName=='Darwin' or systemName=='Linux'):
 	)
 
 if(systemName=='Windows'):
-	from packaging import version
 	if version.parse(platform.python_version())<version.parse('3.9'):
 		extra='\\';
 	import numpy
