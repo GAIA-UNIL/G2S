@@ -82,6 +82,6 @@ extension:libg2s.a algoNames
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf server echo test qs nds ds ds-l errorTest
+	rm -rf server echo test qs nds ds ds-l errorTest snesim
 	rm -rf algosName.config
 	rm -rf .depend

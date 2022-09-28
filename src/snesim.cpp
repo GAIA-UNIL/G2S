@@ -279,6 +279,7 @@ int main(int argc, char const *argv[]) {
 	bool conciderTiAsCircular=false;
 	bool circularSimulation=false;
 	unsigned nbLevel=3;
+	bool extendTree=false;
 
 	if (arg.count("-n") >= 1)
 	{
@@ -298,7 +299,13 @@ int main(int argc, char const *argv[]) {
 	{
 		nbLevel=atoi((arg.find("-level")->second).c_str());
 	}
-	arg.erase("-s");
+	arg.erase("-level");
+
+	if (arg.count("-ET") == 1)
+	{
+		extendTree=atoi((arg.find("-ET")->second).c_str());
+	}
+	arg.erase("-ET");
 
 	if (arg.count("-cti") == 1)
 	{
@@ -511,10 +518,12 @@ int main(int argc, char const *argv[]) {
 		loaclPathPosition.resize(maxN);
 		pathPositionArray.push_back(loaclPathPosition);
 	}
-
-	bool extendTree=true;
-
-	std::vector<snesimTreeElement<2>> trees=createTree<2>(TIs, pathPositionArray, nbThreads, extendTree);
+	std::vector<snesimTreeElement<2>> trees;
+	if(!loadTree(trees,pathPositionArray,sourceFileNameVector,extendTree)){
+		trees=createTree<2>(TIs, pathPositionArray, nbThreads, extendTree);
+		saveTree(trees,pathPositionArray,sourceFileNameVector,extendTree);
+	}
+	
 
 	auto begin = std::chrono::high_resolution_clock::now();
 	snesimSimulation<2>(reportFile,DI, trees, extendTree, pathPositionArray, simulationPath, simulationPathIndex+beginPath, simulationPathSize-beginPath, seedForIndex,

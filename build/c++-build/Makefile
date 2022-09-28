@@ -13,7 +13,7 @@ export DEST_DIR_EXTENSION:=$(shell pwd)
 
 .PHONY: all depend algoNames extension clean
 
-all: server echo qs nds ds-l algoNames libg2s.a errorTest test auto_qs
+all: server echo qs nds ds-l algoNames libg2s.a errorTest test auto_qs snesim
 
 depend: .depend Makefile
 
@@ -57,6 +57,10 @@ ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 
+snesim: snesim.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
+	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
+
 errorTest: errorTest.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
@@ -78,6 +82,6 @@ extension:libg2s.a algoNames
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf server echo test qs nds ds ds-l errorTest
+	rm -rf server echo test qs nds ds ds-l errorTest snesim
 	rm -rf algosName.config
 	rm -rf .depend

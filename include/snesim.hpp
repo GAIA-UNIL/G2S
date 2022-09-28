@@ -3,6 +3,7 @@
 
 #include "DataImage.hpp"
 #include "utils.hpp"
+#include <fstream>
 
 
 template <size_t nbClass>
@@ -51,6 +52,7 @@ std::vector<snesimTreeElement<nbClass>> createTree(std::vector<g2s::DataImage> &
 	std::vector<snesimTreeElement<nbClass>> tree(pathPositionArray.size()+1);
 	tree.reserve(1<<(pathPositionArray[0].size()+1)*pathPositionArray.size());
 	tree[0].numberOfLevel=pathPositionArray.size();
+	memset((void*)(tree.data()),0,1<<(pathPositionArray[0].size()+1)*pathPositionArray.size()*sizeof(snesimTreeElement<2>));
 
 	int *externalMemory[nbThreads];
 	for (int i = 0; i < nbThreads; ++i)
@@ -94,7 +96,34 @@ std::vector<snesimTreeElement<nbClass>> createTree(std::vector<g2s::DataImage> &
 }
 
 template <size_t nbClass>
-void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeElement<nbClass>> tree, bool extendTree,
+void searchHist(unsigned int *count, std::vector<snesimTreeElement<nbClass>> &tree,std::vector<unsigned char> &signature, unsigned positionInTree, int inPathIndex, int depth, bool all=false){
+	if(inPathIndex==depth){ // the end of the recursion 
+		// fprintf(stderr, "%d, loc %d %d\n", positionInTree, tree[positionInTree].count[0],tree[positionInTree].count[1] );
+		for (int i = 0; i < nbClass; ++i)
+		{
+			count[i]+=tree[positionInTree].count[i];
+		}
+	}
+	else{
+		if(signature[inPathIndex]==nbClass || all) {
+			for (int i = 0; i < nbClass; ++i)
+			{
+				if(tree[positionInTree].node[i]!=0)
+				searchHist(count, tree, signature, tree[positionInTree].node[i], inPathIndex+1, depth,all);
+			}
+		}
+		else {
+			if(tree[positionInTree].node[signature[inPathIndex]]==0){
+				searchHist(count, tree, signature, positionInTree, inPathIndex, depth,true);	
+			}
+			searchHist(count, tree, signature, tree[positionInTree].node[signature[inPathIndex]], inPathIndex+1, depth,false);
+		}
+	}
+}
+
+
+template <size_t nbClass>
+void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeElement<nbClass>> &tree, bool extendTree,
   std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s::DataImage &path, unsigned* solvingPath, unsigned numberOfPointToSimulate,
  float* seedAray, std::vector<unsigned> numberNeighbor, unsigned maxN, g2s::DataImage *nii, unsigned nbThreads=1, bool circularSim=false){
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -116,12 +145,11 @@ void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeEl
 	//firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
-
 		unsigned currentCell=solvingPath[indexPath];
 		float localSeed=seedAray[indexPath];
 		bool withOnlyData=true;
-		unsigned level=unsigned(floor(path._data[indexPath]));
-
+		unsigned level=unsigned(floor(path._data[currentCell]));
+		// fprintf(stderr, "%d, %f\n",level, path._data[currentCell]);
 		for (unsigned int i = 0; i < di._nbVariable; ++i)
 		{
 			withOnlyData&=!std::isnan(di._data[currentCell*di._nbVariable+i]);
@@ -149,7 +177,7 @@ void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeEl
 				for (int inPathIndex = 1; inPathIndex < pathPositionArray[level].size(); ++inPathIndex)
 				{
 					unsigned dataIndex;
-					if(di.indexWithDelta(dataIndex, currentCell, pathPositionArray[level][inPathIndex], externalMemory4IndexComputation[moduleID])){
+					if((di.indexWithDelta(dataIndex, currentCell, pathPositionArray[level][inPathIndex], externalMemory4IndexComputation[moduleID])||circularSim) && (posterioryPath[dataIndex]<=indexPath)){
 						float val;
 						#pragma omp atomic read
 						val=di._data[dataIndex];
@@ -163,7 +191,17 @@ void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeEl
 						signature[inPathIndex]=nbClass;
 					}
 				}
-				//searchHist(count,tree,signature);
+				// for (int i = 0; i < pathPositionArray[level].size(); ++i)
+				// {
+				// 	fprintf(stderr, "%d,%d;\t", pathPositionArray[level][i][0],pathPositionArray[level][i][1]);
+				// }
+				// fprintf(stderr, "\n");
+				// for (int i = 0; i < pathPositionArray[level].size(); ++i)
+				// {
+				// 	fprintf(stderr, "%d, \t", signature[i]);
+				// }
+				// fprintf(stderr, "\n");
+				searchHist(count,tree,signature,level+1, 1, pathPositionArray[level].size());
 			}
 			else{
 				unsigned positionInTree=level+1;
@@ -191,7 +229,7 @@ void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeEl
 			}
 
 			// sampling
-
+			//fprintf(stderr, "%d %d\n", count[0],count[1]);
 			unsigned int sumBin=0;
 			for (int i = 0; i < nbClass; ++i)
 			{
@@ -215,6 +253,45 @@ void snesimSimulation(FILE *logFile,g2s::DataImage &di, std::vector<snesimTreeEl
 				fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 		}
 	}
+}
+
+template <size_t nbClass>
+bool loadTree(std::vector<snesimTreeElement<nbClass>> &trees,std::vector<std::vector<std::vector<int> > > &pathPositionArray, std::vector<std::string> sourceFileNameVector, bool extendTree){
+	sourceFileNameVector.push_back(std::to_string(pathPositionArray.size()));
+	sourceFileNameVector.push_back(std::to_string(pathPositionArray[0].size()));
+	std::string saveFilename= std::accumulate(std::begin(sourceFileNameVector), std::end(sourceFileNameVector), std::string(),
+                                [](std::string &ss, std::string &s)
+                                {
+                                    return ss.empty() ? s : ss + "_" + s;
+                                });
+	saveFilename=std::string("./data/")+saveFilename+std::string((extendTree?".etree":".tree"));
+	std::ifstream treeFile=std::ifstream(saveFilename, std::ios::in | std::ios::binary);
+	if (treeFile)
+	{
+	    treeFile.seekg (0, std::ios::end);
+		long unsigned length = treeFile.tellg();
+		fprintf(stderr, "%d\n", length);
+		treeFile.seekg (0, std::ios::beg);
+		trees.resize(length/sizeof(snesimTreeElement<nbClass>));
+		treeFile.read((char*)trees.data(),trees.size()*sizeof(snesimTreeElement<nbClass>));
+	    return true;
+	}else{
+		return false;
+	}
+}
+
+template <size_t nbClass>
+void saveTree(std::vector<snesimTreeElement<nbClass>> &trees,std::vector<std::vector<std::vector<int> > > &pathPositionArray, std::vector<std::string> sourceFileNameVector, bool extendTree){
+	sourceFileNameVector.push_back(std::to_string(pathPositionArray.size()));
+	sourceFileNameVector.push_back(std::to_string(pathPositionArray[0].size()));
+	std::string saveFilename= std::accumulate(std::begin(sourceFileNameVector), std::end(sourceFileNameVector), std::string(),
+                                [](std::string &ss, std::string &s)
+                                {
+                                    return ss.empty() ? s : ss + "_" + s;
+                                });
+	saveFilename=std::string("./data/")+saveFilename+std::string((extendTree?".etree":".tree"));
+    std::ofstream treeFile (saveFilename, std::ios::out | std::ios::binary);
+    treeFile.write ((const char*)trees.data(), trees.size()*sizeof(snesimTreeElement<nbClass>));
 }
 
 #endif // SNESIM_HPP
