@@ -59,7 +59,7 @@ std::vector<snesimTreeElement<nbClass>> createTree(std::vector<g2s::DataImage> &
 	{
 		externalMemory[i]=new int[pathPositionArray[0][0].size()];
 	}
-	#pragma omp parallel num_threads(nbThreads) default(none) firstprivate(pathPositionArray, externalMemory, __stderrp, extendTree) shared(TIs,tree)
+	#pragma omp parallel num_threads(nbThreads) default(none) firstprivate(pathPositionArray, externalMemory, extendTree) shared(TIs,tree)
 	{
 		//#pragma omp single
 		for (int pathIndex = 0; pathIndex < pathPositionArray.size(); ++pathIndex)
