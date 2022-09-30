@@ -18,28 +18,37 @@ void addEllement(std::vector<snesimTreeElement<nbClass>> &tree, unsigned int pos
 	if(level==signature.size()){
 		tree[position].count[signature[0]]++;
 	}else{
-		if(tree[position].node[signature[level]]==0){
+		unsigned char classValue;
+		#pragma omp atomic read 
+		classValue=tree[position].node[signature[level]];
+		if(classValue==0)
+		{
 
 			#pragma omp critical (updateTree)
 			{
 				if(tree[position].node[signature[level]]==0){
-					tree[position].node[signature[level]]=tree.size();
-					tree.emplace_back();
+					classValue=tree.size();
+					tree[position].node[signature[level]]=classValue;
+					tree.push_back({0,0,0});
 				}
 			}
 		}
-		addEllement(tree, tree[position].node[signature[level]],   level+1, signature, extendTree);
+		addEllement(tree, classValue,   level+1, signature, extendTree);
 		if(extendTree){
-			if(tree[position].node[nbClass]==0){
+			unsigned char classValue;
+			#pragma omp atomic read 
+			classValue=tree[position].node[nbClass];
+			if(classValue==0){
 				#pragma omp critical (updateTree)
 				{
 					if(tree[position].node[nbClass]==0){
-						tree[position].node[nbClass]=tree.size();
-						tree.emplace_back();
+						classValue=tree.size();
+						tree[position].node[signature[nbClass]]=classValue;
+						tree.push_back({0,0,0});
 					}
 				}
 			}
-			addEllement(tree, tree[position].node[nbClass], level+1, signature, extendTree);
+			addEllement(tree, classValue, level+1, signature, extendTree);
 		}
 	}
 }
