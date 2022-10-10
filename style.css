@@ -268,11 +268,16 @@ header a.button {
     padding-right: 42px;
     background: transparent url(./images/github-button.png) 0 0 no-repeat;
 }
+aside a.button:first-of-type{
+    margin-top: -245px;
+}
+
 aside a.button {
     display: block;
     width: 138px;
     padding-left: 64px;
-    margin-bottom: 20px;
+    margin-bottom: 5px;
+    margin-left: -4px;
     font-size: 21px;
     background: transparent url(./images/download-button.png) 0 0 no-repeat;
 }
@@ -780,11 +785,36 @@ aside#menuSidebar {
 aside#menuSidebar {
     font-weight: bold;
 }
+
+aside #simulationQS{
+    bottom: 2px;
+    position: fixed;
+    z-index: -99;
+    max-width: 250px;
+
+}
+
 @media only screen and (max-width: 1195px) {
+    aside #simulationQS{
+        display: none;
+    }
+
     aside#menuSidebar {
         position: relative;
         top: 0px;
 
+    }
+}
+
+@media only screen and (min-width: 1196px) {
+    aside#sidebar p a{
+        color: hsl(210deg 77% 18%);
+    }
+
+    
+    
+    aside#sidebar{
+        background: none;
     }
 }
 

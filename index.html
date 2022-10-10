@@ -11,6 +11,8 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/intellij-light.min.css">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/highlight.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/languages/matlab.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/snapsvg@0.5.1/dist/snap.svg.min.js"></script>
+	<script src="qsDynamicSim.js"></script>
 	<!-- <script>hljs.highlightAll();</script> -->
 </head>
 <body>
@@ -825,6 +827,11 @@
 				</div>
  			</section>
 			<aside id="sidebar">
+				<div id='simulationQS'>
+					<svg id="ti" style="width: 100%; height: auto;" viewBox="0 0 1 1.35"></svg>
+
+					<svg id="sim" style="width: 100%; height: auto;" viewBox="0 0 1 1"></svg>
+				</div>
 
 				<a href="https://github.com/GAIA-UNIL/G2S/zipball/master" class="button">
 					<small>Download</small>
@@ -835,10 +842,9 @@
 					.tar.gz file
 				</a>
 
-
-
 				<p class="repo-owner"><a href="https://github.com/GAIA-UNIL/G2S">G2S</a> is maintained by <a href="https://github.com/GAIA-UNIL/"> the GAIAlab from University of Lausanne</a>.</p>
 
+				
 			</aside>
 		</div>
 	</div>
