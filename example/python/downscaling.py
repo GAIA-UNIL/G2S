@@ -38,8 +38,8 @@ simulation,index,_=g2s('-a','qs',
                          '-ti',ti,
                          '-di',di,
                          '-dt',dt,
-                         '-k',1.2,
-                         '-n',50,
+                         '-k',1.0,
+                         '-n',30,
                          '-j',0.5)
 
 #Display results 
