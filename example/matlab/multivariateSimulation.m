@@ -3,7 +3,7 @@ ti=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master
 
 % QS call using G2S (with dt set to two continuous and one categorical
 % variable)
-simulation=g2s('-a','qs','-ti',ti,'-di',nan(400,400,3),'-dt',[0,0,1],'-k',1.2,'-n',50,'-j',0.5);
+simulation=g2s('-a','qs','-ti',ti,'-di',nan(400,400,3),'-dt',[0,0,1],'-k',1.2,'-n',30,'-j',0.5);
 
 %Display results 
 sgtitle('Unconditional simulation');
