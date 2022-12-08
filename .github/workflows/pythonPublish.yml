@@ -37,7 +37,7 @@ jobs:
       if : contains( matrix.OS, 'ubuntu' )
       run: |
         sudo add-apt-repository 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe'
-        apt update;
+        sudo apt update;
         sudo apt install build-essential libzmq3-dev patchelf
         sudo apt -y install gcc-7 g++-7
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
@@ -58,7 +58,7 @@ jobs:
         brew upgrade
     - name: Add msbuild to PATH
       if : contains( matrix.os, 'windows' )
-      uses: microsoft/setup-msbuild@v1.0.3
+      uses: microsoft/setup-msbuild@v1.1
     - name: Install Windows dependencies
       if : contains( matrix.OS, 'windows' )
       run: |

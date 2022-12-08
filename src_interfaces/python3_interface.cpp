@@ -21,7 +21,9 @@ static PyMethodDef module_methods[] = {
 
 PyMODINIT_FUNC PyInit_g2s(void)
 {
+#ifndef PYPY_VERSION
 	Py_Initialize();
+#endif
 	PyObject *module;
 	static struct PyModuleDef moduledef = {
 		PyModuleDef_HEAD_INIT,
@@ -60,15 +62,18 @@ int pythonNumberOfOutputParameterDecoder(const char* s){
 
 int pythonNumberOfOutputParameter(){
 	PyFrameObject* frame = PyEval_GetFrame();
+#if PY_VERSION_HEX < 0x03110000
 	const char* s  = PyBytes_AS_STRING(frame->f_code->co_code);
-	
+	int start = frame->f_lasti;
+#else
+	const char* s  = PyBytes_AS_STRING(PyCode_GetCode(PyFrame_GetCode(frame)));
+	int start = PyFrame_GetLasti(frame);
+#endif
 	// for (int i = 0; i < 50; ++i)
 	// {
 	// 	printf("%d ==> %d\n",i,s[i]);
 	// }
 
-
-	int start = frame->f_lasti;
 	//const unsigned char* s = (unsigned char*)PyUnicode_DATA(filename);
 	start+=2;
 	// printf("start %d, end %d\n", start,frame->f_lasti);
