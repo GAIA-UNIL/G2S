@@ -70,7 +70,7 @@ int pythonNumberOfOutputParameter(){
 
 int pythonNumberOfOutputParameter(){
 	PyFrameObject* frame = PyEval_GetFrame();
-#if PY_VERSION_HEX < 0x030B0000 || !define(PYPY_VERSION)
+#if PY_VERSION_HEX < 0x030B0000
 	const char* s  = PyBytes_AS_STRING(frame->f_code->co_code);
 	int start = frame->f_lasti;
 #else
