@@ -60,6 +60,14 @@ int pythonNumberOfOutputParameterDecoder(const char* s){
 	}
 }
 
+#ifdef PYPY_VERSION
+
+int pythonNumberOfOutputParameter(){
+	return INT_MAX;
+}
+
+#else
+
 int pythonNumberOfOutputParameter(){
 	PyFrameObject* frame = PyEval_GetFrame();
 #if PY_VERSION_HEX < 0x030B0000 || !define(PYPY_VERSION)
@@ -81,6 +89,7 @@ int pythonNumberOfOutputParameter(){
 	return (expected>0 ? expected : INT_MAX);
 }
 
+#endif
 
 static PyObject *g2s_run(PyObject *self, PyObject *args, PyObject *keywds)
 {
