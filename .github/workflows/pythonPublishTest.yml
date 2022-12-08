@@ -40,8 +40,8 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.os, 'ubuntu' )
       run: |
-        add-apt-repository 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe'
-        apt update;
+        sudo add-apt-repository 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe'
+        sudo apt update;
         sudo apt install build-essential libzmq3-dev patchelf
         sudo apt -y install gcc-7 g++-7
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
