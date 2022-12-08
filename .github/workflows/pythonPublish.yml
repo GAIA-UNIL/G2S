@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         OS: [ ubuntu-latest, windows-latest, macOS-latest]
-        python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.7', 'pypy-3.8', 'pypy-3.9','pypy-3.10','pypy-3.11' ]
+        python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.7', 'pypy-3.8', 'pypy-3.9' ]
         arch: [ x64 ]
         include:
           - os: ubuntu-latest
@@ -36,6 +36,8 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.OS, 'ubuntu' )
       run: |
+        deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe
+        apt update;
         sudo apt install build-essential libzmq3-dev patchelf
         sudo apt -y install gcc-7 g++-7
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7

@@ -40,6 +40,8 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.os, 'ubuntu' )
       run: |
+        deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe
+        apt update;
         sudo apt install build-essential libzmq3-dev patchelf
         sudo apt -y install gcc-7 g++-7
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
@@ -91,5 +93,5 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
       run: |
         cd build/python-build
-        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose 
+        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose --skip-existing
 # --skip-existing
