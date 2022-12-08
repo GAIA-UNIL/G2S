@@ -53,9 +53,10 @@ jobs:
     - name: Install macOS dependencies
       if : contains( matrix.os, 'macOS' )
       run: |
-        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        brew update
         brew install zeromq jsoncpp
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+        brew upgrade
     - name: Add msbuild to PATH
       if : contains( matrix.os, 'windows' )
       uses: microsoft/setup-msbuild@v1.0.3
