@@ -789,9 +789,25 @@ aside#menuSidebar {
 aside #simulationQS{
     bottom: 2px;
     position: fixed;
-    z-index: -99;
     max-width: 250px;
+    font-size: 15px;
+    text-align: justify;
+}
 
+#simulationQS input{
+    float: right;
+    width: calc( 100% - 50px );
+    height: 19px;
+}
+
+@media only screen and (max-height: 1050px) {
+    aside #simulationQS{
+        z-index: -99;
+    }
+
+    aside #simulationQS .toHideForSmallScreen{
+        display: none;
+    }
 }
 
 @media only screen and (max-width: 1195px) {
