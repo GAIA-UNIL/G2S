@@ -18,7 +18,7 @@ simulation1,index1,_ = g2s('-a','qs',
                          '-n',25,
                          '-j',0.5);
 
-# QS call using only both horizontal and vertical lines as TI's
+# QS call using both horizontal and vertical lines as TI's
 simulation2,index2,_ = g2s('-a','qs',
                          '-ti',[ti1,ti2],
                          '-di',numpy.zeros((150,150))*numpy.nan,
@@ -28,8 +28,8 @@ simulation2,index2,_ = g2s('-a','qs',
                          '-j',0.5);
 
 #Display results
-fig, ([[ax1,ax2],[ax3,ax4]]) = plt.subplots(2,2,figsize=(15,10),sharex = True,sharey = True)
-fig.suptitle('QS Multivariate simulation',size='xx-large')
+fig, ([[ax1,ax2],[ax3,ax4]]) = plt.subplots(2,2,figsize=(10,10),sharex = True,sharey = True)
+fig.suptitle('QS Multiple TI simulation',size='xx-large')
 ax1.imshow(ti1)
 ax1.set_title('Training image 1');
 ax1.axis('off');
