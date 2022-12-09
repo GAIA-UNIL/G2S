@@ -4,7 +4,7 @@ const viridis=[[253, 231, 37],[251, 231, 35],[248, 230, 33],[246, 230, 32],[244,
 
 var speedup=1;
 
-var n=20;
+var n=50;
 var k=4;
 
 function setSimValues(){
