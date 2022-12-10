@@ -240,9 +240,7 @@ aside#sidebar {
     line-height: 1.3;
     background: var(--sideBar-bg);
 }
-aside#sidebar p.repo-owner, aside#sidebar p.repo-owner a {
-    font-weight: bold;
-}
+
 #downloads {
     margin-bottom: 40px;
 }
@@ -805,10 +803,6 @@ header{
     z-index: 2;
 }
 
-/*aside a.button:first-of-type{
-    margin-top: -245px;
-}*/
-
 header a.button.download {
     background: transparent url(./images/download-button.png) 0 0 no-repeat;
 }
@@ -817,16 +811,20 @@ header a.button small {
     width: 85px;
 }
 
-@media only screen and (max-width: 1195px) {
-    aside #simulationQS{
-        display: none;
-    }
+header p.repo-owner {
+    font-family: 'Helvetica Neue', Helvetica, Arial, serif;
+    display: block;
+    position: absolute;
+    top: 255px;
+    right: 0px;
+    width: 201px;
+    font-size: 12.5px;
+    color: white;
+}
 
-    aside#menuSidebar {
-        position: relative;
-        top: 0px;
-
-    }
+header p.repo-owner a{
+    color: hsl(210deg 83% 9%);
+    font-weight: bolder;
 }
 
 @media only screen and (min-width: 1196px) {
