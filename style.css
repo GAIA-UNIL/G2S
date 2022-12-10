@@ -265,7 +265,7 @@ header a.button {
     top: 0;
     right: 0;
     padding-left: 80px;
-    padding-right: 42px;
+    width: 125px;
     background: transparent url(./images/github-button.png) 0 0 no-repeat;
 }
 aside a.button:first-of-type{
@@ -800,14 +800,21 @@ aside #simulationQS{
     height: 19px;
 }
 
-@media only screen and (max-height: 1050px) {
-    aside #simulationQS{
-        z-index: -99;
-    }
+header{
+    position: relative;
+    z-index: 2;
+}
 
-    aside #simulationQS .toHideForSmallScreen{
-        display: none;
-    }
+/*aside a.button:first-of-type{
+    margin-top: -245px;
+}*/
+
+header a.button.download {
+    background: transparent url(./images/download-button.png) 0 0 no-repeat;
+}
+
+header a.button small {
+    width: 85px;
 }
 
 @media only screen and (max-width: 1195px) {
