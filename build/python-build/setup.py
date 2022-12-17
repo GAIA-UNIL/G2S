@@ -47,7 +47,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		license='GPLv3',
 		packages=['g2s'],
 		classifiers=[
-			'Development Status :: 3 - Alpha',
+			'Development Status :: 4 - Beta',
 			'Intended Audience :: Science/Research',
 			'Intended Audience :: Education',
 			'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',

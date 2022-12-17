@@ -78,7 +78,8 @@ jobs:
       run: |
         cd build/python-build/dist
         # pip install auditwheel
-        # auditwheel repair *.wh
+        # auditwheel repair *.whl
+        for wheel in $(find . -iname "*.whl") ; do unzip -o $wheel; patchelf --clear-symbol-version stat --clear-symbol-version _ZSt28__throw_bad_array_new_lengthv g2s/*.so; zip -u $wheel g2s/*.so; done
         for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
     - name: Correct whl for macOS
       if : contains( matrix.os, 'macOS' )
