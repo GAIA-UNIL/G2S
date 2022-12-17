@@ -14,11 +14,11 @@ jobs:
     name: Compile for ${{ matrix.os }} using ${{ matrix.python }}-${{ matrix.arch }} and upload on packages manager
     strategy:
       matrix:
-        OS: [ ubuntu-latest, windows-latest, macOS-latest]
+        OS: [ ubuntu-18.04, windows-latest, macOS-latest]
         python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.7', 'pypy-3.8', 'pypy-3.9' ]
         arch: [ x64 ]
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-18.04
             python: '3.6'
             arch: x64
       fail-fast: false
@@ -79,7 +79,7 @@ jobs:
         cd build/python-build/dist
         # pip install auditwheel
         # auditwheel repair *.whl
-        for wheel in $(find . -iname "*.whl") ; do unzip -o $wheel; patchelf --clear-symbol-version stat --clear-symbol-version _ZSt28__throw_bad_array_new_lengthv g2s/*.so; zip -u $wheel g2s/*.so; done
+        # for wheel in $(find . -iname "*.whl") ; do unzip -o $wheel; patchelf --clear-symbol-version stat --clear-symbol-version _ZSt28__throw_bad_array_new_lengthv g2s/*.so; zip -u $wheel g2s/*.so; done
         for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
     - name: Correct whl for macOS
       if : contains( matrix.os, 'macOS' )
