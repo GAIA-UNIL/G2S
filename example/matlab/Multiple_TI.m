@@ -1,3 +1,5 @@
+%This code requires the G2S server to be running
+
 %ti1 contains horizontal lines and ti2 vertical lines
 ti=repmat((sin(1:150)>0)',1,150);
 ti1=ti;
