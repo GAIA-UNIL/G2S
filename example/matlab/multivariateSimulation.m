@@ -1,3 +1,5 @@
+%This code requires the G2S server to be running
+
 %load data
 ti=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/ti_3_variables.tiff');
 
