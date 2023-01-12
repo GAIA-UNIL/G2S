@@ -1,3 +1,5 @@
+%This code requires the G2S server to be running
+
 %load example training image 'Dunes gobi'
 ti_fine=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/dunes_gobi.tiff');
 
