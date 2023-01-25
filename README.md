@@ -14,7 +14,7 @@
 
 Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with both simulation algorithms **QS** (QuickSampling) and **NDS** (Narrow Distribution Selection).
 
-**G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
+**G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
 
 ## Documentation
