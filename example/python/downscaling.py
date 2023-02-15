@@ -34,7 +34,7 @@ di=np.stack((di_fine,di_coarse),axis=2)
 dt = [0]*ti.shape[-1]
 
 # QS call using G2S
-simulation,index,_=g2s('-a','qs',
+simulation,index,*_=g2s('-a','qs',
                          '-ti',ti,
                          '-di',di,
                          '-dt',dt,
