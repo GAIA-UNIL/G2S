@@ -11,7 +11,7 @@ tiWithGap = numpy.array(Image.open(BytesIO(requests.get(
 tiWithGap[60:140,60:140]=numpy.nan;
 
 # QS call using G2S
-simulation,_=g2s('-a','qs',
+simulation,*_=g2s('-a','qs',
                  '-ti',tiWithGap,
                  '-di',tiWithGap,
                  '-dt',[0],
