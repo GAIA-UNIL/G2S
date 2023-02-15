@@ -10,7 +10,7 @@ ti1 = numpy.tile(numpy.sin(range(150)),(150,1))
 ti2 = ti1.transpose()
 
 # QS call using only the horizontal lines as TI
-simulation1,index1,_ = g2s('-a','qs',
+simulation1,index1,*_ = g2s('-a','qs',
                          '-ti',ti1,
                          '-di',numpy.zeros((150,150))*numpy.nan,
                          '-dt',[1], #1 for categorical variable
@@ -19,7 +19,7 @@ simulation1,index1,_ = g2s('-a','qs',
                          '-j',0.5);
 
 # QS call using both horizontal and vertical lines as TI's
-simulation2,index2,_ = g2s('-a','qs',
+simulation2,index2,*_ = g2s('-a','qs',
                          '-ti',[ti1,ti2],
                          '-di',numpy.zeros((150,150))*numpy.nan,
                          '-dt',[1],
