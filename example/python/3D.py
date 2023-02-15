@@ -12,7 +12,7 @@ ti = tf.imread(BytesIO(requests.get(
     'https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/Damier3D.tiff').content))[:dim,:dim,:dim]
 
 # QS call using G2S
-simulation,index,time,_=g2s('-a','qs',
+simulation,index,time,*_=g2s('-a','qs',
                              '-ti',ti,
                              '-di',np.zeros_like(ti)*np.nan,
                              '-dt',[1], #1 for categorical variables
