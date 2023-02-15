@@ -37,14 +37,14 @@ status_1 = 0
 status_2 = 0
 while status_2 < 95:
     time.sleep(2)
-    status_1,_ = g2s('-statusOnly',jobid_1)
-    status_2,_ = g2s('-statusOnly',jobid_2)
+    status_1,*_ = g2s('-statusOnly',jobid_1)
+    status_2,*_ = g2s('-statusOnly',jobid_2)
     print('Status jobs 1 & 2:   ', status_1,status_2)
 
 # retrieve the simulation results from the server using the "-waitAndDownload" flag
 # if the simulation would not be ready yet this call would wait for it to be ready
-sim1,_ = g2s('-waitAndDownload',jobid_1)
-sim2,_ = g2s('-waitAndDownload',jobid_2)
+sim1,*_ = g2s('-waitAndDownload',jobid_1)
+sim2,*_ = g2s('-waitAndDownload',jobid_2)
 
 # display results 
 fig, (ax1, ax2,ax3) = plt.subplots(1, 3,figsize=(7,4))
