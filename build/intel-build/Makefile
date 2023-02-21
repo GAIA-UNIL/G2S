@@ -22,13 +22,13 @@ ifeq ($(MKLROOT),)
 	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
 endif
 
-CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl -static-intel -qopenmp-link=static
-LDFLAGS+=-fopenmp -qmkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/ -static-intel -qopenmp-link=static
+CXXFLAGS+= -axSSE4.2 -axAVX -axAVX2 -axcommon-avx512 -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
+LDFLAGS+=-fopenmp -static-intel -qopenmp-link=static  -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
 .PHONY: all depend algoNames extension clean
 
-all: g2s_server echo g2s_qs g2s_nds ds-l algoNames libg2s.a errorTest g2s_auto_qs
+all: g2s_server g2s_echo g2s_qs g2s_nds g2s_ds-l g2s_algoNames libg2s.a g2s_errorTest g2s_auto_qs
 
 depend: .depend Makefile
 
@@ -75,7 +75,7 @@ g2s_errorTest: errorTest.o
 libg2s.a: DataImage.o
 	$(AR) $(ARFLAGS) $@ $^
 
-algoNames:
+g2s_algoNames:
 	ln -sf ../g2s_algosName.config g2s_algosName.config
 
 extension:libg2s.a algoNames
