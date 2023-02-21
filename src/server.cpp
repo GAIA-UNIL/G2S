@@ -214,9 +214,9 @@ int main(int argc, char const *argv[]) {
 #ifndef __EMSCRIPTEN__
 	if(!std::isnan(timeoutDuration)) {
 		int timeout=int(timeoutDuration*1000);
-		receiver.setsockopt(ZMQ_LINGER, timeout);
-		receiver.setsockopt(ZMQ_RCVTIMEO, timeout);
-		receiver.setsockopt(ZMQ_SNDTIMEO, timeout);
+		receiver.set(zmq::sockopt::linger, timeout);
+		receiver.set(zmq::sockopt::rcvtimeo, timeout);
+		receiver.set(zmq::sockopt::sndtimeo, timeout);
 	}
 #endif
 

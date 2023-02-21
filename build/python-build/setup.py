@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 import os
 from sys import argv
+from packaging import version
 isST=False;
 if "--setuptools" in argv:
 	argv.remove("--setuptools")
@@ -33,9 +34,8 @@ extra='';
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
-	
-	# if(systemName=='Linux' and platform.python_version()<'3.7'):
-	# 	extra='\\';
+	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
+		extra='\\';
 	setup(name='G2S',
 		version=open('../../version', 'r').read()+versionExtention,
 		description='G2S interface',
@@ -47,7 +47,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		license='GPLv3',
 		packages=['g2s'],
 		classifiers=[
-			'Development Status :: 3 - Alpha',
+			'Development Status :: 4 - Beta',
 			'Intended Audience :: Science/Research',
 			'Intended Audience :: Education',
 			'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
@@ -64,11 +64,11 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			library_dirs = ['/usr/lib','/opt/local/lib']
 			)],
 		include_dirs=numpy.get_include(),
+		install_requires=['numpy']
 	)
 
 if(systemName=='Windows'):
-	from packaging import version
-	if version.parse(platform.python_version())<version.parse('3.9'):
+	if version.parse(platform.python_version())<version.parse('3.9')  and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	import numpy
 	zmqBuilDir="./libzmq/action_build/";
@@ -101,6 +101,7 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
+			install_requires=['numpy'],
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);
 	else:
@@ -132,5 +133,6 @@ if(systemName=='Windows'):
 				library_dirs = ['/usr/lib','/opt/local/lib',zmqBuilDir+"lib/Release"]
 			)],
 			include_dirs=numpy.get_include(),
+			install_requires=['numpy'],
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);

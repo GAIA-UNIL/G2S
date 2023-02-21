@@ -9,13 +9,20 @@ ifeq ($(UNAME_S),Darwin)
     OS =mac
 endif
 
+ifeq ($(ICPX),1)
+	export CC=icx
+	export CXX=icpx
+	export AR=ar
+	CXXFLAGS+= -fp-model=precise
+endif
+
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
 ifeq ($(MKLROOT),)
 	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
 endif
 
-CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl -static-intel -qopenmp-link=static
+CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl -static-intel -qopenmp-link=static
 LDFLAGS+=-fopenmp -qmkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/ -static-intel -qopenmp-link=static
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
@@ -35,13 +42,13 @@ include .depend
 	$(NVCC) -ccbin=$(CXX) -c -o $@ $< $(NVFLAGS) $(foreach option, $(CFLAGS) $(CXXFLAGS), --compiler-options $(option))  $(INC) $(LIBINC) -allow-unsupported-compiler
 
 %.o: $(SRCS)/%.cpp 
-	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(OPENCL_INC)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c -o $@ $<  $(INC) $(LIBINC) $(OPENCL_INC)
 
 g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
 
-echo: echo.o DataImage.o
+g2s_echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
@@ -57,11 +64,11 @@ g2s_nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevi
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 
-ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
+g2s_ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) $(NVLIB)
 
-errorTest: errorTest.o
+g2s_errorTest: errorTest.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB)
 
@@ -78,6 +85,6 @@ extension:libg2s.a algoNames
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf g2s_server echo test g2s_qs g2s_nds ds ds-l errorTest g2s_auto_qs
+	rm -rf g2s_server g2s_echo g2s_test g2s_qs g2s_nds g2s_ds g2s_ds-l eg2s_rrorTest g2s_auto_qs
 	rm -rf g2s_algosName.config
 	rm -rf .depend

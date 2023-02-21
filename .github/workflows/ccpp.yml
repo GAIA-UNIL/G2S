@@ -57,9 +57,10 @@ jobs:
     - name: install requested Homebrew
       if : contains( matrix.packageManager, 'Brew' )
       run: |
-          /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+          brew update
           brew install zeromq jsoncpp zlib fftw curl
           wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+          brew upgrade
     - name: make
       run: |
         cd build/

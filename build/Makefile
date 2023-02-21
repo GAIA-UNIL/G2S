@@ -64,8 +64,13 @@ ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/loca
 endif
 
 DEFAULT_JOB=c++
-ifneq ("$(shell sh -c 'icpc 2>/dev/null; echo $? ')","127")
+export ICPX=0
+ifneq ("$(shell sh -c 'icpc 2>/dev/null; echo $? ')",127)
 	DEFAULT_JOB+=intel
+endif
+ifneq ("$(shell sh -c 'icpx 2>/dev/null; echo $? ')",127)
+	DEFAULT_JOB+=intel
+	export ICPX=1
 endif
 
 .DEFAULT_GOAL=default

@@ -10,7 +10,7 @@ ti = numpy.array(Image.open(BytesIO(requests.get(
     'https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/stone.tiff').content)));
 
 # QS call using G2S
-simulation,_=g2s('-a','qs',
+simulation,*_=g2s('-a','qs',
                  '-ti',ti,
                  '-di',numpy.zeros((200,200))*numpy.nan,
                  '-dt',[0], #Zero for continuous variables
