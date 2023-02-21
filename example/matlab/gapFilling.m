@@ -1,3 +1,5 @@
+%This code requires the G2S server to be running
+
 %load data
 tiWithGap=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/stone.tiff');
 tiWithGap(60:140,60:140)=nan;

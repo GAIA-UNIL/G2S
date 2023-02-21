@@ -34,7 +34,7 @@ extra='';
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
-	if version.parse(platform.python_version())<version.parse('3.8'):
+	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	setup(name='G2S',
 		version=open('../../version', 'r').read()+versionExtention,
@@ -47,7 +47,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		license='GPLv3',
 		packages=['g2s'],
 		classifiers=[
-			'Development Status :: 3 - Alpha',
+			'Development Status :: 4 - Beta',
 			'Intended Audience :: Science/Research',
 			'Intended Audience :: Education',
 			'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
@@ -68,7 +68,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 	)
 
 if(systemName=='Windows'):
-	if version.parse(platform.python_version())<version.parse('3.9'):
+	if version.parse(platform.python_version())<version.parse('3.9')  and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	import numpy
 	zmqBuilDir="./libzmq/action_build/";

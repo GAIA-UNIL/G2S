@@ -429,7 +429,9 @@ public:
 		// keywords
 
 		if(keywds && PyDict_CheckExact(keywds)){
+		#ifndef PYPY_VERSION
 			PyArg_ValidateKeywordArguments(keywds);
+		#endif
 			PyObject *key, *value;
 			Py_ssize_t pos = 0;
 

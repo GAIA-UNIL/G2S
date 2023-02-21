@@ -11,19 +11,19 @@ jobs:
     name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
     strategy:
       matrix:
-        OS: [ ubuntu-latest, windows-latest, macOS-latest]
-        python: ['3.7', '3.8', '3.9','3.10' ]
+        OS: [ ubuntu-18.04, windows-latest, macOS-latest]
+        python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.7', 'pypy-3.8', 'pypy-3.9' ]
         arch: [ x64 ]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-18.04
             python: '3.6'
             arch: x64
       fail-fast: false
     runs-on: ${{ matrix.OS }}
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
 
@@ -36,11 +36,12 @@ jobs:
     - name: Install Ubuntu dependencies
       if : contains( matrix.OS, 'ubuntu' )
       run: |
+        sudo add-apt-repository 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe'
+        sudo apt update;
         sudo apt install build-essential libzmq3-dev patchelf
         sudo apt -y install gcc-7 g++-7
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7
-        sudo apt install build-essential libzmq3-dev patchelf
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
         wget 'https://codeload.github.com/open-source-parsers/jsoncpp/zip/master' -O jsoncpp.zip
         unzip jsoncpp.zip
@@ -50,12 +51,13 @@ jobs:
     - name: Install macOS dependencies
       if : contains( matrix.OS, 'macOS' )
       run: |
-        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        brew update
         brew install zeromq jsoncpp
         wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+        brew upgrade
     - name: Add msbuild to PATH
       if : contains( matrix.os, 'windows' )
-      uses: microsoft/setup-msbuild@v1.0.3
+      uses: microsoft/setup-msbuild@v1.1
     - name: Install Windows dependencies
       if : contains( matrix.OS, 'windows' )
       run: |
@@ -72,7 +74,8 @@ jobs:
       run: |
         cd build/python-build/dist
         # pip install auditwheel
-        # auditwheel repair *.wh
+        # auditwheel repair *.whl
+        # for wheel in $(find . -iname "*.whl") ; do unzip -o $wheel; patchelf --clear-symbol-version stat --clear-symbol-version _ZSt28__throw_bad_array_new_lengthv g2s/*.so; zip -u $wheel g2s/*.so; done
         for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
     - name: Correct whl for macOS
       if : contains( matrix.OS, 'macOS' )

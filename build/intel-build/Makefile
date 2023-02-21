@@ -9,13 +9,20 @@ ifeq ($(UNAME_S),Darwin)
     OS =mac
 endif
 
+ifeq ($(ICPX),1)
+	export CC=icx
+	export CXX=icpx
+	export AR=ar
+	CXXFLAGS+= -fp-model=precise
+endif
+
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
 ifeq ($(MKLROOT),)
 	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
 endif
 
-CXXFLAGS+= -xhost -restrict -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl
+CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl
 LDFLAGS+=-fopenmp -qmkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
@@ -35,7 +42,7 @@ include .depend
 	$(NVCC) -ccbin=$(CXX) -c -o $@ $< $(NVFLAGS) $(foreach option, $(CFLAGS) $(CXXFLAGS), --compiler-options $(option))  $(INC) $(LIBINC) -allow-unsupported-compiler
 
 %.o: $(SRCS)/%.cpp 
-	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(OPENCL_INC)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c -o $@ $<  $(INC) $(LIBINC) $(OPENCL_INC)
 
 server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)

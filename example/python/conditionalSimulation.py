@@ -15,7 +15,7 @@ conditioning = numpy.zeros((200,200))*numpy.nan;
 conditioning.flat[numpy.random.permutation(conditioning.size)[:50]]=ti.flat[numpy.random.permutation(ti.size)[:50]];
 
 # QS call using G2S
-simulation,_=g2s('-a','qs', 
+simulation,*_=g2s('-a','qs', 
                  '-ti',ti,
                  '-di',conditioning,
                  '-dt',[0],
