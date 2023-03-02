@@ -45,7 +45,7 @@ if shutil.which("brew", mode=os.X_OK, path=os.environ.get("PATH")):
 	extra_library_dirs.append(brew_prefix+"/lib")
 
 if(systemName=='Darwin' or systemName=='Linux'):
-	import numpy.distutils.misc_util
+	import numpy
 	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	setup(name='G2S',
