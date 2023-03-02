@@ -20,7 +20,11 @@
 
 #include <iostream>
 #include <cmath>
-#include <immintrin.h>
+#if __arm64__
+	#include <arm_neon.h>
+#else
+	#include <immintrin.h>
+#endif
 #include <limits>
 #include <chrono>
 #include <algorithm>
@@ -30,46 +34,18 @@
 namespace fKst {
 
 template<typename T>
-inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
-	short position=k-2;
-	while ((data[i]>output[position]) && (position>-1) ){
-		output[position+1]=output[position];
-		position--;
+	inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
+		short position=k-2;
+		while ((data[i]>output[position]) && (position>-1) ){
+			output[position+1]=output[position];
+			position--;
+		}
+		output[position+1]=data[i];
 	}
-	output[position+1]=data[i];
-}
 
 template<typename T>
-inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
-	short position=k-2;
-	while ((data[i]>output[position]) && (position>-1) ){
-		output[position+1]=output[position]; 
-		positionValue[position+1]=positionValue[position]; 
-		position--;
-	}
-	output[position+1]=data[i];
-	positionValue[position+1]=i;
-}
-
-template<typename T, typename urgT>
-inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
-	short position=k-2;
-	short positionLikeLast=k-2;
-	while ((output[k-1]==output[positionLikeLast]) && (position>-1) ){
-		positionLikeLast--;
-	}
-	int xes=(k-positionLikeLast-1);
-	int x=k-xes+int(floor(generator()*(xes)));
-
-	std::swap(positionValue[x],positionValue[k-1]);
-
-
-	if(data[i]>output[k-1]){
-		if(xes==1)
-			cpt=0;
-		else
-			cpt++;
-
+	inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
+		short position=k-2;
 		while ((data[i]>output[position]) && (position>-1) ){
 			output[position+1]=output[position]; 
 			positionValue[position+1]=positionValue[position]; 
@@ -77,22 +53,50 @@ inline __attribute__((always_inline)) void addValueB(const T* data,const unsigne
 		}
 		output[position+1]=data[i];
 		positionValue[position+1]=i;
-
-	}else{
-		cpt++;
-		if((xes+cpt)*generator()<xes){
-			positionValue[position+1]=i;
-		}
 	}
 
-}
+template<typename T, typename urgT>
+	inline __attribute__((always_inline)) void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
+		short position=k-2;
+		short positionLikeLast=k-2;
+		while ((output[k-1]==output[positionLikeLast]) && (position>-1) ){
+			positionLikeLast--;
+		}
+		int xes=(k-positionLikeLast-1);
+		int x=k-xes+int(floor(generator()*(xes)));
+
+		std::swap(positionValue[x],positionValue[k-1]);
+
+
+		if(data[i]>output[k-1]){
+			if(xes==1)
+				cpt=0;
+			else
+				cpt++;
+
+			while ((data[i]>output[position]) && (position>-1) ){
+				output[position+1]=output[position]; 
+				positionValue[position+1]=positionValue[position]; 
+				position--;
+			}
+			output[position+1]=data[i];
+			positionValue[position+1]=i;
+
+		}else{
+			cpt++;
+			if((xes+cpt)*generator()<xes){
+				positionValue[position+1]=i;
+			}
+		}
+
+	}
 
 
 template<typename T>
-inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
+	inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
 
-	for (unsigned int i = 0; i < N; ++i)
-	{
+		for (unsigned int i = 0; i < N; ++i)
+		{
 		if(data[i]>output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, i);
@@ -126,6 +130,131 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 	}
 
 }
+
+
+#if __arm64__
+template <int len>
+inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t smallest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector[len];
+		for(int j = 0; j < len; j++){
+			dataVector[j] = vld1q_f32(data+i+j);
+		}
+
+		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[0],smallest)));
+		for(int j = 1; j < len; j++){
+			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[j],smallest)));
+		}
+
+		if(mask == 0)
+		{
+			for (unsigned int j = i; j < i+len; ++j)
+			{
+                if(data[j]>output[k-1]) //then change
+                {
+                	addValueB(data, N, k, output, j);
+                }
+            }
+            smallest=vld1q_dup_f32(output+k-1);
+        }
+        
+    }
+
+    for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+    {
+        if(data[i]>output[k-1]) //then change
+        {
+        	addValueB(data, N, k, output, i);
+        }
+    }
+}
+template <int len>
+inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t smallest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector[len];
+		for(int j = 0; j < len; j++){
+			dataVector[j] = vld1q_f32(data+i+j);
+		}
+
+		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[0],smallest)));
+		for(int j = 1; j < len; j++){
+			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[j],smallest)));
+		}
+
+		if(mask == 0)
+		{
+			for (unsigned int j = i; j < i+len; ++j)
+			{
+                if(data[j]>output[k-1]) //then change
+                {
+                	addValueB(data, N, k, output, positionValue, j);
+                }
+            }
+            smallest=vld1q_dup_f32(output+k-1);
+        }
+        
+    }
+
+    for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+    {
+        if(data[i]>output[k-1]) //then change
+        {
+        	addValueB(data, N, k, output, positionValue, i);
+        }
+    }
+}
+template <int len, typename urgT>
+inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+	unsigned cpt=0;
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t smallest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector[len];
+		for(int j = 0; j < len; j++){
+			dataVector[j] = vld1q_f32(data+i+j);
+		}
+
+		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgeq_f32(dataVector[0],smallest)));
+		for(int j = 1; j < len; j++){
+			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgeq_f32(dataVector[j],smallest)));
+		}
+
+		if(mask == 0)
+		{
+			for (unsigned int j = i; j < i+len; ++j)
+			{
+                if(data[j]>output[k-1]) //then change
+                {
+                	addValueB(data, N, k, output, positionValue, generator, cpt, j);
+                }
+            }
+            smallest=vld1q_dup_f32(output+k-1);
+        }
+        
+    }
+
+    for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+    {
+        if(data[i]>output[k-1]) //then change
+        {
+        	addValueB(data, N, k, output, positionValue, generator, cpt, i);
+        }
+    }
+}
+
+#endif
 
 #if __SSE4_1__
 inline void findKbigest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
@@ -738,6 +867,15 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	}
 #endif
 
+#if __arm64__
+	{
+		if(std::is_same<T, float>::value){
+			findKbigestARM<16>(data, N, k, output);
+			return;
+		}
+	}
+#endif
+
 	findKbigest<T>(data, N, k, output);
 	return;
 
@@ -778,6 +916,15 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	}
 #endif
 
+#if __arm64__
+	{
+		if(std::is_same<T, float>::value){
+			findKbigestARM<16>(data, N, k, output, positionValue);
+			return;
+		}
+	}
+#endif
+
 	findKbigest<T>(data, N, k, output, positionValue);
 	return;
 
@@ -815,6 +962,15 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	{
 		findKbigest128(data, N, k, output, positionValue, generator);
 		return;
+	}
+#endif
+
+#if __arm64__
+	{
+		if(std::is_same<T, float>::value){
+			findKbigestARM<16>(data, N, k, output, positionValue, generator);
+			return;
+		}
 	}
 #endif
 
