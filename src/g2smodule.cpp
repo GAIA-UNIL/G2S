@@ -264,7 +264,7 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 	char hashInHexa[65]={0};
 	for (int i = 0; i < 32; ++i)
 	{
-		sprintf(hashInHexa+2*i,"%02x",hash.data()[i]);
+		snprintf(hashInHexa+2*i,65-2*i,"%02x",hash.data()[i]);
 	}
 	memcpy(sourceName,hashInHexa,65*sizeof(char));
 
@@ -568,7 +568,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		serverAddress=PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index));
 
 	char address[4096];
-	sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
+	snprintf(address,4096,"tcp://%s:%d",serverAddress.c_str(),port);
 	socket.connect (address);
 
 	if(serverShutdown){
@@ -711,7 +711,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	float lastProgression=-1.f;
 
 	char nameFile[65]={0};
-	sprintf(nameFile,"%u",id);
+	snprintf(nameFile,65,"%u",id);
 	setbuf(stdout, NULL);
 
 	if(kill) done=true;
@@ -871,7 +871,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 		int positionInOutput=0;
 		while (positionInOutput<prefix.size()+1){
 			// download data
-			sprintf(nameFile_local,"%s%u",prefix[positionInOutput].c_str(),id);
+			snprintf(nameFile_local,65,"%s%u",prefix[positionInOutput].c_str(),id);
 
 			{
 				infoContainer task;

@@ -67,7 +67,7 @@ void removeAllFile(char* dir, double olderThan)
 
 	while ((de = readdir(dr)) != NULL){
 		char completeName[2048];
-		sprintf(completeName,"%s/%s",dir,de->d_name);
+		snprintf(completeName,2048,"%s/%s",dir,de->d_name);
 		struct stat info;
 
 		if(0==lstat(completeName,&info) && (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))){
@@ -122,7 +122,7 @@ int main(int argc, char const *argv[]) {
 	CURL *curl;
 	CURLcode res;
 	char url[2048];
-	sprintf(url,"%s/raw/master/version",gitAdress.c_str());
+	snprintf(url,2048,"%s/raw/master/version",gitAdress.c_str());
 	curl = curl_easy_init();                                                                                                                                                                                                                                                           
 	if (curl)
 	{
@@ -199,7 +199,7 @@ int main(int argc, char const *argv[]) {
 #endif
 	
 	char address[1024];
-	sprintf(address,"tcp://*:%d",port);
+	snprintf(address,1024,"tcp://*:%d",port);
 
 	try {
 		receiver.bind(address);
