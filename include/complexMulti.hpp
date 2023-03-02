@@ -20,7 +20,11 @@
 
 #include <iostream>
 #include <cmath>
-#include <immintrin.h>
+#if __arm64__
+	#include <arm_neon.h>
+#else
+	#include <immintrin.h>
+#endif
 #include <limits>
 #include <chrono>
 #include <algorithm>
@@ -61,6 +65,47 @@ namespace  g2s{
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
 		}
 	}
+
+#if __arm64__
+template <unsigned int VecLength>
+inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size) {
+    static_assert(VecLength % 4 == 0, "VecLength must be a multiple of 4");
+    unsigned int i;
+    unsigned int vecCount = (2 * size) / VecLength;
+    float32x4_t alphaVect = vdupq_n_f32(Alpha);
+
+    for (i = 0; i < vecCount; i++) {
+        float32x2_t C_low = vget_low_f32(vld1q_f32(C + i * VecLength));
+        float32x2_t C_high = vget_high_f32(vld1q_f32(C + i * VecLength));
+        float32x2_t D_low = vget_low_f32(vld1q_f32(D + i * VecLength));
+        float32x2_t D_high = vget_high_f32(vld1q_f32(D + i * VecLength));
+
+        float32x2_t CD_low = vmul_f32(C_low, D_low);
+        float32x2_t CCD_low = vmul_f32(C_high, D_low);
+        CCD_low = vrev64_f32(CCD_low);
+        float32x2_t CD_high = vmul_f32(C_high, D_high);
+        float32x2_t CCD_high = vmul_f32(C_low, D_high);
+        CCD_high = vrev64_f32(CCD_high);
+
+        float32x4_t CD = vcombine_f32(CD_low, CD_high);
+        float32x4_t CCD = vcombine_f32(CCD_low, CCD_high);
+
+    #if __FMA__
+        float32x4_t val = vfmaq_f32(vld1q_f32(dst + i * VecLength), alphaVect, vaddsubq_f32(CD, CCD));
+    #else
+        float32x4_t val = vaddq_f32(vmulq_f32(vaddq_f32(CD, CCD), alphaVect), vld1q_f32(dst + i * VecLength));
+    #endif
+
+        vst1q_f32(dst + i * VecLength, val);
+    }
+
+    for (i = vecCount * VecLength / 2; i < size; i++) {
+        dst[2 * i + 0] += Alpha * (C[2 * i + 0] * D[2 * i + 0] - C[2 * i + 1] * D[2 * i + 1]);
+        dst[2 * i + 1] += Alpha * (C[2 * i + 0] * D[2 * i + 1] + C[2 * i + 1] * D[2 * i + 0]);
+    }
+}
+
+#endif
 	
 #if __SSE3__
 	inline void complexAddAlphaxCxD_128(float* restrict dst,  const float* C, const float* D, const float Alpha, const unsigned int size){
@@ -291,6 +336,13 @@ template<typename T>
 	#if __SSE3__
 		complexAddAlphaxCxD_128(dst, C, D, Alpha, size);
 		return;
+	#endif
+
+	#if __arm64__
+		if(std::is_same<T, float>::value){
+			complexAddAlphaxCxD_ARM<16>(dst, C, D, Alpha, size);
+			return;
+		}
 	#endif
 
 		complexAddAlphaxCxD_32(dst, C, D, Alpha, size);

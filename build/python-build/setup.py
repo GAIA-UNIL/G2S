@@ -32,8 +32,20 @@ else:
 
 extra='';
 
+import shutil
+
+extra_include_dirs=[];
+extra_library_dirs=[];
+
+if shutil.which("brew", mode=os.X_OK, path=os.environ.get("PATH")):
+	import subprocess
+	result = subprocess.check_output(["brew", "--prefix"]);
+	brew_prefix = result.decode().strip()
+	extra_include_dirs.append(brew_prefix+"/include")
+	extra_library_dirs.append(brew_prefix+"/lib")
+
 if(systemName=='Darwin' or systemName=='Linux'):
-	import numpy.distutils.misc_util
+	import numpy
 	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	setup(name='G2S',
@@ -59,9 +71,9 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			language="c++", 
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
-			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/"],
+			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/","/opt/homebrew/include"]+extra_include_dirs,
 			libraries = ['zmq']+extraLib,
-			library_dirs = ['/usr/lib','/opt/local/lib']
+			library_dirs = ['/usr/lib','/opt/local/lib','/opt/homebrew/lib']+extra_library_dirs
 			)],
 		include_dirs=numpy.get_include(),
 		install_requires=['numpy']

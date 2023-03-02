@@ -20,7 +20,11 @@
 
 #include <iostream>
 #include <cmath>
-#include <immintrin.h>
+#if __arm64__
+	#include <arm_neon.h>
+#else
+	#include <immintrin.h>
+#endif
 #include <limits>
 #include <chrono>
 #include <algorithm>
