@@ -1,15 +1,21 @@
 export CC=icc
 export CXX=icpc
 export AR=xiar
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-    OS =linux
-endif
-ifeq ($(UNAME_S),Darwin)
-    OS =mac
-endif
 
-ifeq ($(ICPX),1)
+# UNAME_S := $(shell uname -s)
+# ifeq ($(UNAME_S),Linux)
+#     OS =linux
+#     export CC=icx
+# 	export CXX=icpx
+# 	export AR=ar
+# 	CXXFLAGS+= -fp-model=precise
+# endif
+
+# ifeq ($(UNAME_S),Darwin)
+#     OS =mac
+# endif
+
+ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	export CC=icx
 	export CXX=icpx
 	export AR=ar

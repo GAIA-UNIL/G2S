@@ -1,9 +1,9 @@
-
-
-
-
-
-
+ifeq ($(UNAME_S),Darwin)
+	ifeq ($(brewIsAvailable),1)
+    	export CFLAGS+= -Xpreprocessor -fopenmp  -I$(shell  brew --prefix libomp)/include
+    	export LDFLAGS += -lomp -L$(shell brew --prefix libomp)/lib
+	endif
+endif
 
 
 
