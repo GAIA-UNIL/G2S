@@ -67,41 +67,21 @@ namespace  g2s{
 	}
 
 #if __arm64__
-template <unsigned int VecLength>
+
 inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size) {
-    static_assert(VecLength % 4 == 0, "VecLength must be a multiple of 4");
-    unsigned int i;
-    unsigned int vecCount = (2 * size) / VecLength;
     float32x4_t alphaVect = vdupq_n_f32(Alpha);
 
-    for (i = 0; i < vecCount; i++) {
-        float32x2_t C_low = vget_low_f32(vld1q_f32(C + i * VecLength));
-        float32x2_t C_high = vget_high_f32(vld1q_f32(C + i * VecLength));
-        float32x2_t D_low = vget_low_f32(vld1q_f32(D + i * VecLength));
-        float32x2_t D_high = vget_high_f32(vld1q_f32(D + i * VecLength));
-
-        float32x2_t CD_low = vmul_f32(C_low, D_low);
-        float32x2_t CCD_low = vmul_f32(C_high, D_low);
-        CCD_low = vrev64_f32(CCD_low);
-        float32x2_t CD_high = vmul_f32(C_high, D_high);
-        float32x2_t CCD_high = vmul_f32(C_low, D_high);
-        CCD_high = vrev64_f32(CCD_high);
-
-        float32x4_t CD = vcombine_f32(CD_low, CD_high);
-        float32x4_t CCD = vcombine_f32(CCD_low, CCD_high);
-
-    #if __FMA__
-        float32x4_t val = vfmaq_f32(vld1q_f32(dst + i * VecLength), alphaVect, vaddsubq_f32(CD, CCD));
-    #else
-        float32x4_t val = vaddq_f32(vmulq_f32(vaddq_f32(CD, CCD), alphaVect), vld1q_f32(dst + i * VecLength));
-    #endif
-
-        vst1q_f32(dst + i * VecLength, val);
+    for (unsigned int i = 0; i < 2*size/4; i++) {
+    	float32x4_t alphaC=vmulq_f32(vld1q_f32(C + i * 4),alphaVect);
+    	float32x4_t d_reg=vld1q_f32(D + i * 4);
+    	float32x4_t result=vcmlaq_f32(vld1q_f32(dst + i * 4),alphaC, d_reg);
+    	result=vcmlaq_rot90_f32(result,alphaC, d_reg);
+		vst1q_f32(dst + i * 4,result);
     }
 
-    for (i = vecCount * VecLength / 2; i < size; i++) {
-        dst[2 * i + 0] += Alpha * (C[2 * i + 0] * D[2 * i + 0] - C[2 * i + 1] * D[2 * i + 1]);
-        dst[2 * i + 1] += Alpha * (C[2 * i + 0] * D[2 * i + 1] + C[2 * i + 1] * D[2 * i + 0]);
+    for (unsigned int i = (size/2)*2; i < size; i++){
+    	dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
+		dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
     }
 }
 
@@ -340,7 +320,7 @@ template<typename T>
 
 	#if __arm64__
 		if(std::is_same<T, float>::value){
-			complexAddAlphaxCxD_ARM<16>(dst, C, D, Alpha, size);
+			complexAddAlphaxCxD_ARM(dst, C, D, Alpha, size);
 			return;
 		}
 	#endif

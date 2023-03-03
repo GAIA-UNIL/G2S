@@ -133,116 +133,90 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 
 
 #if __arm64__
-template <int len>
 inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
 	float32x4_t smallest=vld1q_dup_f32(output+k-1);
-	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
-		float32x4_t dataVector[len];
-		for(int j = 0; j < len; j++){
-			dataVector[j] = vld1q_f32(data+i+j);
-		}
+		float32x4_t dataVector=vld1q_f32(data+i);
 
-		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[0],smallest)));
-		for(int j = 1; j < len; j++){
-			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[j],smallest)));
-		}
-
-		if(mask == 0)
+		if(vmaxvq_u32(vcgeq_f32(dataVector,smallest)))
 		{
-			for (unsigned int j = i; j < i+len; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-                if(data[j]>output[k-1]) //then change
-                {
-                	addValueB(data, N, k, output, j);
-                }
-            }
-            smallest=vld1q_dup_f32(output+k-1);
-        }
-        
-    }
+				if(data[j]>output[k-1]) //then change
+				{
+					addValueB(data, N, k, output, j);
+				}
+			}
+			smallest=vld1q_dup_f32(output+k-1);
+		}
+		
+	}
 
-    for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
-    {
-        if(data[i]>output[k-1]) //then change
-        {
-        	addValueB(data, N, k, output, i);
-        }
-    }
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]>output[k-1]) //then change
+		{
+			addValueB(data, N, k, output, i);
+		}
+	}
 }
-template <int len>
+
 inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
 	float32x4_t smallest=vld1q_dup_f32(output+k-1);
-	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
-		float32x4_t dataVector[len];
-		for(int j = 0; j < len; j++){
-			dataVector[j] = vld1q_f32(data+i+j);
-		}
+		float32x4_t dataVector=vld1q_f32(data+i);
 
-		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[0],smallest)));
-		for(int j = 1; j < len; j++){
-			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgtq_f32(dataVector[j],smallest)));
-		}
-
-		if(mask == 0)
+		if(vmaxvq_u32(vcgeq_f32(dataVector,smallest)))
 		{
-			for (unsigned int j = i; j < i+len; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-                if(data[j]>output[k-1]) //then change
-                {
-                	addValueB(data, N, k, output, positionValue, j);
-                }
-            }
-            smallest=vld1q_dup_f32(output+k-1);
-        }
-        
-    }
+				if(data[j]>output[k-1]) //then change
+				{
+					addValueB(data, N, k, output, positionValue, j);
+				}
+			}
+			smallest=vld1q_dup_f32(output+k-1);
+		}
+		
+	}
 
-    for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
-    {
-        if(data[i]>output[k-1]) //then change
-        {
-        	addValueB(data, N, k, output, positionValue, i);
-        }
-    }
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]>output[k-1]) //then change
+		{
+			addValueB(data, N, k, output, positionValue, i);
+		}
+	}
 }
-template <int len, typename urgT>
+template <typename urgT>
 inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
 	float32x4_t smallest=vld1q_dup_f32(output+k-1);
-	for (unsigned int i = 0; i < ( (N-len)/ratio)*ratio; i+=ratio)
+	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
 	{
-		float32x4_t dataVector[len];
-		for(int j = 0; j < len; j++){
-			dataVector[j] = vld1q_f32(data+i+j);
-		}
+		float32x4_t dataVector=vld1q_f32(data+i);
 
-		int mask = vminvq_u32(vreinterpretq_u32_f32(vcgeq_f32(dataVector[0],smallest)));
-		for(int j = 1; j < len; j++){
-			mask &= vminvq_u32(vreinterpretq_u32_f32(vcgeq_f32(dataVector[j],smallest)));
-		}
-
-		if(mask == 0)
+		if(vmaxvq_u32(vcgeq_f32(dataVector,smallest)))
 		{
-			for (unsigned int j = i; j < i+len; ++j)
+			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-                if(data[j]>output[k-1]) //then change
-                {
-                	addValueB(data, N, k, output, positionValue, generator, cpt, j);
-                }
-            }
-            smallest=vld1q_dup_f32(output+k-1);
-        }
-        
+				if(data[j]>output[k-1]) //then change
+				{
+					addValueB(data, N, k, output, positionValue, generator, cpt, j);
+				}
+			}
+			smallest=vld1q_dup_f32(output+k-1);
+		}
     }
 
     for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
@@ -870,7 +844,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 #if __arm64__
 	{
 		if(std::is_same<T, float>::value){
-			findKbigestARM<16>(data, N, k, output);
+			findKbigestARM(data, N, k, output);
 			return;
 		}
 	}
@@ -919,7 +893,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 #if __arm64__
 	{
 		if(std::is_same<T, float>::value){
-			findKbigestARM<16>(data, N, k, output, positionValue);
+			findKbigestARM(data, N, k, output, positionValue);
 			return;
 		}
 	}
@@ -968,7 +942,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 #if __arm64__
 	{
 		if(std::is_same<T, float>::value){
-			findKbigestARM<16>(data, N, k, output, positionValue, generator);
+			findKbigestARM(data, N, k, output, positionValue, generator);
 			return;
 		}
 	}
