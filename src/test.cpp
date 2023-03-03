@@ -324,8 +324,11 @@ int main(int argc, char const *argv[]) {
 				std::vector<unsigned> gpuHostUnifiedMemory=OpenCLGPUDevice::DeviceWithHostUnifiedMemory(0);
 
 				#endif
-
+				#ifdef WITH_OPENCL
 				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, gpuHostUnifiedMemory, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+				#else
+				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+				#endif
 				for (unsigned int i = 0; i < nbThreads; ++i)
 				{
 					//#pragma omp critical (createDevices)
