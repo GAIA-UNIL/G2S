@@ -250,7 +250,8 @@
 					</div>
 
 					<h1 id='runServer'>Run the server</h1>
-					<p>⚠️The server generates logs- and data-files in subfolders build/build-*/logs and build/build-*/data that are originally saved for debug purpose, and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age</p>
+					<p>⚠️The server generates logs- and data-files in subfolders build/build-*/logs and build/build-*/data that are originally saved for debug purpose, 
+					and are currently automatically removed only at the launch of the server or after one day. This parameterization can be changed with -kod and -age.</p>
 
 					<div class="osChoice buttonChoice">
 						<a data-os="linux" class="button linux">Linux</a>
@@ -259,11 +260,13 @@
 					</div>
 					<div class="quickSelect linux osSens">
 						<h3>Run the server on Ubuntu</h3>
-						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version</p>
+						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version. 
+						Running the server from a different directory (e.g. ./c++-build/server) is currently not supported.</p>
 					</div>
 					<div class="quickSelect macOS osSens">
 						<h3>Run the server on macOS</h3>
-						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version</p>
+						<p>Run <code>./server</code> in <code>build/c++-build</code> or <code>build/intel-build</code>, respectively for the standard or Intel version. 
+						Running the server from a different directory (e.g. ./c++-build/server) is currently not supported.</p>
 					</div>
 					<div class="quickSelect macOS linux osSens ">
 						<table class="parameter g2s server">
@@ -318,10 +321,9 @@
 					</div>
 
 					<h1 id='userInterface'>Using the interfaces</h1>
-					<p>A call to <strong>g2s</strong> is needed to launch any computation.<br><br>
-						Usage: <code>[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)</code><br>
-						Outputs: sim=simulation, index=index of the simulated values in the flattened TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID. <br><br>
-						Flags do <strong>NOT</strong> have a specific order.</p>
+					<p>A call to <strong>g2s</strong> is needed to launch any computation. Each call to <strong>g2s</strong> is composed of parameters of G2S and of the name of the algorithm used.<br>
+						Flags do <strong>NOT</strong> have a specific order. You can either write <code>'-flag',value</code> or <code>flag=value</code>.
+						</p>
 					<div class="progLangChoice buttonChoice">
 						<a data-progLang="python" class="button python"><img class="logo python" src="https://www.mgravey.com/assets/logo/Python.svg">Python</a>
 						<a data-progLang="matlab" class="button matlab"><img class="logo matlab" src="https://www.mgravey.com/assets/logo/Matlab.png">MATLAB</a>
@@ -342,7 +344,6 @@
 						<h3>Use g2s in R</h3>
 						<<pre class="highlight"><code></code></pre>
 					</div>
-					<p>Each call to <strong>g2s</strong> is composed of parameters of G2S and of the name of the algorithm used.</p>
 
 					<table class="parameter g2s interface">
 						<thead>
@@ -363,6 +364,10 @@
 							<tr>
 								<td class="addCopy">-sa</td>
 								<td>Server address (default: localhost (the server is local), otherwise provide IP address)<br>Nice when we have a powerful machine dedicated for computation</td>
+							</tr>
+							<tr>
+								<td class="addCopy">-p</td>
+								<td>Port where to look for the server (default: 8128). Should be passed as an integer.</td>
 							</tr>
 							<tr>
 								<td class="addCopy">-silent</td>
@@ -443,6 +448,8 @@
 
 					<div class="quickSelect algoSens qs">
 						<h2 id='QS'>Parameters for QS</h2>
+						Usage: <code>[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)</code><br>
+						Outputs: sim=simulation, index=index of the simulated values in the flattened TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID. <br><br>
 						<table class="parameter qs">
 							<thead>
 								<tr>
