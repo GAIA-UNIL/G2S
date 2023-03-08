@@ -22,6 +22,7 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 #include <thread>
+#include <filesystem>
 
 #include <spawn.h>
 
@@ -94,6 +95,7 @@ int main(int argc, char const *argv[]) {
 	double maxFileAge=24*3600.;
 	short port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
+	bool moveToServerFolder=true;
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -112,7 +114,16 @@ int main(int argc, char const *argv[]) {
 			maxFileAge=atof(argv[i+1]);
 		}
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-kcf")) moveToServerFolder=false;
 	}
+
+	if (moveToServerFolder)
+	{
+		std::filesystem::path exe_path(argv[0]);
+		std::string exe_dir = exe_path.parent_path().string();
+		std::filesystem::current_path(exe_dir);
+	}
+
 
 #ifdef WITH_VERSION_CONTROL
 	
