@@ -22,8 +22,16 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 #include <thread>
-#if __cplusplus >= 201703L // at least c++17
-#include <filesystem>
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+  #define WITH_FILESYSTEM_INCLUDE 1
+#elif __has_include(<experimental/filesystem>)
+  #include <experimental/filesystem> 
+  namespace fs = std::experimental::filesystem;
+  #define WITH_FILESYSTEM_INCLUDE 1
+#else
+  error "Missing the <filesystem> header."
 #endif
 
 #include <spawn.h>
@@ -118,12 +126,12 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 		if(0==strcmp(argv[i], "-kcf")) moveToServerFolder=false;
 	}
-	#if __cplusplus >= 201703L // at least c++17
+	#ifdef WITH_FILESYSTEM_INCLUDE
 	if (moveToServerFolder)
 	{
-		std::filesystem::path exe_path(argv[0]);
+		fs::path exe_path(argv[0]);
 		std::string exe_dir = exe_path.parent_path().string();
-		std::filesystem::current_path(exe_dir);
+		fs::current_path(exe_dir);
 	}
 	#else
 	fprintf(stderr, "This assumes you run the server from the server folder using: ./server ... ");
