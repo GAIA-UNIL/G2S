@@ -3,7 +3,7 @@ BUILD_DIR=../.
 export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-O3 -std=c++17 -fPIC -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
+export CFLAGS=-O3 -std=c++11 -fPIC -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
@@ -83,10 +83,7 @@ endif
 .PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
 
 .DEFAULT:
-	$(MAKE) -C c++-build $@
-	$(MAKE) -C intel-build $@
-
-default: $(DEFAULT_JOB)
+	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS))
 
 c++:
 	$(MAKE) -C c++-build

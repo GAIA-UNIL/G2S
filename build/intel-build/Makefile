@@ -22,6 +22,11 @@ ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	CXXFLAGS+= -fp-model=precise
 endif
 
+dosentSupportCPP17:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 1 || echo 0)
+ifeq ($(dosentSupportCPP17),1)
+	export CFLAGS += -std=c++17
+endif
+
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
 ifeq ($(MKLROOT),)
