@@ -30,8 +30,6 @@
   #include <experimental/filesystem> 
   namespace fs = std::experimental::filesystem;
   #define WITH_FILESYSTEM_INCLUDE 1
-#else
-  error "Missing the <filesystem> header."
 #endif
 
 #include <spawn.h>
@@ -124,7 +122,7 @@ int main(int argc, char const *argv[]) {
 			maxFileAge=atof(argv[i+1]);
 		}
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
-		if(0==strcmp(argv[i], "-kcf")) moveToServerFolder=false;
+		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
 	}
 	#ifdef WITH_FILESYSTEM_INCLUDE
 	if (moveToServerFolder)
