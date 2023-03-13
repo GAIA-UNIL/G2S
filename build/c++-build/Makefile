@@ -8,6 +8,7 @@ endif
 doseSupportCPP17:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 1 || echo 0)
 ifeq ($(doseSupportCPP17),1)
 	export CFLAGS += -std=c++17
+	export NVFLAGS += -std=c++17
 endif
 doseNeedFS_Lib:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -lstdc++fs 2>/dev/null && echo 1 || echo 0)
 ifeq ($(doseNeedFS_Lib),1)

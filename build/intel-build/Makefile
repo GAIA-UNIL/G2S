@@ -29,6 +29,7 @@ endif
 doseNeedFS_Lib:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -lstdc++fs 2>/dev/null && echo 1 || echo 0)
 ifeq ($(doseNeedFS_Lib),1)
 	export LDFLAGS += -lstdc++fs
+	export NVFLAGS += -std=c++17
 endif
 
 export DEST_DIR_EXTENSION:=$(shell pwd)
