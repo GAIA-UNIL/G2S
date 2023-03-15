@@ -13,12 +13,19 @@ export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr
 export ARFLAGS= rcs
 export ExtraDevice=AcceleratorDevice.o
 
+export brewIsAvailable := $(shell brew -v > /dev/null 2>&1 && echo 1 || echo 0)
+
+ifeq ($(brewIsAvailable),1)
+	export LIBINC+=-I$(shell  brew --prefix)/include
+	export LIB_PATH+=-L$(shell  brew --prefix)/lib
+endif
+
 export NVCC=nvcc
 export NVFLAGS +=
 export NVLIB +=
 
 
-UNAME_S := $(shell uname -s)
+export UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     OS =linux
     OPENCL_LIB+= -lOpenCL -lclFFT
@@ -30,22 +37,22 @@ endif
 
 export OS
 
-dosentSupportOpenCL:= $(shell sh -c "echo 'int main(){}' | c++ -xc - -o /dev/null ${OPENCL_LIB} 2>/dev/null && echo 0 || echo 1 ")
-ifeq ("$(dosentSupportOpenCL)","0")
+dosentSupportOpenCL:= $(shell echo 'int main(){}' | c++ -xc - -o /dev/null ${OPENCL_LIB} 2>/dev/null && echo 1 || echo 0 )
+ifeq ($(dosentSupportOpenCL),1)
 	export OPENCL_INC+=-DWITH_OPENCL=1
 	export OPENCL_LIB
 else
 	export OPENCL_LIB=
 endif
 
-dosentSupportOMP:= $(shell sh -c 'echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 0 || echo 1 ')
-ifeq ("$(dosentSupportOMP)","0")
+dosentSupportOMP:= $(shell echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 1 || echo 0)
+ifeq ($(dosentSupportOMP),1)
 	export CFLAGS += -fopenmp
 	export LDFLAGS += -fopenmp
 endif
 
-dosentSupportCUDA:= $(shell sh -c 'echo "int main(){}" | ${NVCC} -x c - -o /dev/null 2>/dev/null && echo 0 || echo 1')
-ifeq ("$(dosentSupportCUDA)","0")
+dosentSupportCUDA:= $(shell echo "int main(){}" | ${NVCC} -x c - -o /dev/null 2>/dev/null && echo 1 || echo 0)
+ifeq ($(dosentSupportCUDA),1)
 	export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
@@ -59,18 +66,16 @@ ifneq ("$(wildcard /usr/include/hbwmalloc.h)","")
 endif
 
 ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/local/include/curl/curl.h))
-	export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell sh -c "cat ../version")\" -DGIT_URL=\"$(GIT_URL)\"
+	export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell cat ../version)\" -DGIT_URL=\"$(GIT_URL)\"
 	export LDFLAGS+= -lcurl
 endif
 
 DEFAULT_JOB=c++
-export ICPX=0
-ifneq ("$(shell sh -c 'icpc 2>/dev/null; echo $? ')",127)
+ifneq ($(shell icpc 2>/dev/null; echo $$? ),127)
 	DEFAULT_JOB+=intel
 endif
-ifneq ("$(shell sh -c 'icpx 2>/dev/null; echo $? ')",127)
+ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	DEFAULT_JOB+=intel
-	export ICPX=1
 endif
 
 .DEFAULT_GOAL=default
@@ -78,10 +83,7 @@ endif
 .PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
 
 .DEFAULT:
-	$(MAKE) -C c++-build $@
-	$(MAKE) -C intel-build $@
-
-default: $(DEFAULT_JOB)
+	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS))
 
 c++:
 	$(MAKE) -C c++-build

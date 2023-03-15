@@ -100,7 +100,7 @@ public:
 		char hashInHexa[65]={0};
 		for (int i = 0; i < 32; ++i)
 		{
-			sprintf(hashInHexa+2*i,"%02x",hash.data()[i]);
+			snprintf(hashInHexa+2*i,65-2*i,"%02x",hash.data()[i]);
 		}
 		memcpy(sourceName,hashInHexa,65*sizeof(char));
 
@@ -306,7 +306,7 @@ public:
 		if(input.count("-p")>0)port=nativeToScalar(input.find("-p")->second);
 
 		char address[4096];
-		sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
+		snprintf(address,4096, "tcp://%s:%d",serverAddress.c_str(),port);
 		socket.connect (address);
 
 		if (requestServerStatus){
@@ -475,7 +475,7 @@ public:
 		float lastProgression=-1.f;
 
 		char nameFile[65]={0};
-		sprintf(nameFile,"%u",id);
+		snprintf(nameFile,65,"%u",id);
 
 		if(kill){
 			sendKill(socket, id, true);
@@ -558,7 +558,7 @@ public:
 						// error occurred
 						// check for error
 						char nameFile_local[65]={0};
-						sprintf(nameFile_local,"error_%u",id);
+						snprintf(nameFile_local,65,"error_%u",id);
 					
 						{
 							infoContainer task;
@@ -637,7 +637,7 @@ public:
 		int nbElement=0;
 		while(waitAndDownload){
 			char nameFile_local[65]={0};
-			sprintf(nameFile_local,"im_%d_%u",dataIndex,id);
+			snprintf(nameFile_local,65,"im_%d_%u",dataIndex,id);
 
 			{
 				infoContainer task;

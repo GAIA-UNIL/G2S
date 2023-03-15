@@ -1,19 +1,35 @@
 export CC=icc
 export CXX=icpc
 export AR=xiar
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-    OS =linux
-endif
-ifeq ($(UNAME_S),Darwin)
-    OS =mac
-endif
 
-ifeq ($(ICPX),1)
+# UNAME_S := $(shell uname -s)
+# ifeq ($(UNAME_S),Linux)
+#     OS =linux
+#     export CC=icx
+# 	export CXX=icpx
+# 	export AR=ar
+# 	CXXFLAGS+= -fp-model=precise
+# endif
+
+# ifeq ($(UNAME_S),Darwin)
+#     OS =mac
+# endif
+
+ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	export CC=icx
 	export CXX=icpx
 	export AR=ar
 	CXXFLAGS+= -fp-model=precise
+endif
+
+doseSupportCPP17:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 1 || echo 0)
+ifeq ($(doseSupportCPP17),1)
+	export CFLAGS += -std=c++17
+	export NVFLAGS += -std=c++17
+endif
+doseNeedFS_Lib:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -lstdc++fs 2>/dev/null && echo 1 || echo 0)
+ifeq ($(doseNeedFS_Lib),1)
+	export LDFLAGS += -lstdc++fs
 endif
 
 export DEST_DIR_EXTENSION:=$(shell pwd)

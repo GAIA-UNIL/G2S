@@ -1,6 +1,6 @@
 library(Rcpp)
 curdir=getwd();
-compileFileDir=getSrcDirectory(function(x) {x})
+compileFileDir=normalizePath(getSrcDirectory(function(x) {x}))
 setwd(compileFileDir)
 Sys.setenv("PKG_CXXFLAGS"=paste("-std=c++17 -I/opt/local/include -I",compileFileDir,"/../../include/ -I",compileFileDir,"/../../include_interfaces/",sep=""))
 Sys.setenv("PKG_LIBS"="-L/opt/local/lib -lzmq -ljsoncpp")

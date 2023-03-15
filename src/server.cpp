@@ -22,6 +22,15 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 #include <thread>
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+  #define WITH_FILESYSTEM_INCLUDE 1
+#elif __has_include(<experimental/filesystem>)
+  #include <experimental/filesystem> 
+  namespace fs = std::experimental::filesystem;
+  #define WITH_FILESYSTEM_INCLUDE 1
+#endif
 
 #include <spawn.h>
 
@@ -67,7 +76,7 @@ void removeAllFile(char* dir, double olderThan)
 
 	while ((de = readdir(dr)) != NULL){
 		char completeName[2048];
-		sprintf(completeName,"%s/%s",dir,de->d_name);
+		snprintf(completeName,2048,"%s/%s",dir,de->d_name);
 		struct stat info;
 
 		if(0==lstat(completeName,&info) && (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))){
@@ -94,6 +103,7 @@ int main(int argc, char const *argv[]) {
 	double maxFileAge=24*3600.;
 	short port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
+	bool moveToServerFolder=true;
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -112,7 +122,20 @@ int main(int argc, char const *argv[]) {
 			maxFileAge=atof(argv[i+1]);
 		}
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
 	}
+	#ifdef WITH_FILESYSTEM_INCLUDE
+	if (moveToServerFolder)
+	{
+		fs::path exe_path(argv[0]);
+		std::string exe_dir = exe_path.parent_path().string();
+		fs::current_path(exe_dir);
+	}
+	#else
+	fprintf(stderr, "This assumes you run the server from the server folder using: ./server ... ");
+	#endif
+
+
 
 #ifdef WITH_VERSION_CONTROL
 	
@@ -122,7 +145,7 @@ int main(int argc, char const *argv[]) {
 	CURL *curl;
 	CURLcode res;
 	char url[2048];
-	sprintf(url,"%s/raw/master/version",gitAdress.c_str());
+	snprintf(url,2048,"%s/raw/master/version",gitAdress.c_str());
 	curl = curl_easy_init();                                                                                                                                                                                                                                                           
 	if (curl)
 	{
@@ -201,7 +224,7 @@ int main(int argc, char const *argv[]) {
 #endif
 	
 	char address[1024];
-	sprintf(address,"tcp://*:%d",port);
+	snprintf(address,1024,"tcp://*:%d",port);
 
 	try {
 		receiver.bind(address);

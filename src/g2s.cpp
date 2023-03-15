@@ -260,7 +260,7 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 	char hashInHexa[65]={0};
 	for (int i = 0; i < 32; ++i)
 	{
-		sprintf(hashInHexa+2*i,"%02x",hash.data()[i]);
+		snprintf(hashInHexa+2*i,65-2*i,"%02x",hash.data()[i]);
 	}
 	memcpy(sourceName,hashInHexa,65*sizeof(char));
 
@@ -562,7 +562,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		serverAddress=mxArrayToString(prhs[saP1_Index]);
 
 	char address[4096];
-	sprintf(address,"tcp://%s:%d",serverAddress.c_str(),port);
+	snprintf(address,4096,"tcp://%s:%d",serverAddress.c_str(),port);
 	socket.connect (address);
 
 	if(serverShutdown){
@@ -706,7 +706,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	float lastProgression=-1.f;
 
 	char nameFile[65]={0};
-	sprintf(nameFile,"%u",id);
+	snprintf(nameFile,65,"%u",id);
 
 	if(kill) done=true;
 
@@ -847,7 +847,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		int positionInOutput=0;
 		while (nlhs-1>downloadInformation){
 			// download data
-			sprintf(nameFile_local,"%s%u",prefix[positionInOutput].c_str(),id);
+			snprintf(nameFile_local,65,"%s%u",prefix[positionInOutput].c_str(),id);
 
 			{
 				infoContainer task;

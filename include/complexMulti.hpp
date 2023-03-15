@@ -20,7 +20,11 @@
 
 #include <iostream>
 #include <cmath>
-#include <immintrin.h>
+#if __arm64__
+	#include <arm_neon.h>
+#else
+	#include <immintrin.h>
+#endif
 #include <limits>
 #include <chrono>
 #include <algorithm>
@@ -61,6 +65,27 @@ namespace  g2s{
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
 		}
 	}
+
+#if __arm64__
+
+inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size) {
+    float32x4_t alphaVect = vdupq_n_f32(Alpha);
+
+    for (unsigned int i = 0; i < 2*size/4; i++) {
+    	float32x4_t alphaC=vmulq_f32(vld1q_f32(C + i * 4),alphaVect);
+    	float32x4_t d_reg=vld1q_f32(D + i * 4);
+    	float32x4_t result=vcmlaq_f32(vld1q_f32(dst + i * 4),alphaC, d_reg);
+    	result=vcmlaq_rot90_f32(result,alphaC, d_reg);
+		vst1q_f32(dst + i * 4,result);
+    }
+
+    for (unsigned int i = (size/2)*2; i < size; i++){
+    	dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
+		dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
+    }
+}
+
+#endif
 	
 #if __SSE3__
 	inline void complexAddAlphaxCxD_128(float* restrict dst,  const float* C, const float* D, const float Alpha, const unsigned int size){
@@ -291,6 +316,13 @@ template<typename T>
 	#if __SSE3__
 		complexAddAlphaxCxD_128(dst, C, D, Alpha, size);
 		return;
+	#endif
+
+	#if __arm64__
+		if(std::is_same<T, float>::value){
+			complexAddAlphaxCxD_ARM(dst, C, D, Alpha, size);
+			return;
+		}
 	#endif
 
 		complexAddAlphaxCxD_32(dst, C, D, Alpha, size);
