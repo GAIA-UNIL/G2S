@@ -1,4 +1,4 @@
-#!/bin/env basj^h
+#!/bin/env bash
 make intel -j
 cp ./algosName.config ./g2s-package/usr/bin/g2s_bin
 cp ./intel-build/g2s_server ./g2s-package/usr/bin/g2s_bin

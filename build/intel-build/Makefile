@@ -92,7 +92,7 @@ libg2s.a: DataImage.o
 	$(AR) $(ARFLAGS) $@ $^
 
 algoNames:
-	ln -sf ../g2s_algosName.config g2s_algosName.config
+	ln -sf ../algosName.config algosName.config
 
 extension:libg2s.a algoNames
 	$(MAKE) -C ../extension clean
