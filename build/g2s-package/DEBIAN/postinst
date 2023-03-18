@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Create the g2s user if it doesn't exist
 if ! getent passwd g2s > /dev/null 2>&1; then
 	useradd -r -s /usr/sbin/nologin g2s
