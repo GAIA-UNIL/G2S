@@ -1,3 +1,17 @@
 #!/bin/env bash
-cd $(dirname $0)/g2s_bin;
-./g2s_${1} "${@:2}"
+
+if [ "$1" == "start" ]; then
+  systemctl start g2s.service
+elif [ "$1" == "enable" ]; then
+  systemctl enable g2s.service
+
+elif [ "$1" == "disable" ]; then
+  systemctl disable g2s.service
+elif [ "$1" == "stop" ]; then
+  systemctl stop g2s.service
+elif [ "$1" == "killall" ]; then
+  killall g2s_server
+else
+  cd $(dirname $0)/g2s_bin;
+  ./g2s_${1} "${@:2}"
+fi

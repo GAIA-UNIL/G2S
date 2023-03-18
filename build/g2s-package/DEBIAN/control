@@ -5,7 +5,7 @@ Maintainer: Dr. Mathieu Gravey <research@mgravey.com>
 Build-debhelper: 9 (>= Depends)
 Standards-Version: 3.9.2
 Package: g2s
-Version: 0.98.14
+Version:
 Architecture: amd64
 Depends: libzmq3-dev, libjsoncpp-dev
 Description: A flexible MPS framework, QS, NDS

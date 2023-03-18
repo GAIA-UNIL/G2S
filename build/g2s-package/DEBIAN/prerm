@@ -1,0 +1,12 @@
+#!/bin/env bash
+systemctl stop g2s.service || true
+systemctl disable g2s.service || true
+
+# Remove the service file from the systemd directory
+rm /etc/systemd/system/g2s.service
+
+# Reload the systemd manager configuration
+systemctl daemon-reload || true
+
+# Delete the system user for the service
+userdel g2s || true
