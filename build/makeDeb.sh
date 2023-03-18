@@ -15,5 +15,5 @@ sudo chmod 555 ./g2s-package/DEBIAN/postinst
 sudo chmod 555 ./g2s-package/DEBIAN/prerm
 sudo chmod 555 -R ./g2s-package/usr/bin/*
 sudo chmod 555 -R ./g2s-package/etc/systemd/system/*
-sed -i "8s/.*/& $(cat ../../version)/" DEBIAN/control
+sed -i "8s/.*/& $(cat ../version)/" ./g2s-package/DEBIAN/control 
 dpkg-deb --build ./g2s-package
