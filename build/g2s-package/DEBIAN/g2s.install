@@ -1,0 +1,3 @@
+usr/bin/g2s usr/bin/
+usr/bin/g2s_bin/ usr/bin/
+lib/systemd/system/g2s.service etc/systemd/system/

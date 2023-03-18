@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 systemctl stop g2s.service || true
 systemctl disable g2s.service || true
 

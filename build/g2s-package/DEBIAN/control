@@ -1,5 +1,5 @@
 Source: g2s
-Section: applications
+Section: science
 Priority: optional
 Maintainer: Dr. Mathieu Gravey <research@mgravey.com>
 Build-debhelper: 9 (>= Depends)
@@ -8,15 +8,11 @@ Package: g2s
 Version:
 Architecture: amd64
 Homepage: https://gaia-unil.github.io/G2S/
-Depends: libzmq3-dev, libjsoncpp-dev
+Depends: libzmq3-dev, libjsoncpp-dev, ${shlibs:Depends}
 Description: A flexible geostatistical server for Multiple Point Statistics (MPS) simulations
  G2S (GeoStatistical Server) is a versatile framework designed to run stochastic
  simulations using state-of-the-art Multiple Point Statistics (MPS) algorithms.
- The framework enables users to run simulations in a generic way, independent
- of the code or programming language used, such as running C/C++ code using
- Python, MATLAB, and more.
-
- The G2S framework currently includes the following algorithms:
+ The G2S framework currently mainly includes the following algorithms:
   - QuickSampling (QS): A robust and efficient pixel-based MPS algorithm for
     (un)conditional simulation, gap filling, and downscaling with continuous or
     categorical variables in any dimensionality (1D, 2D, 3D, nD).

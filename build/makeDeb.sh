@@ -11,9 +11,11 @@ cp ./intel-build/errorTest ./g2s-package/usr/bin/g2s_bin/
 cp ./intel-build/auto_qs ./g2s-package/usr/bin/g2s_bin/
 
 sudo chown root:root -R ./g2s-package/*
-sudo chmod 555 ./g2s-package/DEBIAN/postinst
-sudo chmod 555 ./g2s-package/DEBIAN/prerm
-sudo chmod 555 -R ./g2s-package/usr/bin/*
-sudo chmod 555 -R ./g2s-package/etc/systemd/system/*
+sudo chmod 755 ./g2s-package/DEBIAN/postinst
+sudo chmod 755 ./g2s-package/DEBIAN/prerm
+sudo chmod 755 -R ./g2s-package/usr/bin/*
+sudo chmod 755 -R ./g2s-package/lib/systemd/system/*
+sudo chmod 644 ./g2s-package/lib/systemd/system/g2s.service
+sudo chmod 644 ./g2s-package/usr/bin/g2s_bin/algosName.config
 sed -i "8s/.*/& $(cat ../version)/" ./g2s-package/DEBIAN/control 
 dpkg-deb --build ./g2s-package
