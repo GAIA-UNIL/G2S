@@ -6,7 +6,7 @@ Build-debhelper: 9 (>= Depends)
 Standards-Version: 4.6.2
 Package: g2s-generic
 Version: x.y.z
-Architecture: any
+Architecture: all
 Homepage: https://gaia-unil.github.io/G2S/
 Build-Depends: build-essential
 Depends: libzmq3-dev, libjsoncpp-dev, zlib1g-dev, libfftw3-dev, libcurl4-openssl-dev
