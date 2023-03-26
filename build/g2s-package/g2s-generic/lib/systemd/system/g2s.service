@@ -1,0 +1,14 @@
+[Unit]
+Description=G2S service
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=g2s
+ExecStart=g2s server -kod ${FLAGS}
+
+[Install]
+WantedBy=multi-user.target

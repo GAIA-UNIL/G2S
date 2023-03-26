@@ -1,10 +1,10 @@
-Source: g2s
+Source: g2s-amd64
 Section: science
 Priority: optional
 Maintainer: Dr. Mathieu Gravey <g2s@mgravey.com>
 Build-debhelper: 9 (>= Depends)
 Standards-Version: 4.6.2
-Package: g2s
+Package: g2s-amd64
 Version: x.y.z
 Architecture: amd64
 Homepage: https://gaia-unil.github.io/G2S/

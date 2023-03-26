@@ -1,0 +1,4 @@
+g2s: subdir-in-usr-bin
+  This directory is required for the proper functioning of mypackage and does not cause any issues on the system.
+g2s: hardening-no-pie
+  These executables are statically linked and does not use any external shared libraries, so PIE is not possible. 
