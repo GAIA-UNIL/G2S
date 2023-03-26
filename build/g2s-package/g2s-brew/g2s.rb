@@ -1,0 +1,70 @@
+class G2s < Formula
+  desc "Toolbox for geostatistical simulations."
+  homepage "https://gaia-unil.github.io/G2S/"
+  url "https://github.com/GAIA-UNIL/g2s/archive/2f43a7960749efa0f413099d9e00d844be03bece.tar.gz"
+  sha256 "7d57b358bbdb4b2896d7a7e8ab012ce81a32066af2b0aee7caf78f5c839b49a6"
+  license "GPL-3.0-only"
+  version "0.98.015"
+
+  # Add dependencies
+  depends_on "zlib"
+  depends_on "fftw"
+  depends_on "zmq"
+  depends_on "jsoncpp"
+  depends_on "cppzmq"
+  depends_on "curl"
+
+  def install
+
+    cd "build" do
+      # Run "make c++ -j"
+      system "make", "c++", "-j", "CXXFLAGS=-I#{Formula["fftw"].opt_include}", "LIB_PATH=-L#{Formula["fftw"].opt_lib}"
+    end
+
+    # Copy the content of the /g2s-package/g2s-generic/usr/bin/ folder to the brew bin directory
+    bin.install Dir["build/g2s-package/g2s-generic/usr/bin/*"]
+
+    # Copy g2s_server and other from the c++-build folder to the brew bin folder
+    (bin/"g2s_bin").install "build/c++-build/g2s_server" 
+    (bin/"g2s_bin").install "build/c++-build/echo" 
+    (bin/"g2s_bin").install "build/c++-build/qs" 
+    (bin/"g2s_bin").install "build/c++-build/nds" 
+    (bin/"g2s_bin").install "build/c++-build/ds-l" 
+    (bin/"g2s_bin").install "build/c++-build/errorTest" 
+    (bin/"g2s_bin").install "build/c++-build/auto_qs" 
+  end
+
+  def plist
+    <<~EOS
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+        <key>Label</key>
+        <string>#{plist_name}</string>
+        <key>ProgramArguments</key>
+        <array>
+          <string>#{bin}/g2s</string>
+          <string>server</string>
+          <string>-kod</string>
+          <string>${FLAGS}</string>
+        </array>
+        <key>RunAtLoad</key>
+        <false/>
+        <key>KeepAlive</key>
+        <true/>
+        <key>StandardErrorPath</key>
+        <string>/tmp/#{plist_name}.err</string>
+        <key>StandardOutPath</key>
+        <string>/tmp/#{plist_name}.out</string>
+      </dict>
+      </plist>
+    EOS
+  end
+
+
+  test do
+    # Test if the software is functioning correctly
+    system "#{bin}/g2s", "--help"
+  end
+end
