@@ -1,3 +1,4 @@
 usr/bin/g2s usr/bin/
-usr/bin/g2s_bin/ usr/bin/
-lib/systemd/system/g2s.service etc/systemd/system/
+usr/bin/g2s_bin/* usr/bin/g2s_bin/c
+usr/share/man/man1/g2s.1.gz usr/share/man/man1/
+lib/systemd/system/g2s.service lib/systemd/system/

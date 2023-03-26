@@ -5,10 +5,10 @@ Maintainer: Dr. Mathieu Gravey <research@mgravey.com>
 Build-debhelper: 9 (>= Depends)
 Standards-Version: 4.6.2
 Package: g2s
-Version:
+Version: x.y.z
 Architecture: amd64
 Homepage: https://gaia-unil.github.io/G2S/
-Depends: libzmq3-dev, libjsoncpp-dev, libc6
+Depends: libc6
 Description: A flexible geostatistical server for Multiple Point Statistics (MPS) simulations
  G2S (GeoStatistical Server) is a versatile framework designed to run stochastic
  simulations using state-of-the-art Multiple Point Statistics (MPS) algorithms.
