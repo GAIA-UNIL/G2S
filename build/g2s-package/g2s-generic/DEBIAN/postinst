@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+# Change to the source code directory
+pushd /opt/g2s-generic-src/build
+
+# Compile the source code
+make c++ -j
+
+cp ./algosName.config /usr/bin/g2s_bin/
+objcopy --strip-debug --strip-unneeded ./c++-build/g2s_server  /usr/bin/g2s_bin/g2s_server 
+objcopy --strip-debug --strip-unneeded ./c++-build/echo  /usr/bin/g2s_bin/echo 
+objcopy --strip-debug --strip-unneeded ./c++-build/qs  /usr/bin/g2s_bin/qs 
+objcopy --strip-debug --strip-unneeded ./c++-build/nds  /usr/bin/g2s_bin/nds 
+objcopy --strip-debug --strip-unneeded ./c++-build/ds-l /usr/bin/g2s_bin/ds-l 
+objcopy --strip-debug --strip-unneeded ./c++-build/errorTest  /usr/bin/g2s_bin/errorTest 
+objcopy --strip-debug --strip-unneeded ./c++-build/auto_qs  /usr/bin/g2s_bin/auto_qs 
+
+popd
+rm -rf /opt/g2s-generic-src/build
+
+# Create the g2s user if it doesn't exist
+if ! getent passwd g2s > /dev/null 2>&1; then
+	useradd -r -s /usr/sbin/nologin g2s
+fi
+
