@@ -1,14 +1,14 @@
 #!/bin/bash
-make intel -j
+( cd .. && make intel -j)
 mkdir -p ./g2s-amd64/usr/bin/g2s_bin/
-cp ./algosName.config ./g2s-amd64/usr/bin/g2s_bin/
-objcopy --strip-debug --strip-unneeded ./intel-build/g2s_server  ./g2s-amd64/usr/bin/g2s_bin/g2s_server 
-objcopy --strip-debug --strip-unneeded ./intel-build/echo  ./g2s-amd64/usr/bin/g2s_bin/echo 
-objcopy --strip-debug --strip-unneeded ./intel-build/qs  ./g2s-amd64/usr/bin/g2s_bin/qs 
-objcopy --strip-debug --strip-unneeded ./intel-build/nds  ./g2s-amd64/usr/bin/g2s_bin/nds 
-objcopy --strip-debug --strip-unneeded ./intel-build/ds-l ./g2s-amd64/usr/bin/g2s_bin/ds-l 
-objcopy --strip-debug --strip-unneeded ./intel-build/errorTest  ./g2s-amd64/usr/bin/g2s_bin/errorTest 
-objcopy --strip-debug --strip-unneeded ./intel-build/auto_qs  ./g2s-amd64/usr/bin/g2s_bin/auto_qs 
+cp ../algosName.config ./g2s-amd64/usr/bin/g2s_bin/
+objcopy --strip-debug --strip-unneeded ../intel-build/g2s_server  ./g2s-amd64/usr/bin/g2s_bin/g2s_server 
+objcopy --strip-debug --strip-unneeded ../intel-build/echo  ./g2s-amd64/usr/bin/g2s_bin/echo 
+objcopy --strip-debug --strip-unneeded ../intel-build/qs  ./g2s-amd64/usr/bin/g2s_bin/qs 
+objcopy --strip-debug --strip-unneeded ../intel-build/nds  ./g2s-amd64/usr/bin/g2s_bin/nds 
+objcopy --strip-debug --strip-unneeded ../intel-build/ds-l ./g2s-amd64/usr/bin/g2s_bin/ds-l 
+objcopy --strip-debug --strip-unneeded ../intel-build/errorTest  ./g2s-amd64/usr/bin/g2s_bin/errorTest 
+objcopy --strip-debug --strip-unneeded ../intel-build/auto_qs  ./g2s-amd64/usr/bin/g2s_bin/auto_qs 
 
 # Read the version number from the version file
 version_number=$(cat ../../version)
