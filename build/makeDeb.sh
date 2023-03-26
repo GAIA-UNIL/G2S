@@ -14,10 +14,10 @@ objcopy --strip-debug --strip-unneeded ./intel-build/auto_qs  ./g2s-package/usr/
 version_number=$(cat ../version)
 
 # Replace the version placeholder in the man page source, in-place
-sed -i -e "s/Version x.y.z/Version ${version_number}/g" ./g2s-package/share/man/man1/g2s.1
+sed -i -e "s/Version x.y.z/Version ${version_number}/g" ./g2s-package/usr/share/man/man1/g2s.1
 
-gzip -n ./g2s-package/share/doc/g2s/changelog.Debian
-gzip -n ./g2s-package/share/man/man1/g2s.1
+gzip -v9 -n ./g2s-package/usr/share/doc/g2s/changelog
+gzip -v9 -n ./g2s-package/usr/share/man/man1/g2s.1
 
 
 sudo chown root:root -R ./g2s-package/*
