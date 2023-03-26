@@ -3,5 +3,3 @@
 if ! getent passwd g2s > /dev/null 2>&1; then
 	useradd -r -s /usr/sbin/nologin g2s
 fi
-
-systemctl daemon-reload || true

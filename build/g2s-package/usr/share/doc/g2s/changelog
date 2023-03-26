@@ -4,4 +4,4 @@ g2s (0.98.015-1) unstable; urgency=low
   * Added support for QuickSampling (QS) algorithm.
   * Added support for Narrow Distribution Selection (NDS) algorithm.
 
- -- Dr. Mathieu Gravey <research@mgravey.com>  Fri, 18 Mar 2023 09:00:00 +0000
+ -- Dr. Mathieu Gravey <research@mgravey.com>  Fri, 17 Mar 2023 09:00:00 +0000
