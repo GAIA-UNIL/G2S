@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 deb-systemd-helper stop g2s.service
 deb-systemd-helper disable g2s.service
 

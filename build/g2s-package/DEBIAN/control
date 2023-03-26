@@ -10,7 +10,9 @@ Architecture: amd64
 Homepage: https://gaia-unil.github.io/G2S/
 Depends: libc6
 Description: Toolbox for geostatistical simulations.
- G2S (GeoStatistical Server) is a versatile framework designed to run stochastic simulations using state-of-the-art Multiple Point Statistics (MPS) algorithms.
+ G2S (GeoStatistical Server) is a versatile framework designed to run
+ stochastic simulations using state-of-the-art Multiple Point Statistics (MPS)
+ algorithms.
  The G2S framework currently mainly includes the following algorithms:
   - QuickSampling (QS): A robust and efficient pixel-based MPS algorithm for
     (un)conditional simulation, gap filling, and downscaling with continuous or
