@@ -1,15 +1,16 @@
 #!/bin/bash
 
 sudo apt-get install build-essential devscripts debhelper -y
+mkdir -p g2s-generic/tmp/g2s-generic-src/
 
-cp -r ../../src g2s-generic/opt/g2s-generic-src/
-cp -r ../../incldue g2s-generic/opt/g2s-generic-src/
-cp ../../version g2s-generic/opt/g2s-generic-src/
-wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O g2s-generic/opt/g2s-generic-src/include/zmq.hpp
-mkdir g2s-generic/opt/g2s-generic-src/build/c++-build
-cp ../Makefile g2s-generic/opt/g2s-generic-src/build/
-cp ../c++-build/Makefile g2s-generic/opt/g2s-generic-src/build/c++-build/
-cp ../algosName.config g2s-generic/opt/g2s-generic-src/build/
+cp -r ../../src g2s-generic/tmp/g2s-generic-src/
+cp -r ../../incldue g2s-generic/tmp/g2s-generic-src/
+cp ../../version g2s-generic/tmp/g2s-generic-src/
+wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O g2s-generic/tmp/g2s-generic-src/include/zmq.hpp
+mkdir g2s-generic/tmp/g2s-generic-src/build/c++-build
+cp ../Makefile g2s-generic/tmp/g2s-generic-src/build/
+cp ../c++-build/Makefile g2s-generic/tmp/g2s-generic-src/build/c++-build/
+cp ../algosName.config g2s-generic/tmp/g2s-generic-src/build/
 
 mkdir -p ./g2s-generic/usr/bin/g2s_bin/
 

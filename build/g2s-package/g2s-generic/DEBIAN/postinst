@@ -2,7 +2,7 @@
 set -e
 
 # Change to the source code directory
-pushd /opt/g2s-generic-src/build
+pushd /tmp/g2s-generic-src/build
 
 # Compile the source code
 make c++ -j
