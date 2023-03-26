@@ -27,4 +27,4 @@ sudo chmod 755 -R ./g2s-amd64/lib/systemd/system/*
 sudo chmod 644 ./g2s-amd64/lib/systemd/system/g2s.service
 sudo chmod 644 ./g2s-amd64/usr/bin/g2s_bin/algosName.config
 sed -i -e "s/Version: x.y.z/Version: ${version_number}/g" ./g2s-amd64/DEBIAN/control
-dpkg-deb --build ./g2s-amd64
+dpkg-deb --build ./g2s-amd64 "g2s_${version_number}_amd64.deb"

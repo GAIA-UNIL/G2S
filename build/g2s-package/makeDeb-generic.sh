@@ -30,4 +30,4 @@ sudo chmod 755 -R ./g2s-generic/usr/bin/*
 sudo chmod 755 -R ./g2s-generic/lib/systemd/system/*
 sudo chmod 644 ./g2s-generic/lib/systemd/system/g2s.service
 sed -i -e "s/Version: x.y.z/Version: ${version_number}/g" ./g2s-generic/DEBIAN/control
-dpkg-deb --build ./g2s-generic
+dpkg-deb --build ./g2s-generic "g2s_${version_number}_all.deb"
