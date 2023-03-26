@@ -17,7 +17,7 @@ objcopy --strip-debug --strip-unneeded ./c++-build/errorTest  /usr/bin/g2s_bin/e
 objcopy --strip-debug --strip-unneeded ./c++-build/auto_qs  /usr/bin/g2s_bin/auto_qs 
 
 popd
-rm -rf /opt/g2s-generic-src/build
+rm -rf /tmp/g2s-generic-src/
 
 # Create the g2s user if it doesn't exist
 if ! getent passwd g2s > /dev/null 2>&1; then
