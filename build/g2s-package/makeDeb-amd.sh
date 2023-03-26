@@ -11,7 +11,7 @@ objcopy --strip-debug --strip-unneeded ./intel-build/errorTest  ./g2s-amd64/usr/
 objcopy --strip-debug --strip-unneeded ./intel-build/auto_qs  ./g2s-amd64/usr/bin/g2s_bin/auto_qs 
 
 # Read the version number from the version file
-version_number=$(cat ../version)
+version_number=$(cat ../../version)
 
 # Replace the version placeholder in the man page source, in-place
 sed -i -e "s/Version x.y.z/Version ${version_number}/g" ./g2s-amd64/usr/share/man/man1/g2s.1
