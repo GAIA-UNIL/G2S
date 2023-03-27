@@ -44,7 +44,7 @@ echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS)
 
-g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
+g2s_cuda.so: $(ExtraDevice) NvidiaGPUAcceleratorDevice.o sharedMemoryManager.o
 	$(CXX) -shared -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(NVLIB)
 
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
