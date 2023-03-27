@@ -753,7 +753,7 @@ int main(int argc, char const *argv[]) {
 
 	#ifdef WITH_CUDA
 	if(g2s_cudaLibrary_handle){
-		dlclose(g2s_cudaLibrary_handle)
+		dlclose(g2s_cudaLibrary_handle);
 		g2s_cudaLibrary_handle=nullptr;
 	}
 	#endif
