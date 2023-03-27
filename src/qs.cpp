@@ -129,7 +129,7 @@ int main(int argc, char const *argv[]) {
 
 
 	#if _OPENMP
-		totalNumberOfThreadVailable=omp_get_max_threads();
+	totalNumberOfThreadVailable=omp_get_max_threads();
 	#endif	
 
 	if (arg.count("-j") >= 1)
@@ -197,7 +197,7 @@ int main(int argc, char const *argv[]) {
 	#if _OPENMP
 		nbThreads=totalNumberOfThreadVailable;
 	#else
-		nbThreads=1;
+	nbThreads=1;
 	#endif
 
 	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
@@ -223,10 +223,10 @@ int main(int argc, char const *argv[]) {
 	if (arg.count("-ti") > 0)
 	{
 		std::multimap<std::string, std::string>::iterator it;
-	    for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
-	    {
-	    	sourceFileNameVector.push_back(it->second);
-	    }
+		for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
+		{
+			sourceFileNameVector.push_back(it->second);
+		}
 	}else{	
 		fprintf(reportFile,"error source\n");
 		run=false;
@@ -501,17 +501,26 @@ int main(int argc, char const *argv[]) {
 	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice;
 	if ((arg.count("-W_CUDA") >= 1))
 	{
-		g2s_cudaLibrary_handle = dlopen("g2s_cuda.so", RTLD_LAZY);
+		g2s_cudaLibrary_handle = dlopen("./g2s_cuda.so", RTLD_LAZY);
 		if(g2s_cudaLibrary_handle){
-
-			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
-   			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
-
-   			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice_t"));
-
 			withCUDA=true;
+			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
+			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
+			if(!g2s_cudaGetDeviceCount){
+				fprintf(stderr, "could not load g2s_cudaGetDeviceCount\n");
+				withCUDA=false;
+			}
+
+			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice"));
+			if(!NvidiaGPUAcceleratorDevice){
+				fprintf(stderr, "could not load NvidiaGPUAcceleratorDevice\n");
+				withCUDA=false;
+			}
+
 			int cudaDeviceAvailable=0;
-			g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			if(g2s_cudaGetDeviceCount){
+				g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			}
 			std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
 			if(deviceString==arg.upper_bound("-W_CUDA")){
 				for (int i = 0; i < cudaDeviceAvailable; ++i)
@@ -1054,18 +1063,18 @@ int main(int argc, char const *argv[]) {
 	if(augmentedDimentionSimulation) st=augmentedDimSim;
 
 	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID){
-			unsigned last=0;
-			while (!computationIsDone)
-			{
-				if(last>=interval){
-					id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
-					DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
-					last=0;
-				}
-				last++;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		unsigned last=0;
+		while (!computationIsDone)
+		{
+			if(last>=interval){
+				id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				last=0;
 			}
-		};
+			last++;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		}
+	};
 
 
 	std::thread saveThread;
@@ -1075,23 +1084,23 @@ int main(int argc, char const *argv[]) {
 	}
 
 	switch (st){
-		case fullSim:
-			fprintf(reportFile, "%s\n", "full sim");
-			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+	case fullSim:
+		fprintf(reportFile, "%s\n", "full sim");
+		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
-		case vectorSim:
-			fprintf(reportFile, "%s\n", "vector sim");
-			simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
+	case vectorSim:
+		fprintf(reportFile, "%s\n", "vector sim");
+		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
 		break;
-		case augmentedDimSim:
-			fprintf(reportFile, "%s\n", "augmented dimention sim");
-			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
+	case augmentedDimSim:
+		fprintf(reportFile, "%s\n", "augmented dimention sim");
+		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
 		break;
 	}
- 
+
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
