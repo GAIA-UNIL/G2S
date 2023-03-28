@@ -372,12 +372,6 @@ int main(int argc, char const *argv[]) {
 
 	bool withCUDA=false;
 	std::vector<int> cudaDeviceList;
-	
-	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
-	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice=nullptr;
-
-	bool withCUDA=false;
-	std::vector<int> cudaDeviceList;
 
 	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
 	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice=nullptr;
