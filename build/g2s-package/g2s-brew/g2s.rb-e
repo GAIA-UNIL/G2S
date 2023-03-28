@@ -1,8 +1,8 @@
 class G2s < Formula
   desc "Toolbox for geostatistical simulations."
   homepage "https://gaia-unil.github.io/G2S/"
-  url "https://github.com/GAIA-UNIL/g2s/archive/COMMIT_HASH.tar.gz"
-  sha256 "COMMIT_HASH256"
+  url "https://github.com/GAIA-UNIL/g2s/archive/e7d4d89345e596f05667e12a830e76a4f325e7be.tar.gz"
+  sha256 "7cbd741e68c54422b715290107ad9efeee3acf7feb17c4dac53d3b1d77b15318"
   license "GPL-3.0-only"
   version "x.y.z"
 
@@ -21,20 +21,17 @@ class G2s < Formula
       system "make", "c++", "-j", "CXXFLAGS=-I#{Formula["fftw"].opt_include}", "LIB_PATH=-L#{Formula["fftw"].opt_lib}"
     end
 
+    # Copy the content of the /g2s-package/g2s-generic/usr/bin/ folder to the brew bin directory
+    bin.install Dir["build/g2s-package/g2s-generic/usr/bin/*"]
 
     # Copy g2s_server and other from the c++-build folder to the brew bin folder
-    (bin).install "build/g2s-package/g2s-brew/g2s" 
     (bin/"g2s_bin").install "build/c++-build/g2s_server" 
     (bin/"g2s_bin").install "build/c++-build/echo" 
     (bin/"g2s_bin").install "build/c++-build/qs" 
     (bin/"g2s_bin").install "build/c++-build/nds" 
     (bin/"g2s_bin").install "build/c++-build/ds-l" 
     (bin/"g2s_bin").install "build/c++-build/errorTest" 
-    (bin/"g2s_bin").install "build/c++-build/auto_qs"
-
-    bash_completion.install "build/g2s-package/g2s-brew/g2s-completion.sh"
-    zsh_completion.install "build/g2s-package/g2s-brew/g2s-completion.zsh"
-    fish_completion.install "build/g2s-package/g2s-brew/g2s-completion.fish"
+    (bin/"g2s_bin").install "build/c++-build/auto_qs" 
   end
 
   def plist

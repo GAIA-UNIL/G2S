@@ -6,10 +6,8 @@ Usage: g2s [COMMAND] [OPTIONS]
 
 Commands:
   server      Start the server with the specified options
-  start       Start the g2s.service (systemd service)
-  enable      Enable the g2s.service (systemd service)
-  disable     Disable the g2s.service (systemd service)
-  stop        Stop the g2s.service (systemd service)
+  enable      Enable the g2s.service (service)
+  disable     Disable the g2s.service (service)
   killall     Kill all running g2s server processes
 
 Server Options:
@@ -38,17 +36,11 @@ if [ -z "$1" ] || [[ "$1" =~ ^(-h|--help)$ ]] || [ "$1" == "help" ]; then
 fi
 
 case "$1" in
-  start)
-    systemctl start g2s.service
-    ;;
   enable)
-    systemctl enable g2s.service
+    brew services start g2s
     ;;
   disable)
-    systemctl disable g2s.service
-    ;;
-  stop)
-    systemctl stop g2s.service
+    brew services stop g2s
     ;;
   killall)
     killall g2s_server
