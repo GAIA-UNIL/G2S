@@ -53,8 +53,9 @@ endif
 
 dosentSupportCUDA:= $(shell echo "int main(){}" | ${NVCC} -x c - -o /dev/null 2>/dev/null && echo 1 || echo 0)
 ifeq ($(dosentSupportCUDA),1)
-	export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
+	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
+	export WITH_CUDA+=g2s_cuda.so
 	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
@@ -78,12 +79,14 @@ ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	DEFAULT_JOB+=intel
 endif
 
+DEFAULT_JOB := $(sort $(DEFAULT_JOB))
+
 .DEFAULT_GOAL=default
 
 .PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
 
 .DEFAULT:
-	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS))
+	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
 
 c++:
 	$(MAKE) -C c++-build
