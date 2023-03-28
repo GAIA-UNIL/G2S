@@ -23,6 +23,12 @@
 #include "utils.hpp"
 #include <algorithm>
 
+extern "C"{
+void g2s_cudaGetDeviceCount ( int* count ){
+	cudaGetDeviceCount (count );
+}
+}
+
 #define PARTIAL_FFT
 
 #ifndef FFTW_PLAN_OPTION
@@ -220,7 +226,11 @@ __global__ void setConditionement(unsigned size, unsigned* listIndex, float* lis
 
 
 #define cufftPlan(p, rank, n, type) cufftPlanMany(p, rank, n, 0, 1, 1,  0, 1, 1, type, 1)
-
+extern "C"{
+AcceleratorDevice* c_NvidiaGPUAcceleratorDevice(int deviceId, SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio, bool withCrossMesurement, bool circularTI){
+	return new NvidiaGPUAcceleratorDevice(deviceId, sharedMemoryManager, coeficientMatrix, threadRatio, withCrossMesurement, circularTI);
+}
+}
 NvidiaGPUAcceleratorDevice::NvidiaGPUAcceleratorDevice(int deviceId, SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix,
 	unsigned int threadRatio, bool withCrossMesurement, bool circularTI)
 	:AcceleratorDevice( sharedMemoryManager, coeficientMatrix, threadRatio, withCrossMesurement, circularTI)

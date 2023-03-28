@@ -32,10 +32,11 @@
 #ifdef WITH_OPENCL
 #include "OpenCLGPUDevice.hpp"
 #endif
-#ifdef WITH_CUDA
-	#include <cuda_runtime.h>
-	#include "NvidiaGPUAcceleratorDevice.hpp"
-#endif // WITH_CUDA
+// #ifdef WITH_CUDA
+// 	#include <cuda_runtime.h>
+// 	#include "NvidiaGPUAcceleratorDevice.hpp"
+// #endif // WITH_CUDA
+#include <dlfcn.h>
 
 
 #include "CPUThreadAcceleratorDevice.hpp"
@@ -372,22 +373,34 @@ int main(int argc, char const *argv[]) {
 	bool withCUDA=false;
 	std::vector<int> cudaDeviceList;
 	#ifdef WITH_CUDA
-	if (arg.count("-W_CUDA") >= 1)
+	void* g2s_cudaLibrary_handle=nullptr;
+	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
+	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice;
+	if ((arg.count("-W_CUDA") >= 1))
 	{
-		withCUDA=true;
-		int cudaDeviceAvailable=0;
-		cudaGetDeviceCount(&cudaDeviceAvailable);
-		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
-		if(deviceString==arg.upper_bound("-W_CUDA")){
-			for (int i = 0; i < cudaDeviceAvailable; ++i)
-			{
-				cudaDeviceList.push_back(i);
+		g2s_cudaLibrary_handle = dlopen("g2s_cuda.so", RTLD_LAZY);
+		if(g2s_cudaLibrary_handle){
+
+			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
+   			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
+
+   			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice_t"));
+
+			withCUDA=true;
+			int cudaDeviceAvailable=0;
+			g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
+			if(deviceString==arg.upper_bound("-W_CUDA")){
+				for (int i = 0; i < cudaDeviceAvailable; ++i)
+				{
+					cudaDeviceList.push_back(i);
+				}
 			}
-		}
-		while(deviceString!=arg.upper_bound("-W_CUDA")){
-			int deviceId=atoi((deviceString->second).c_str());
-			cudaDeviceList.push_back(deviceId);
-			deviceString++;
+			while(deviceString!=arg.upper_bound("-W_CUDA")){
+				int deviceId=atoi((deviceString->second).c_str());
+				cudaDeviceList.push_back(deviceId);
+				deviceString++;
+			}	
 		}
 	}
 	arg.erase("-W_CUDA");
@@ -583,7 +596,7 @@ int main(int argc, char const *argv[]) {
 		int cudaDeviceNumber=cudaDeviceList.size();
 		int cudaDeviceUsed=0;
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -602,7 +615,7 @@ int main(int argc, char const *argv[]) {
 				#pragma omp atomic capture
 				localDeviceId = cudaDeviceUsed++;
 				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
-					NvidiaGPUAcceleratorDevice* signleCudaThread=new NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					AcceleratorDevice* signleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
 					signleCudaThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleCudaThread);
 					deviceCreated=true;
@@ -737,6 +750,13 @@ int main(int argc, char const *argv[]) {
 #if _OPENMP
 	fftwf_cleanup_threads();
 #endif
+
+	#ifdef WITH_CUDA
+	if(g2s_cudaLibrary_handle){
+		dlclose(g2s_cudaLibrary_handle);
+		g2s_cudaLibrary_handle=nullptr;
+	}
+	#endif
 
 	return 0;
 }

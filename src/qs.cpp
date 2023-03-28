@@ -32,10 +32,11 @@
 #ifdef WITH_OPENCL
 #include "OpenCLGPUDevice.hpp"
 #endif
-#ifdef WITH_CUDA
-	#include <cuda_runtime.h>
-	#include "NvidiaGPUAcceleratorDevice.hpp"
-#endif // WITH_CUDA
+// #ifdef WITH_CUDA
+// 	#include <cuda_runtime.h>
+// 	#include "NvidiaGPUAcceleratorDevice.hpp"
+// #endif // WITH_CUDA
+#include <dlfcn.h>
 
 
 #include "CPUThreadAcceleratorDevice.hpp"
@@ -128,7 +129,7 @@ int main(int argc, char const *argv[]) {
 
 
 	#if _OPENMP
-		totalNumberOfThreadVailable=omp_get_max_threads();
+	totalNumberOfThreadVailable=omp_get_max_threads();
 	#endif	
 
 	if (arg.count("-j") >= 1)
@@ -196,7 +197,7 @@ int main(int argc, char const *argv[]) {
 	#if _OPENMP
 		nbThreads=totalNumberOfThreadVailable;
 	#else
-		nbThreads=1;
+	nbThreads=1;
 	#endif
 
 	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
@@ -222,10 +223,10 @@ int main(int argc, char const *argv[]) {
 	if (arg.count("-ti") > 0)
 	{
 		std::multimap<std::string, std::string>::iterator it;
-	    for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
-	    {
-	    	sourceFileNameVector.push_back(it->second);
-	    }
+		for (it=arg.equal_range("-ti").first; it!=arg.equal_range("-ti").second; ++it)
+		{
+			sourceFileNameVector.push_back(it->second);
+		}
 	}else{	
 		fprintf(reportFile,"error source\n");
 		run=false;
@@ -495,22 +496,43 @@ int main(int argc, char const *argv[]) {
 	bool withCUDA=false;
 	std::vector<int> cudaDeviceList;
 	#ifdef WITH_CUDA
-	if (arg.count("-W_CUDA") >= 1)
+	void* g2s_cudaLibrary_handle=nullptr;
+	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
+	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice;
+	if ((arg.count("-W_CUDA") >= 1))
 	{
-		withCUDA=true;
-		int cudaDeviceAvailable=0;
-		cudaGetDeviceCount(&cudaDeviceAvailable);
-		std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
-		if(deviceString==arg.upper_bound("-W_CUDA")){
-			for (int i = 0; i < cudaDeviceAvailable; ++i)
-			{
-				cudaDeviceList.push_back(i);
+		g2s_cudaLibrary_handle = dlopen("./g2s_cuda.so", RTLD_LAZY);
+		if(g2s_cudaLibrary_handle){
+			withCUDA=true;
+			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
+			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
+			if(!g2s_cudaGetDeviceCount){
+				fprintf(logFileName, "could not load g2s_cudaGetDeviceCount\n");
+				withCUDA=false;
 			}
-		}
-		while(deviceString!=arg.upper_bound("-W_CUDA")){
-			int deviceId=atoi((deviceString->second).c_str());
-			cudaDeviceList.push_back(deviceId);
-			deviceString++;
+
+			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice"));
+			if(!NvidiaGPUAcceleratorDevice){
+				fprintf(logFileName, "could not load NvidiaGPUAcceleratorDevice\n");
+				withCUDA=false;
+			}
+
+			int cudaDeviceAvailable=0;
+			if(g2s_cudaGetDeviceCount){
+				g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			}
+			std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
+			if(deviceString==arg.upper_bound("-W_CUDA")){
+				for (int i = 0; i < cudaDeviceAvailable; ++i)
+				{
+					cudaDeviceList.push_back(i);
+				}
+			}
+			while(deviceString!=arg.upper_bound("-W_CUDA")){
+				int deviceId=atoi((deviceString->second).c_str());
+				cudaDeviceList.push_back(deviceId);
+				deviceString++;
+			}	
 		}
 	}
 	arg.erase("-W_CUDA");
@@ -991,7 +1013,7 @@ int main(int argc, char const *argv[]) {
 		int cudaDeviceNumber=cudaDeviceList.size();
 		int cudaDeviceUsed=0;
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -1010,7 +1032,7 @@ int main(int argc, char const *argv[]) {
 				#pragma omp atomic capture
 				localDeviceId = cudaDeviceUsed++;
 				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
-					NvidiaGPUAcceleratorDevice* signleCudaThread=new NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
+					AcceleratorDevice* signleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
 					signleCudaThread->setTrueMismatch(true);
 					computeDeviceModuleArray[i].push_back(signleCudaThread);
 					deviceCreated=true;
@@ -1041,18 +1063,18 @@ int main(int argc, char const *argv[]) {
 	if(augmentedDimentionSimulation) st=augmentedDimSim;
 
 	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID){
-			unsigned last=0;
-			while (!computationIsDone)
-			{
-				if(last>=interval){
-					id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
-					DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
-					last=0;
-				}
-				last++;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		unsigned last=0;
+		while (!computationIsDone)
+		{
+			if(last>=interval){
+				id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				last=0;
 			}
-		};
+			last++;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		}
+	};
 
 
 	std::thread saveThread;
@@ -1062,23 +1084,23 @@ int main(int argc, char const *argv[]) {
 	}
 
 	switch (st){
-		case fullSim:
-			fprintf(reportFile, "%s\n", "full sim");
-			simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+	case fullSim:
+		fprintf(reportFile, "%s\n", "full sim");
+		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
 		break;
-		case vectorSim:
-			fprintf(reportFile, "%s\n", "vector sim");
-			simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
+	case vectorSim:
+		fprintf(reportFile, "%s\n", "vector sim");
+		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
 		break;
-		case augmentedDimSim:
-			fprintf(reportFile, "%s\n", "augmented dimention sim");
-			simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-				(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
+	case augmentedDimSim:
+		fprintf(reportFile, "%s\n", "augmented dimention sim");
+		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
 		break;
 	}
- 
+
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
@@ -1123,6 +1145,13 @@ int main(int argc, char const *argv[]) {
 #if _OPENMP
 	fftwf_cleanup_threads();
 #endif
+
+	#ifdef WITH_CUDA
+	if(g2s_cudaLibrary_handle){
+		dlclose(g2s_cudaLibrary_handle);
+		g2s_cudaLibrary_handle=nullptr;
+	}
+	#endif
 
 	return 0;
 }
