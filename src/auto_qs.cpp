@@ -376,21 +376,37 @@ int main(int argc, char const *argv[]) {
 	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
 	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice=nullptr;
 
+	bool withCUDA=false;
+	std::vector<int> cudaDeviceList;
+
+	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
+	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice=nullptr;
+
 	#ifdef WITH_CUDA
 	void* g2s_cudaLibrary_handle=nullptr;
+
 	if ((arg.count("-W_CUDA") >= 1))
 	{
-		g2s_cudaLibrary_handle = dlopen("g2s_cuda.so", RTLD_LAZY);
+		g2s_cudaLibrary_handle = dlopen("./g2s_cuda.so", RTLD_LAZY);
 		if(g2s_cudaLibrary_handle){
-
-			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
-   			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
-
-   			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice_t"));
-
 			withCUDA=true;
+			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
+			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
+			if(!g2s_cudaGetDeviceCount){
+				fprintf(reportFile, "could not load g2s_cudaGetDeviceCount\n");
+				withCUDA=false;
+			}
+
+			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice"));
+			if(!NvidiaGPUAcceleratorDevice){
+				fprintf(reportFile, "could not load NvidiaGPUAcceleratorDevice\n");
+				withCUDA=false;
+			}
+
 			int cudaDeviceAvailable=0;
-			g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			if(g2s_cudaGetDeviceCount){
+				g2s_cudaGetDeviceCount(&cudaDeviceAvailable);
+			}
 			std::multimap<std::string, std::string>::iterator deviceString=arg.lower_bound("-W_CUDA");
 			if(deviceString==arg.upper_bound("-W_CUDA")){
 				for (int i = 0; i < cudaDeviceAvailable; ++i)

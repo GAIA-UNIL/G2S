@@ -510,13 +510,13 @@ int main(int argc, char const *argv[]) {
 			typedef void (*g2s_cudaGetDeviceCount_t)(int *);
 			g2s_cudaGetDeviceCount_t g2s_cudaGetDeviceCount = reinterpret_cast<g2s_cudaGetDeviceCount_t>(dlsym(g2s_cudaLibrary_handle, "g2s_cudaGetDeviceCount"));
 			if(!g2s_cudaGetDeviceCount){
-				fprintf(logFileName, "could not load g2s_cudaGetDeviceCount\n");
+				fprintf(reportFile, "could not load g2s_cudaGetDeviceCount\n");
 				withCUDA=false;
 			}
 
 			NvidiaGPUAcceleratorDevice = reinterpret_cast<c_NvidiaGPUAcceleratorDevice_t>(dlsym(g2s_cudaLibrary_handle, "c_NvidiaGPUAcceleratorDevice"));
 			if(!NvidiaGPUAcceleratorDevice){
-				fprintf(logFileName, "could not load NvidiaGPUAcceleratorDevice\n");
+				fprintf(reportFile, "could not load NvidiaGPUAcceleratorDevice\n");
 				withCUDA=false;
 			}
 
