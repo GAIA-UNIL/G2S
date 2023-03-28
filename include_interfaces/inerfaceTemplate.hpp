@@ -296,7 +296,6 @@ public:
 		}
 
 		if(spectifiedTimeout){
-			printf( "%d\n", timeout);
 			socket.setsockopt(ZMQ_LINGER, timeout);
 			socket.setsockopt(ZMQ_RCVTIMEO, timeout);
 			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
