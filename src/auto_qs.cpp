@@ -372,10 +372,12 @@ int main(int argc, char const *argv[]) {
 
 	bool withCUDA=false;
 	std::vector<int> cudaDeviceList;
+	
+	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
+	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice=nullptr;
+
 	#ifdef WITH_CUDA
 	void* g2s_cudaLibrary_handle=nullptr;
-	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
-	c_NvidiaGPUAcceleratorDevice_t NvidiaGPUAcceleratorDevice;
 	if ((arg.count("-W_CUDA") >= 1))
 	{
 		g2s_cudaLibrary_handle = dlopen("g2s_cuda.so", RTLD_LAZY);
