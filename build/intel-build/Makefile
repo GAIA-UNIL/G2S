@@ -39,7 +39,7 @@ ifeq ($(MKLROOT),)
 endif
 
 CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl
-LDFLAGS+=-fopenmp -qmkl -lirc -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/
+LDFLAGS+=-fopenmp -qmkl -l:libirc.a -Wl,-rpath,${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib/
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
 
 .PHONY: all depend algoNames extension clean
