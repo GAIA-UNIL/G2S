@@ -15,6 +15,8 @@ export AR=xiar
 #     OS =mac
 # endif
 
+LDFLAGS_SERVER_ONLY:=$(subst -ljsoncpp,-l:libjsoncpp.a,$(LDFLAGS_SERVER_ONLY))
+
 ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	export CC=icx
 	export CXX=icpx
@@ -64,7 +66,7 @@ include .depend
 
 g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
-	$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
+	#$(CXX) -shared -o $@.so $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)
 
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
