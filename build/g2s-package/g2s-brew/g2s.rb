@@ -9,7 +9,7 @@ class G2s < Formula
   # Add dependencies
   depends_on "zlib"
   depends_on "fftw"
-  depends_on "zmq"
+  depends_on "zeromq"
   depends_on "libomp"
   depends_on "jsoncpp"
   depends_on "cppzmq"
@@ -24,13 +24,14 @@ class G2s < Formula
 
     # Copy g2s_server and other from the c++-build folder to the brew bin folder
     (bin).install "build/g2s-package/g2s-brew/g2s" 
-    (bin/"g2s_bin").install "build/c++-build/g2s_server" 
-    (bin/"g2s_bin").install "build/c++-build/echo" 
-    (bin/"g2s_bin").install "build/c++-build/qs" 
-    (bin/"g2s_bin").install "build/c++-build/nds" 
-    (bin/"g2s_bin").install "build/c++-build/ds-l" 
-    (bin/"g2s_bin").install "build/c++-build/errorTest" 
-    (bin/"g2s_bin").install "build/c++-build/auto_qs"
+    (prefix/"g2s_bin").install "build/c++-build/g2s_server" 
+    (prefix/"g2s_bin").install "build/c++-build/echo" 
+    (prefix/"g2s_bin").install "build/c++-build/qs" 
+    (prefix/"g2s_bin").install "build/c++-build/nds" 
+    (prefix/"g2s_bin").install "build/c++-build/ds-l" 
+    (prefix/"g2s_bin").install "build/c++-build/errorTest" 
+    (prefix/"g2s_bin").install "build/c++-build/auto_qs"
+    (prefix/"g2s_bin").install "build/algosName.config"
 
     # bash_completion.install "build/g2s-package/g2s-brew/g2s-completion.sh"
     # zsh_completion.install "build/g2s-package/g2s-brew/g2s-completion.zsh"
