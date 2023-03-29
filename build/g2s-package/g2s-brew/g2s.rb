@@ -2,7 +2,7 @@ class G2s < Formula
   desc "Toolbox for geostatistical simulations."
   homepage "https://gaia-unil.github.io/G2S/"
   version "x.y.z"
-  url "https://github.com/GAIA-UNIL/g2s/archive/COMMIT_HASH.tar.gz"
+  url "https://github.com/GAIA-UNIL/G2S/archive/refs/tags/x.y.z.tar.gz"
   sha256 "COMMIT_HASH256"
   license "GPL-3.0-only"
 
