@@ -11,11 +11,11 @@ jobs:
     name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
     strategy:
       matrix:
-        OS: [ ubuntu-18.04, windows-latest, macOS-latest]
+        OS: [ ubuntu-20.04, windows-latest, macOS-latest]
         python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.7', 'pypy-3.8', 'pypy-3.9' ]
         arch: [ x64 ]
         include:
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python: '3.6'
             arch: x64
       fail-fast: false
