@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.ubuntuOS }}
     strategy:
       matrix:
-        ubuntuOS: [ubuntu-18.04, ubuntu-20.04, ubuntu-latest]
+        ubuntuOS: [ ubuntu-20.04, ubuntu-latest]
       fail-fast: false
     steps:
     - uses: actions/checkout@v1
