@@ -10,6 +10,7 @@ class G2s < Formula
   depends_on "zlib"
   depends_on "fftw"
   depends_on "zmq"
+  depends_on "libomp"
   depends_on "jsoncpp"
   depends_on "cppzmq"
   depends_on "curl"
