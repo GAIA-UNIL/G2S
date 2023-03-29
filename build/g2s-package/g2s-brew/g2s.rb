@@ -1,19 +1,18 @@
 class G2s < Formula
-  desc "Toolbox for geostatistical simulations."
+  desc "Toolbox for geostatistical simulations"
   homepage "https://gaia-unil.github.io/G2S/"
-  version "x.y.z"
   url "https://github.com/GAIA-UNIL/G2S/archive/refs/tags/vx.y.z.tar.gz"
   sha256 "COMMIT_HASH256"
   license "GPL-3.0-only"
 
   # Add dependencies
   depends_on "cppzmq"
-  depends_on "curl"
   depends_on "fftw"
   depends_on "jsoncpp"
   depends_on "libomp"
   depends_on "zeromq"
-  depends_on "zlib"
+  uses_from_macos "curl"
+  uses_from_macos "zlib"
 
   def install
     cd "build" do
@@ -44,15 +43,12 @@ class G2s < Formula
   end
 
   test do
-    begin
-      pid = fork do
-        exec bin/"g2s", "server"
-      end
-      sleep 3
-    ensure
-      Process.kill("TERM", pid)
-      Process.wait(pid)
+    pid = fork do
+      exec bin/"g2s", "server"
     end
+    sleep 3
+  ensure
+    Process.kill("TERM", pid)
+    Process.wait(pid)
   end
 end
-
