@@ -46,7 +46,7 @@ case "$1" in
     killall g2s_server
     ;;
   server)
-    cd "$(dirname $(readlink -f "$0") )/../g2s_bin"
+    cd "$(dirname $(readlink -f "$0") )/../libexec"
     ./g2s_"${1}" "${@:2}"
     ;;
   *)

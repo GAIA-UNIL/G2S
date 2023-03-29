@@ -24,14 +24,14 @@ class G2s < Formula
 
     # Copy g2s_server and other from the c++-build folder to the brew bin folder
     bin.install "build/g2s-package/g2s-brew/g2s"
-    (prefix/"g2s_bin").install "build/c++-build/g2s_server"
-    (prefix/"g2s_bin").install "build/c++-build/echo"
-    (prefix/"g2s_bin").install "build/c++-build/qs"
-    (prefix/"g2s_bin").install "build/c++-build/nds"
-    (prefix/"g2s_bin").install "build/c++-build/ds-l"
-    (prefix/"g2s_bin").install "build/c++-build/errorTest"
-    (prefix/"g2s_bin").install "build/c++-build/auto_qs"
-    (prefix/"g2s_bin").install "build/algosName.config"
+    libexec.install "build/c++-build/g2s_server"
+    libexec.install "build/c++-build/echo"
+    libexec.install "build/c++-build/qs"
+    libexec.install "build/c++-build/nds"
+    libexec.install "build/c++-build/ds-l"
+    libexec.install "build/c++-build/errorTest"
+    libexec.install "build/c++-build/auto_qs"
+    libexec.install "build/algosName.config"
 
     # bash_completion.install "build/g2s-package/g2s-brew/g2s-completion.sh"
     # zsh_completion.install "build/g2s-package/g2s-brew/g2s-completion.zsh"
