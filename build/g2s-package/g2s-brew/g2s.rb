@@ -21,7 +21,6 @@ class G2s < Formula
       system "make", "c++", "-j", "CXXFLAGS=-I#{Formula["fftw"].opt_include}", "LIB_PATH=-L#{Formula["fftw"].opt_lib}"
     end
 
-
     # Copy g2s_server and other from the c++-build folder to the brew bin folder
     (bin).install "build/g2s-package/g2s-brew/g2s" 
     (bin/"g2s_bin").install "build/c++-build/g2s_server" 
@@ -32,9 +31,9 @@ class G2s < Formula
     (bin/"g2s_bin").install "build/c++-build/errorTest" 
     (bin/"g2s_bin").install "build/c++-build/auto_qs"
 
-    bash_completion.install "build/g2s-package/g2s-brew/g2s-completion.sh"
-    zsh_completion.install "build/g2s-package/g2s-brew/g2s-completion.zsh"
-    fish_completion.install "build/g2s-package/g2s-brew/g2s-completion.fish"
+    # bash_completion.install "build/g2s-package/g2s-brew/g2s-completion.sh"
+    # zsh_completion.install "build/g2s-package/g2s-brew/g2s-completion.zsh"
+    # fish_completion.install "build/g2s-package/g2s-brew/g2s-completion.fish"
   end
 
   def plist
