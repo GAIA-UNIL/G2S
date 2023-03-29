@@ -1,8 +1,8 @@
 class G2s < Formula
   desc "Toolbox for geostatistical simulations."
   homepage "https://gaia-unil.github.io/G2S/"
-  url "https://github.com/GAIA-UNIL/g2s/archive/COMMIT_HASH.tar.gz"
-  sha256 "COMMIT_HASH256"
+  url "https://github.com/GAIA-UNIL/g2s/archive/c3e2aba8b197344844d4765e4a3867cb8c8d5b5a.tar.gz"
+  sha256 "2ba7937db556c23142d9905f2d9385838ac76c4d27899de32f2bc874e8ca20cb"
   license "GPL-3.0-only"
   version "x.y.z"
 
@@ -14,11 +14,11 @@ class G2s < Formula
   depends_on "cppzmq"
   depends_on "curl"
 
-   def install
+  def install
 
     cd "build" do
       # Run "make c++ -j"
-      system "make", "c++", "-j", "CXXFLAGS=-Xclang -fopenmp -I#{Formula["fftw"].opt_include}", "LIB_PATH=-L#{Formula["fftw"].opt_lib} -L#{Formula["libomp"].opt_lib} -lomp"
+      system "make", "c++", "-j", "CXXFLAGS=-I#{Formula["fftw"].opt_include}", "LIB_PATH=-L#{Formula["fftw"].opt_lib}"
     end
 
     # Copy g2s_server and other from the c++-build folder to the brew bin folder
