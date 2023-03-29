@@ -63,3 +63,4 @@ build/PyDevAlgo
 build/algosName.config
 *.asv
 
+*.rb-e
