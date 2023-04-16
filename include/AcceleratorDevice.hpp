@@ -20,7 +20,7 @@
 
 #include "computeDeviceModule.hpp"
 #ifdef WITH_MKL
-	#include <fftw3_mkl.h>
+	#include <fftw/fftw3_mkl.h>
 #else
 	#include <fftw3.h>
 #endif
