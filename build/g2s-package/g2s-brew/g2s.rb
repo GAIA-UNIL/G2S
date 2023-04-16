@@ -1,11 +1,11 @@
 class G2s < Formula
   desc "Toolbox for geostatistical simulations"
   homepage "https://gaia-unil.github.io/G2S/"
+  version "x.y.z"
   url "https://github.com/GAIA-UNIL/G2S/archive/COMMIT_HASH.tar.gz"
   sha256 "COMMIT_HASH256"
   license "GPL-3.0-only"
-  version "x.y.z"
-
+  
   # Add dependencies
   depends_on "cppzmq"
   depends_on "fftw"
