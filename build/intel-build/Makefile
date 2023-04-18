@@ -2,6 +2,12 @@ export CC=icc
 export CXX=icpc
 export AR=xiar
 
+ifeq ($(MKLROOT),)
+	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
+endif
+
+MKL_STAT_PATH= ${MKLROOT}/lib/libmkl_intel_lp64.a ${MKLROOT}/lib/libmkl_intel_thread.a ${MKLROOT}/lib/libmkl_core.a
+
 # UNAME_S := $(shell uname -s)
 # ifeq ($(UNAME_S),Linux)
 #     OS =linux
@@ -13,15 +19,14 @@ export AR=xiar
 
 # ifeq ($(UNAME_S),Darwin)
 #     OS =mac
-# endif
-
-LDFLAGS_SERVER_ONLY:=$(subst -ljsoncpp,-l:libjsoncpp.a,$(LDFLAGS_SERVER_ONLY))
+# endi
 
 ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	export CC=icx
 	export CXX=icpx
 	export AR=ar
 	CXXFLAGS+= -fp-model=precise
+	MKL_STAT_PATH=-Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group
 endif
 
 doseSupportCPP17:= $(shell echo "int main(){}" | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 1 || echo 0)
@@ -36,15 +41,16 @@ endif
 
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
-ifeq ($(MKLROOT),)
-	MKLROOT := $(/opt/intel/compilers_and_libraries/$(OS)/mkl)
-endif
 
-
-CXXFLAGS+= -axSSE4.2 -axAVX -axAVX2 -axcommon-avx512 -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
-LDFLAGS+=-fopenmp -static-intel -qopenmp-link=static  -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
+CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
+LDFLAGS+=-fopenmp -lpthread -lm -ldl -qmkl
 
 LDFLAGS:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS)))
+
+ifneq ($(origin AS_STATIC), undefined)
+	CXXFLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512,$(CXXFLAGS))
+	LDFLAGS:=$(subst -qmkl,-static-intel -qopenmp-link=static $(MKL_STAT_PATH) ,$(LDFLAGS))
+endif
 
 .PHONY: all depend algoNames extension clean
 
