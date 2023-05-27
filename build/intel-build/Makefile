@@ -13,7 +13,7 @@ ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
 	export CC=icx
 	export CXX=icpx
 	export AR=ar
-	CXXFLAGS+= -fp-model=precise
+	CXX_FLAGS= -fp-model=precise
 	MKL_STAT_PATH=-Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group
 endif
 
@@ -30,13 +30,13 @@ endif
 export DEST_DIR_EXTENSION:=$(shell pwd)
 
 
-CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
+CXX_FLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
 LDFLAGS+=-fopenmp -lpthread -lm -ldl
 
 LDFLAGS_NO_SERVER_ONLY:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,-qmkl,$(LDFLAGS_NO_SERVER_ONLY)))
 
 ifneq ($(origin AS_STATIC), undefined)
-	CXXFLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512,$(CXXFLAGS))
+	CXX_FLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512, $(CXX_FLAGS))
 	LDFLAGS_NO_SERVER_ONLY:=$(subst -qmkl,-static-intel -qopenmp-link=static $(MKL_STAT_PATH) ,$(LDFLAGS_NO_SERVER_ONLY))
 endif
 
@@ -48,7 +48,7 @@ depend: .depend Makefile
 
 .depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(subst $(SRCS)/cvtZMQ2WS.cpp,,$(wildcard $(SRCS)/*.cpp)))))
 	rm -f ./.depend
-	$(CXX) $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) -MM $^ > ./.depend;
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $(CXX_FLAGS) $(INC) $(LIBINC) -MM $^ > ./.depend;
 
 include .depend
 
@@ -56,7 +56,7 @@ include .depend
 	$(NVCC) -ccbin=$(CXX) -c -o $@ $< $(NVFLAGS) $(foreach option, $(subst -xhost,,$(CFLAGS) $(CXXFLAGS)), --compiler-options $(option))  $(INC) $(LIBINC) -allow-unsupported-compiler
 
 %.o: $(SRCS)/%.cpp 
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c -o $@ $<  $(INC) $(LIBINC) $(OPENCL_INC)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $(CXX_FLAGS) -c -o $@ $<  $(INC) $(LIBINC) $(OPENCL_INC)
 
 g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_SERVER_ONLY)

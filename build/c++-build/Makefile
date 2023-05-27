@@ -22,8 +22,6 @@ export DEST_DIR_EXTENSION:=$(shell pwd)
 
 all: g2s_server echo qs nds ds-l algoNames libg2s.a errorTest test auto_qs $(WITH_CUDA)
 
-server: g2s_server
-
 depend: .depend Makefile
 
 .depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(subst $(SRCS)/cvtZMQ2WS.cpp,,$(wildcard $(SRCS)/*.cpp)))))
