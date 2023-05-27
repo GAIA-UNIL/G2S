@@ -48,15 +48,14 @@ class G2s < Formula
 
     extraFlagForStatic="";
     if  build.with? "intel-static"
-      extraFlagForStatic="-DAS_STATIC=1"
+      extraFlagForStatic="AS_STATIC=1"
     end
   
     if !intel_path.nil? && Hardware::CPU.arch == :x86_64
       cd "build" do
           # Run "make c++ -j"
-          system "make", "intel", "-j", "CXXFLAGS=-fopenmp -DWITH_MKL -I#{Formula["jsoncpp"].opt_include} -I#{Formula["cppzmq"].opt_include} -std=c++17 -w #{extraFlagForStatic}",
-          "LIB_PATH= -L#{Formula["zlib"].opt_lib} -lz"
-        end
+          system "make", "intel", "-j", extraFlagForStatic, "CXXFLAGS=-fopenmp -DWITH_MKL -I#{Formula["jsoncpp"].opt_include} -I#{Formula["cppzmq"].opt_include} -std=c++17",
+          "LIB_PATH= -fuse-ld=lld -L#{Formula["zlib"].opt_lib} -lz -L#{Formula["cppzmq"].opt_lib} -L#{Formula["jsoncpp"].opt_lib}"
 
           system "make", "c++-server", "-j"
         end

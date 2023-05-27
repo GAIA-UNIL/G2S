@@ -31,9 +31,9 @@ export DEST_DIR_EXTENSION:=$(shell pwd)
 
 
 CXXFLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
-LDFLAGS+=-fopenmp -lpthread -lm -ldl -qmkl
+LDFLAGS+=-fopenmp -lpthread -lm -ldl
 
-LDFLAGS_NO_SERVER_ONLY:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,,$(LDFLAGS_NO_SERVER_ONLY)))
+LDFLAGS_NO_SERVER_ONLY:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,-qmkl,$(LDFLAGS_NO_SERVER_ONLY)))
 
 ifneq ($(origin AS_STATIC), undefined)
 	CXXFLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512,$(CXXFLAGS))
