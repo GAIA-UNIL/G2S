@@ -3,11 +3,12 @@ BUILD_DIR=../.
 export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-fPIE -O3 -std=c++11 -fPIC -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
+export CFLAGS=-O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
-export LDFLAGS= -fPIE -lz -lfftw3f -lfftw3f_threads -ldl -lpthread
+export LDFLAGS=-lz -lpthread
+export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl
 export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
@@ -63,12 +64,12 @@ endif
 
 ifneq ("$(wildcard /usr/include/hbwmalloc.h)","")
 	export CFLAGS+= -DHBW_MALLOC
-	export LDFLAGS+= -lmemkind
+	export LDFLAGS_SERVER_ONLY+= -lmemkind
 endif
 
 ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/local/include/curl/curl.h))
 	export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell cat ../version)\" -DGIT_URL=\"$(GIT_URL)\"
-	export LDFLAGS+= -lcurl
+	export LDFLAGS_SERVER_ONLY+= -lcurl
 endif
 
 DEFAULT_JOB=c++
@@ -96,6 +97,9 @@ em:
 
 intel:
 	$(MAKE) -C intel-build
+
+c++-server:
+	$(MAKE) g2s_server -C c++-build
 
 update-extension:
 	git submodule init

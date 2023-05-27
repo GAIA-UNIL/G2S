@@ -55,12 +55,15 @@ class G2s < Formula
       cd "build" do
           # Run "make c++ -j"
           system "make", "intel", "-j", "CXXFLAGS=-fopenmp -DWITH_MKL -I#{Formula["jsoncpp"].opt_include} -I#{Formula["cppzmq"].opt_include} -std=c++17 -w #{extraFlagForStatic}",
-          "LIB_PATH=-B#{gccLibPath.chomp} -L#{Formula["zlib"].opt_lib} -lz"
+          "LIB_PATH= -L#{Formula["zlib"].opt_lib} -lz"
+        end
+
+          system "make", "c++-server", "-j"
         end
 
         # Copy g2s_server and other from the c++-build folder to the brew bin folder
         bin.install "build/g2s-package/g2s-brew/g2s"
-        libexec.install "build/intel-build/g2s_server"
+        libexec.install "build/c++-build/g2s_server"
         libexec.install "build/intel-build/echo"
         libexec.install "build/intel-build/qs"
         libexec.install "build/intel-build/nds"
