@@ -22,8 +22,8 @@ ifeq ($(brewIsAvailable),1)
 endif
 
 export NVCC=nvcc
-export NVFLAGS += -std=c++17
-export NVLIB +=
+export NVFLAGS += -std=c++17 --allow-unsupported-compiler
+export NVLIB += --allow-unsupported-compiler
 
 
 export UNAME_S := $(shell uname -s)
