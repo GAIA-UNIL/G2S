@@ -3,7 +3,7 @@ BUILD_DIR=../.
 export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
+export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
 export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
@@ -22,7 +22,7 @@ ifeq ($(brewIsAvailable),1)
 endif
 
 export NVCC=nvcc
-export NVFLAGS +=
+export NVFLAGS += -std=c++17
 export NVLIB +=
 
 
@@ -52,8 +52,8 @@ ifeq ($(dosentSupportOMP),1)
 	export LDFLAGS += -fopenmp
 endif
 
-dosentSupportCUDA:= $(shell echo "int main(){}" | ${NVCC} -x c - -o /dev/null 2>/dev/null && echo 1 || echo 0)
-ifeq ($(dosentSupportCUDA),1)
+dosentSupportCUDA:= $(shell which ${NVCC} )
+ifneq ($(dosentSupportCUDA),"")
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
@@ -67,9 +67,12 @@ ifneq ("$(wildcard /usr/include/hbwmalloc.h)","")
 	export LDFLAGS_SERVER_ONLY+= -lmemkind
 endif
 
-ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/local/include/curl/curl.h))
-	export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell cat ../version)\" -DGIT_URL=\"$(GIT_URL)\"
-	export LDFLAGS_SERVER_ONLY+= -lcurl
+USE_CURL ?= yes
+ifeq ($(USE_CURL),yes)
+	ifneq (,$(wildcard /usr/include/*/curl/curl.h /usr/include/curl/curl.h /opt/local/include/curl/curl.h))
+		export CFLAGS+= -DWITH_VERSION_CONTROL -DCURRENT_VERSION=\"$(shell cat ../version)\" -DGIT_URL=\"$(GIT_URL)\"
+		export LDFLAGS_SERVER_ONLY+= -lcurl
+	endif
 endif
 
 DEFAULT_JOB=c++

@@ -42,8 +42,8 @@ g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-g2s_cuda.so: $(ExtraDevice) NvidiaGPUAcceleratorDevice.o sharedMemoryManager.o
-	$(CXX) -shared -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(NVLIB)
+g2s_cuda.so:  NvidiaGPUAcceleratorDevice.o
+	$(CXX) -shared -o $@ $^ $(LIB_PATH)  $(LDFLAGS_NO_SERVER_ONLY) $(NVLIB)
 
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)

@@ -37,6 +37,7 @@ LDFLAGS_NO_SERVER_ONLY:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,-qmkl,$(LDFLA
 
 ifneq ($(origin AS_STATIC), undefined)
 	CXX_FLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512, $(CXX_FLAGS))
+  	NVLIB:=$(subst -lcudart,-lcudart_static, $(subst -lcublas,-lcublas_static, $(subst -lcufft,-lcufft_static, $(CXXFLAGS)))) 
 	LDFLAGS_NO_SERVER_ONLY:=$(subst -qmkl,-static-intel -qopenmp-link=static $(MKL_STAT_PATH) ,$(LDFLAGS_NO_SERVER_ONLY))
 endif
 
@@ -64,8 +65,8 @@ g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-g2s_cuda.so: $(ExtraDevice) NvidiaGPUAcceleratorDevice.o sharedMemoryManager.o
-	$(CXX) -shared -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(NVLIB)
+g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
+	$(CXX) -shared -o $@ $^ $(LIB_PATH) $(LDFLAGS_NO_SERVER_ONLY) $(NVLIB)
 
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
