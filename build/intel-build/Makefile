@@ -37,7 +37,7 @@ LDFLAGS_NO_SERVER_ONLY:=$(subst -lfftw3f,,$(subst -lfftw3f_threads,-qmkl,$(LDFLA
 
 ifneq ($(origin AS_STATIC), undefined)
 	CXX_FLAGS:=$(subst -xhost,-axSSE4.2 -axAVX -axAVX2 -axcommon-avx512, $(CXX_FLAGS))
-  NVLIB:=$(subst -lcudart,-lcudart_static, $(subst -lcublas,-lcublas_static, $(subst -lcufft,-lcufft_static, $(NVLIB))))
+	NVLIB:=$(subst -lcudart,-lcudart_static, $(subst -lcublas,-lcublas_static, $(subst -lcufft,-lcufft_static, $(NVLIB))))
 	LDFLAGS_NO_SERVER_ONLY:=$(subst -qmkl,-static-intel -qopenmp-link=static $(MKL_STAT_PATH) ,$(LDFLAGS_NO_SERVER_ONLY))
 endif
 
