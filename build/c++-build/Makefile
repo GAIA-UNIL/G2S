@@ -43,7 +43,7 @@ echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 g2s_cuda.so:  NvidiaGPUAcceleratorDevice.o
-	$(NVCC) -shared -o $@ $^ $(NVLIB) 
+	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) 
 
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
