@@ -536,6 +536,9 @@ int main(int argc, char const *argv[]) {
 				cudaDeviceList.push_back(deviceId);
 				deviceString++;
 			}	
+		}else{
+			std::cout << "Could not load g2s_cuda.so" << '\n';
+			fprintf(stderr, "dlopen failed: %s\n", dlerror());
 		}
 	}
 	arg.erase("-W_CUDA");
