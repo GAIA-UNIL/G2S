@@ -6,7 +6,9 @@ export SRCS=$(BUILD_DIR)/../src
 export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
 export CXXFLAGS=
 export INC=-I$(BUILD_DIR)/../include
-export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
+ifndef HOMEBREW_PRODUCT
+	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
+endif
 export LDFLAGS=-lz -lpthread
 export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl -Wl,--export-dynamic
 export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
@@ -57,7 +59,7 @@ ifneq ($(dosentSupportCUDA),"")
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
-	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
+	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas --compiler-options -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
 
