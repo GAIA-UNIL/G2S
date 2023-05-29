@@ -7,6 +7,7 @@ class G2s < Formula
   license "GPL-3.0-only"
     
   
+  option "with-cuda", "Compile with cuda support"
   option "with-intel", "Use intel compiler if available (x86_64 only)"
   option "with-intel-static", "Use intel compiler if available (x86_64 only) and compile files without intel dependencies"
   
@@ -55,7 +56,9 @@ class G2s < Formula
 
   
   def install
-    findCuda
+    if build.with? "cuda"
+      findCuda
+    end
     intel_path=nil
 
     if build.with? "intel" or build.with? "intel-static"
