@@ -10,7 +10,7 @@ ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 endif
 export LDFLAGS=-lz -lpthread
-export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl -Wl,--export-dynamic -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
+export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl
 export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
@@ -59,6 +59,7 @@ ifeq ($(dosentSupportCUDA),0)
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
+	export LDFLAGS_NO_SERVER_ONLY+=-Wl,--export-dynamic -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
 	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas --compiler-options -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
