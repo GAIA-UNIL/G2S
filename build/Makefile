@@ -57,7 +57,7 @@ ifneq ($(dosentSupportCUDA),"")
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
-	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas
+	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
 
