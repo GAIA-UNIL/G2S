@@ -23,6 +23,8 @@ jobs:
             arch: x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    env:
+      NAME: value
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
@@ -61,13 +63,13 @@ jobs:
         ./configure --prefix=/tmp/zeromq
         make -j
         make install
-        export STATIC_ZMQ_PATH=/tmp/zeromq/lib/libzmq.a
+        echo "STATIC_ZMQ_PATH=/tmp/zeromq/lib/libzmq.a" >> $GITHUB_ENV
 
     - name: Install macOS dependencies
       if : contains( matrix.os, 'macOS' )
       run: |
         brew install zeromq jsoncpp cppzmq
-        export STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a
+        echo "STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a" >> $GITHUB_ENV
     - name: Add msbuild to PATH
       if : contains( matrix.os, 'windows' )
       uses: microsoft/setup-msbuild@v1.1
@@ -80,7 +82,7 @@ jobs:
     - name: Build
       run: |
         cd build/python-build
-        python setup.py --setuptools bdist_wheel
+        STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
     
     - name: Correct whl for Linux
       if : contains( matrix.os, 'ubuntu' )
