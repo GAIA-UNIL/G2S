@@ -79,11 +79,17 @@ jobs:
         cd build/python-build
         cmd.exe /c setup_Win_compile_all.bat
     
-    - name: Build
+    - name: Build on Linux or macOS
+      if: runner.os != 'Windows'
       run: |
         cd build/python-build
         STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
-    
+    - name: Build on Windows
+      if: runner.os == 'Windows'
+      run: |
+        cd build\python-build
+        python setup.py --setuptools bdist_wheel
+          
     - name: Correct whl for Linux
       if : contains( matrix.os, 'ubuntu' )
       run: |
