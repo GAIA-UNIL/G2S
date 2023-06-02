@@ -48,10 +48,20 @@ jobs:
         cd jsoncpp-master
         python amalgamate.py
         cd ..
+        git clone https://github.com/zeromq/libzmq.git
+        cd libzmq
+        export CFLAGS="-fPIC"
+        export CXXFLAGS="-fPIC"
+        bash ./autogen.sh
+        ./configure --prefix=/tmp/zeromq
+        make -j
+        make install
+        export STATIC_ZMQ_PATH=/tmp/zeromq/lib/libzmq.a
     - name: Install macOS dependencies
       if : contains( matrix.OS, 'macOS' )
       run: |
         brew install zeromq jsoncpp cppzmq
+        export STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a
     - name: Add msbuild to PATH
       if : contains( matrix.os, 'windows' )
       uses: microsoft/setup-msbuild@v1.1
