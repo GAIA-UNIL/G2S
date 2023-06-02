@@ -1,0 +1,55 @@
+{% assign current_path = page.url %}
+{% assign root_path = "/" %}
+{% assign menu = include.menu %}
+{% assign max_levels = max_levels | default: 3 %}
+{% assign class_main = "main" %}
+{% assign class_sub = "sub" %}
+{% assign class_open = "open" %}
+{% assign class_active = "active" %}
+{% assign class_sub_active = "sub-active" %}
+
+{% assign level = include.level | 0 %}
+{% assign path_parts = page.url | split: '/' %}
+{% assign path_parts_len = path_parts.size %}
+
+<ul class="{{ class_main }}">
+  {% for link in menu %}
+    {% assign link_parts = link.url | split: '/' %}
+    {% assign link_parts_len = link_parts.size %}
+    {% assign sublinks = link.sublinks %}
+    {% assign is_active = false %}
+    {% assign is_sub_active = false %}
+    {% assign has_sublinks = sublinks != nil and sublinks.size > 0 %}
+    {% assign is_root = link.url == root_path %}
+
+    {% if is_root %}
+      {% assign is_active = current_path == root_path %}
+    {% else %}
+      {% assign selected = current_path == link.url %}
+
+      {% if has_sublinks %}
+        {% for sublink in sublinks %}
+          {% if current_path contains sublink.url %}
+            {% assign is_sub_active = true %}
+            {% assign is_active = true %}
+          {% endif %}
+        {% endfor %}$
+      {% else %}
+        
+      {% endif %}
+    {% endif %}
+
+        <li class="{% if has_sublinks %} {{ class_sub }}{% endif %}{% if current_path == link.url %}{{ 'selected'}} {% endif %}">
+      <a href="{{ link.url }}">{{ link.title }}</a>
+
+      {% if has_sublinks and level < max_levels %}
+        {% assign sublinks_level = level | plus: 1 %}
+        {% include navigation.html menu=sublinks level=sublinks_level tocinfo=tocinfo %}
+      {% else %}
+        {% if current_path == link.url %}
+          {{ tocinfo }}
+        {% endif %}
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>

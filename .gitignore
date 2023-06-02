@@ -1,11 +1,2 @@
-*
-!.gitignore
-!*/
 
-!*.html
-!*.js
-!*.css
-
-!*.jpg
-!*.png
-build/extension/G2Swrapper4RandLabDS/
+.DS_Store
