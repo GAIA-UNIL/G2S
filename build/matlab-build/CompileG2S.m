@@ -1,9 +1,10 @@
 clc; clear all;
 
-communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-lzmq','-ljsoncpp','-lut',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
+communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include',...
+    '/usr/local/lib/libzmq.a','/opt/local/lib/libjsoncpp.a','/usr/local/lib/libsodium.a','-lut',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
 
 if ismac
-    mex(communMacLinux{:},'-L/opt/local/lib/','CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=10.14', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=10.14');
+    mex(communMacLinux{:},'-L/opt/local/lib/','-L/usr/local/lib/','CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=10.14', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=10.14');
 elseif isunix
     mex(communMacLinux{:},'-L/usr/lib','CXXFLAGS=$CXXFLAGS -std=c++17 ', 'LDFLAGS=$LDFLAGS');
 elseif ispc
