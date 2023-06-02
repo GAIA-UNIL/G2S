@@ -36,6 +36,14 @@ import shutil
 
 extra_include_dirs=[];
 extra_library_dirs=[];
+libZMQ=['zmq'];
+
+extraObjects=[];
+
+if os.getenv('STATIC_ZMQ_PATH'):
+    libZMQ=[];
+    extraObjects=[os.getenv('STATIC_ZMQ_PATH')]
+
 
 if shutil.which("brew", mode=os.X_OK, path=os.environ.get("PATH")):
 	import subprocess
@@ -43,6 +51,7 @@ if shutil.which("brew", mode=os.X_OK, path=os.environ.get("PATH")):
 	brew_prefix = result.decode().strip()
 	extra_include_dirs.append(brew_prefix+"/include")
 	extra_library_dirs.append(brew_prefix+"/lib")
+	print(brew_prefix+"/lib")
 
 if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
@@ -71,8 +80,9 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			language="c++", 
 			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
+			extra_objects=extraObjects,
 			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/","/opt/homebrew/include"]+extra_include_dirs,
-			libraries = ['zmq']+extraLib,
+			libraries = libZMQ+extraLib,
 			library_dirs = ['/usr/lib','/opt/local/lib','/opt/homebrew/lib']+extra_library_dirs
 			)],
 		include_dirs=numpy.get_include(),
