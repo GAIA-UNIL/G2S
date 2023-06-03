@@ -1,0 +1,18 @@
+name: Build and deploy G2S Jekyll site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - gh-pages-v2
+  workflow_dispatch:
+
+jobs:
+  github-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        ref: 'gh-pages-v2'
+      - uses: helaili/jekyll-action@v2
+        with:
+          token: ${{ secrets.G2S_GH_DEPLOY_TOKEN }}
+          target_branch: 'gh-pages-deploy'
