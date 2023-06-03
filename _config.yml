@@ -45,7 +45,7 @@ plugins:
   - jekyll-spaceship
   - jekyll-remote-theme
   - jekyll-redirect-from
-  # - jekyll-remote-include
+  - jekyll-remote-include
 
 toc:
   min_level: 2
