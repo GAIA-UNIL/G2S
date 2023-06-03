@@ -1,13 +1,13 @@
 
 <div class="tab code">
   <button class="tablinks python" onclick="openTab(event, 'python', 'interface')">
-    <img src="/assets/images/Python.svg" alt="Python">
+    <img src="{{ site.baseurl }}/assets/images/Python.svg" alt="Python">
   </button>
   <button class="tablinks matlab" onclick="openTab(event, 'matlab', 'interface')">
-    <img src="/assets/images/Matlab.png" alt="Matlab">
+    <img src="{{ site.baseurl }}/assets/images/Matlab.png" alt="Matlab">
   </button>
 <!--   <button class="tablinks" onclick="openTab(event, 'R', 'interface')">
-    <img src="/assets/images/Rlogo.svg" alt="R">
+    <img src="{{ site.baseurl }}/assets/images/Rlogo.svg" alt="R">
   </button> -->
 </div>
 <div class="langcontent code interface python">

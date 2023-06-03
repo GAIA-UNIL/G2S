@@ -1,5 +1,5 @@
 {% assign current_path = page.url %}
-{% assign root_path = "/G2S %}
+{% assign root_path = "/" %}
 {% assign menu = include.menu %}
 {% assign max_levels = max_levels | default: 3 %}
 {% assign class_main = "main" %}
@@ -9,7 +9,7 @@
 {% assign class_sub_active = "sub-active" %}
 
 {% assign level = include.level | 0 %}
-{% assign path_parts = page.url | split: '/' %}
+{% assign path_parts = page.url+site.baseurl | split: '/' %}
 {% assign path_parts_len = path_parts.size %}
 
 <ul class="{{ class_main }}">
@@ -40,7 +40,7 @@
     {% endif %}
 
         <li class="{% if has_sublinks %} {{ class_sub }}{% endif %}{% if current_path == link.url %}{{ 'selected'}} {% endif %}">
-      <a href="{{ link.url }}">{{ link.title }}</a>
+      <a href="{{ site.baseurl }}{{ link.url }}">{{ link.title }}</a>
 
       {% if has_sublinks and level < max_levels %}
         {% assign sublinks_level = level | plus: 1 %}

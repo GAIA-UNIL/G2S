@@ -18,13 +18,13 @@ and are currently automatically removed only at the launch of the server or afte
 
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'linux','os')">
-    <img src="/assets/images/linux.png" alt="Linux">
+    <img src="{{ site.baseurl }}/assets/images/linux.png" alt="Linux">
   </button>
   <button class="tablinks" onclick="openTab(event, 'macOS','os')">
-    <img src="/assets/images/apple.png" alt="macOS">
+    <img src="{{ site.baseurl }}/assets/images/apple.png" alt="macOS">
   </button>
   <button class="tablinks" onclick="openTab(event, 'Windows','os')">
-    <img src="/assets/images/Windows.png" alt="Windows">
+    <img src="{{ site.baseurl }}/assets/images/Windows.png" alt="Windows">
   </button>
 </div>
 

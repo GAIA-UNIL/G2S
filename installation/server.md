@@ -11,17 +11,17 @@ toc-depth: 3
 <!--Tab Buttons-->
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'linux','os')">
-    <img src="/assets/images/linux.png" alt="Linux">
+    <img src="{{ site.baseurl }}/assets/images/linux.png" alt="Linux">
   </button>
   <button class="tablinks" onclick="openTab(event, 'macOS','os')">
-    <img src="/assets/images/apple.png" alt="macOS">
+    <img src="{{ site.baseurl }}/assets/images/apple.png" alt="macOS">
   </button>
   <button class="tablinks" onclick="openTab(event, 'Windows','os')">
-    <img src="/assets/images/Windows.png" alt="Windows">
+    <img src="{{ site.baseurl }}/assets/images/Windows.png" alt="Windows">
   </button>
   <a href="/installation/cluster.html">
     <button class="tablinks">
-      <img src="/assets/images/cloudGear.svg" alt="Windows">
+      <img src="{{ site.baseurl }}/assets/images/cloudGear.svg" alt="Windows">
     </button>
   </a>
 </div>
