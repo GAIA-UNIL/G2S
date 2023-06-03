@@ -1,5 +1,4 @@
 %% 3D multivariate
-%This code requires the G2S server to be running
 
 clear;home;clf
 %download TI (first variable, continuous)

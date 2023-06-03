@@ -1,5 +1,3 @@
-%This code requires the G2S server to be running
-
 %load data
 ti=imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/stone.tiff');
 tis={ti, rot90(ti,2),rot90(ti,3)};
