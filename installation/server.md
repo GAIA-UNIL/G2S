@@ -32,7 +32,7 @@ toc-depth: 3
 
 1. Install linuxbrew `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 2. Run `brew install open-geocomputing/brew/g2s`
-3. Use the `g2s`command 
+3. Use the `g2s` command 
 
 </div>
 
@@ -42,7 +42,7 @@ toc-depth: 3
 
 1. Install homebrew if not already done `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 2. Run `brew install open-geocomputing/brew/g2s`
-3. Use the `g2s`command 
+3. Use the `g2s` command 
 
 </div>
 
@@ -54,7 +54,7 @@ toc-depth: 3
 2. Install WSL following [these instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10), and select a Linux distribution (we recommend choosing Ubuntu for beginners).
 3. Install linuxbrew `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 4. Run `brew install open-geocomputing/brew/g2s`
-5. Use the `g2s`command 
+5. Use the `g2s` command 
 </div>
 
 
