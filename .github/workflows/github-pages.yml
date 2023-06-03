@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        ref: 'gh-pages-v2'
+        with:
+          ref: 'gh-pages-v2'
       - uses: helaili/jekyll-action@v2
         with:
           token: ${{ secrets.G2S_GH_DEPLOY_TOKEN }}
