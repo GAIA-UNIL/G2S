@@ -4,7 +4,7 @@ author:
   - Mathieu Gravey
 date: 2023-03-13
 toc-depth: 2
-permalink: /G2S/BriefOverview.html
+permalink: BriefOverview.html
 redirect_from:
   - /
 ---
