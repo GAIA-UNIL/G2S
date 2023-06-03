@@ -40,7 +40,7 @@
     {% endif %}
 
         <li class="{% if has_sublinks %} {{ class_sub }}{% endif %}{% if current_path == link.url %}{{ 'selected'}} {% endif %}">
-      <a href="{{ link.url }}">{{ link.title }}</a>
+      <a href="{{ site.baseurl }}{{ link.url }}">{{ link.title }}</a>
 
       {% if has_sublinks and level < max_levels %}
         {% assign sublinks_level = level | plus: 1 %}

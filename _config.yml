@@ -24,6 +24,8 @@ email: g2s@mgarvey.com
 description: >- # this means to ignore newlines until "baseurl:"
   A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:
   QuickSampling and Narrow Distribution Selection
+baseurl: "/G2S" # the subpath of your site, e.g. /blog
+# url: "https://gaia-unil.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: mathieuGravey
 github_username:  GAIA-UNIL
 repository: "GAIA-UNIL/G2S"
