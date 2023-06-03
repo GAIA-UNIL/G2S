@@ -26,7 +26,7 @@ group :jekyll_plugins do
 end
 
 group :jekyll_plugins do
-    gem 'jekyll-remote-include', '~> 1.0', '>= 1.0.2'
+    gem 'jekyll-remote-include', :github => 'netrics/jekyll-remote-include'
 end
 
 # Windows and JRuby does not include zoneinfo files, so bundle the tzinfo-data gem
