@@ -77,6 +77,7 @@ toc-depth: 3
 6. Go to the build subfolder.
 7. Run: `make -j`, if the Intel C++ compiler is installed, the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software).
    To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
+8. Run: `make install`
 
 </div>
 
@@ -92,6 +93,7 @@ toc-depth: 3
 4. To install them with Homebrew: `brew install fftw zmq jsoncpp cppzmq curl` Note: curl is optional.
 5. Go to the `build` subfolder.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). Obviously, Intel compiler is only for Intel CPUs 😁. To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
+7. Run: `make install`
 
 #### using MacPort (now deprecated)
 
@@ -102,6 +104,7 @@ toc-depth: 3
 5. Go to the `build` subfolder.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). 
 To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
+7. Run: `make install`
 
 </div>
 
