@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+deb-systemd-helper stop g2s.service
+deb-systemd-helper disable g2s.service
+
+# Delete the system user for the service
+if id -u g2s > /dev/null 2>&1; then
+    userdel g2s
+fi

@@ -220,7 +220,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
 				char buffer [128];
-				snprintf(buffer, sizeof(buffer), "logs/%u.log", uniqueId);
+				snprintf(buffer, sizeof(buffer), "/tmp/G2S/logs/%u.log", uniqueId);
 				argv[index]=buffer;
 				//fprintf(stderr, "%s\n", argv[index]);
 				index++;
@@ -228,10 +228,10 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 
 			// add specific
 
-			/*for (int i = 0; i < index; ++i)
+			for (int i = 0; i < index; ++i)
 			{
 				fprintf(stderr, "%s ",argv[i] );
-			}*/
+			}
 
 			//Execute
 			if(functionMode)

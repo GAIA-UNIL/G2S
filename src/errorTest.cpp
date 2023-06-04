@@ -64,7 +64,7 @@ int main(int argc, char const *argv[]) {
 
 
 				jobIdType logId;
-				if(sscanf(logFileName,"logs/%d.log",&logId)==1){
+				if(sscanf(logFileName,"/tmp/G2S/logs/%d.log",&logId)==1){
 					std::to_string(logId);
 					//sprintf(outputFilename,"%d",logId);
 					//symlink(outputName, fullFilename);
@@ -78,7 +78,7 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-r");
 	
-	std::string errorFileName="./data/error_";
+	std::string errorFileName="/tmp/G2S/data/error_";
 	errorFileName=errorFileName+std::to_string(uniqueID)+std::string(".txt");
 
 	FILE *fp=fopen(errorFileName.c_str(),"w");

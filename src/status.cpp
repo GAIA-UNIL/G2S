@@ -24,7 +24,7 @@ int lookForStatus(void* data, size_t dataSize){
 	if(dataSize==sizeof(jobIdType)){
 		jobIdType id=*((jobIdType*)data);
 		char filename[4096];
-		sprintf(filename,"logs/%u.log",id);
+		sprintf(filename,"/tmp/G2S/logs/%u.log",id);
 
 		FILE *fd;
 
@@ -62,7 +62,7 @@ int lookForDuration(void* data, size_t dataSize){
 	if(dataSize==sizeof(jobIdType)){
 		jobIdType id=*((jobIdType*)data);
 		char filename[4096];
-		sprintf(filename,"logs/%u.log",id);
+		sprintf(filename,"/tmp/G2S/logs/%u.log",id);
 
 		FILE *fd;
 

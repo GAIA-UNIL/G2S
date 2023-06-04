@@ -1,0 +1,57 @@
+#!/bin/bash
+
+function show_help() {
+cat << EOF
+Usage: g2s [COMMAND] [OPTIONS]
+
+Commands:
+  server      Start the server with the specified options
+  enable      Enable the g2s.service (service)
+  disable     Disable the g2s.service (service)
+  killall     Kill all running g2s server processes
+
+Server Options:
+  -d          Run as daemon
+  -To n       Shutdown the server if there is no activity after n seconds, 0 for ∞ (default: 0)
+  -p          Select a specific port for the server (default: 8128)
+  -kod        Keep old data, if the flag is not present all files from previous runs are erased at launch
+  -age        Set the time in seconds after which files need to be removed (default: 86400 s = 1d)
+
+Advanced Server Options:
+  -maxCJ n    Limit the maximum number of jobs running in parallel
+
+Examples:
+  g2s server
+  g2s server -d
+  g2s start
+  g2s enable
+
+For more information, visit https://gaia-unil.github.io/G2S/
+EOF
+}
+
+if [ -z "$1" ] || [[ "$1" =~ ^(-h|--help)$ ]] || [ "$1" == "help" ]; then
+  show_help
+  exit 0
+fi
+
+case "$1" in
+  enable)
+    brew services start g2s
+    ;;
+  disable)
+    brew services stop g2s
+    ;;
+  killall)
+    killall g2s_server
+    ;;
+  server)
+    cd "$(dirname $(readlink -f "$0") )/../libexec"
+    ./g2s_"${1}" "${@:2}"
+    ;;
+  *)
+    echo "Unknown command: $1"
+    echo "Run 'g2s -h' for help."
+    exit 1
+    ;;
+esac

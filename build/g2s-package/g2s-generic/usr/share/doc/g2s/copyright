@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: G2S
+Upstream-Contact: Dr. Mathieu Gravey <g2s@mgravey.com>
+Source: https://github.com/GAIA-UNIL/G2S
+
+Files: *
+Copyright: 2017-2023, University of Lausanne (GAIAlab) and Austrian Academy of Sciences (IGF)
+License: GPL-3.0-only
+ On Debian systems, the complete text of the GNU General Public License version 3
+ can be found in "/usr/share/common-licenses/GPL-3".

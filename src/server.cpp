@@ -192,20 +192,22 @@ int main(int argc, char const *argv[]) {
 		jobIds.errorsByPid.push_back({0,0});
 	}
 
-	mkdir("./data", 0777);
-	mkdir("./logs", 0777);
+	mkdir("/tmp/G2S", 0777);
+
+	mkdir("/tmp/G2S/data", 0777);
+	mkdir("/tmp/G2S/logs", 0777);
 
 	std::thread fileCleaningThread([&] {
 		time_t last;
 		time(&last);
-		removeAllFile((char*)"./data",( keepOldData ? maxFileAge : 0));
-		removeAllFile((char*)"./logs",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/data",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/logs",( keepOldData ? maxFileAge : 0));
 		while(!needToStop) {
 			time_t now;
 			time(&now);
 		    if(difftime(now,last)>std::max(maxFileAge/100,10.)){
-		    	removeAllFile((char*)"./data",maxFileAge);
-				removeAllFile((char*)"./logs",maxFileAge);
+		    	removeAllFile((char*)"/tmp/G2S/data",maxFileAge);
+				removeAllFile((char*)"/tmp/G2S/logs",maxFileAge);
 				last=now;
 		    }else{
 		    	std::this_thread::sleep_for(std::chrono::seconds(1));

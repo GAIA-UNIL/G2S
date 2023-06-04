@@ -101,7 +101,7 @@ int main(int argc, char const *argv[]) {
 
 
 				jobIdType logId;
-				if(sscanf(logFileName,"logs/%u.log",&logId)==1){
+				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
 					std::to_string(logId);
 					uniqueID=logId;
 				}
@@ -536,6 +536,9 @@ int main(int argc, char const *argv[]) {
 				cudaDeviceList.push_back(deviceId);
 				deviceString++;
 			}	
+		}else{
+			std::cout << "Could not load g2s_cuda.so" << '\n';
+			fprintf(stderr, "dlopen failed: %s\n", dlerror());
 		}
 	}
 	arg.erase("-W_CUDA");
