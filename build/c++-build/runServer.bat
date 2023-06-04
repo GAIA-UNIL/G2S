@@ -1,1 +1,1 @@
-bash -c "./server"
+bash -c "g2s server"

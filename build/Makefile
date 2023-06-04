@@ -27,15 +27,25 @@ export NVCC=nvcc
 export NVFLAGS += -std=c++17 --allow-unsupported-compiler
 export NVLIB += --allow-unsupported-compiler
 
+ifndef INSTALL_DIR
+	export INSTALL_DIR=$(shell echo ${PATH} | tr ":" "\n" | grep -e /opt/local/bin -e /usr/local/bin | head -n 1 |  xargs dirname)
+endif
 
 export UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-    OS =linux
-    OPENCL_LIB+= -lOpenCL -lclFFT
+	OS =linux
+	OPENCL_LIB+= -lOpenCL -lclFFT
+	ifeq ($(INSTALL_DIR),)
+		export INSTALL_DIR=/usr/local
+	endif
 endif
 ifeq ($(UNAME_S),Darwin)
-    OS =mac
-    OPENCL_LIB+= -framework OpenCL -lclFFT
+	OS =mac
+	OPENCL_LIB+= -framework OpenCL -lclFFT
+	ifeq ($(INSTALL_DIR),)
+		export INSTALL_DIR=/opt/local
+		
+	endif
 endif
 
 export OS

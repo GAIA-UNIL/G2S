@@ -1,2 +1,2 @@
-bash -c "./server -d"
+bash -c "g2s server -d"
 pause

@@ -43,7 +43,7 @@ endif
 
 .PHONY: all depend algoNames extension clean
 
-all: g2s_server echo qs nds ds-l algoNames libg2s.a errorTest auto_qs $(WITH_CUDA)
+all: g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -94,6 +94,24 @@ extension:libg2s.a algoNames
 	$(MAKE) -C ../extension
 	$(MAKE) -C ../extension install
 
+create_install_path:
+	@printf "\e[32mCreation of $(INSTALL_DIR) if needed \e[0m\n"
+	@mkdir -p $(INSTALL_DIR)/bin
+	@mkdir -p $(INSTALL_DIR)/libexec
+	@echo ${PATH} | tr ":" "\n" | grep -x $(INSTALL_DIR)/bin > /dev/null || printf "\e[31mPlease add $(INSTALL_DIR)/bin to your PATH to propoerly use g2s !! \e[0m\n"
+
+install:create_install_path all
+	@chmod +x ../g2s
+	@cp -f ../g2s $(INSTALL_DIR)/bin
+	@cp -f ./g2s_server $(INSTALL_DIR)/libexec
+	@cp -f ./qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs' is missing !!\e[0m\n"
+	@cp -f ./nds $(INSTALL_DIR)/libexec || printf "\e[31error: 'nds' is missing !!\e[0m\n"
+	@cp -f ./ds-l $(INSTALL_DIR)/libexec || printf "\e[31error: 'ds-l' is missing !!\e[0m\n"
+	@cp -f ./auto_qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'auto_qs' is missing !!\e[0m\n"
+	@cp -f ../algosName.config $(INSTALL_DIR)/libexec
+	@cp -f ./g2s_cuda.so $(INSTALL_DIR)/libexec || printf "\e[33mwarning: 'g2s_cuda.so' is missing, this is probably due to the absance of CUDA compiler.\e[0m\n"
+	@printf "\e[32mInstallation Intel finished!\e[0m\n"
+		
 clean:
 	rm -rf *.o *.so *.a
 	rm -rf g2s_server echo test qs nds ds ds-l errorTest auto_qs
