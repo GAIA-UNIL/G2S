@@ -19,9 +19,9 @@ toc-depth: 3
   <button class="tablinks" onclick="openTab(event, 'Windows','os')">
     <img src="{{ site.baseurl }}/assets/images/Windows.png" alt="Windows">
   </button>
-  <a href="/installation/cluster.html">
+  <a href="G2S/installation/cluster.html">
     <button class="tablinks">
-      <img src="{{ site.baseurl }}/assets/images/cloudGear.svg" alt="Windows">
+      <img src="{{ site.baseurl }}/assets/images/cloudGear.svg" alt="cluster">
     </button>
   </a>
 </div>
