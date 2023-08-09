@@ -8,9 +8,9 @@ toc-depth: 2
 
 To use the GeoStatistical Server (G2S), you need to install both the G2S server and an interface that matches your preferred programming language. The server handles the core functionality and computations, while the interface enables communication between your code and the server. Follow the steps below to install both components:
 
-1. **Install the G2S server**: The server is the backbone of the G2S framework, responsible for running the simulations. To install the G2S server, follow the instructions provided in the [server installation guide](Installation/InstallationOfTheServer.html).
+1. **Install the G2S server**: The server is the backbone of the G2S framework, responsible for running the simulations. To install the G2S server, follow the instructions provided in the [server installation guide](installation/server.html).
 
-2. **Install the G2S interface**: Choose the interface that corresponds to your preferred programming language (Python, MATLAB, or R). These interfaces are written in C++, ensuring seamless integration and performance. To install the appropriate G2S interface, refer to the instructions in the [interface installation guide](Installation/InstallationOfInterfaces.html).
+2. **Install the G2S interface**: Choose the interface that corresponds to your preferred programming language (Python, MATLAB, or R). These interfaces are written in C++, ensuring seamless integration and performance. To install the appropriate G2S interface, refer to the instructions in the [interface installation guide](installation/interfaces.html).
 
 After completing the installation of both the G2S server and the corresponding interface, you can start running stochastic simulations using the G2S framework in your preferred programming language.
 
