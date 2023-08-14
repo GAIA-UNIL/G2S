@@ -66,6 +66,9 @@ Below are several examples showcasing different applications of QS. For these ex
 ### 3D simulation
 {% include include_code.md exampleName="3D" %}
 
+### Asynchronous mode 
+{% include include_code.md exampleName="async_mode" %}
+
 ## Publication
 
 *Gravey, M., & Mariethoz, G. (2020). QuickSampling v1.0: a robust and simplified pixel-based multiple-point simulation approach. Geoscientific Model Development, 13(6), 2611–2630. https://doi.org/10.5194/gmd-13-2611-2020*
