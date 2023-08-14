@@ -13,7 +13,7 @@ redirect_from:
 ## Parameters for QS
 
 Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
-Outputs: sim=simulation, index=index of the simulated values in the flattened TI, time=simulation time, finalprogress=final progression of the simulation (normally 100), jobid=job ID.
+Outputs: sim = simulation, index = index of the simulated values in the flattened TI, time = simulation time, finalprogress = final progression of the simulation (normally 100), jobid = job ID.
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
@@ -43,7 +43,7 @@ Outputs: sim=simulation, index=index of the simulated values in the flattened TI
 | `-nV` | No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental). | |
 
 ## Examples
-
+Below are several examples showcasing different applications of QS. For these examples the G2S server should be installed and running, either on your own machine or remotely. A Google Colab notebook with more examples and an automatic installation of G2S can be found [here](https://github.com/GAIA-UNIL/Short-course-MPS/blob/main/MPS_SC_with_QS_Online.ipynb).
 
 ### Unconditional simulation
 {% include include_code.md exampleName="unconditionalSimulation" %}

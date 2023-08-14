@@ -65,8 +65,7 @@ The R interface is not available at this moment. Please contact g2s@mgravey.com 
 |---------------|-------------------------------------------------------------------------------------------------------------|
 | `--version`     | Return the version and compilation date of the interface                                                   |
 | `-a`            | The simulation algorithm to be used, it can be 'qs', 'nds', 'ds-l' (DS-like, not maintained)                |
-| `-sa`           | Server address (default: localhost (the server is local), otherwise provide IP address)                    |
-|               | Nice when we have a powerful machine dedicated for computation                                              |
+| `-sa`           | Server address (default: localhost (the server is local), otherwise provide IP address). Nice when we have a powerful machine dedicated for computation                     |
 | `-p`            | Port where to look for the server (default: 8128). Should be passed as an integer.                          |
 | `-silent`       | Don't display the progression, useful for scripts                                                          |
 | `-serverStatus` | Inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly |
