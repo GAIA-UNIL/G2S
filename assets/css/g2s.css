@@ -344,8 +344,23 @@ th{
         width:calc(100vw - 4px) !important;
         margin: 2px;
     }
+
+  html{
+    overflow-x: hidden;
+  }
+  
+  header h2 {
+    width: calc( 100vw - 40px);
+  }
+
+  header a{
+    width: calc( 100vw - 40px);
+  }
 }
 
 red{
     color:red;
 }
+
+
+
