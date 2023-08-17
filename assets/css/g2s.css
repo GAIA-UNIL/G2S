@@ -353,7 +353,7 @@ th{
     width: calc( 100vw - 40px);
   }
 
-  header a{
+  header h1{
     width: calc( 100vw - 40px);
   }
 }
