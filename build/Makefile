@@ -64,8 +64,9 @@ ifeq ($(dosentSupportOMP),1)
 	export LDFLAGS += -fopenmp
 endif
 
-dosentSupportCUDA:= $(shell command -v nvcc; echo $? )
+dosentSupportCUDA:= $(shell command -v nvcc; echo $$? )
 ifeq ($(dosentSupportCUDA),0)
+	$(info CUDA detected)
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
