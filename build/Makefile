@@ -65,7 +65,7 @@ ifeq ($(dosentSupportOMP),1)
 endif
 
 dosentSupportCUDA:= $(shell command -v nvcc; echo $$? )
-ifeq ($(dosentSupportCUDA),0)
+ifneq ($(dosentSupportCUDA),1)
 	$(info CUDA detected)
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
