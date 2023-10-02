@@ -66,7 +66,6 @@ endif
 
 dosentSupportCUDA:= $(shell command -v nvcc; echo $$? )
 ifneq ($(dosentSupportCUDA),1)
-	$(info CUDA detected)
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
