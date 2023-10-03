@@ -35,12 +35,16 @@ Outputs: sim = simulation, index = index of the simulated values in the flattene
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
 | `-ii` | Array that specifies for each pixel which training image to sample from. Default: all training images are searched for the best match. | |
+| `-ni` | Array that specifies for each pixel which the number of neighbors. | |
+| `-kvi` | Array that specifies for each pixel which the number of best candidates to consider. | |
 | `-far` | Fast and risky &#x1f604;, like -ii but with a random input (experimental). | |
 | `-cti` | With this flag QS will treat the training image(s) as periodic (aka circular or cyclic) over each dimension. | |
 | `-csim` | With this flag QS will make sure to create a periodic (aka circular or cyclic) simulation over each dimension. | |
 | `-adsim` | Augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories (Coming maybe some day!). | |
 | `-fs` | Full simulation: follows a different simulation path for each variable (as opposed to vector simulation, where the same simulation path is used for all variables). | |
 | `-nV` | No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental). | |
+| `--forceSimulation` | Restimulate a value even if already existing. | |
+
 
 ## Examples
 Below are several examples showcasing different applications of QS. For these examples the G2S server should be installed and running, either on your own machine or remotely. A Google Colab notebook with more examples and an automatic installation of G2S can be found [here](https://github.com/GAIA-UNIL/Short-course-MPS/blob/main/MPS_SC_with_QS_Online.ipynb).
