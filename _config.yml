@@ -31,6 +31,10 @@ github_username:  GAIA-UNIL
 repository: "GAIA-UNIL/G2S"
 markdown: kramdown
 
+github:
+  zip_url: https://github.com/GAIA-UNIL/G2S/zipball/master
+  tar_url: https://github.com/GAIA-UNIL/G2S/tarball/master
+
 kramdown:
   parse_block_html: true
 
