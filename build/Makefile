@@ -64,7 +64,7 @@ ifeq ($(dosentSupportOMP),1)
 	export LDFLAGS += -fopenmp
 endif
 
-dosentSupportCUDA:= $(shell command -v nvcc; echo $$? )
+dosentSupportCUDA:= $(shell command -v nvcc; echo $? )
 ifneq ($(dosentSupportCUDA),1)
 	#export ExtraDevice+= NvidiaGPUAcceleratorDevice.o
 	export CFLAGS+= -DWITH_CUDA
@@ -89,10 +89,10 @@ ifeq ($(USE_CURL),yes)
 endif
 
 DEFAULT_JOB=c++
-ifneq ($(shell icpc 2>/dev/null; echo $$? ),127)
+ifneq ($(shell icpc 2>/dev/null; echo $? ),127)
 	DEFAULT_JOB+=intel
 endif
-ifneq ($(shell icpx 2>/dev/null; echo $$? ),127)
+ifneq ($(shell icpx 2>/dev/null; echo $? ),127)
 	DEFAULT_JOB+=intel
 endif
 
