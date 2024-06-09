@@ -681,12 +681,12 @@ int main(int argc, char const *argv[]) {
 	//DirectSamplingModule DSM(computeDeviceModuleArray, threshold, (kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 	// run QS
-/*
+
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	simType st=vectorSim;
-	if(fullSimulation) st=fullSim;
-	if(augmentedDimentionSimulation) st=augmentedDimSim;
+	// simType st=vectorSim;
+	// if(fullSimulation) st=fullSim;
+	// if(augmentedDimentionSimulation) st=augmentedDimSim;
 
 	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID){
 		unsigned last=0;
@@ -709,23 +709,23 @@ int main(int argc, char const *argv[]) {
 		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID);
 	}
 
-	switch (st){
-	case fullSim:
-		fprintf(reportFile, "%s\n", "full sim");
-		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
-		break;
-	case vectorSim:
-		fprintf(reportFile, "%s\n", "vector sim");
-		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
-		break;
-	case augmentedDimSim:
-		fprintf(reportFile, "%s\n", "augmented dimention sim");
-		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
-		break;
-	}
+	// switch (st){
+	// case fullSim:
+	// 	fprintf(reportFile, "%s\n", "full sim");
+	// 	simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+	// 	break;
+	// case vectorSim:
+	// 	fprintf(reportFile, "%s\n", "vector sim");
+	// 	simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
+	// 	break;
+	// case augmentedDimSim:
+	// 	fprintf(reportFile, "%s\n", "augmented dimention sim");
+	// 	simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
+	// 	break;
+	// }
 
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
@@ -735,22 +735,7 @@ int main(int argc, char const *argv[]) {
 
 	// free memory
 
-	for (unsigned int i = 0; i < nbThreads; ++i)
-	{
-		for (size_t j = 0; j < computeDeviceModuleArray[i].size(); ++j)
-		{
-			delete computeDeviceModuleArray[i][j];
-			computeDeviceModuleArray[i][j]=nullptr;
-		}
-	}
 
-	for (size_t i = 0; i < sharedMemoryManagerVector.size(); ++i)
-	{
-		delete sharedMemoryManagerVector[i];
-		sharedMemoryManagerVector[i]=nullptr;
-	}
-
-	delete[] computeDeviceModuleArray;
 
 	// to remove later
 	id.write(outputIndexFilename);
@@ -768,12 +753,5 @@ int main(int argc, char const *argv[]) {
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;
 
-	#ifdef WITH_CUDA
-	if(g2s_cudaLibrary_handle){
-		dlclose(g2s_cudaLibrary_handle);
-		g2s_cudaLibrary_handle=nullptr;
-	}
-	#endif
-*/
 	return 0;
 }
