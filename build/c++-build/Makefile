@@ -20,7 +20,7 @@ export DEST_DIR_EXTENSION:=$(shell pwd)
 
 .PHONY: all depend algoNames extension clean
 
-all: g2s_server echo qs nds ds-l libg2s.a errorTest test auto_qs ds $(WITH_CUDA)
+all: g2s_server echo qs nds ds-l libg2s.a errorTest test auto_qs ds fastds $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -61,6 +61,9 @@ ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB) 
 
 ds: ds.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB) 
+
+fastds: fastds.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB) 
 
 errorTest: errorTest.o
