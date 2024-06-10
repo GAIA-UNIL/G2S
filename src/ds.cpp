@@ -23,6 +23,7 @@
 #include "jobManager.hpp"
 
 #include "simulation.hpp"
+#include "directSamplingModule.hpp"
 
 void printHelp(){
 	printf ("that is the help");
@@ -95,17 +96,76 @@ int main(int argc, char const *argv[]) {
 	// LOOK FOR STANDARD PARAMETER
 
 	unsigned nbThreads=1;
+	unsigned nbThreadsOverTi=1;
+	unsigned nbThreadsLastLevel=1;
+	unsigned totalNumberOfThreadVailable=1;
+	bool forceSimulation=false;
 	bool verbose=false;
 
-	if (arg.count("-j") == 1)
+
+	#if _OPENMP
+	totalNumberOfThreadVailable=omp_get_max_threads();
+	#endif	
+
+
+	if (arg.count("-j") >= 1)
 	{
-		nbThreads=atoi((arg.find("-j")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("-j");
+
+		if(jobsString!=arg.upper_bound("-j")){
+			float nbThreadsLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLoc) != nbThreadsLoc){
+				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreads=(int)(nbThreadsLoc);
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("-j")){
+			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsOverTiLoc) != nbThreadsOverTiLoc){
+				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("-j")){
+			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLastLevelLoc) != nbThreadsLastLevelLoc){
+				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
+			++jobsString;
+		}
 	}
 	arg.erase("-j");
 
-	if (arg.count("--jobs") == 1)
+	if (arg.count("--jobs") >= 1)
 	{
-		nbThreads=atoi((arg.find("--jobs")->second).c_str());
+		std::multimap<std::string, std::string>::iterator jobsString=arg.lower_bound("--jobs");
+		if(jobsString!=arg.upper_bound("--jobs")){
+			float nbThreadsLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLoc) != nbThreadsLoc){
+				nbThreadsLoc=std::max(std::floor(nbThreadsLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreads=(int)(nbThreadsLoc);
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("--jobs")){
+			float nbThreadsOverTiLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsOverTiLoc) != nbThreadsOverTiLoc){
+				nbThreadsOverTiLoc=std::max(std::floor(nbThreadsOverTiLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsOverTi=(int)(nbThreadsOverTiLoc);
+			++jobsString;
+		}
+		if(jobsString!=arg.upper_bound("--jobs")){
+			float nbThreadsLastLevelLoc=atof((jobsString->second).c_str());
+			if(std::roundf(nbThreadsLastLevelLoc) != nbThreadsLastLevelLoc){
+				nbThreadsLastLevelLoc=std::max(std::floor(nbThreadsLastLevelLoc*totalNumberOfThreadVailable),1.f);
+			}
+			nbThreadsLastLevel=(int)(nbThreadsLastLevelLoc);
+			++jobsString;
+		}
 	}
 	arg.erase("--jobs");	
 
@@ -294,6 +354,12 @@ int main(int argc, char const *argv[]) {
 		seed=atoi((arg.find("-s")->second).c_str());
 	}
 	arg.erase("-s");
+
+	if (arg.count("--forceSimulation") == 1)
+	{
+		forceSimulation=true;
+	}
+	arg.erase("--forceSimulation");
 
 	if (arg.count("-wd") == 1)
 	{
@@ -678,7 +744,7 @@ int main(int argc, char const *argv[]) {
 
 	//init DS
 
-	//DirectSamplingModule DSM(computeDeviceModuleArray, threshold, (kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
+	DirectSamplingModule DSM(TIs, (kernels.size()==1 ? &kernels[0]:nullptr),threshold,nbCandidate,false, false, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 	// run QS
 
@@ -709,23 +775,11 @@ int main(int argc, char const *argv[]) {
 		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID);
 	}
 
-	// switch (st){
-	// case fullSim:
-	// 	fprintf(reportFile, "%s\n", "full sim");
-	// 	simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
-	// 	break;
-	// case vectorSim:
-	// 	fprintf(reportFile, "%s\n", "vector sim");
-	// 	simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
-	// 	break;
-	// case augmentedDimSim:
-	// 	fprintf(reportFile, "%s\n", "augmented dimention sim");
-	// 	simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	// 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
-	// 	break;
-	// }
+	bool fullStationary=true;
+	bool circularSimulation=false;
+
+	simulation(reportFile, DI, TIs, kernels, DSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
+	 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), std::vector<std::vector<float> >(), nbThreads, fullStationary, circularSimulation, forceSimulation,false);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
