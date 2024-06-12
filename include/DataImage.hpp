@@ -659,6 +659,18 @@ class DataImage{
 		}
 
 	public:
+
+		int offset(std::vector<int> coord){
+			int result=0;
+
+			for (int i = std::min(_dims.size(),coord.size())-1; i >=0 ; i--)
+			{
+				result*=_dims[i];
+				result+=coord[i];
+			}
+			return result;
+		}
+
 		unsigned flippedCoordinates(unsigned index){
 			unsigned result=0;
 

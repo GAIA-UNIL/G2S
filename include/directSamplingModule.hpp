@@ -75,7 +75,7 @@ public:
 
 		//auto rng = std::bind(distribution, std::ref(generator));
 
-		unsigned numberPixel=(*_TIs)[0].dataSize();
+		unsigned numberPixel=_TIs->at(0).dataSize();
 
 		std::uniform_int_distribution<unsigned> distInImage(0,numberPixel);
 

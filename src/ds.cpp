@@ -744,9 +744,38 @@ int main(int argc, char const *argv[]) {
 
 	//init DS
 
+	std::vector<std::vector<float> > categoriesValues;
+	std::vector<unsigned> numberDeComputedVariableProVariable;
+	for (size_t i = 0; i < DI._types.size(); ++i)
+	{
+		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
+			numberDeComputedVariableProVariable.push_back(1);
+		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+			std::vector<float> currentVariable;
+			for (size_t im = 0; im < TIs.size(); ++im)
+			{
+				for (unsigned int j = i; j < TIs[im].dataSize(); j+=TIs[im]._nbVariable)
+				{
+					if(std::isnan(TIs[im]._data[j]))
+						continue;
+					bool isPresent=false;
+					for (size_t k = 0; k < currentVariable.size(); ++k)
+					{
+						isPresent|=((TIs[im]._data[j])==(currentVariable[k]));
+					}
+					if(!isPresent){
+						currentVariable.push_back(TIs[im]._data[j]);
+					}
+				}
+			}
+			categoriesValues.push_back(currentVariable);
+			numberDeComputedVariableProVariable.push_back(currentVariable.size());
+		}
+	}
+
 	DirectSamplingModule DSM(TIs, (kernels.size()==1 ? &kernels[0]:nullptr),threshold,nbCandidate,false, false, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
-	// run QS
+	// run DS
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
@@ -779,7 +808,7 @@ int main(int argc, char const *argv[]) {
 	bool circularSimulation=false;
 
 	simulation(reportFile, DI, TIs, kernels, DSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-	 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), std::vector<std::vector<float> >(), nbThreads, fullStationary, circularSimulation, forceSimulation,false);
+	 		(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,false);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
