@@ -450,7 +450,7 @@ public:
 				i++;
 			}
 			inputs.erase("-dt");
-			addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,NULL, 1,1, 0, NULL));
+			addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,PyArray_DescrFromType(NPY_FLOAT), 1,1, 0, NULL));
 		}
 		// fprintf(stderr, "%d\n", inputs.count("-dt"));
 		// if(inputs.count("-dt")==1){
