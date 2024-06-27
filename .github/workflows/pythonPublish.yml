@@ -101,8 +101,8 @@ jobs:
     
     - name: Publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_Token }}
       run: |
         cd build/python-build
         twine upload dist/*.whl --verbose 

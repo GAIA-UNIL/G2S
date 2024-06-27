@@ -107,8 +107,8 @@ jobs:
     
     - name: Publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_TEST_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_TEST_PASSWORD }}
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
       run: |
         cd build/python-build
         twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose --skip-existing
