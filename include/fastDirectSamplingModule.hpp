@@ -268,7 +268,7 @@ public:
 
 		if(_TIs->at(0)._types[0]==g2s::DataImage::VaraibleType::Continuous){
 			float bestLocalError=INFINITY;
-			float factor=50.f;
+			float factor=5.f;
 			unsigned lower=0;
 			unsigned upper=0;
 
