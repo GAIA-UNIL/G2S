@@ -441,16 +441,22 @@ public:
 		}
 
 		// manage '-dt'
-		if(inputs.count("-dt")>0 && !PyArray_Check(std::any_cast<PyObject*>(inputs.find("-dt")->second))){
-			PyObject* list=PyList_New(inputs.count("-dt"));
-			int i=0;
-			for (auto it=inputs.equal_range("-dt").first; it!=inputs.equal_range("-dt").second; ++it)
-			{
-				PyList_SetItem(list,i,std::any_cast<PyObject*>(it->second));
-				i++;
+		if(inputs.count("-dt")>0){
+			if(!PyArray_Check(std::any_cast<PyObject*>(inputs.find("-dt")->second))){
+				PyObject* list=PyList_New(inputs.count("-dt"));
+				int i=0;
+				for (auto it=inputs.equal_range("-dt").first; it!=inputs.equal_range("-dt").second; ++it)
+				{
+					PyList_SetItem(list,i,std::any_cast<PyObject*>(it->second));
+					i++;
+				}
+				inputs.erase("-dt");
+				addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,PyArray_DescrFromType(NPY_FLOAT), 1,1, 0, NULL));
+			}else{ // it's a numpy array
+				PyArrayObject* dt=(PyArrayObject*)std::any_cast<PyObject*>(inputs.find("-dt")->second);
+				inputs.erase("-dt");
+				addInputsToInputsMap(inputs,"-dt",PyArray_CastToType(dt,PyArray_DescrFromType(NPY_FLOAT),0));
 			}
-			inputs.erase("-dt");
-			addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,PyArray_DescrFromType(NPY_FLOAT), 1,1, 0, NULL));
 		}
 		// fprintf(stderr, "%d\n", inputs.count("-dt"));
 		// if(inputs.count("-dt")==1){
