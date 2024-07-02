@@ -95,7 +95,7 @@ int main(int argc, char const *argv[]) {
 
 	for (int i = 0; i < srcIput._types.size(); ++i)
 	{
-		fprintf(logFileName, "Variable %d is: %s\n", i, (srcIput._types[i]==g2s::DataImage::VaraibleType::Categorical ? "Categorical" : "Continuous") );
+		fprintf(reportFile, "Variable %d is: %s\n", i, (srcIput._types[i]==g2s::DataImage::VaraibleType::Categorical ? "Categorical" : "Continuous") );
 	}
 
 	// to remove later
