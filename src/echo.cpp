@@ -93,6 +93,11 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage srcIput=g2s::DataImage::createFromFile(sourceFileName);
 
+	for (int i = 0; i < srcIput._types.size(); ++i)
+	{
+		fprintf(logFileName, "Variable %d is: %s\n", i, (srcIput._types[i]==g2s::DataImage::VaraibleType::Categorical ? "Categorical" : "Continuous") );
+	}
+
 	// to remove later
 	srcIput.write(outputFilename);
 	//end to remove
