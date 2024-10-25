@@ -164,7 +164,9 @@ public:
 	}
 
 	void eraseAndPrint(std::string val){
-		printf("%s\n",val.c_str());
+		mxArray *arg[1];
+		arg[0]=mxCreateString(val.c_str());
+		mexCallMATLAB(0,NULL,1,arg,"disp");
 	}
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
