@@ -986,7 +986,7 @@ int main(int argc, char const *argv[]) {
 	// correct the kernel to take in account categories
 	for (int i = 0; i < kernels.size(); ++i)
 	{
-		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable);
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable,needCrossMesurement);
 	}
 
 	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;

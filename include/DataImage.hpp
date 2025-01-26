@@ -381,28 +381,29 @@ class DataImage{
 		return kernel;
 	};
 
-	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor){
+	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor, bool needXMesurement=false){
 
 		unsigned cumulated=0;
 		for (size_t i = 0; i < factor.size(); ++i)
 		{
-			cumulated+=factor[i];
+			cumulated+=factor[i]+( (factor[i]>1) && needXMesurement );
 		}
 
 
 		DataImage kernel=DataImage(currentKernel._dims.size(),currentKernel._dims.data(),cumulated);
-
+		
 		unsigned currentPosition=0;
 		for (size_t i = 0; i < factor.size(); ++i)
 		{
-			for (unsigned int j = 0; j < factor[i]; ++j)
+			for (unsigned int j = 0; j < factor[i]+((factor[i]>1) && needXMesurement); ++j)
 			{
 				for (unsigned int k = 0; k < currentKernel.dataSize()/currentKernel._nbVariable; ++k)
 				{
-					kernel._data[k*cumulated+currentPosition]=currentKernel._data[k*currentKernel._nbVariable+i];
+					kernel._data[k*kernel._nbVariable+currentPosition]=currentKernel._data[k*currentKernel._nbVariable+i];
 				}
 				currentPosition++;
 			}
+
 		}
 		
 		return kernel;
