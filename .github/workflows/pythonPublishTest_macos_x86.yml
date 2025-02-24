@@ -7,7 +7,7 @@ on:
     - 'src_interfaces/python3_interface.cpp'
     - 'include_interfaces/inerfaceTemplate.hpp'
     - 'include_interfaces/python3_interface.hpp'
-    - '.github/workflows/pythonPublishTest.yml'
+    - '.github/workflows/pythonPublishTest_macos_x86.yml'
 
 jobs:
   deploy:
