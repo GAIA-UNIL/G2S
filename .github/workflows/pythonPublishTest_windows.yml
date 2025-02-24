@@ -1,0 +1,55 @@
+name: Upload Python Package on test server
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+    - 'src_interfaces/python3_interface.cpp'
+    - 'include_interfaces/inerfaceTemplate.hpp'
+    - 'include_interfaces/python3_interface.hpp'
+    - '.github/workflows/pythonPublishTest.yml'
+
+jobs:
+  deploy:
+    name: Compile for windows-latest using ${{ matrix.python }}-${{ matrix.arch }} and upload on package manager
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [ '3.10','3.11', 'pypy-3.9', 'pypy-3.10' ]
+        arch:
+          - x64
+    runs-on: windows-latest
+    env:
+      NAME: value
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+        architecture: ${{ matrix.arch }}
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+    - name: Install dependencies
+      run: |
+        pip install oldest-supported-numpy
+        pip install setuptools wheel twine packaging
+
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Install Windows dependencies
+      run: |
+        cd build/python-build
+        cmd.exe /c setup_Win_compile_all.bat
+    - name: Build on Windows
+      run: |
+        cd build\python-build
+        python setup.py --setuptools bdist_wheel
+
+    - name: Publish
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+      run: |
+        cd build/python-build
+        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose --skip-existing
