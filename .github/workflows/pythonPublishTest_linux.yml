@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install numpy==1.26
+        pip install numpy==1.26.4
         pip install setuptools wheel twine packaging
 
     - name: Install Ubuntu dependencies
