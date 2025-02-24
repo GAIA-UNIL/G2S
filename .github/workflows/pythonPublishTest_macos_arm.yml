@@ -1,0 +1,60 @@
+name: Upload Python Package on test server
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+    - 'src_interfaces/python3_interface.cpp'
+    - 'include_interfaces/inerfaceTemplate.hpp'
+    - 'include_interfaces/python3_interface.hpp'
+    - '.github/workflows/pythonPublishTest_macos_arm.yml'
+
+jobs:
+  deploy:
+    name: Compile for macOS-latest (aarch64) using ${{ matrix.python }}-${{ matrix.arch }} and upload on package manager
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [ '3.10','3.11', 'pypy-3.9', 'pypy-3.10' ]
+        arch:
+          - aarch64
+    runs-on: macOS-latest
+    env:
+      NAME: value
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+        architecture: ${{ matrix.arch }}
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+    - name: Install dependencies
+      run: |
+        pip install oldest-supported-numpy
+        pip install setuptools wheel twine packaging
+
+    - name: Install macOS dependencies
+      run: |
+        brew install zeromq jsoncpp cppzmq
+        echo "STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a" >> $GITHUB_ENV
+
+    - name: Build on macOS
+      run: |
+        cd build/python-build
+        STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
+
+    - name: Correct whl for macOS
+      run: |
+        cd build/python-build
+        pip install delocate
+        delocate-wheel -v dist/*.whl
+
+    - name: Publish
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+      run: |
+        cd build/python-build
+        twine upload dist/*.whl --repository-url https://test.pypi.org/legacy/ --verbose --skip-existing
