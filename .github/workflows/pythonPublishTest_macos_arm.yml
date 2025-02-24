@@ -15,10 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ 3.12 ]
-        arch:
-          - aarch64
-    runs-on: macOS-latest
+        python: [ 3.11 ]
+    runs-on: macOS-14
     env:
       NAME: value
     steps:
