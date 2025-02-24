@@ -11,14 +11,14 @@ on:
 
 jobs:
   deploy:
-    name: Compile for windows-latest using ${{ matrix.python }}-${{ matrix.arch }} and upload on package manager
+    name: Compile for macOS-13 (Intel x86) using ${{ matrix.python }}-${{ matrix.arch }} and upload on package manager
     strategy:
       fail-fast: false
       matrix:
         python: [ '3.10','3.11', 'pypy-3.9', 'pypy-3.10' ]
         arch:
           - x64
-    runs-on: windows-latest
+    runs-on: macOS-13
     env:
       NAME: value
     steps:
@@ -32,19 +32,24 @@ jobs:
       run: python -c "import sys; print(sys.version)"
     - name: Install dependencies
       run: |
-        pip install numpy==1.22
+        pip install oldest-supported-numpy
         pip install setuptools wheel twine packaging
 
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
-    - name: Install Windows dependencies
+    - name: Install macOS dependencies
+      run: |
+        brew install zeromq jsoncpp cppzmq
+        echo "STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a" >> $GITHUB_ENV
+
+    - name: Build on macOS
       run: |
         cd build/python-build
-        cmd.exe /c setup_Win_compile_all.bat
-    - name: Build on Windows
+        STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
+
+    - name: Correct whl for macOS
       run: |
-        cd build\python-build
-        python setup.py --setuptools bdist_wheel
+        cd build/python-build
+        pip install delocate
+        delocate-wheel -v dist/*.whl
 
     - name: Publish
       env:
