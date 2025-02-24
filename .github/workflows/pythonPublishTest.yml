@@ -8,6 +8,12 @@ on:
     - 'include_interfaces/inerfaceTemplate.hpp'
     - 'include_interfaces/python3_interface.hpp'
     - '.github/workflows/pythonPublishTest.yml'
+  pull_request:
+    paths:
+    - 'src_interfaces/python3_interface.cpp'
+    - 'include_interfaces/inerfaceTemplate.hpp'
+    - 'include_interfaces/python3_interface.hpp'
+    - '.github/workflows/pythonPublishTest.yml'
 
 jobs:
   deploy:
