@@ -18,7 +18,6 @@ on:
 jobs:
   deploy:
     name: Compile for ubuntu-22.04 using ${{ matrix.python }}-${{ matrix.arch }} and upload on packages manager
-    OS:
     strategy:
       fail-fast: false
       matrix:
