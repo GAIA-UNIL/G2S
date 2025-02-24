@@ -58,7 +58,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
 		extra='\\';
 	setup(name='G2S',
-		version=open('../../version', 'r').read()+versionExtention,
+		version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
 		**{'long_description_content_type':'text/markdown'} if isST else {},
@@ -77,8 +77,8 @@ if(systemName=='Darwin' or systemName=='Linux'):
 		],
 		ext_package = 'g2s',
 		ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","../../src/DataImage.cpp"]+extraCPP,
-			language="c++", 
-			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
+			language="c++",
+			extra_compile_args=["-std=c++17",'-DVERSION='+extra+'\"'+open('../../version', 'r').read().replace("\n", "")+extra+'\"','-DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 			extra_link_args=["-std=c++17"],
 			extra_objects=extraObjects,
 			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/","/opt/homebrew/include"]+extra_include_dirs,
@@ -96,7 +96,7 @@ if(systemName=='Windows'):
 	zmqBuilDir="./libzmq/action_build/";
 	if is_64bits:
 		setup(name='G2S',
-			version=open('../../version', 'r').read()+versionExtention,
+			version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 			description='G2S interface',
 			long_description=long_description,
 			**{'long_description_content_type':'text/markdown'} if isST else {},
@@ -115,8 +115,8 @@ if(systemName=='Windows'):
 			],
 			ext_package = 'g2s',
 			ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","jsoncpp-master/dist/jsoncpp.cpp"],
-				language="c++", 
-				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','/DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
+				language="c++",
+				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION='+extra+'\"'+open('../../version', 'r').read().replace("\n", "")+extra+'\"','/DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 				extra_link_args=[],
 				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "libzmq/include", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 				libraries = [x[:-4] for x in os.listdir(zmqBuilDir+"lib/Release") if 'mt-s' not in x and '.lib' in x and 'libzmq' in x ],
@@ -128,7 +128,7 @@ if(systemName=='Windows'):
 		);
 	else:
 		setup(name='G2S',
-			version=open('../../version', 'r').read()+versionExtention,
+			version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 			description='G2S interface',
 			long_description=long_description,
 			**{'long_description_content_type':'text/markdown'} if isST else {},
@@ -147,8 +147,8 @@ if(systemName=='Windows'):
 			],
 			ext_package = 'g2s',
 			ext_modules=[Extension("g2s", sources=["../../src_interfaces/python3_interface.cpp","jsoncpp-master/dist/jsoncpp.cpp"],
-				language="c++", 
-				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION='+extra+'\"'+open('../../version', 'r').read()+extra+'\"','/DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
+				language="c++",
+				extra_compile_args=["/std:c++17","-DNOMINMAX",'/DVERSION='+extra+'\"'+open('../../version', 'r').read().replace("\n", "")+extra+'\"','/DPYTHON_VERSION='+extra+'\"'+platform.python_version()+extra+'\"'],
 				extra_link_args=[],
 				include_dirs=["../../include","./cppzmq-master","jsoncpp-master/include", "../../include_interfaces", "libzmq/include", "jsoncpp-master\\jsoncpp-master\\include", "/usr/include","/usr/include/jsoncpp","/opt/local/include"],
 				libraries = [x[:-4] for x in os.listdir(zmqBuilDir+"lib/Release") if 'mt-s' not in x and '.lib' in x and 'libzmq' in x ],
