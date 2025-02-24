@@ -8,12 +8,6 @@ on:
     - 'include_interfaces/inerfaceTemplate.hpp'
     - 'include_interfaces/python3_interface.hpp'
     - '.github/workflows/pythonPublishTest.yml'
-  # pull_request:
-  #   paths:
-  #   - 'src_interfaces/python3_interface.cpp'
-  #   - 'include_interfaces/inerfaceTemplate.hpp'
-  #   - 'include_interfaces/python3_interface.hpp'
-  #   - '.github/workflows/pythonPublishTest.yml'
 
 jobs:
   deploy:
@@ -21,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ '3.10','3.11', 'pypy-3.8', 'pypy-3.9' ]
+        python: [ '3.10','3.11', 'pypy-3.9', 'pypy-3.10' ]
         arch:
           - x64
     runs-on: ubuntu-22.04
