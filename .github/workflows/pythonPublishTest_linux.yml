@@ -32,6 +32,7 @@ jobs:
       run: python -c "import sys; print(sys.version)"
     - name: Install dependencies
       run: |
+        pip install --upgrade pip
         pip install numpy==1.26
         pip install setuptools wheel twine packaging
 
