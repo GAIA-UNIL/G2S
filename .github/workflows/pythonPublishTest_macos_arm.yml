@@ -7,6 +7,7 @@ on:
     - 'src_interfaces/python3_interface.cpp'
     - 'include_interfaces/inerfaceTemplate.hpp'
     - 'include_interfaces/python3_interface.hpp'
+    - 'build/python-build/*'
     - '.github/workflows/pythonPublishTest_macos_arm.yml'
 
 jobs:
