@@ -83,7 +83,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 			extra_link_args=["-std=c++17"],
 			extra_objects=extraObjects,
 			include_dirs=[numpy.get_include(),"../../include","../../include_interfaces", "/usr/include","/usr/include/jsoncpp","/opt/local/include","../../jsoncpp-master/dist/","/opt/homebrew/include"]+extra_include_dirs,
-			libraries = libZMQ+extraLib+libbsd,
+			libraries = libZMQ+extraLib+(libbsd if systemName == 'Linux' else []),
 			library_dirs = ['/usr/lib','/opt/local/lib','/opt/homebrew/lib']+extra_library_dirs
 			)],
 		include_dirs=numpy.get_include(),
