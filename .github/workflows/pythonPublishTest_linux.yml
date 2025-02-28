@@ -66,7 +66,7 @@ jobs:
         cd build/python-build
         STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
 
-    - name: Correct whl for Linux
+    - name: Correct whl for  Linux
       run: |
         cd build/python-build/dist
         # pip install auditwheel
