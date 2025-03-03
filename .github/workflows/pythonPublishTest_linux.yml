@@ -35,7 +35,8 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install numpy==1.26.4
-        pip install setuptools wheel twine packaging
+        pip install --upgrade setuptools
+        pip install wheel twine packaging
 
     - name: Install Ubuntu dependencies
       run: |
