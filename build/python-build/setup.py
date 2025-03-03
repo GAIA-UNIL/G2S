@@ -58,7 +58,7 @@ if(systemName=='Darwin' or systemName=='Linux'):
 	import numpy.distutils.misc_util
 	if version.parse(platform.python_version())<version.parse('3.8') and (platform.python_implementation()!='PyPy'):
 		extra='\\';
-	setup(name='G2S',
+	setup(name='g2s',
 		version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 		description='G2S interface',
 		long_description=long_description,
@@ -96,7 +96,7 @@ if(systemName=='Windows'):
 	import numpy
 	zmqBuilDir="./libzmq/action_build/";
 	if is_64bits:
-		setup(name='G2S',
+		setup(name='g2s',
 			version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 			description='G2S interface',
 			long_description=long_description,
@@ -128,7 +128,7 @@ if(systemName=='Windows'):
 			data_files=[('lib\\site-packages\\g2s', [zmqBuilDir+"bin/Release/"+x for x in os.listdir(zmqBuilDir+"bin/Release") if 'mt-s' not in x and '.dll' in x and 'libzmq' in x ])]
 		);
 	else:
-		setup(name='G2S',
+		setup(name='g2s',
 			version=open('../../version', 'r').read().replace("\n", "")+versionExtention,
 			description='G2S interface',
 			long_description=long_description,
