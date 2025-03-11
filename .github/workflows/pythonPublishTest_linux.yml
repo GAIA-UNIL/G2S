@@ -69,7 +69,7 @@ jobs:
 
     - name: Find libstdc++.a
       run: |
-        STATIC_CPP_PATH=$(find /usr -name 'libstdc++.a' 2>/dev/null | head -n 1)
+        STATIC_CPP_PATH=$(find /usr/lib/gcc/x86_64-linux-gnu/11 -name 'libstdc++.a' 2>/dev/null | head -n 1)
         echo "STATIC_CPP_PATH=$STATIC_CPP_PATH" >> $GITHUB_ENV
 
     - name: Build on Linux
