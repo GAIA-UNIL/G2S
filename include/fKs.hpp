@@ -35,7 +35,7 @@
 namespace fKst {
 
 template<typename T>
-inline __attribute__((always_inline)) void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
+inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
 	short position=k-2;
 	while ((data[i]<output[position]) && (position>-1) ){
 		output[position+1]=output[position];
@@ -45,7 +45,7 @@ inline __attribute__((always_inline)) void addValueS(const T* data,const unsigne
 }
 
 template<typename T>
-inline __attribute__((always_inline)) void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
+inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
 	short position=k-2;
 	while ((data[i]<output[position]) && (position>-1) ){
 		output[position+1]=output[position]; 
@@ -57,7 +57,7 @@ inline __attribute__((always_inline)) void addValueS(const T* data,const unsigne
 }
 
 template<typename T, typename urgT>
-inline __attribute__((always_inline)) void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
+inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
 	short position=k-2;
 	short positionLikeLast=k-2;
 	while ((output[k-1]==output[positionLikeLast]) && (position>-1) ){

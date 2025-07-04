@@ -4,7 +4,7 @@ export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https:
 
 export SRCS=$(BUILD_DIR)/../src
 export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
-export CXXFLAGS=
+export CXXFLAGS= -Wno-vla-extension #-flto
 export INC=-I$(BUILD_DIR)/../include
 ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
