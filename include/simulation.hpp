@@ -25,8 +25,8 @@
 
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false){
+	std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false, bool withPathOptim=false){
 
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -59,22 +59,206 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
-	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+	unsigned* adjustedPath=(unsigned*)malloc( sizeof(unsigned) * numberOfPointToSimulate);
+	std::iota(adjustedPath, adjustedPath+numberOfPointToSimulate, 0);
+
+	if(withPathOptim){
+		unsigned* maxDpendencePath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
+		memset(maxDpendencePath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
+
+		#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(maxDpendencePath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+		posterioryPath,__stderrp,  solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+		for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+			unsigned maxDependency=0;
+			unsigned moduleID=0;
+			#if _OPENMP
+			moduleID=omp_get_thread_num();
+			#endif
+
+			int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
+
+			unsigned currentCell=solvingPath[indexPath];
+			float localSeed=seedAray[indexPath];
+
+			bool withDataInCenter=false;
+			bool withOnlyData=true;
+
+			int imageIndex=-1;
+
+			for (unsigned int i = 0; i < di._nbVariable; ++i)
+			{
+				withDataInCenter|=!std::isnan(di._data[currentCell*di._nbVariable+i]);
+				withOnlyData&=!std::isnan(di._data[currentCell*di._nbVariable+i]);
+			}
+
+			if(withOnlyData && !forceSimulation) continue;
+
+			if(nii){
+				numberNeighbor.clear();
+				for (int i = 0; i < nii->_nbVariable; ++i)
+				{
+					numberNeighbor.push_back(int(nii->_data[currentCell*nii->_nbVariable+i]));
+				}
+			}
+
+			int kernelImageIndex=-1;
+
+			std::vector<std::vector<int> > *pathPosition=&pathPositionArray[0];
+			if(kii){
+				kernelImageIndex=int(kii->_data[currentCell*kii->_nbVariable+0]);
+				pathPosition=&pathPositionArray[kernelImageIndex];
+			}
+
+			float localk=0.f;
+
+			if(kvi){
+				localk=kvi->_data[currentCell*kvi->_nbVariable+0];
+			}
+
+
+			std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
+			std::vector<std::vector<int> > neighborArrayVector;
+			neighborArrayVector.reserve(numberNeighbor[0]);
+			std::vector<std::vector<float> > neighborValueArrayVector;
+			neighborValueArrayVector.reserve(numberNeighbor[0]);
+
+			bool needMoreNeighbours=false;
+			for (int l = 0; l < di._nbVariable; ++l)
+			{
+				needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+			}
+
+			if(kernelAutoSelection && pathPositionArray.size()>1){
+				unsigned bestKi=-1;
+				unsigned bestPositionSearh=pathPositionArray[0].size()+1;
+				unsigned bestAmount=0;
+				unsigned sameQuality=0;
+
+				std::mt19937 generator;
+				generator.seed(localSeed*2);
+
+				for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
+				{
+					unsigned numberOfNeigboursforThisKernel=0;
+					unsigned positionSearch=0;
+					bool localNeedMoreNeighbours=needMoreNeighbours;
+					std::vector<unsigned> numberOfNeighborsProVariableLocal(numberOfNeighborsProVariable);
+					while(( numberNeighbor.size()>1 || localNeedMoreNeighbours ) && ( positionSearch<pathPositionArray[kernelIndex].size() )){
+						unsigned dataIndex;
+						std::vector<int> *vectorInDi=&pathPositionArray[kernelIndex][positionSearch];
+						vectorInDi->resize(di._dims.size(),0);
+						if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
+						{
+							//add for
+							if(posterioryPath[dataIndex]<=indexPath){
+								numberOfNeigboursforThisKernel+=1;
+								unsigned cpt=0;
+								for (unsigned int i = 0; i < di._nbVariable; ++i)
+								{
+									if((numberOfNeighborsProVariableLocal[i]<numberNeighbor[i%numberNeighbor.size()]))
+									{
+										cpt++;
+										numberOfNeighborsProVariableLocal[i]++;
+										localNeedMoreNeighbours=false;
+										for (int l = 0; l < di._nbVariable; ++l)
+										{
+											localNeedMoreNeighbours|=numberOfNeighborsProVariableLocal[l]<numberNeighbor[l%numberNeighbor.size()];
+										}
+									}
+								}
+								if(cpt==0) break;
+							}
+						}
+						positionSearch++;
+					}
+
+					int needTochange=-1;
+					if(bestPositionSearh>=positionSearch){
+						if(bestPositionSearh>positionSearch){
+							needTochange=1;
+						}else{
+							if(numberOfNeigboursforThisKernel>=bestAmount){
+								needTochange=(numberOfNeigboursforThisKernel>bestAmount);
+							}
+						}
+					}
+
+					if(needTochange==1){
+						bestKi=kernelIndex;
+						sameQuality=1;
+						bestPositionSearh=positionSearch;
+						bestAmount=numberOfNeigboursforThisKernel;
+					}
+					if(needTochange==0){
+						if(std::uniform_real_distribution<float>(0.0,1.0)(generator)<(1.f/++sameQuality)){
+							bestKi=kernelIndex;
+						}
+					}
+				}
+				kernelImageIndex=bestKi;
+				imageIndex=bestKi;
+				pathPosition=&pathPositionArray[kernelImageIndex];
+			}
+
+			{
+				unsigned positionSearch=0;
+				while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<pathPosition->size() )){
+					unsigned dataIndex;
+					std::vector<int> *vectorInDi=&(*pathPosition)[positionSearch];
+					vectorInDi->resize(di._dims.size(),0);
+					if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
+					{
+						//add for
+						if(posterioryPath[dataIndex]<indexPath){
+							//fprintf(stderr, "%d, %d\n", maxDependency,posterioryPath[dataIndex]);
+							maxDependency=std::max(maxDependency,posterioryPath[dataIndex]);
+
+
+							std::vector<float> data(di._nbVariable);
+							unsigned cpt=0;
+							for (unsigned int i = 0; i < di._nbVariable; ++i)
+							{
+								if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
+								{
+									cpt++;
+									numberOfNeighborsProVariable[i]++;
+									needMoreNeighbours=false;
+									for (int l = 0; l < di._nbVariable; ++l)
+									{
+										needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
+									}
+								}
+							}
+							if(cpt==0) break;
+						}
+					}
+					positionSearch++;
+				}
+			}
+			
+			maxDpendencePath[indexPath]=maxDependency;
+		}
+		std::sort(adjustedPath, adjustedPath+numberOfPointToSimulate, [&](size_t i1, size_t i2) {
+			return maxDpendencePath[i1] < maxDpendencePath[i2];
+		});
+		free(maxDpendencePath);
+		maxDpendencePath=nullptr;
+	}
+
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(adjustedPath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+	__stderrp,posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+	for (unsigned int optimIndexPath = 0; optimIndexPath < numberOfPointToSimulate; ++optimIndexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
 		// 	unsigned currentCell=solvingPath[indexPath];
 		// 	memcpy(di._data+currentCell*di._nbVariable,TIs[0]._data+currentCell*TIs[0]._nbVariable,TIs[0]._nbVariable*sizeof(float));
 		// 	continue;
 		// }
-
+		unsigned int indexPath=adjustedPath[optimIndexPath];
 		
-
-
 		unsigned moduleID=0;
 		#if _OPENMP
-			moduleID=omp_get_thread_num();
+		moduleID=omp_get_thread_num();
 		#endif
 
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
@@ -342,7 +526,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 					hasNaN=true;
 				}
 			}
-		
+
 			if(hasNaN){ // nan safe, much slower
 				unsigned cumulated=0;
 				for (size_t i = 0; i < TIs.size(); ++i)
@@ -404,11 +588,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 
 	free(posterioryPath);
+	free(adjustedPath);
 }
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
+	std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 	
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
@@ -441,13 +626,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	}
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+	posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
 		unsigned moduleID=0;
 		#if _OPENMP
-			moduleID=omp_get_thread_num();
+		moduleID=omp_get_thread_num();
 		#endif
 
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
@@ -609,7 +794,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			}
 
 			bool hasNaN=std::isnan(TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable]); 
-		
+
 			if(hasNaN){ // nan safe, much slower
 				unsigned cumulated=0;
 				for (size_t i = 0; i < TIs.size(); ++i)
@@ -670,8 +855,8 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 }
 
 void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernel, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
-   float maxProgression=1.f, unsigned nbThreads=1){
+	std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
+	float maxProgression=1.f, unsigned nbThreads=1){
 
 	SamplingModule::matchLocation* candidates=(SamplingModule::matchLocation*) malloc( sizeof(SamplingModule::matchLocation) * ni.dataSize()/ni._nbVariable);
 	float* narrownessArray=(float*) malloc( sizeof(float) * ni.dataSize()/ni._nbVariable);
@@ -709,7 +894,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 
 	unsigned solvingPathIndex=0;
 	while((sizeSimulation>0) && ((float(sizeSimulation)/fullSize)>(1.f-maxProgression))){
-	
+
 		//unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));
 		//update all needed place to //
 		#pragma omp parallel for schedule(monotonic:dynamic) num_threads(nbThreads) default(none) firstprivate(logFile, placeToUpdate, seedAray, pathPosition, candidates, fullSize, narrownessArray) shared(di, samplingModule, externalMemory4IndexComputation)
@@ -717,7 +902,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		{
 			unsigned moduleID=0;
 			#if _OPENMP
-				moduleID=omp_get_thread_num();
+			moduleID=omp_get_thread_num();
 			#endif
 
 			int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
@@ -752,7 +937,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 			narrownessArray[currentCell]=currentNarrowness.narrowness;
 			candidates[currentCell]=currentNarrowness.candidate;
 			if((i+1)%(fullSize/100)==0)fprintf(logFile, "progress init: %.2f%%\n",float(i)/fullSize*100);
-		
+
 		}
 		placeToUpdate.clear();
 
