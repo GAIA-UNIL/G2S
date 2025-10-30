@@ -19,7 +19,7 @@
 #define PYTHON_3_INTERFACE_HPP
 
 #include <Rcpp.h>
-#include "inerfaceTemplate.hpp"
+#include "interfaceTemplate.hpp"
 
 /* Check for interrupt without long jumping */
 void check_interrupt_fn(void *dummy) {
@@ -30,7 +30,7 @@ int pending_interrupt() {
   return !(R_ToplevelExec(check_interrupt_fn, NULL));
 }
 
-class InerfaceTemplateR: public InerfaceTemplate
+class InterfaceTemplateR: public InterfaceTemplate
 {
 private:
 

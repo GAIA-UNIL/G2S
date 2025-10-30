@@ -1,0 +1,44 @@
+[build-system]
+requires = [
+  "setuptools>=69",
+  "wheel>=0.42",
+  "numpy>=2.0.0"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "G2S"
+version = "0.0.0"                      # placeholder to satisfy schema
+description = "G2S Python interface"
+readme = "README.md"
+authors = [{ name = "Mathieu Gravey", email = "g2s@mgravey.com" }]
+license = "LGPL-3.0-only"
+requires-python = ">=3.9"
+dependencies = ["numpy>=2.0.0"]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Education",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/GAIA-UNIL/G2S"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["g2s"]
+
+[tool.setuptools.dynamic]
+version = {attr = "g2s._version.__version__"}
+
+

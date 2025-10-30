@@ -39,7 +39,7 @@ void cvtServerCall(std::string from, std::string to, std::atomic<bool> &serverRu
 #endif
 
 //template <class T>
-class InerfaceTemplate
+class InterfaceTemplate
 {
 public:
 
@@ -381,7 +381,7 @@ public:
 		if (submit) lookForUpload(socket, input);
 
 		// start the process
-		unlockThread();
+		
 		//std::this_thread::sleep_for(std::chrono::seconds(10));
 
 		if(!done && submit){
@@ -466,6 +466,7 @@ public:
 		}
 
 		outputs.insert(std::pair<std::string, std::any>("id",Uint32ToNative(id)));
+		unlockThread();
 		if(submit && !waitAndDownload){
 			noOutput=true;
 			done=true;

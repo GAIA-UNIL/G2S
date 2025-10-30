@@ -130,8 +130,9 @@ intel-extension:
 
 extension: c++-extension intel-extension
 
-python:
-	cd python-build && (python3 setup.py install --user || python setup.py install --user)
+python: ../version
+	echo "__version__ = \"$$(cat ../version)\"" > python-build/g2s/_version.py;
+	cd python-build && (python3 -m build)
 
 python-extension-module: python
 	ln -sf  ../python-build/pyEcho.py c++-build/pyEcho.py

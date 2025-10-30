@@ -23,13 +23,13 @@
 #include <mex.h>
 #include "mexInterrupt.hpp"
 #include "matrix.h"
-#include "inerfaceTemplate.hpp"
+#include "interfaceTemplate.hpp"
 
 #ifndef MATLAB_VERSION
 #define MATLAB_VERSION 0
 #endif
 
-class InerfaceTemplateMatlab: public InerfaceTemplate
+class InterfaceTemplateMatlab: public InterfaceTemplate
 {
 
 std::future<void> InterruptCheck;
@@ -37,11 +37,11 @@ std::atomic<bool> _done=false;
 
 public:
 
-	InerfaceTemplateMatlab(){
+	InterfaceTemplateMatlab(){
 		InterruptCheck = mexInterrupt::startInterruptCheck(_done);
 	}
 
-	~InerfaceTemplateMatlab(){
+	~InterfaceTemplateMatlab(){
 		_done=true;
 		InterruptCheck.wait();
 	}
