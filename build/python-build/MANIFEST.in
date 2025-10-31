@@ -7,3 +7,6 @@ recursive-include src *
 recursive-include src_interfaces *
 recursive-include include *
 recursive-include include_interfaces *
+
+recursive-include libzmq/build/bin/Release *
+recursive-include libzmq/build/lib/Release *

@@ -64,6 +64,18 @@ print("sources (relative):", sources)
 # Custom build_ext (adds NumPy includes and platform flags)
 # -----------------------------------------------------------------------------
 class build_ext(_build_ext):
+    def run(self):
+        super().run()
+
+        # Copy DLLs after extension build (Windows only)
+        if system == "Windows":
+            dlldir = Path("libzmq") / "build" / "bin" / "Release"
+            if dlldir.exists():
+                for dll in dlldir.glob("libzmq*.dll"):
+                    dest = Path(self.build_lib) / "g2s" / dll.name
+                    self.copy_file(dll, dest)
+                    print(f"✅ Copied {dll.name} → {dest}")
+    
     def build_extensions(self):
         import numpy as np
 
@@ -118,21 +130,32 @@ class build_ext(_build_ext):
                 ext.extra_link_args += ["-arch", "arm64"]
 
             if system == "Windows":
-                libzmq_base = Path("libzmq") / "build"
-                possible_libs = [
-                    libzmq_base / "Release",                # CMake default
-                    libzmq_base / "lib" / "Release",        # Some MSVC setups
-                    libzmq_base / "x64" / "Release",        # Occasionally seen
-                ]
-                libzmq_dir = next((p for p in possible_libs if (p / "libzmq.lib").exists()), None)
-                if libzmq_dir.exists():
+                libzmq_root = Path("libzmq") / "build"
+                libdir = libzmq_root / "lib" / "Release"
+                dlldir = libzmq_root / "bin" / "Release"
+
+                # detect actual library name (MSVC adds version tags)
+                candidates = list(libdir.glob("libzmq*.lib"))
+                if candidates:
+                    libfile = candidates[0]
+                    libname = libfile.stem
+                    print(f"✅ Found ZeroMQ lib: {libfile.name}")
+
                     for ext in self.extensions:
                         ext.include_dirs += [str(Path("libzmq") / "include")]
-                        ext.library_dirs += [str(libzmq_dir)]
-                        ext.libraries += ["libzmq"]
-                        self.copy_dlls = list((libzmq_dir.parent / "bin" / "Release").glob("libzmq*.dll"))
+                        ext.library_dirs += [str(libdir)]
+                        ext.libraries += [libname]
                 else:
-                    print("Warning: libzmq not found, dynamic runtime loading will fail.")
+                    print("⚠️ No libzmq*.lib found under libzmq/build/lib/Release — build likely incomplete.")
+
+                # copy DLLs for wheel packaging
+                if dlldir.exists():
+                    self.copy_dlls = list(dlldir.glob("libzmq*.dll"))
+                    if self.copy_dlls:
+                        print(f"✅ Bundling {len(self.copy_dlls)} ZeroMQ DLL(s) into wheel.")
+                else:
+                    print("⚠️ No bin/Release folder found — DLL will not be packaged.")
+
         super().build_extensions()
 
 # -----------------------------------------------------------------------------
