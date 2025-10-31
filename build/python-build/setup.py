@@ -101,7 +101,7 @@ class build_ext(_build_ext):
                     "/D_CRT_SECURE_NO_WARNINGS",
                     "/D_USE_MATH_DEFINES",  # 👈 Add this line
                     "/D_CRT_SECURE_NO_WARNINGS",  # 👈 Optional: silence fopen/fscanf warnings
-                    "/ZMQ_NO_PRAGMA_LIB"
+                    "/DZMQ_NO_PRAGMA_LIB"
                 ]
             else:
                 ext.extra_compile_args += [
