@@ -40,6 +40,7 @@ jobs:
             echo '🧩 Running auditwheel repair...'
             cd /io/build/python-build/dist
             auditwheel repair *.whl -w .
+            rm -f *linux_x86_64.whl
 
             echo '✅ Listing final wheels:'
             ls -lh
