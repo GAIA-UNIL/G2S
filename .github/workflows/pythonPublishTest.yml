@@ -25,7 +25,7 @@ jobs:
       - name: Build inside manylinux
         run: |
           docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
-            bash -c "python3 -m ensurepip && pip install --upgrade pip build wheel numpy pyzmq && cd /io/build && make python-wheel"
+             bash -c "python3 -m ensurepip && python3 -m pip install --upgrade pip build wheel numpy pyzmq && cd /io/build && make python-wheel"
       - name: Test import
         run: |
           pip install build/python-build/dist/*.whl
@@ -52,7 +52,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
-          pip install --upgrade pip build wheel numpy pyzmq
+          pip install --upgrade pip build wheel numpy pyzmq twine
       - name: Build wheel
         run: |
           cd build
@@ -83,7 +83,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
-          pip install --upgrade pip build wheel numpy pyzmq
+          python -m pip install --upgrade pip build wheel numpy pyzmq twine
       - name: Build wheel
         shell: bash
         run: |
