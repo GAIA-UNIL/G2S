@@ -46,6 +46,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
         run: |
           cd build/python-build
+          python -m pip install --upgrade twine
           twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl --skip-existing --verbose
 
   build-macos:
