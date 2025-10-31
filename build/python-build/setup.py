@@ -127,7 +127,7 @@ class build_ext(_build_ext):
                         # copy DLLs into wheel
                         self.copy_dlls = list(Path("libzmq") / "build" / "bin" / "Release").glob("libzmq*.dll")
                 else:
-                    print("⚠️ Warning: libzmq not found, dynamic runtime loading will fail.")
+                    print("Warning: libzmq not found, dynamic runtime loading will fail.")
         super().build_extensions()
 
 # -----------------------------------------------------------------------------
