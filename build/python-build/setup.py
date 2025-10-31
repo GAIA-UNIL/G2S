@@ -118,14 +118,19 @@ class build_ext(_build_ext):
                 ext.extra_link_args += ["-arch", "arm64"]
 
             if system == "Windows":
-                libzmq_dir = Path("libzmq") / "build" / "lib" / "Release"
+                libzmq_base = Path("libzmq") / "build"
+                possible_libs = [
+                    libzmq_base / "Release",                # CMake default
+                    libzmq_base / "lib" / "Release",        # Some MSVC setups
+                    libzmq_base / "x64" / "Release",        # Occasionally seen
+                ]
+                libzmq_dir = next((p for p in possible_libs if (p / "libzmq.lib").exists()), None)
                 if libzmq_dir.exists():
                     for ext in self.extensions:
                         ext.include_dirs += [str(Path("libzmq") / "include")]
                         ext.library_dirs += [str(libzmq_dir)]
                         ext.libraries += ["libzmq"]
-                        # copy DLLs into wheel
-                        self.copy_dlls = list(Path("libzmq") / "build" / "bin" / "Release").glob("libzmq*.dll")
+                        self.copy_dlls = list((libzmq_dir.parent / "bin" / "Release").glob("libzmq*.dll"))
                 else:
                     print("Warning: libzmq not found, dynamic runtime loading will fail.")
         super().build_extensions()
