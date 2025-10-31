@@ -23,12 +23,14 @@
 #else
   #include <unistd.h>
 #endif
-#if defined(__linux__) || defined(__APPLE__)
+#ifndef _WIN32
 	#include "zlib.h"
 #endif
 
 void createLink(char* outputFullFilename, char* fullFilename){
+	#ifndef _WIN32
 	(void)symlink(outputFullFilename, fullFilename);
+	#endif
 }
 
 
@@ -39,7 +41,7 @@ char* loadRawData(const char * hash){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
-	#if defined(__linux__) || defined(__APPLE__)
+	#ifndef _WIN32
 	snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hash);
 	if(!data &&   g2s::file_exist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
@@ -91,7 +93,7 @@ char* writeRawData(char* data, bool compresed){
 
 	char filename[4096];
 
-	#if defined(__linux__) || defined(__APPLE__)
+	#ifndef _WIN32
 	if(compresed) {
 		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hashInHexa);
 

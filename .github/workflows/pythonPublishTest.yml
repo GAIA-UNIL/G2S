@@ -31,7 +31,7 @@ jobs:
           docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
             set -e;
             /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine;
-            cd /io/build/python-build;
+            cd /io/build;
             make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel;
             cd /io/build/python-build/dist;
             ls -lh;
