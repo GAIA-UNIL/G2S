@@ -25,8 +25,17 @@ jobs:
       - name: Build inside manylinux
         run: |
           PYVER=$(echo ${{ matrix.python }} | tr -d .)
-          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
-            bash -c "/opt/python/cp${PYVER}-cp${PYVER}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq && cd /io/build && make python-wheel"
+          PYTAG="cp${PYVER}-cp${PYVER}"
+          echo "🧱 Building for $PYTAG using manylinux_2_28"
+          
+          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+            set -e;
+            /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine;
+            cd /io/build/python-build;
+            make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel;
+            cd /io/build/python-build/dist;
+            ls -lh;
+          "
       - name: Test import
         run: |
           pip install build/python-build/dist/*.whl

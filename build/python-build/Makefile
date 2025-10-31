@@ -2,6 +2,7 @@
 # G2S Python interface sub-Makefile
 # -----------------------------------------------------------------------------
 
+PYTHON ?= $(shell command -v python 2>/dev/null || command -v python3)
 VERSION_FILE := ../../version
 
 # Default target
@@ -36,13 +37,13 @@ version:
 
 # Build wheels and sdist
 build:preprocess version include/zmq.hpp
-	python3 -m build || python -m build
+	$(PYTHON) -m build
 
 wheel:preprocess build
 	@echo "✅ Wheel built."
 
 sdist: version preprocess include/zmq.hpp
-	python3 -m build --sdist || python -m build --sdist
+	$(PYTHON) -m build --sdist
 	@echo "✅ Source distribution created."
 
 # Clean

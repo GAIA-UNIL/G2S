@@ -49,7 +49,7 @@ if jsoncpp_src.is_file():
 # Only link zlib on Linux / macOS
 if system in ("Linux", "Darwin"):
     extra_libs.append("z")
-    
+
 # -----------------------------------------------------------------------------
 # Source files (now trivially relative)
 # -----------------------------------------------------------------------------
@@ -98,6 +98,7 @@ class build_ext(_build_ext):
                     "-DNOMINMAX",
                     f'/DVERSION="{PACKAGE_VERSION}"',
                     f'/DPYTHON_VERSION="{pyver}"',
+                    "/D_CRT_SECURE_NO_WARNINGS"
                 ]
             else:
                 ext.extra_compile_args += [
