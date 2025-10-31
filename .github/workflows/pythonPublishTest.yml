@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine numpy pyzmq jsoncpp wheel setuptools delocate
+          pip install build twine numpy pyzmq wheel setuptools delocate
 
       - name: Build wheel
         run: |
