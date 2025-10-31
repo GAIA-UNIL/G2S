@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import platform
-import shutil
 import subprocess
 from pathlib import Path
 from setuptools import setup, Extension
@@ -36,34 +34,16 @@ with open(ROOT / "README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 # -----------------------------------------------------------------------------
-# JSONCPP detection
+# JSONCPP linkage
 # -----------------------------------------------------------------------------
+# Use system libjsoncpp by default. If bundled source exists, build it statically.
 extra_cpp = []
 extra_libs = ["jsoncpp", "z"]
 jsoncpp_src = REPO / "src" / "jsoncpp.cpp"
 if jsoncpp_src.is_file():
+    print("Using bundled jsoncpp.cpp")
     extra_cpp = ["src/jsoncpp.cpp"]
     extra_libs = ["z"]
-
-# -----------------------------------------------------------------------------
-# ZeroMQ linkage (runtime handled via pyzmq in __init__.py)
-# -----------------------------------------------------------------------------
-extra_objects = []
-libzmq_libs = []  # no linking; g2s/__init__.py loads pyzmq dynamically
-
-# -----------------------------------------------------------------------------
-# Homebrew include/lib paths (macOS)
-# -----------------------------------------------------------------------------
-extra_include_dirs = []
-extra_library_dirs = []
-if shutil.which("brew"):
-    try:
-        brew_prefix = subprocess.check_output(["brew", "--prefix"]).decode().strip()
-        print("brew prefix:", brew_prefix)
-        extra_include_dirs.append(os.path.join(brew_prefix, "include"))
-        extra_library_dirs.append(os.path.join(brew_prefix, "lib"))
-    except Exception:
-        pass
 
 # -----------------------------------------------------------------------------
 # Source files (now trivially relative)
@@ -92,13 +72,13 @@ class build_ext(_build_ext):
                 "/usr/include/jsoncpp",
                 "/opt/local/include",
                 "/opt/homebrew/include",
-            ] + extra_include_dirs
+            ]
 
             ext.library_dirs += [
                 "/usr/lib",
                 "/opt/local/lib",
                 "/opt/homebrew/lib",
-            ] + extra_library_dirs
+            ]
 
             # C++20 flags
             if system == "Windows":
@@ -120,7 +100,7 @@ class build_ext(_build_ext):
                     f'-DVERSION="{PACKAGE_VERSION}"',
                     f'-DPYTHON_VERSION="{pyver}"',
                 ]
-                ext.extra_link_args += [cxxflag,"-g", "-O0"]
+                ext.extra_link_args += [cxxflag]
 
             # macOS: arm64 only
             if system == "Darwin":
@@ -137,29 +117,8 @@ ext = Extension(
     "g2s",
     sources=sources,
     language="c++",
-    extra_compile_args=[],
-    extra_link_args=[],
-    extra_objects=extra_objects,
-    include_dirs=[],   # filled later
-    libraries=libzmq_libs + extra_libs,
-    library_dirs=[],
+    libraries= extra_libs,
 )
-
-# -----------------------------------------------------------------------------
-# Windows DLL bundling
-# -----------------------------------------------------------------------------
-data_files = []
-if system == "Windows" and not static_zmq_path:
-    zmqBuildDir = ROOT / "libzmq" / "action_build"
-    bin_dir = zmqBuildDir / "bin" / "Release"
-    if bin_dir.is_dir():
-        dlls = [
-            str(bin_dir / x)
-            for x in os.listdir(bin_dir)
-            if x.endswith(".dll") and "libzmq" in x and "mt-s" not in x
-        ]
-        if dlls:
-            data_files = [("lib\\site-packages\\g2s", dlls)]
 
 # -----------------------------------------------------------------------------
 # setup()
@@ -185,6 +144,5 @@ setup(
     ext_package="g2s",
     ext_modules=[ext],
     cmdclass={"build_ext": build_ext},
-    include_dirs=[],
-    data_files=data_files,
+    include_dirs=[]
 )
