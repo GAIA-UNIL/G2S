@@ -98,9 +98,9 @@ class build_ext(_build_ext):
                     "-DNOMINMAX",
                     f'/DVERSION="{PACKAGE_VERSION}"',
                     f'/DPYTHON_VERSION="{pyver}"',
-                    "/D_CRT_SECURE_NO_WARNINGS"
-                    '/D_USE_MATH_DEFINES',  # 👈 Add this line
-                    '/D_CRT_SECURE_NO_WARNINGS',  # 👈 Optional: silence fopen/fscanf warnings
+                    "/D_CRT_SECURE_NO_WARNINGS",
+                    "/D_USE_MATH_DEFINES",  # 👈 Add this line
+                    "/D_CRT_SECURE_NO_WARNINGS",  # 👈 Optional: silence fopen/fscanf warnings
                 ]
             else:
                 ext.extra_compile_args += [

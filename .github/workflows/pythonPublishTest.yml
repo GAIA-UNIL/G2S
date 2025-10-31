@@ -27,14 +27,22 @@ jobs:
           PYVER=$(echo ${{ matrix.python }} | tr -d .)
           PYTAG="cp${PYVER}-cp${PYVER}"
           echo "🧱 Building for $PYTAG using manylinux_2_28"
-          
+
           docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
-            set -e;
-            /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine;
-            cd /io/build;
-            make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel;
-            cd /io/build/python-build/dist;
-            ls -lh;
+            set -e
+            echo '🐍 Installing build dependencies...'
+            /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine auditwheel
+
+            echo '🏗️  Building wheel...'
+            cd /io/build
+            make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel
+
+            echo '🧩 Running auditwheel repair...'
+            cd /io/build/python-build/dist
+            auditwheel repair *.whl -w .
+
+            echo '✅ Listing final wheels:'
+            ls -lh
           "
       - name: Test import
         run: |
