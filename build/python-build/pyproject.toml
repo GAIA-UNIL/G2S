@@ -2,19 +2,23 @@
 requires = [
   "setuptools>=69",
   "wheel>=0.42",
-  "numpy>=2.0.0"
+  "numpy>=2.0.0",
+  "pyzmq>=25.1.0"         # ✅ ensure pyzmq available for bundled lib
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "G2S"
-version = "0.0.0"                      # placeholder to satisfy schema
+dynamic = ["version"]
 description = "G2S Python interface"
 readme = "README.md"
 authors = [{ name = "Mathieu Gravey", email = "g2s@mgravey.com" }]
 license = "LGPL-3.0-only"
 requires-python = ">=3.9"
-dependencies = ["numpy>=2.0.0"]
+dependencies = [
+  "numpy>=2.0.0",
+  "pyzmq>=25.1.0"
+]
 
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -26,7 +30,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.13"
 ]
 
 [project.urls]
@@ -40,5 +44,3 @@ include = ["g2s"]
 
 [tool.setuptools.dynamic]
 version = {attr = "g2s._version.__version__"}
-
-

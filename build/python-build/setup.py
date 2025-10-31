@@ -17,7 +17,7 @@ system = platform.system()
 # Basic relative paths
 # -----------------------------------------------------------------------------
 ROOT = Path(__file__).parent            # e.g. .../python/interface/python3
-REPO = Path("../..")                # go back to repo root relatively
+REPO = Path(".")                # go back to repo root relatively
 REPO = REPO.resolve()                   # only resolve once for reading files
 
 # -----------------------------------------------------------------------------
@@ -40,20 +40,16 @@ with open(ROOT / "README.md", "r", encoding="utf-8") as fh:
 # -----------------------------------------------------------------------------
 extra_cpp = []
 extra_libs = ["jsoncpp", "z"]
-jsoncpp_src = REPO / "jsoncpp-master" / "dist" / "jsoncpp.cpp"
+jsoncpp_src = REPO / "src" / "jsoncpp.cpp"
 if jsoncpp_src.is_file():
-    extra_cpp = ["../../jsoncpp-master/dist/jsoncpp.cpp"]
+    extra_cpp = ["src/jsoncpp.cpp"]
     extra_libs = ["z"]
 
 # -----------------------------------------------------------------------------
-# ZeroMQ linkage
+# ZeroMQ linkage (runtime handled via pyzmq in __init__.py)
 # -----------------------------------------------------------------------------
 extra_objects = []
-libzmq_libs = ["zmq"]
-static_zmq_path = os.getenv("STATIC_ZMQ_PATH")
-if static_zmq_path:
-    libzmq_libs = []
-    extra_objects = [static_zmq_path]
+libzmq_libs = []  # no linking; g2s/__init__.py loads pyzmq dynamically
 
 # -----------------------------------------------------------------------------
 # Homebrew include/lib paths (macOS)
@@ -73,8 +69,8 @@ if shutil.which("brew"):
 # Source files (now trivially relative)
 # -----------------------------------------------------------------------------
 sources = [
-    "../../src_interfaces/python3_interface.cpp",
-    "../../src/DataImage.cpp",
+    "src_interfaces/python3_interface.cpp",
+    "src/DataImage.cpp",
 ] + extra_cpp
 
 print("sources (relative):", sources)

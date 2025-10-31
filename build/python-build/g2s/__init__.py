@@ -2,6 +2,16 @@
 import os
 import sys
 
+import ctypes
+import zmq.backend.cython._zmq as _zmq
+
+# Export ZMQ symbols globally for g2s.so
+try:
+    ctypes.CDLL(_zmq.__file__, mode=ctypes.RTLD_GLOBAL)
+except OSError:
+    pass
+
+
 _extra_dll_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib', 'site-packages', 'g2s')
 if sys.platform == 'win32' and os.path.isdir(_extra_dll_dir):
     if sys.version_info >= (3, 8):
