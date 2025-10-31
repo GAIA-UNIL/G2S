@@ -17,7 +17,12 @@
 
 #include "DataImage.hpp"
 #include "picosha2.h"
-#include <unistd.h>
+#if defined(_WIN32)
+  #include <io.h>
+  #include <process.h>
+#else
+  #include <unistd.h>
+#endif
 #if defined(__linux__) || defined(__APPLE__)
 	#include "zlib.h"
 #endif
