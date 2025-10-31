@@ -117,6 +117,17 @@ class build_ext(_build_ext):
                 ext.extra_compile_args += ["-arch", "arm64"]
                 ext.extra_link_args += ["-arch", "arm64"]
 
+            if system == "Windows":
+                libzmq_dir = Path("libzmq") / "build" / "lib" / "Release"
+                if libzmq_dir.exists():
+                    for ext in self.extensions:
+                        ext.include_dirs += [str(Path("libzmq") / "include")]
+                        ext.library_dirs += [str(libzmq_dir)]
+                        ext.libraries += ["libzmq"]
+                        # copy DLLs into wheel
+                        self.copy_dlls = list(Path("libzmq") / "build" / "bin" / "Release").glob("libzmq*.dll")
+                else:
+                    print("⚠️ Warning: libzmq not found, dynamic runtime loading will fail.")
         super().build_extensions()
 
 # -----------------------------------------------------------------------------
@@ -153,5 +164,8 @@ setup(
     ext_package="g2s",
     ext_modules=[ext],
     cmdclass={"build_ext": build_ext},
-    include_dirs=[]
+    include_dirs=[],
+    data_files=[
+        ("g2s", [str(p) for p in getattr(build_ext, "copy_dlls", [])])
+    ],
 )

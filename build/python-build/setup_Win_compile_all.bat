@@ -1,23 +1,15 @@
-if NOT exist "cppzmq-master" (
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://codeload.github.com/zeromq/cppzmq/zip/master', 'cppzmq-master.zip')"
-	powershell Expand-Archive cppzmq-master.zip -DestinationPath .
-)
+@echo off
+setlocal
 
-if NOT exist "jsoncpp-master" (
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('https://codeload.github.com/open-source-parsers/jsoncpp/zip/master', 'jsoncpp-master.zip')"
-	powershell Expand-Archive jsoncpp-master.zip -DestinationPath .
-	cd jsoncpp-master
-	py amalgamate.py
-	cd ..
-)
-
+rem ----- Build libzmq -----
 if NOT exist "libzmq" (
-	git clone https://github.com/zeromq/libzmq
+	git clone https://github.com/zeromq/libzmq.git
 	cd libzmq
-	mkdir action_build
-	cd action_build
-	cmake ..
-	msbuild ZeroMQ.sln /property:Configuration=Release /m:4
-	cd ..
+	mkdir build && cd build
+	cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED=ON
+	msbuild ZeroMQ.sln /p:Configuration=Release /m
+	cd ../..
 )
 
+echo ✅ libzmq built and headers ready
+endlocal
