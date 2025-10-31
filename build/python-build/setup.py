@@ -38,13 +38,18 @@ with open(ROOT / "README.md", "r", encoding="utf-8") as fh:
 # -----------------------------------------------------------------------------
 # Use system libjsoncpp by default. If bundled source exists, build it statically.
 extra_cpp = []
-extra_libs = ["jsoncpp", "z"]
+extra_libs = ["jsoncpp"]
 jsoncpp_src = REPO / "src" / "jsoncpp.cpp"
 if jsoncpp_src.is_file():
     print("Using bundled jsoncpp.cpp")
     extra_cpp = ["src/jsoncpp.cpp"]
-    extra_libs = ["z"]
+    extra_libs = []
 
+
+# Only link zlib on Linux / macOS
+if system in ("Linux", "Darwin"):
+    extra_libs.append("z")
+    
 # -----------------------------------------------------------------------------
 # Source files (now trivially relative)
 # -----------------------------------------------------------------------------

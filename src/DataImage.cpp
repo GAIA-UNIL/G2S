@@ -16,9 +16,11 @@
 */
 
 #include "DataImage.hpp"
-#include "zlib.h"
 #include "picosha2.h"
 #include <unistd.h>
+#if defined(__linux__) || defined(__APPLE__)
+	#include "zlib.h"
+#endif
 
 void createLink(char* outputFullFilename, char* fullFilename){
 	(void)symlink(outputFullFilename, fullFilename);
@@ -32,6 +34,7 @@ char* loadRawData(const char * hash){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
+	#if defined(__linux__) || defined(__APPLE__)
 	snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hash);
 	if(!data &&   g2s::file_exist(filename)){
 		gzFile dataFile=gzopen(filename,"rb");
@@ -45,7 +48,7 @@ char* loadRawData(const char * hash){
 			gzclose(dataFile);
 		}
 	}
-
+	#endif
 	snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hash);
 	//fprintf(stderr, "%s\n",filename );
 	if(!data &&  g2s::file_exist(filename)){
@@ -83,6 +86,7 @@ char* writeRawData(char* data, bool compresed){
 
 	char filename[4096];
 
+	#if defined(__linux__) || defined(__APPLE__)
 	if(compresed) {
 		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hashInHexa);
 
@@ -92,7 +96,9 @@ char* writeRawData(char* data, bool compresed){
 			gzclose(dataFile);
 		}
 	}
-	else {
+	else 
+	#endif
+	{
 			snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hashInHexa);
 
 		FILE* dataFile=fopen(filename,"wb");
