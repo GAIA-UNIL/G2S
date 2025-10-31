@@ -75,7 +75,7 @@ class build_ext(_build_ext):
                     dest = Path(self.build_lib) / "g2s" / dll.name
                     self.copy_file(dll, dest)
                     print(f"✅ Copied {dll.name} → {dest}")
-    
+
     def build_extensions(self):
         import numpy as np
 
@@ -139,22 +139,22 @@ class build_ext(_build_ext):
                 if candidates:
                     libfile = candidates[0]
                     libname = libfile.stem
-                    print(f"✅ Found ZeroMQ lib: {libfile.name}")
+                    print(f"Found ZeroMQ lib: {libfile.name}")
 
                     for ext in self.extensions:
                         ext.include_dirs += [str(Path("libzmq") / "include")]
                         ext.library_dirs += [str(libdir)]
                         ext.libraries += [libname]
                 else:
-                    print("⚠️ No libzmq*.lib found under libzmq/build/lib/Release — build likely incomplete.")
+                    print("No libzmq*.lib found under libzmq/build/lib/Release — build likely incomplete.")
 
                 # copy DLLs for wheel packaging
                 if dlldir.exists():
                     self.copy_dlls = list(dlldir.glob("libzmq*.dll"))
                     if self.copy_dlls:
-                        print(f"✅ Bundling {len(self.copy_dlls)} ZeroMQ DLL(s) into wheel.")
+                        print(f"Bundling {len(self.copy_dlls)} ZeroMQ DLL(s) into wheel.")
                 else:
-                    print("⚠️ No bin/Release folder found — DLL will not be packaged.")
+                    print("No bin/Release folder found — DLL will not be packaged.")
 
         super().build_extensions()
 
