@@ -26,16 +26,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine numpy pyzmq wheel setuptools delocate
 
+      # --- Build wheel (Linux uses manylinux container, others native) ---
       - name: Build wheel
         run: |
-          cd build
-          make python-wheel
-
-      - name: Fix macOS wheel paths
-        if: runner.os == 'macOS'
-        run: |
-          pip install delocate
-          delocate-wheel -v build/python-build/dist/*.whl || true
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo "🐧 Building inside manylinux_2_28 container..."
+            docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
+              bash -c "cd /io/build && make python-wheel"
+          else
+            echo "🧱 Building natively on ${{ runner.os }}..."
+            cd build
+            make python-wheel
+          fi
 
       - name: Test import
         run: |
