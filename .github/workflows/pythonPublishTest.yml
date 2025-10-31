@@ -109,7 +109,6 @@ jobs:
           cd build/python-build
           cmd.exe /c setup_Win_compile_all.bat
       - name: Build wheel
-        shell: bash
         run: |
           cd build
           make python-wheel
