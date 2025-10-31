@@ -32,18 +32,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine numpy pyzmq wheel setuptools delocate
 
-    # --- Build wheel (Linux uses manylinux container, others native) ---
-    - name: Build wheel
-      run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          echo "🐧 Building inside manylinux_2_28 container..."
-          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
-            bash -c "cd /io/build && make python-wheel"
-        else
-          echo "🧱 Building natively on ${{ runner.os }}..."
-          cd build
-          make python-wheel
-        fi
+      # --- Build wheel (Linux uses manylinux container, others native) ---
+      - name: Build wheel
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo "🐧 Building inside manylinux_2_28 container..."
+            docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
+              bash -c "cd /io/build && make python-wheel"
+          else
+            echo "🧱 Building natively on ${{ runner.os }}..."
+            cd build
+            make python-wheel
+          fi
 
       - name: Test import
         run: |
