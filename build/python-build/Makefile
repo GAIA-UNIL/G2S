@@ -15,6 +15,8 @@ dirs:
 include/zmq.hpp:
 	mkdir -p include
 	wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+	wget "https://raw.githubusercontent.com/zeromq/libzmq/master/include/zmq.h" -O include/zmq.h
+		
 
 jsoncpp:
 	git clone https://github.com/open-source-parsers/jsoncpp.git
