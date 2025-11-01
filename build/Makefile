@@ -130,8 +130,21 @@ intel-extension:
 
 extension: c++-extension intel-extension
 
-python:
-	cd python-build && (python3 setup.py install --user || python setup.py install --user)
+python-%:
+	@echo "🐍 [Python build] $* ..."
+	@$(MAKE) -C python-build $*
+
+python: python-wheel
+
+# python: ../version ../src/DataImage.cpp ../src_interfaces/python3_interface.cpp
+# 	g++ -E -H $(CFLAGS) $(INC) ../src/DataImage.cpp -o python-build/DataImage.pp.cpp 2> python-build/DataImage_headers.txt
+# 	g++ -E -H $(CFLAGS) $(INC) ../src_interfaces/python3_interface.cpp -o python-build/python3_interface.pp.cpp 2> python-build/python3_interface_headers.txt
+# 	echo "__version__ = \"$$(cat ../version)\"" > python-build/g2s/_version.py;
+# 	cd python-build && (python3 -m build)
+
+# clean-python:
+# 	rm -rf python-build/src python-build/include python-build/src_interfaces python-build/include_interfaces
+# 	rm -rf python-build/build python-build/dist python-build/*.egg-info
 
 python-extension-module: python
 	ln -sf  ../python-build/pyEcho.py c++-build/pyEcho.py

@@ -3,7 +3,7 @@
 void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 	
-	InerfaceTemplateMatlab inerfaceTemplateMatlab;
-	inerfaceTemplateMatlab.runStandardCommunicationMatlab( nlhs, plhs,  nrhs, prhs );
+	InterfaceTemplateMatlab interfaceTemplateMatlab;
+	interfaceTemplateMatlab.runStandardCommunicationMatlab( nlhs, plhs,  nrhs, prhs );
 	mexEvalString("drawnow");
 }

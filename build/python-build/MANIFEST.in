@@ -1,0 +1,12 @@
+include README.md
+include setup.py
+include pyproject.toml
+
+# include C++ sources from parent dirs
+recursive-include src *
+recursive-include src_interfaces *
+recursive-include include *
+recursive-include include_interfaces *
+
+recursive-include libzmq/build/bin/Release *
+recursive-include libzmq/build/lib/Release *

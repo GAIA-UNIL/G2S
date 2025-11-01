@@ -1,109 +1,145 @@
-name: Upload Python Package on PyPI server
+name: Build & Upload G2S to PyPI
 
 on:
   workflow_dispatch:
-  # push:
-  #   paths:
-  #   - 'version'
 
 jobs:
-  deploy:
-    name: Compile for ${{ matrix.OS }} using ${{ matrix.python }} and upload on packages manager
+  build-sdist:
+    name: 📦 Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --upgrade pip build twine
+          cd build
+          make python-sdist
+          cd python-build
+          twine upload --repository pypi dist/*.tar.gz --skip-existing --verbose
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+
+  build-linux:
+    name: 🐧 Linux wheels (manylinux)
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        OS: [ ubuntu-20.04, windows-latest, macOS-latest]
-        python: ['3.7', '3.8', '3.9','3.10','3.11', 'pypy-3.8', 'pypy-3.9' ]
-        arch: [ x64 ]
-        include:
-          - os: ubuntu-20.04
-            python: '3.6'
-            arch: x64
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       fail-fast: false
-    runs-on: ${{ matrix.OS }}
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build inside manylinux
+        run: |
+          PYVER=$(echo ${{ matrix.python }} | tr -d .)
+          PYTAG="cp${PYVER}-cp${PYVER}"
+          echo "🧱 Building for $PYTAG using manylinux_2_28"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install oldest-supported-numpy
-        pip install setuptools wheel twine packaging
+          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+            set -e
+            echo '🐍 Installing build dependencies...'
+            /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine auditwheel
 
-    - name: Install Ubuntu dependencies
-      if : contains( matrix.OS, 'ubuntu' )
-      run: |
-        sudo add-apt-repository 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe'
-        sudo apt update;
-        sudo apt install build-essential libzmq3-dev patchelf
-        sudo apt -y install gcc-7 g++-7
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7
-        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
-        wget 'https://codeload.github.com/open-source-parsers/jsoncpp/zip/master' -O jsoncpp.zip
-        unzip jsoncpp.zip
-        cd jsoncpp-master
-        python amalgamate.py
-        cd ..
-        git clone https://github.com/zeromq/libzmq.git
-        cd libzmq
-        export CFLAGS="-fPIC"
-        export CXXFLAGS="-fPIC"
-        bash ./autogen.sh
-        ./configure --prefix=/tmp/zeromq
-        make -j
-        make install
-        echo "STATIC_ZMQ_PATH=/tmp/zeromq/lib/libzmq.a" >> $GITHUB_ENV
+            echo '🏗️  Building wheel...'
+            cd /io/build
+            make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel
 
-    - name: Install macOS dependencies
-      if : contains( matrix.OS, 'macOS' )
-      run: |
-        brew install zeromq jsoncpp cppzmq
-        echo "STATIC_ZMQ_PATH=$(brew --prefix)/lib/libzmq.a" >> $GITHUB_ENV
+            echo '🧩 Running auditwheel repair...'
+            cd /io/build/python-build/dist
+            auditwheel repair *.whl -w .
+            rm -f *linux_x86_64.whl
 
-    - name: Add msbuild to PATH
-      if : contains( matrix.os, 'windows' )
-      uses: microsoft/setup-msbuild@v1.1
-    - name: Install Windows dependencies
-      if : contains( matrix.OS, 'windows' )
-      run: |
-        cd build/python-build
-        cmd.exe /c setup_Win_compile_all.bat
-    
-    - name: Build on Linux or macOS
-      if: runner.os != 'Windows'
-      run: |
-        cd build/python-build
-        STATIC_ZMQ_PATH=${{ env.STATIC_ZMQ_PATH }} python setup.py --setuptools bdist_wheel
-    - name: Build on Windows
-      if: runner.os == 'Windows'
-      run: |
-        cd build\python-build
-        python setup.py --setuptools bdist_wheel
-  
-    - name: Correct whl for Linux
-      if : contains( matrix.OS, 'ubuntu' )
-      run: |
-        cd build/python-build/dist
-        # pip install auditwheel
-        # auditwheel repair *.whl
-        # for wheel in $(find . -iname "*.whl") ; do unzip -o $wheel; patchelf --clear-symbol-version stat --clear-symbol-version _ZSt28__throw_bad_array_new_lengthv g2s/*.so; zip -u $wheel g2s/*.so; done
-        for wheel in $(find . -iname "*.whl") ; do mv $wheel $(echo $wheel | sed 's/-linux_/-manylinux1_/'); done
-    - name: Correct whl for macOS
-      if : contains( matrix.OS, 'macOS' )
-      run: |
-        cd build/python-build
-        pip install delocate
-        delocate-wheel -v dist/*.whl
-    
-    - name: Publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_Token }}
-      run: |
-        cd build/python-build
-        twine upload dist/*.whl --verbose 
-# --skip-existing
+            echo '✅ Listing final wheels:'
+            ls -lh
+          "
+      - name: Test import
+        run: |
+          pip install build/python-build/dist/*.whl
+          python -c "import g2s; print('✅ g2s import OK')"
+      - name: Upload to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          cd build/python-build
+          python -m pip install --upgrade twine
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
+  build-macos:
+    name: 🍎 macOS wheels
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip build wheel numpy pyzmq twine
+      - name: Build wheel
+        run: |
+          cd build
+          make python-wheel
+      - name: Test import
+        run: |
+          pip install build/python-build/dist/*.whl
+          python -c "import g2s; print('✅ g2s import OK')"
+      - name: Upload to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          cd build/python-build
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
+  build-windows:
+    name: 🪟 Windows wheels
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip build wheel numpy pyzmq twine
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Install Windows dependencies
+        run: |
+          cd build/python-build
+          cmd.exe /c setup_Win_compile_all.bat
+      - name: Build wheel
+        run: |
+          choco install make
+          refreshenv
+          cd build
+          make python-wheel
+      - name: Test import
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem build/python-build/dist/*.whl | Select-Object -First 1
+          Write-Host "Installing wheel: $($wheel.FullName)"
+          pip install "$($wheel.FullName)"
+          python -c "import g2s; print('g2s import OK')"
+      - name: Upload to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          cd build/python-build
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
