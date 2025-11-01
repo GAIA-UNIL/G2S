@@ -22,6 +22,7 @@
 #include "samplingModule.hpp"
 #include "fKst.hpp"
 #include <thread>
+#include <execution>
 
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
@@ -238,9 +239,15 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			
 			maxDpendencePath[indexPath]=maxDependency;
 		}
-		std::sort(adjustedPath, adjustedPath+numberOfPointToSimulate, [&](size_t i1, size_t i2) {
+		
+		std::sort(
+			#ifdef __cpp_lib_execution
+			std::execution::par,
+			#endif
+			 adjustedPath, adjustedPath+numberOfPointToSimulate, [&](size_t i1, size_t i2) {
 			return maxDpendencePath[i1] < maxDpendencePath[i2];
 		});
+		
 		free(maxDpendencePath);
 		maxDpendencePath=nullptr;
 	}
