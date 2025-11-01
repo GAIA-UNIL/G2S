@@ -10,6 +10,24 @@ on:
       - '.github/workflows/pythonPublishTest.yml'
 
 jobs:
+  build-sdist:
+    name: 📦 Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --upgrade pip build twine
+          cd build
+          make python-sdist
+          cd python-build
+          twine upload --repository-url https://test.pypi.org/legacy/ dist/*.tar.gz --skip-existing --verbose
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+
   build-linux:
     name: 🐧 Linux wheels (manylinux)
     runs-on: ubuntu-latest
