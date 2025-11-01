@@ -117,8 +117,11 @@ jobs:
           cd build
           make python-wheel
       - name: Test import
+        shell: pwsh
         run: |
-          pip install build/python-build/dist/*.whl
+          $wheel = Get-ChildItem build/python-build/dist/*.whl | Select-Object -First 1
+          Write-Host "Installing wheel: $($wheel.FullName)"
+          pip install "$($wheel.FullName)"
           python -c "import g2s; print('g2s import OK')"
       - name: Upload to TestPyPI
         env:
