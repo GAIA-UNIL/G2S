@@ -4,7 +4,7 @@
 Rcpp::RObject g2sInterface(Rcpp::List args)
 {
 	
-	InerfaceTemplateR inerfaceTemplateR;
-	return inerfaceTemplateR.runStandardCommunicationR( args );
+	InterfaceTemplateR interfaceTemplateR;
+	return interfaceTemplateR.runStandardCommunicationR( args );
 	
 }
