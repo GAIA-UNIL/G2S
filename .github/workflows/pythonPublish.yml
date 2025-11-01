@@ -4,50 +4,142 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Release wheels on ${{ matrix.os }} / Python ${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-      fail-fast: false
-
+  build-sdist:
+    name: 📦 Source distribution
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --upgrade pip build twine
+          cd build
+          make python-sdist
+          cd python-build
+          twine upload --repository pypi dist/*.tar.gz --skip-existing --verbose
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+  build-linux:
+    name: 🐧 Linux wheels (manylinux)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-
-      - name: Install dependencies
+      - name: Build inside manylinux
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine numpy pyzmq wheel setuptools delocate
+          PYVER=$(echo ${{ matrix.python }} | tr -d .)
+          PYTAG="cp${PYVER}-cp${PYVER}"
+          echo "🧱 Building for $PYTAG using manylinux_2_28"
 
-      # --- Build wheel (Linux uses manylinux container, others native) ---
-      - name: Build wheel
-        run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            echo "🐧 Building inside manylinux_2_28 container..."
-            docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 \
-              bash -c "cd /io/build && make python-wheel"
-          else
-            echo "🧱 Building natively on ${{ runner.os }}..."
-            cd build
-            make python-wheel
-          fi
+          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+            set -e
+            echo '🐍 Installing build dependencies...'
+            /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine auditwheel
 
+            echo '🏗️  Building wheel...'
+            cd /io/build
+            make PYTHON=/opt/python/${PYTAG}/bin/python python-wheel
+
+            echo '🧩 Running auditwheel repair...'
+            cd /io/build/python-build/dist
+            auditwheel repair *.whl -w .
+            rm -f *linux_x86_64.whl
+
+            echo '✅ Listing final wheels:'
+            ls -lh
+          "
       - name: Test import
         run: |
           pip install build/python-build/dist/*.whl
           python -c "import g2s; print('✅ g2s import OK')"
-
-      - name: Upload to PyPI
+      - name: Upload to TestPyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           cd build/python-build
-          twine upload dist/*.whl --skip-existing --verbose
+          python -m pip install --upgrade twine
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
+  build-macos:
+    name: 🍎 macOS wheels
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip build wheel numpy pyzmq twine
+      - name: Build wheel
+        run: |
+          cd build
+          make python-wheel
+      - name: Test import
+        run: |
+          pip install build/python-build/dist/*.whl
+          python -c "import g2s; print('✅ g2s import OK')"
+      - name: Upload to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          cd build/python-build
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
+  build-windows:
+    name: 🪟 Windows wheels
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip build wheel numpy pyzmq twine
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Install Windows dependencies
+        run: |
+          cd build/python-build
+          cmd.exe /c setup_Win_compile_all.bat
+      - name: Build wheel
+        run: |
+          choco install make
+          refreshenv
+          cd build
+          make python-wheel
+      - name: Test import
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem build/python-build/dist/*.whl | Select-Object -First 1
+          Write-Host "Installing wheel: $($wheel.FullName)"
+          pip install "$($wheel.FullName)"
+          python -c "import g2s; print('g2s import OK')"
+      - name: Upload to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          cd build/python-build
+          twine upload --repository pypi dist/*.whl --skip-existing --verbose
+
