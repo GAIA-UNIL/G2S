@@ -330,6 +330,18 @@ public:
                 addInputsToInputsMap(inputs,"-dt",PyArray_CastToType(dt,PyArray_DescrFromType(NPY_FLOAT),0));
             }
         }
+
+        // Remove all entries where value is None
+        for (auto it = inputs.begin(); it != inputs.end(); ) {
+            if (it->second.type() == typeid(PyObject*)) {
+                PyObject* val = std::any_cast<PyObject*>(it->second);
+                if (val == Py_None) {
+                    it = inputs.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+        }
         // fprintf(stderr, "%d\n", inputs.count("-dt"));
         // if(inputs.count("-dt")==1){
         //  fprintf(stderr, "%s\n", inputs.find("-dt")->second.type().name());
