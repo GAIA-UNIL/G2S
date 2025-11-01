@@ -74,7 +74,7 @@ class build_ext(_build_ext):
                 for dll in dlldir.glob("libzmq*.dll"):
                     dest = Path(self.build_lib) / "g2s" / dll.name
                     self.copy_file(dll, dest)
-                    print(f"✅ Copied {dll.name} → {dest}")
+                    print(f"Copied {dll.name} → {dest}")
 
     def build_extensions(self):
         import numpy as np

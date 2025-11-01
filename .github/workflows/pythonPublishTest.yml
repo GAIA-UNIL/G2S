@@ -119,7 +119,7 @@ jobs:
       - name: Test import
         run: |
           pip install build/python-build/dist/*.whl
-          python -c "import g2s; print('✅ g2s import OK')"
+          python -c "import g2s; print('g2s import OK')"
       - name: Upload to TestPyPI
         env:
           TWINE_USERNAME: __token__
