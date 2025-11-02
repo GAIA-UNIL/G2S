@@ -11,58 +11,35 @@ on:
       - '!.github/workflows/ccpp.yml'
 
 jobs:
-  Ubuntu-build:
-    name: Test on  ${{ matrix.ubuntuOS }} on ${{ matrix.python }}
-    runs-on: ${{ matrix.ubuntuOS }}
+  build-test:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        ubuntuOS: [ ubuntu-20.04, ubuntu-latest]
       fail-fast: false
-    steps:
-    - uses: actions/checkout@v1
-    - name: install requested
-      run: |
-          sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev
-          wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
-    - name: make
-      run: |
-        cd build/
-        make c++ -j
-    - name: run unit test
-      run: |
-        ./build/c++-build/test -sampling 1D 2D 3D
-  macOS-build:
-    name: Test on  ${{ matrix.macOS }} on ${{ matrix.python }} using ${{ matrix.packageManager }} as packages manager
-    runs-on: ${{ matrix.macOS }}
-    strategy:
       matrix:
-        macOS: [macOS-latest]
-        packageManager: ['Brew']
-        #'macPort'
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v1
-    - name: install requested macPort
-      if : contains( matrix.packageManager, 'macPort' )
-      run: |
-          curl -O https://distfiles.macports.org/MacPorts/MacPorts-2.6.3.tar.bz2
-          tar xf MacPorts-2.6.3.tar.bz2
-          cd MacPorts-2.6.3/
-          ./configure
-          make -j
-          sudo make install
-          export PATH=$PATH:/opt/local/bin
-          sudo port -v selfupdate
-          sudo port install zmq-devel jsoncpp zlib cppzmq fftw-3 fftw-3-single curl
-    - name: install requested Homebrew
-      if : contains( matrix.packageManager, 'Brew' )
-      run: |
-          brew install zeromq jsoncpp zlib fftw curl cppzmq
-    - name: make
-      run: |
-        cd build/
-        make c++ -j
-    - name: run unit test
-      run: |
-        ./build/c++-build/test -sampling 1D 2D 3D
+        os: [ubuntu-latest, macos-latest]
 
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libomp-dev
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+
+    - name: Install dependencies (macOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew install zeromq jsoncpp zlib fftw cppzmq libomp curl
+        wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O include/zmq.hpp
+
+    - name: Build project
+      run: |
+        cd build/
+        make c++ -j
+
+    - name: Run unit tests
+      run: |
+        ./build/c++-build/test -sampling 1D 2D 3D
