@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![](https://github.com/GAIA-UNIL/G2S//workflows/C/C++%20CI/badge.svg)
-![](https://github.com/GAIA-UNIL/G2S//workflows/Upload%20Python%20Package%20on%20PyPI%20server/badge.svg)
+![](https://github.com/GAIA-UNIL/G2S/actions/workflows/pythonPublish.yml/badge.svg)
 
 
 
