@@ -25,11 +25,21 @@ public:
     ~InterfaceTemplateMatlabModern() { done_ = true; }
 
     void updateDisplay() override {
+        userRequestInteruption();
         if (engine_)
             engine_->eval(u"drawnow");
     }
 
     bool userRequestInteruption() override {
+        try {
+            std::vector<matlab::data::Array> args{ factory_.createScalar(0.0) };
+            engine_->feval(u"pause", 0, args);
+        } catch (const matlab::engine::MATLABException&) {
+            done_.store(true);
+        }
+        // catch (...) {
+        //     done.store(true);
+        // }
         return done_.load();
     }
 
@@ -121,6 +131,7 @@ public:
     }
 
     void sendError(std::string val) override {
+        userRequestInteruption();
         if (engine_) {
             std::vector<matlab::data::Array> args{
                 factory_.createCharArray("g2s:error"),
@@ -131,6 +142,7 @@ public:
     }
 
     void sendWarning(std::string val) override {
+        userRequestInteruption();
         if (engine_) {
             std::vector<matlab::data::Array> args{
                 factory_.createCharArray("g2s:warning"),
@@ -141,6 +153,7 @@ public:
     }
 
     void eraseAndPrint(std::string val) override {
+        userRequestInteruption();
         if (engine_) {
             std::vector<matlab::data::Array> args{ factory_.createCharArray(val) };
             engine_->feval(u"disp", 0, std::move(args));
