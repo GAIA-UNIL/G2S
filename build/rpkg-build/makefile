@@ -58,14 +58,22 @@ $(PKG_DIR)/NAMESPACE: | dirs
 	@echo "✅ Created NAMESPACE"
 
 $(PKG_SRC_DIR)/Makevars: | dirs
-	@printf "PKG_CXXFLAGS = -std=c++17 -I../inst/include -I../inst/include/json\n" > $@
-	@printf "PKG_LIBS = -L/opt/local/lib -lzmq\n" >> $@
+	@printf "PKG_CPPFLAGS = -Wno-deprecated-declarations -DJSON_NO_SYSTEM_INCLUDE\n" > $@
+	@printf "PKG_CXXFLAGS = -std=c++17 -I../inst/include/g2s_json -I../inst/include -I../../include -I../../include_interfaces\n" >> $@
+	@printf "PKG_LIBS = -lzmq\n" >> $@
+	@printf "PKG_LDFLAGS = -Wl,-force_load,$(PKG_SRC_DIR)/jsoncpp.o\n" >> $@
 	@echo "✅ Wrote src/Makevars"
 
 $(PKG_INC_DIR)/zmq.hpp: | dirs
 	@$(CURL) "$(CPPZMQ_HPP_URL)" -o "$(PKG_INC_DIR)/zmq.hpp"
 	@$(CURL) "$(LIBZMQ_H_URL)" -o "$(PKG_INC_DIR)/zmq.h"
 	@echo "✅ Downloaded cppzmq headers"
+
+rcpp_exports:
+	@echo "🔧 Generating Rcpp attribute bindings..."
+	Rscript -e "Rcpp::compileAttributes('$(PKG_DIR)')"
+	@test -f $(PKG_DIR)/src/RcppExports.cpp && echo "✅ RcppExports.cpp generated" || echo "⚠️ No RcppExports.cpp created (check for // [[Rcpp::export]])"
+
 
 copy_headers: | dirs
 	@cp $(HDR_PUBLIC_1) $(PKG_INC_DIR)/
@@ -75,11 +83,19 @@ copy_headers: | dirs
 	@echo "✅ Copied project headers"
 
 jsoncpp:
-	@test -d jsoncpp || $(GIT) clone $(JSONCPP_REPO)
-	@cd jsoncpp && $(PYTHON3) amalgamate.py
-	@cp -R jsoncpp/dist/json "$(PKG_INC_DIR)/json"
-	@cp jsoncpp/dist/jsoncpp.cpp "$(PKG_SRC_DIR)/jsoncpp.cpp"
-	@echo "✅ Added jsoncpp amalgamation"
+	@echo "📦 Fetching and preparing jsoncpp..."
+	rm -rf jsoncpp
+	git clone --depth 1 https://github.com/open-source-parsers/jsoncpp.git
+	cd jsoncpp && python3 amalgamate.py
+	@mkdir -p $(PKG_INC_DIR)/g2s_json
+	@cp -r jsoncpp/dist/json/* $(PKG_INC_DIR)/g2s_json/
+	@cp jsoncpp/dist/jsoncpp.cpp $(PKG_SRC_DIR)/
+	#@sed -i '' 's|"json_tool.h"|"g2s_json/json_tool.h"|' $(PKG_SRC_DIR)/jsoncpp.cpp || true
+	@sed -i '' 's|json/|g2s_json/|' $(PKG_SRC_DIR)/jsoncpp.cpp || true
+	@for f in $(PKG_INC_DIR)/*; do \
+		sed -i '' 's|json/|g2s_json/|g' "$$f"; \
+	done
+	@echo "✅ Added local jsoncpp amalgamation (namespaced as g2s_json)"
 
 # -----------------------------------------------------------------------------
 # Main build sequence
@@ -89,22 +105,22 @@ prep: $(PKG_DIR)/DESCRIPTION $(PKG_DIR)/NAMESPACE dirs copy_headers $(PKG_INC_DI
 	@cp $(R_API_FILE) $(PKG_R_DIR)/
 	@echo "✅ Prepared R package structure under $(PKG_DIR)"
 
-build: prep
+build: prep rcpp_exports
 	@$(R) CMD build $(PKG_DIR)
 	@$(R) CMD INSTALL --build $(PKG_DIR)
 	@echo "✅ Built source and binary package"
 
-source: prep
+source: prep rcpp_exports
 	@$(R) CMD build $(PKG_DIR)
 	@echo "✅ Source tar.gz ready"
 
-binary: prep
+binary: prep rcpp_exports
 	@$(R) CMD INSTALL --build $(PKG_DIR)
 	@echo "✅ Binary .tgz built"
 
 clean:
-	rm -rf $(PKG_DIR)/src $(PKG_DIR)/inst/include jsoncpp $(PKG_DIR)/g2s
+	rm -rf $(PKG_DIR)/src $(PKG_DIR)/inst/include jsoncpp $(PKG_DIR)/g2s $(PKG_DIR)/R
 	rm -f $(PKG_NAME)_*.tar.gz $(PKG_NAME)_*.tgz $(PKG_DIR)/DESCRIPTION $(PKG_DIR)/NAMESPACE
 	@echo "🧹 Cleaned R build"
 
-.PHONY: all dirs prep build source binary clean copy_headers jsoncpp
+.PHONY: all dirs prep build source binary clean copy_headers jsoncpp rcpp_exports
