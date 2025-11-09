@@ -100,7 +100,7 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
+.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
@@ -129,6 +129,17 @@ intel-extension:
 	$(MAKE) -C intel-build extension
 
 extension: c++-extension intel-extension
+
+
+R-%:
+	@echo "📦 [R build] $* ..."
+	@$(MAKE) -C rpkg-build $*
+
+R: r-build
+
+R-test:
+	@$(MAKE) -C R-build build
+	Rscript -e "install.packages('R-build/G2S_0.1.0.tar.gz', repos=NULL, type='source'); library(G2S); source('R-build/test.R')"
 
 python-%:
 	@echo "🐍 [Python build] $* ..."
