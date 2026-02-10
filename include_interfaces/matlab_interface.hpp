@@ -24,6 +24,8 @@
 #include "mexInterrupt.hpp"
 #include "matrix.h"
 #include "interfaceTemplate.hpp"
+#include <functional>
+#include <limits>
 
 #ifndef MATLAB_VERSION
 #define MATLAB_VERSION 0
@@ -154,6 +156,110 @@ public:
 		*(unsigned*)mxGetPr(output)=val;
 		return std::any(output);
 	};
+
+	bool matlabElementToUnsignedString(mxArray const* matrix, size_t linearIndex, std::string &stringValue){
+		switch(mxGetClassID(matrix)){
+			case mxUINT8_CLASS:
+				stringValue=std::to_string(((uint8_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT16_CLASS:
+				stringValue=std::to_string(((uint16_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT32_CLASS:
+				stringValue=std::to_string(((uint32_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT64_CLASS:
+				stringValue=std::to_string(((uint64_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT8_CLASS:
+				if(((int8_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int8_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT16_CLASS:
+				if(((int16_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int16_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT32_CLASS:
+				if(((int32_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int32_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT64_CLASS:
+			{
+				int64_t value=((int64_t*)mxGetData(matrix))[linearIndex];
+				if(value<0) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxDOUBLE_CLASS:
+			{
+				double value=((double*)mxGetData(matrix))[linearIndex];
+				if(!std::isfinite(value) || value<0. || std::floor(value)!=value || value>double(std::numeric_limits<unsigned long long>::max())) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxSINGLE_CLASS:
+			{
+				float value=((float*)mxGetData(matrix))[linearIndex];
+				if(!std::isfinite(value) || value<0.f || std::floor(value)!=value || value>float(std::numeric_limits<unsigned long long>::max())) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxLOGICAL_CLASS:
+			{
+				stringValue=(((mxLogical*)mxGetData(matrix))[linearIndex] ? "1" : "0");
+				return true;
+			}
+			default:
+				return false;
+		}
+	}
+
+	bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue) override{
+		mxArray const* prh=std::any_cast<mxArray const*>(matrix);
+		if(!mxIsNumeric(prh) && !mxIsLogical(prh)){
+			return false;
+		}
+
+		mwSize nbDim=mxGetNumberOfDimensions(prh);
+		const mwSize *dims=mxGetDimensions(prh);
+		std::vector<size_t> strides(nbDim,1);
+		for (mwSize i = 1; i < nbDim; ++i)
+		{
+			strides[i]=strides[i-1]*dims[i-1];
+		}
+
+		bool isValid=true;
+		std::function<Json::Value(mwSize,size_t)> buildJson=[&](mwSize dim, size_t offset)->Json::Value{
+			Json::Value values(Json::arrayValue);
+			if(dim==nbDim-1){
+				for (mwSize i = 0; i < dims[dim]; ++i)
+				{
+					std::string stringValue;
+					if(!matlabElementToUnsignedString(prh,offset+i*strides[dim],stringValue)){
+						isValid=false;
+						return Json::Value();
+					}
+					values.append(stringValue);
+				}
+				return values;
+			}
+			for (mwSize i = 0; i < dims[dim]; ++i)
+			{
+				values.append(buildJson(dim+1, offset+i*strides[dim]));
+				if(!isValid) return Json::Value();
+			}
+			return values;
+		};
+
+		Json::Value root=buildJson(0,0);
+		if(!isValid) return false;
+
+		Json::StreamWriterBuilder builder;
+		builder["commentStyle"] = "None";
+		builder["indentation"] = "";
+		jsonValue=Json::writeString(builder, root);
+		return true;
+	}
 
 	void sendError(std::string val){
 		mexErrMsgIdAndTxt("g2s:error", val.c_str());

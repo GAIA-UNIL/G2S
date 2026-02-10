@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <functional>
 
 /* ------------------------------------------------------------------
  * NumPy ≥ 2.0 compatibility wrappers (strict PyArrayObject typing)
@@ -116,6 +117,82 @@ public:
 
     std::any Uint32ToNative(unsigned val) override {
         return std::any(PyLong_FromUnsignedLong(val));
+    }
+
+    bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue) override{
+        PyObject* source=std::any_cast<PyObject*>(matrix);
+        PyObject* contiguous=PyArray_ContiguousFromAny(source, NPY_NOTYPE, 1, NPY_MAXDIMS);
+        if(!contiguous){
+            PyErr_Clear();
+            return false;
+        }
+
+        bool ok=true;
+        auto getStringValue=[&](const char* ptr, std::string &out){
+            PyObject* item=PyArray_GETITEM_SAFE(contiguous, ptr);
+            if(!item){ok=false; return;}
+
+            // Prefer exact integer conversion when possible.
+            PyObject* asIndex=PyNumber_Index(item);
+            if(asIndex){
+                unsigned long long value=PyLong_AsUnsignedLongLong(asIndex);
+                Py_DECREF(asIndex);
+                Py_DECREF(item);
+                if(PyErr_Occurred()){ok=false; PyErr_Clear(); return;}
+                out=std::to_string(value);
+                return;
+            }
+            PyErr_Clear();
+
+            // Accept finite non-negative integer-like floats.
+            PyObject* asFloat=PyNumber_Float(item);
+            Py_DECREF(item);
+            if(!asFloat){ok=false; PyErr_Clear(); return;}
+            double value=PyFloat_AsDouble(asFloat);
+            Py_DECREF(asFloat);
+            if(PyErr_Occurred()){ok=false; PyErr_Clear(); return;}
+            if(!std::isfinite(value) || value<0. || std::floor(value)!=value){
+                ok=false;
+                return;
+            }
+            out=std::to_string((unsigned long long)value);
+        };
+
+        char* basePtr=PyArray_BYTES_SAFE(contiguous);
+        int nbDim=PyArray_NDIM_SAFE(contiguous);
+        npy_intp *dims=PyArray_DIMS_SAFE(contiguous);
+        npy_intp *strides=PyArray_STRIDES_SAFE(contiguous);
+
+        std::function<Json::Value(int, char*)> buildJson=[&](int dim, char* ptr)->Json::Value{
+            Json::Value values(Json::arrayValue);
+            if(dim==nbDim-1){
+                for (npy_intp i = 0; i < dims[dim]; ++i)
+                {
+                    std::string stringValue;
+                    getStringValue(ptr+i*strides[dim], stringValue);
+                    if(!ok) return Json::Value();
+                    values.append(stringValue);
+                }
+                return values;
+            }
+            for (npy_intp i = 0; i < dims[dim]; ++i)
+            {
+                values.append(buildJson(dim+1, ptr+i*strides[dim]));
+                if(!ok) return Json::Value();
+            }
+            return values;
+        };
+
+        Json::Value root=buildJson(0, basePtr);
+        Py_DECREF(contiguous);
+        if(!ok){
+            return false;
+        }
+        Json::StreamWriterBuilder builder;
+        builder["commentStyle"] = "None";
+        builder["indentation"] = "";
+        jsonValue=Json::writeString(builder, root);
+        return true;
     }
 
 

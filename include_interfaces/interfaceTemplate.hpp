@@ -64,6 +64,7 @@ public:
 	virtual void sendError(std::string val)=0;
 	virtual void sendWarning(std::string val)=0;
 	virtual void eraseAndPrint(std::string val)=0;
+	virtual bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue){return false;}
 
 	std::string toString(std::any val){
 		if(val.type()==typeid(nullptr))
@@ -78,6 +79,32 @@ public:
 
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
+
+	void normalizeJobGridParameter(std::multimap<std::string, std::any> &input){
+		auto convertKey=[&](const std::string &key){
+			std::vector<std::any> values;
+			for (auto it=input.equal_range(key).first; it!=input.equal_range(key).second; ++it)
+			{
+				values.push_back(it->second);
+			}
+			input.erase(key);
+			for (size_t i = 0; i < values.size(); ++i)
+			{
+				if(isDataMatrix(values[i])){
+					std::string jsonValue;
+					if(!encodeJobGridMatrixToJsonString(values[i],jsonValue)){
+						sendError("failed to encode -job_grid matrix into JSON");
+					}
+					input.insert(std::pair<std::string,std::any>("-job_grid_json",jsonValue));
+				}else{
+					input.insert(std::pair<std::string,std::any>("-job_grid_json",values[i]));
+				}
+			}
+		};
+
+		if(input.count("-job_grid")>0) convertKey("-job_grid");
+		if(input.count("-jg")>0) convertKey("-jg");
+	}
 
 		//to improuve
 	std::string uploadData(zmq::socket_t &socket, std::any matrix, std::any dataTypeVariable=nullptr){
@@ -200,6 +227,7 @@ public:
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
 
 		std::atomic<bool> done(false);
+		normalizeJobGridParameter(input); // convert -jg in json version
 
 		jobIdType id=0;
 		bool stop=false;
