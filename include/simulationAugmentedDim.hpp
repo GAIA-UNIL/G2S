@@ -22,6 +22,7 @@
 #include "samplingModule.hpp"
 #include "quantileSamplingModule.hpp"
 #include "fKst.hpp"
+#include "pathIndexType.hpp"
 #include <thread>
 
 unsigned nChoosek( unsigned n, unsigned k )
@@ -40,7 +41,7 @@ unsigned nChoosek( unsigned n, unsigned k )
 
 
 void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, QuantileSamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 	
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
@@ -88,7 +89,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		#if _OPENMP
 			moduleID=omp_get_thread_num();
 		#endif
-		unsigned currentCell=solvingPath[indexPath];
+		g2s_path_index_t currentCell=solvingPath[indexPath];
 		float localSeed=seedAray[indexPath];
 
 		bool withDataInCenter=false;

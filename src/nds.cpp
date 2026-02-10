@@ -23,6 +23,7 @@
 
 
 #include "utils.hpp"
+#include "pathIndexType.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
 
@@ -742,8 +743,23 @@ int main(int argc, char const *argv[]) {
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	narrowPathSimulation(reportFile, DI, NI, TIs, kernel, QSM, pathPosition, (unsigned*)simulationPath._data,
+	g2s_path_index_t* solvingPath=nullptr;
+	if (sizeof(g2s_path_index_t) <= sizeof(float)) {
+		solvingPath=reinterpret_cast<g2s_path_index_t*>(simulationPath._data);
+	} else {
+		solvingPath=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*simulationPath.dataSize());
+	}
+
+	narrowPathSimulation(reportFile, DI, NI, TIs, kernel, QSM, pathPosition, solvingPath,
 		seedForIndex, importDataIndex, chunkSize, updateRadius,maxProgression, nbThreads);
+
+	if (sizeof(g2s_path_index_t) > sizeof(float)) {
+		for (unsigned int i = 0; i < simulationPath.dataSize(); ++i)
+		{
+			simulationPath._data[i]=static_cast<float>(solvingPath[i]);
+		}
+		free(solvingPath);
+	}
 	auto end = std::chrono::high_resolution_clock::now();
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);

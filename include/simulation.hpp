@@ -21,11 +21,13 @@
 #include "computeDeviceModule.hpp"
 #include "samplingModule.hpp"
 #include "fKst.hpp"
+#include "pathIndexType.hpp"
 #include <thread>
+#include <limits>
 
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false){
 
 
@@ -79,7 +81,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
 
-		unsigned currentCell=solvingPath[indexPath];
+		g2s_path_index_t currentCell=solvingPath[indexPath];
 		float localSeed=seedAray[indexPath];
 
 		bool withDataInCenter=false;
@@ -407,7 +409,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 }
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 	
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -452,7 +454,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
 
-		unsigned currentCell=solvingPath[indexPath];
+		g2s_path_index_t currentCell=solvingPath[indexPath];
 		if(!std::isnan(di._data[currentCell]) && !forceSimulation) continue;
 		float localSeed=seedAray[indexPath];
 
@@ -670,13 +672,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 }
 
 void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, std::vector<g2s::DataImage> &TIs, g2s::DataImage &kernel, SamplingModule &samplingModule,
- std::vector<std::vector<int> > &pathPosition, unsigned* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
+ std::vector<std::vector<int> > &pathPosition, g2s_path_index_t* solvingPath, float* seedAray, unsigned* importDataIndex, unsigned chunkSize, unsigned maxUpdate,
    float maxProgression=1.f, unsigned nbThreads=1){
 
 	SamplingModule::matchLocation* candidates=(SamplingModule::matchLocation*) malloc( sizeof(SamplingModule::matchLocation) * ni.dataSize()/ni._nbVariable);
 	float* narrownessArray=(float*) malloc( sizeof(float) * ni.dataSize()/ni._nbVariable);
 	std::fill(narrownessArray,narrownessArray+ni.dataSize()/ni._nbVariable-1,std::nanf("0"));
-	std::fill(solvingPath,solvingPath+di.dataSize()/di._nbVariable-1,UINT_MAX);
+	std::fill(solvingPath,solvingPath+di.dataSize()/di._nbVariable-1,std::numeric_limits<g2s_path_index_t>::max());
 
 	std::vector<unsigned> placeToUpdate;
 	placeToUpdate.reserve(di.dataSize()/di._nbVariable);
@@ -707,7 +709,7 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
-	unsigned solvingPathIndex=0;
+	g2s_path_index_t solvingPathIndex=0;
 	while((sizeSimulation>0) && ((float(sizeSimulation)/fullSize)>(1.f-maxProgression))){
 	
 		//unsigned bunchSize=ceil(std::min(indicationSize,unsigned(placeToUpdate.size()))/float(nbThreads));

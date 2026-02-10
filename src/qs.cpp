@@ -24,6 +24,7 @@
 #include <atomic>
 
 #include "utils.hpp"
+#include "pathIndexType.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
 
@@ -752,7 +753,7 @@ int main(int argc, char const *argv[]) {
 	fprintf(stderr, "\n\n" );*/
 
 	unsigned simulationPathSize=0;
-	unsigned* simulationPathIndex=nullptr;
+	g2s_path_index_t* simulationPathIndex=nullptr;
 	unsigned beginPath=0;
 	bool fullSimulation=false;
 
@@ -766,7 +767,7 @@ int main(int argc, char const *argv[]) {
 			simulationPathSize=DI.dataSize()/DI._nbVariable;
 			fullSimulation=false;
 		}
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		simulationPathIndex=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*simulationPathSize);
 		for (unsigned i = 0; i < simulationPathSize; ++i)
 		{
 			simulationPathIndex[i]=i;
@@ -819,11 +820,11 @@ int main(int argc, char const *argv[]) {
 			return 0;
 		}
 
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		simulationPathIndex=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*simulationPathSize);
 		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
 		float* simulationPathData=simulationPath._data;
 		std::sort(simulationPathIndex, simulationPathIndex+simulationPathSize,
-			[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
+			[simulationPathData](g2s_path_index_t i1, g2s_path_index_t i2) {return simulationPathData[i1] < simulationPathData[i2];});
 
 		//Search begin path
 		for ( beginPath=0 ; beginPath < simulationPathSize; ++beginPath)
