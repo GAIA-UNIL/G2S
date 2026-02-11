@@ -43,7 +43,7 @@ endif
 
 .PHONY: all depend algoNames extension clean
 
-all: g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs $(WITH_CUDA)
+all: algoNames g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -88,6 +88,8 @@ libg2s.a: DataImage.o
 
 algoNames:
 	ln -sf ../algosName.config algosName.config
+	ln -sf ../qs_prepare.sh qs_prepare
+	ln -sf ../qs_decentralized.py qs_decentralized
 
 extension:libg2s.a algoNames
 	$(MAKE) -C ../extension clean
