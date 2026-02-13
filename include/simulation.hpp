@@ -25,10 +25,36 @@
 #include <thread>
 #include <limits>
 
+#ifdef G2S_QS_DISTRIBUTED
+struct QSDistributedIndexAdapter {
+	g2s_path_index_t (*origToPadded)(g2s_path_index_t index, void* userData);
+	g2s_path_index_t (*paddedToOrig)(g2s_path_index_t index, void* userData);
+	void* userData;
+};
+
+inline g2s_path_index_t mapOriginalToPadded(g2s_path_index_t index, const QSDistributedIndexAdapter* adapter){
+	if(adapter && adapter->origToPadded){
+		return adapter->origToPadded(index, adapter->userData);
+	}
+	return index;
+}
+
+inline g2s_path_index_t mapPaddedToOriginal(g2s_path_index_t index, const QSDistributedIndexAdapter* adapter){
+	if(adapter && adapter->paddedToOrig){
+		return adapter->paddedToOrig(index, adapter->userData);
+	}
+	return index;
+}
+#endif
+
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false
+#ifdef G2S_QS_DISTRIBUTED
+  , const QSDistributedIndexAdapter* indexAdapter=nullptr
+#endif
+  ){
 
 
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
@@ -46,7 +72,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 	for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
 	{
+#ifdef G2S_QS_DISTRIBUTED
+		g2s_path_index_t paddedIndex=mapOriginalToPadded(solvingPath[i], indexAdapter);
+		posterioryPath[paddedIndex]=i;
+#else
 		posterioryPath[solvingPath[i]]=i;
+#endif
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
@@ -82,6 +113,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
 
 		g2s_path_index_t currentCell=solvingPath[indexPath];
+#ifdef G2S_QS_DISTRIBUTED
+		currentCell=mapOriginalToPadded(currentCell, indexAdapter);
+#endif
 		float localSeed=seedAray[indexPath];
 
 		bool withDataInCenter=false;
@@ -410,7 +444,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false
+#ifdef G2S_QS_DISTRIBUTED
+  , const QSDistributedIndexAdapter* indexAdapter=nullptr
+#endif
+  ){
 	
 	int displayRatio=std::max(numberOfPointToSimulate/100,1u);
 	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
@@ -427,7 +465,12 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	}
 	for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
 	{
+#ifdef G2S_QS_DISTRIBUTED
+		g2s_path_index_t paddedIndex=mapOriginalToPadded(solvingPath[i], indexAdapter);
+		posterioryPath[paddedIndex]=i;
+#else
 		posterioryPath[solvingPath[i]]=i;
+#endif
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
@@ -455,6 +498,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
 
 		g2s_path_index_t currentCell=solvingPath[indexPath];
+#ifdef G2S_QS_DISTRIBUTED
+		currentCell=mapOriginalToPadded(currentCell, indexAdapter);
+#endif
 		if(!std::isnan(di._data[currentCell]) && !forceSimulation) continue;
 		float localSeed=seedAray[indexPath];
 

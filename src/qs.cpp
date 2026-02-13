@@ -19,6 +19,9 @@
 #include <cmath>
 #include <random>
 #include <algorithm>
+#include <limits>
+#include <memory>
+#include <cstdlib>
 
 #include <thread>
 #include <atomic>
@@ -45,6 +48,9 @@
 #include "simulation.hpp"
 #include "simulationAugmentedDim.hpp"
 #include "quantileSamplingModule.hpp"
+#ifdef G2S_QS_DISTRIBUTED
+#include <json/json.h>
+#endif
 
 enum simType
 {
@@ -52,6 +58,136 @@ enum simType
 	fullSim,
 	augmentedDimSim
 };
+
+#ifdef G2S_QS_DISTRIBUTED
+namespace {
+struct DistributedGridContext {
+	std::vector<unsigned> originalDims;
+	std::vector<unsigned> paddedDims;
+	std::vector<unsigned> halfKernel;
+};
+
+static std::vector<unsigned> indexToCoord(g2s_path_index_t index, const std::vector<unsigned>& dims){
+	std::vector<unsigned> coord(dims.size(), 0);
+	for (size_t i = 0; i < dims.size(); ++i){
+		coord[i]=index%dims[i];
+		index/=dims[i];
+	}
+	return coord;
+}
+
+static g2s_path_index_t coordToIndex(const std::vector<unsigned>& coord, const std::vector<unsigned>& dims){
+	g2s_path_index_t index=0;
+	for (int i = int(std::min(coord.size(), dims.size()))-1; i >=0 ; --i){
+		index*=dims[i];
+		index+=coord[i];
+	}
+	return index;
+}
+
+static g2s_path_index_t distributedOrigToPadded(g2s_path_index_t origIndex, void* userData){
+	DistributedGridContext* ctx=static_cast<DistributedGridContext*>(userData);
+	std::vector<unsigned> coord=indexToCoord(origIndex, ctx->originalDims);
+	for (size_t d = 0; d < coord.size(); ++d){
+		coord[d]+=ctx->halfKernel[d];
+	}
+	return coordToIndex(coord, ctx->paddedDims);
+}
+
+static g2s_path_index_t distributedPaddedToOrig(g2s_path_index_t paddedIndex, void* userData){
+	DistributedGridContext* ctx=static_cast<DistributedGridContext*>(userData);
+	std::vector<unsigned> coord=indexToCoord(paddedIndex, ctx->paddedDims);
+	for (size_t d = 0; d < coord.size(); ++d){
+		if(coord[d] < ctx->halfKernel[d]){
+			return std::numeric_limits<g2s_path_index_t>::max();
+		}
+		coord[d]-=ctx->halfKernel[d];
+		if(coord[d] >= ctx->originalDims[d]){
+			return std::numeric_limits<g2s_path_index_t>::max();
+		}
+	}
+	return coordToIndex(coord, ctx->originalDims);
+}
+
+static void collectLeafJobIds(const Json::Value& node, std::vector<std::string>& out){
+	if(node.isArray()){
+		for (Json::ArrayIndex i = 0; i < node.size(); ++i){
+			collectLeafJobIds(node[i], out);
+		}
+		return;
+	}
+	if(node.isString()){
+		out.push_back(node.asString());
+		return;
+	}
+	if(node.isUInt64()){
+		out.push_back(std::to_string(node.asUInt64()));
+		return;
+	}
+	if(node.isInt64()){
+		out.push_back(std::to_string(node.asInt64()));
+		return;
+	}
+}
+
+static bool parseJsonArray(const std::string& raw, Json::Value& root){
+	if(raw.empty()){
+		return false;
+	}
+	Json::CharReaderBuilder builder;
+	builder["collectComments"]=false;
+	std::string errors;
+	std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+	const char* begin=raw.c_str();
+	const char* end=begin+raw.size();
+	return reader->parse(begin, end, &root, &errors) && root.isArray();
+}
+
+static g2s::DataImage createPaddedImage(const g2s::DataImage& src, const std::vector<unsigned>& halfKernel){
+	std::vector<unsigned> paddedDims(src._dims);
+	for (size_t d = 0; d < paddedDims.size(); ++d){
+		paddedDims[d]+=2*halfKernel[d];
+	}
+
+	g2s::DataImage padded(paddedDims.size(), paddedDims.data(), src._nbVariable);
+	padded._types=src._types;
+	padded._encodingType=src._encodingType;
+	std::fill(padded._data, padded._data+padded.dataSize(), std::nanf("0"));
+
+	g2s_path_index_t cellCount=1;
+	for (size_t d = 0; d < src._dims.size(); ++d){
+		cellCount*=src._dims[d];
+	}
+	for (g2s_path_index_t srcCell = 0; srcCell < cellCount; ++srcCell){
+		std::vector<unsigned> coord=indexToCoord(srcCell, src._dims);
+		for (size_t d = 0; d < coord.size(); ++d){
+			coord[d]+=halfKernel[d];
+		}
+		g2s_path_index_t dstCell=coordToIndex(coord, paddedDims);
+		memcpy(padded._data+dstCell*src._nbVariable, src._data+srcCell*src._nbVariable, sizeof(float)*src._nbVariable);
+	}
+	return padded;
+}
+
+static g2s::DataImage cropPaddedImage(const g2s::DataImage& padded, const std::vector<unsigned>& originalDims, const std::vector<unsigned>& halfKernel){
+	std::vector<unsigned> mutableDims(originalDims);
+	g2s::DataImage cropped(mutableDims.size(), mutableDims.data(), padded._nbVariable);
+	cropped._types=padded._types;
+	cropped._encodingType=padded._encodingType;
+
+	const g2s_path_index_t cellCount=cropped.dataSize()/cropped._nbVariable;
+	for (g2s_path_index_t dstCell = 0; dstCell < cellCount; ++dstCell){
+		std::vector<unsigned> coord=indexToCoord(dstCell, originalDims);
+		for (size_t d = 0; d < coord.size(); ++d){
+			coord[d]+=halfKernel[d];
+		}
+		g2s_path_index_t srcCell=coordToIndex(coord, padded._dims);
+		memcpy(cropped._data+dstCell*cropped._nbVariable, padded._data+srcCell*padded._nbVariable, sizeof(float)*cropped._nbVariable);
+	}
+	return cropped;
+}
+}
+#endif
 
 
 void printHelp(){
@@ -72,6 +208,8 @@ int main(int argc, char const *argv[]) {
 	std::string numberOfNeigboursFileName;
 	std::string kernelIndexImageFileName;
 	std::string kValueImageFileName;
+	std::string jobGridJson;
+	std::string endpointGridJson;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -79,6 +217,11 @@ int main(int argc, char const *argv[]) {
 
 	jobIdType uniqueID=-1;
 	bool run=true;
+#ifdef G2S_QS_DISTRIBUTED
+	bool distributedModeActive=false;
+	DistributedGridContext distributedGridContext;
+	QSDistributedIndexAdapter distributedIndexAdapter={nullptr,nullptr,nullptr};
+#endif
 
 
 	// manage report file
@@ -295,6 +438,38 @@ int main(int argc, char const *argv[]) {
 		kValueImageFileName=arg.find("-kvi")->second;
 	}
 	arg.erase("-kvi");
+
+	// look for -job_grid_json / -jg : decentralized job grid json
+	if (arg.count("-jg") == 1)
+	{
+		jobGridJson=arg.find("-jg")->second;
+	}
+	if (arg.count("-job_grid_json") == 1)
+	{
+		jobGridJson=arg.find("-job_grid_json")->second;
+	}
+	arg.erase("-job_grid_json");
+	arg.erase("-jg");
+
+	// look for -eg / -endpoint_grid_json : endpoint grid json
+	if (arg.count("-eg") == 1)
+	{
+		endpointGridJson=arg.find("-eg")->second;
+	}
+	if (arg.count("-endpoint_grid_json") == 1)
+	{
+		endpointGridJson=arg.find("-endpoint_grid_json")->second;
+	}
+	arg.erase("-eg");
+	arg.erase("-endpoint_grid_json");
+#ifdef G2S_QS_DISTRIBUTED
+	if(!jobGridJson.empty()){
+		fprintf(stderr, "debug -job_grid_json: %s\n", jobGridJson.c_str());
+	}
+	if(!endpointGridJson.empty()){
+		fprintf(stderr, "debug -endpoint_grid_json: %s\n", endpointGridJson.c_str());
+	}
+#endif
 
 
 
@@ -886,6 +1061,72 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+#ifdef G2S_QS_DISTRIBUTED
+	if(!jobGridJson.empty() && !augmentedDimentionSimulation){
+		Json::Value jobGridRoot;
+		if(!parseJsonArray(jobGridJson, jobGridRoot)){
+			fprintf(reportFile, "error - invalid -job_grid_json\n");
+			run=false;
+		}else{
+			std::vector<std::string> flatJobIds;
+			collectLeafJobIds(jobGridRoot, flatJobIds);
+			std::string localJobId=std::to_string(uniqueID);
+			long long localJobIdSigned=static_cast<long long>(uniqueID);
+			int ownFlatIndex=-1;
+			for (size_t i = 0; i < flatJobIds.size(); ++i){
+				if(flatJobIds[i]==localJobId){
+					ownFlatIndex=int(i);
+					break;
+				}
+				char* endPtr=nullptr;
+				long long parsed=std::strtoll(flatJobIds[i].c_str(), &endPtr, 10);
+				if(endPtr && *endPtr=='\0' && parsed==localJobIdSigned){
+					ownFlatIndex=int(i);
+					break;
+				}
+			}
+
+			if(ownFlatIndex<0){
+				fprintf(reportFile, "error - local job id %s not found in -job_grid_json\n", localJobId.c_str());
+				run=false;
+			}else{
+				distributedGridContext.originalDims=DI._dims;
+				distributedGridContext.halfKernel.assign(DI._dims.size(),0u);
+				for (const auto& kernel : kernels){
+					for (size_t d = 0; d < std::min(kernel._dims.size(), distributedGridContext.halfKernel.size()); ++d){
+						distributedGridContext.halfKernel[d]=std::max(distributedGridContext.halfKernel[d], kernel._dims[d]/2);
+					}
+				}
+
+				distributedGridContext.paddedDims=distributedGridContext.originalDims;
+				for (size_t d = 0; d < distributedGridContext.paddedDims.size(); ++d){
+					distributedGridContext.paddedDims[d]+=2*distributedGridContext.halfKernel[d];
+				}
+
+				distributedModeActive=true;
+				distributedIndexAdapter.origToPadded=&distributedOrigToPadded;
+				distributedIndexAdapter.paddedToOrig=&distributedPaddedToOrig;
+				distributedIndexAdapter.userData=&distributedGridContext;
+
+				fprintf(reportFile, "distributed qs: jobs=%zu local_flat_index=%d\n", flatJobIds.size(), ownFlatIndex);
+
+				DI=createPaddedImage(DI, distributedGridContext.halfKernel);
+				id=createPaddedImage(id, distributedGridContext.halfKernel);
+				if(!idImage.isEmpty()) idImage=createPaddedImage(idImage, distributedGridContext.halfKernel);
+				if(!numberOfNeigboursImage.isEmpty()) numberOfNeigboursImage=createPaddedImage(numberOfNeigboursImage, distributedGridContext.halfKernel);
+				if(!kernelIndexImage.isEmpty()) kernelIndexImage=createPaddedImage(kernelIndexImage, distributedGridContext.halfKernel);
+				if(!kValueImage.isEmpty()) kValueImage=createPaddedImage(kValueImage, distributedGridContext.halfKernel);
+			}
+		}
+	}
+	if(!jobGridJson.empty() && augmentedDimentionSimulation){
+		fprintf(reportFile, "warning - distributed mode disabled for augmented dimension simulation\n");
+		distributedModeActive=false;
+	}
+#endif
+	if(!run){
+		return 0;
+	}
 
 
 	// init QS
@@ -1094,12 +1335,20 @@ int main(int argc, char const *argv[]) {
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation
+#ifdef G2S_QS_DISTRIBUTED
+			, nullptr
+#endif
+		);
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK
+#ifdef G2S_QS_DISTRIBUTED
+			, (distributedModeActive ? &distributedIndexAdapter : nullptr)
+#endif
+		);
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimention sim");
@@ -1132,6 +1381,13 @@ int main(int argc, char const *argv[]) {
 	}
 
 	delete[] computeDeviceModuleArray;
+
+#ifdef G2S_QS_DISTRIBUTED
+	if(distributedModeActive){
+		DI=cropPaddedImage(DI, distributedGridContext.originalDims, distributedGridContext.halfKernel);
+		id=cropPaddedImage(id, distributedGridContext.originalDims, distributedGridContext.halfKernel);
+	}
+#endif
 
 	// to remove later
 	id.write(outputIndexFilename);
