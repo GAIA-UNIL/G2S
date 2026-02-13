@@ -10,12 +10,19 @@ ifdef G2S_PATH_INDEX_TYPE
 	export CFLAGS+= -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE)
 	export CXXFLAGS+= -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE)
 endif
+ifdef G2S_QS_DISTRIBUTED
+	export CFLAGS+= -DG2S_QS_DISTRIBUTED
+	export CXXFLAGS+= -DG2S_QS_DISTRIBUTED
+endif
 export INC=-I$(BUILD_DIR)/../include
 ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 endif
 export LDFLAGS=-lz -lpthread
-export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ljsoncpp -ldl
+export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl
+ifdef G2S_QS_DISTRIBUTED
+	export LDFLAGS_NO_SERVER_ONLY+= -ljsoncpp -lzmq
+endif
 export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs

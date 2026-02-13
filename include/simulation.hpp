@@ -32,6 +32,11 @@ struct QSDistributedIndexAdapter {
 	void* userData;
 };
 
+struct QSDistributedRuntimeHooks {
+	void (*onCellSimulated)(g2s_path_index_t cellIndex, g2s_path_index_t pathRank, const float* values, unsigned nbVariable, void* userData);
+	void* userData;
+};
+
 inline g2s_path_index_t mapOriginalToPadded(g2s_path_index_t index, const QSDistributedIndexAdapter* adapter){
 	if(adapter && adapter->origToPadded){
 		return adapter->origToPadded(index, adapter->userData);
@@ -52,7 +57,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false
 #ifdef G2S_QS_DISTRIBUTED
-  , const QSDistributedIndexAdapter* indexAdapter=nullptr
+  , const QSDistributedIndexAdapter* indexAdapter=nullptr, const QSDistributedRuntimeHooks* runtimeHooks=nullptr
 #endif
   ){
 
@@ -92,8 +97,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
+#ifdef G2S_QS_DISTRIBUTED
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,indexAdapter,runtimeHooks, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+#else
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+#endif
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -188,7 +198,17 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 					if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 					{
 						//add for
-						if(posterioryPath[dataIndex]<=indexPath){
+						bool canUseNeighbour=(posterioryPath[dataIndex]<=indexPath);
+#ifdef G2S_QS_DISTRIBUTED
+						if(!canUseNeighbour){
+							canUseNeighbour=true;
+							for (unsigned int i = 0; i < di._nbVariable; ++i)
+							{
+								canUseNeighbour&=!std::isnan(di._data[dataIndex*di._nbVariable+i]);
+							}
+						}
+#endif
+						if(canUseNeighbour){
 							numberOfNeigboursforThisKernel+=1;
 							unsigned cpt=0;
 							for (unsigned int i = 0; i < di._nbVariable; ++i)
@@ -247,7 +267,17 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 				{
 					//add for
-					if(posterioryPath[dataIndex]<=indexPath){
+						bool canUseNeighbour=(posterioryPath[dataIndex]<=indexPath);
+#ifdef G2S_QS_DISTRIBUTED
+						if(!canUseNeighbour){
+							canUseNeighbour=true;
+							for (unsigned int i = 0; i < di._nbVariable; ++i)
+							{
+								canUseNeighbour&=!std::isnan(di._data[dataIndex*di._nbVariable+i]);
+							}
+						}
+#endif
+						if(canUseNeighbour){
 						unsigned numberOfNaN=0;
 						float val;
 						while(true) {
@@ -429,6 +459,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 			}
 		}
+#ifdef G2S_QS_DISTRIBUTED
+		if(runtimeHooks && runtimeHooks->onCellSimulated){
+			runtimeHooks->onCellSimulated(currentCell, indexPath, di._data+currentCell*di._nbVariable, di._nbVariable, runtimeHooks->userData);
+		}
+#endif
 		if(indexPath%(displayRatio)==0)
 			fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
@@ -446,7 +481,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false
 #ifdef G2S_QS_DISTRIBUTED
-  , const QSDistributedIndexAdapter* indexAdapter=nullptr
+  , const QSDistributedIndexAdapter* indexAdapter=nullptr, const QSDistributedRuntimeHooks* runtimeHooks=nullptr
 #endif
   ){
 	
@@ -485,8 +520,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
+#ifdef G2S_QS_DISTRIBUTED
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate,indexAdapter,runtimeHooks, \
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+#else
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+#endif
 	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -552,7 +592,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 					bool needToBeadd=false;
 					for (unsigned int i = 0; i < di._nbVariable; ++i)
 					{
-						needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) ;
+						bool isAvailable=(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
+#ifdef G2S_QS_DISTRIBUTED
+						if(!isAvailable){
+							isAvailable=!std::isnan(di._data[dataIndex*di._nbVariable+i]);
+						}
+#endif
+						needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&isAvailable;
 					}
 					//add for
 					if(needToBeadd){
@@ -564,7 +610,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
-								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) && std::isnan(val);
+								bool isAvailable=(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
+#ifdef G2S_QS_DISTRIBUTED
+								if(!isAvailable){
+									isAvailable=!std::isnan(val);
+								}
+#endif
+								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&isAvailable&&std::isnan(val);
 							}
 							if(numberOfNaN==0)break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
@@ -574,7 +626,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 						unsigned cpt=0;
 						for (unsigned int i = 0; i < di._nbVariable; ++i)
 						{
-							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath))
+							bool isAvailable=(posterioryPath[dataIndex*di._nbVariable+i]<indexPath);
+#ifdef G2S_QS_DISTRIBUTED
+							if(!isAvailable){
+								isAvailable=!std::isnan(di._data[dataIndex*di._nbVariable+i]);
+							}
+#endif
+							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&isAvailable)
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
@@ -706,6 +764,11 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			#pragma omp atomic write
 			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];
 		}
+#ifdef G2S_QS_DISTRIBUTED
+		if(runtimeHooks && runtimeHooks->onCellSimulated){
+			runtimeHooks->onCellSimulated(currentPosition, indexPath, di._data+currentPosition*di._nbVariable, di._nbVariable, runtimeHooks->userData);
+		}
+#endif
 		if(indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 

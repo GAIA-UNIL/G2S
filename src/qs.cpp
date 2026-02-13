@@ -22,6 +22,9 @@
 #include <limits>
 #include <memory>
 #include <cstdlib>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
 
 #include <thread>
 #include <atomic>
@@ -50,6 +53,7 @@
 #include "quantileSamplingModule.hpp"
 #ifdef G2S_QS_DISTRIBUTED
 #include <json/json.h>
+#include <zmq.h>
 #endif
 
 enum simType
@@ -186,6 +190,384 @@ static g2s::DataImage cropPaddedImage(const g2s::DataImage& padded, const std::v
 	}
 	return cropped;
 }
+
+static bool flattenRegularGrid(const Json::Value& node, std::vector<unsigned>& dims, std::vector<std::string>& flat, unsigned depth=0){
+	if(node.isArray()){
+		if(dims.size()<=depth){
+			dims.push_back(node.size());
+		}else if(dims[depth]!=node.size()){
+			return false;
+		}
+		for (Json::ArrayIndex i = 0; i < node.size(); ++i){
+			if(!flattenRegularGrid(node[i], dims, flat, depth+1)){
+				return false;
+			}
+		}
+		return true;
+	}
+	if(node.isString()){
+		flat.push_back(node.asString());
+		return true;
+	}
+	if(node.isUInt64()){
+		flat.push_back(std::to_string(node.asUInt64()));
+		return true;
+	}
+	if(node.isInt64()){
+		flat.push_back(std::to_string(node.asInt64()));
+		return true;
+	}
+	return false;
+}
+
+static std::vector<int> buildNeighbourOffsets(unsigned dim){
+	std::vector<int> offsets(dim, -1);
+	std::vector<int> linear;
+	if(dim==0) return linear;
+	while(true){
+		bool allZero=true;
+		for (unsigned d = 0; d < dim; ++d){
+			allZero&=(offsets[d]==0);
+		}
+		if(!allZero){
+			linear.insert(linear.end(), offsets.begin(), offsets.end());
+		}
+		unsigned d=0;
+		while(d<dim){
+			offsets[d]+=1;
+			if(offsets[d]<=1) break;
+			offsets[d]=-1;
+			d++;
+		}
+		if(d==dim) break;
+	}
+	return linear;
+}
+
+struct HaloMessage {
+	bool init=false;
+	bool initDone=false;
+	g2s_path_index_t globalPathRank=0;
+	std::vector<unsigned> globalCoord;
+	std::vector<float> values;
+};
+
+class DistributedHaloExchange {
+public:
+	DistributedHaloExchange(g2s::DataImage* di,
+		const DistributedGridContext& gridCtx,
+		const std::vector<unsigned>& jobGridDims,
+		int localLinearIndex,
+		const std::vector<std::string>& endpoints,
+		FILE* logFile):
+		_di(di), _gridCtx(gridCtx), _localLinearIndex(localLinearIndex), _endpoints(endpoints), _logFile(logFile)
+	{
+		_spatialDim=gridCtx.originalDims.size();
+		_jobGridCoord=indexToCoord(localLinearIndex, jobGridDims);
+		_jobGridDims.assign(_spatialDim, 1u);
+		_jobGridCoord.resize(_spatialDim, 0u);
+		for (size_t d = 0; d < std::min(_spatialDim, jobGridDims.size()); ++d){
+			_jobGridDims[d]=jobGridDims[d];
+		}
+		_globalOrigin.resize(_spatialDim,0u);
+		for (size_t d = 0; d < _spatialDim; ++d){
+			_globalOrigin[d]=_jobGridCoord[d]*_gridCtx.originalDims[d];
+		}
+		_totalSimulationCount=1;
+		for (size_t d = 0; d < _jobGridDims.size(); ++d){
+			_totalSimulationCount*=_jobGridDims[d];
+		}
+		buildNeighbourList();
+	}
+
+	bool start(){
+		_zmqContext=zmq_ctx_new();
+		if(!_zmqContext){
+			fprintf(_logFile, "distributed error: cannot create zmq context\n");
+			return false;
+		}
+		_senderThread=std::thread(&DistributedHaloExchange::senderLoop, this);
+		_receiverThread=std::thread(&DistributedHaloExchange::receiverLoop, this);
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
+		return true;
+	}
+
+	void stop(){
+		{
+			std::lock_guard<std::mutex> lk(_queueMutex);
+			_stop=true;
+		}
+		_queueCv.notify_all();
+		if(_receiverThread.joinable()) _receiverThread.join();
+		if(_senderThread.joinable()) _senderThread.join();
+		if(_zmqContext){
+			zmq_ctx_term(_zmqContext);
+			_zmqContext=nullptr;
+		}
+	}
+
+	void bootstrapKnownBoundary(){
+		for (g2s_path_index_t cell = 0; cell < (_di->dataSize()/_di->_nbVariable); ++cell){
+			g2s_path_index_t origIndex=distributedPaddedToOrig(cell, (void*)&_gridCtx);
+			if(origIndex==std::numeric_limits<g2s_path_index_t>::max()){
+				continue;
+			}
+			std::vector<unsigned> localCoord=indexToCoord(origIndex, _gridCtx.originalDims);
+			if(!isBoundaryLocalCell(localCoord)){
+				continue;
+			}
+			bool allKnown=true;
+			for (unsigned v = 0; v < _di->_nbVariable; ++v){
+				allKnown&=!std::isnan(_di->_data[cell*_di->_nbVariable+v]);
+			}
+			if(!allKnown){
+				continue;
+			}
+			HaloMessage msg;
+			msg.init=true;
+			msg.globalCoord.resize(_spatialDim,0u);
+			for (size_t d = 0; d < _spatialDim; ++d){
+				msg.globalCoord[d]=_globalOrigin[d]+localCoord[d];
+			}
+			msg.values.assign(_di->_data+cell*_di->_nbVariable, _di->_data+cell*_di->_nbVariable+_di->_nbVariable);
+			enqueue(msg);
+		}
+
+		HaloMessage done;
+		done.initDone=true;
+		enqueue(done);
+
+		const auto timeout=std::chrono::steady_clock::now()+std::chrono::seconds(60);
+		while(_initDoneReceived.load()<int(_neighborIndices.size()) && std::chrono::steady_clock::now()<timeout){
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		}
+		fprintf(_logFile, "distributed bootstrap done: received %d/%zu init_done\n", _initDoneReceived.load(), _neighborIndices.size());
+	}
+
+	void enqueueSimulatedCell(g2s_path_index_t paddedCellIndex, g2s_path_index_t localPathRank, const float* values, unsigned nbVar){
+		g2s_path_index_t origIndex=distributedPaddedToOrig(paddedCellIndex, (void*)&_gridCtx);
+		if(origIndex==std::numeric_limits<g2s_path_index_t>::max()){
+			return;
+		}
+		std::vector<unsigned> localCoord=indexToCoord(origIndex, _gridCtx.originalDims);
+		if(!isBoundaryLocalCell(localCoord)){
+			return;
+		}
+		HaloMessage msg;
+		msg.globalPathRank=g2s_path_index_t(_totalSimulationCount)*localPathRank+g2s_path_index_t(_localLinearIndex);
+		msg.globalCoord.resize(_spatialDim,0u);
+		for (size_t d = 0; d < _spatialDim; ++d){
+			msg.globalCoord[d]=_globalOrigin[d]+localCoord[d];
+		}
+		msg.values.assign(values, values+nbVar);
+		enqueue(msg);
+	}
+
+private:
+	void enqueue(const HaloMessage& message){
+		{
+			std::lock_guard<std::mutex> lk(_queueMutex);
+			_sendQueue.push_back(message);
+		}
+		_queueCv.notify_one();
+	}
+
+	void buildNeighbourList(){
+		std::vector<int> offsetsPacked=buildNeighbourOffsets(_spatialDim);
+		for (size_t i = 0; i < offsetsPacked.size(); i+=_spatialDim){
+			std::vector<unsigned> coord=_jobGridCoord;
+			bool ok=true;
+			for (size_t d = 0; d < _spatialDim; ++d){
+				int v=int(coord[d])+offsetsPacked[i+d];
+				if(v<0 || v>=int(_jobGridDims[d])){
+					ok=false;
+					break;
+				}
+				coord[d]=unsigned(v);
+			}
+			if(!ok) continue;
+			unsigned neighbourLinear=coordToIndex(coord, _jobGridDims);
+			if(neighbourLinear>=_endpoints.size() || int(neighbourLinear)==_localLinearIndex){
+				continue;
+			}
+			_neighborIndices.push_back(neighbourLinear);
+		}
+	}
+
+	bool isBoundaryLocalCell(const std::vector<unsigned>& localCoord) const{
+		for (size_t d = 0; d < _spatialDim; ++d){
+			unsigned half=_gridCtx.halfKernel[d];
+			if(half==0) continue;
+			if(localCoord[d]<half) return true;
+			if(localCoord[d]+half>=_gridCtx.originalDims[d]) return true;
+		}
+		return false;
+	}
+
+	bool writeRemoteValue(const std::vector<unsigned>& globalCoord, const std::vector<float>& values){
+		if(globalCoord.size()!=_spatialDim || values.size()!=_di->_nbVariable){
+			return false;
+		}
+		std::vector<unsigned> paddedCoord(_spatialDim,0u);
+		for (size_t d = 0; d < _spatialDim; ++d){
+			long long local=static_cast<long long>(globalCoord[d])-static_cast<long long>(_globalOrigin[d])+static_cast<long long>(_gridCtx.halfKernel[d]);
+			if(local<0 || local>=static_cast<long long>(_gridCtx.paddedDims[d])){
+				return false;
+			}
+			paddedCoord[d]=unsigned(local);
+		}
+		bool inCore=true;
+		for (size_t d = 0; d < _spatialDim; ++d){
+			inCore&=(paddedCoord[d]>=_gridCtx.halfKernel[d] && paddedCoord[d]<_gridCtx.halfKernel[d]+_gridCtx.originalDims[d]);
+		}
+		if(inCore){
+			return false;
+		}
+		g2s_path_index_t paddedIndex=coordToIndex(paddedCoord, _gridCtx.paddedDims);
+		for (unsigned v = 0; v < _di->_nbVariable; ++v){
+			float& dst=_di->_data[paddedIndex*_di->_nbVariable+v];
+			if(std::isnan(dst)){
+				dst=values[v];
+			}
+		}
+		return true;
+	}
+
+	static std::string messageToJson(const HaloMessage& msg, int senderId){
+		Json::Value root(Json::objectValue);
+		root["sid"]=senderId;
+		if(msg.initDone){
+			root["kind"]="init_done";
+		}else if(msg.init){
+			root["kind"]="init";
+		}else{
+			root["kind"]="sim";
+			root["path"]=Json::UInt64(msg.globalPathRank);
+		}
+		Json::Value coord(Json::arrayValue);
+		for (unsigned v : msg.globalCoord) coord.append(v);
+		root["coord"]=coord;
+		Json::Value values(Json::arrayValue);
+		for (float v : msg.values) values.append(v);
+		root["values"]=values;
+		Json::StreamWriterBuilder builder;
+		builder["indentation"]="";
+		return Json::writeString(builder, root);
+	}
+
+	void senderLoop(){
+		void* pub=zmq_socket(_zmqContext, ZMQ_PUB);
+		if(!pub) return;
+		const std::string bindEndpoint=normalizeEndpoint(_endpoints[_localLinearIndex]);
+		zmq_bind(pub, bindEndpoint.c_str());
+		while(true){
+			HaloMessage msg;
+			{
+				std::unique_lock<std::mutex> lk(_queueMutex);
+				_queueCv.wait_for(lk, std::chrono::milliseconds(20), [this]{ return _stop || !_sendQueue.empty(); });
+				if(_stop && _sendQueue.empty()) break;
+				if(_sendQueue.empty()) continue;
+				msg=_sendQueue.front();
+				_sendQueue.pop_front();
+			}
+			std::string payload=messageToJson(msg, _localLinearIndex);
+			zmq_send(pub, payload.data(), payload.size(), 0);
+		}
+		zmq_close(pub);
+	}
+
+	void receiverLoop(){
+		void* sub=zmq_socket(_zmqContext, ZMQ_SUB);
+		if(!sub) return;
+		const char* filter="";
+		zmq_setsockopt(sub, ZMQ_SUBSCRIBE, filter, 0);
+		for (unsigned n : _neighborIndices){
+			const std::string connectEndpoint=normalizeEndpoint(_endpoints[n]);
+			zmq_connect(sub, connectEndpoint.c_str());
+		}
+		char buffer[16384];
+		while(!_stop){
+			int size=zmq_recv(sub, buffer, sizeof(buffer)-1, ZMQ_DONTWAIT);
+			if(size<0){
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				continue;
+			}
+			buffer[size]='\0';
+			Json::Value root;
+			Json::CharReaderBuilder builder;
+			std::string errors;
+			std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+			if(!reader->parse(buffer, buffer+size, &root, &errors)){
+				continue;
+			}
+			int senderId=root.get("sid",-1).asInt();
+			if(senderId==_localLinearIndex){
+				continue;
+			}
+			std::string kind=root.get("kind","").asString();
+			if(kind=="init_done"){
+				_initDoneReceived++;
+				continue;
+			}
+			Json::Value coordNode=root["coord"];
+			Json::Value valuesNode=root["values"];
+			if(!coordNode.isArray() || !valuesNode.isArray()) continue;
+			std::vector<unsigned> coord;
+			std::vector<float> values;
+			coord.reserve(coordNode.size());
+			values.reserve(valuesNode.size());
+			for (Json::ArrayIndex i = 0; i < coordNode.size(); ++i){
+				coord.push_back(coordNode[i].asUInt());
+			}
+			for (Json::ArrayIndex i = 0; i < valuesNode.size(); ++i){
+				values.push_back(valuesNode[i].asFloat());
+			}
+			writeRemoteValue(coord, values);
+		}
+		zmq_close(sub);
+	}
+
+private:
+	static std::string normalizeEndpoint(const std::string& endpoint){
+		if(endpoint.rfind("tcp://",0)==0 || endpoint.rfind("ipc://",0)==0 || endpoint.rfind("inproc://",0)==0){
+			return endpoint;
+		}
+		return std::string("tcp://")+endpoint;
+	}
+
+	g2s::DataImage* _di=nullptr;
+	DistributedGridContext _gridCtx;
+	size_t _spatialDim=0;
+	std::vector<unsigned> _jobGridDims;
+	std::vector<unsigned> _jobGridCoord;
+	std::vector<unsigned> _globalOrigin;
+	int _localLinearIndex=-1;
+	unsigned _totalSimulationCount=1;
+	std::vector<std::string> _endpoints;
+	std::vector<unsigned> _neighborIndices;
+	FILE* _logFile=nullptr;
+
+	void* _zmqContext=nullptr;
+	std::thread _senderThread;
+	std::thread _receiverThread;
+	std::atomic<bool> _stop{false};
+	std::atomic<int> _initDoneReceived{0};
+	std::mutex _queueMutex;
+	std::condition_variable _queueCv;
+	std::deque<HaloMessage> _sendQueue;
+};
+
+struct DistributedRuntimeHookContext{
+	DistributedHaloExchange* exchange=nullptr;
+};
+
+static void onDistributedCellSimulated(g2s_path_index_t cellIndex, g2s_path_index_t pathRank, const float* values, unsigned nbVariable, void* userData){
+	DistributedRuntimeHookContext* ctx=static_cast<DistributedRuntimeHookContext*>(userData);
+	if(!ctx || !ctx->exchange){
+		return;
+	}
+	ctx->exchange->enqueueSimulatedCell(cellIndex, pathRank, values, nbVariable);
+}
 }
 #endif
 
@@ -221,6 +603,10 @@ int main(int argc, char const *argv[]) {
 	bool distributedModeActive=false;
 	DistributedGridContext distributedGridContext;
 	QSDistributedIndexAdapter distributedIndexAdapter={nullptr,nullptr,nullptr};
+	std::vector<unsigned> distributedJobGridDims;
+	std::vector<std::string> distributedFlatJobIds;
+	std::vector<std::string> distributedFlatEndpoints;
+	int distributedOwnFlatIndex=-1;
 #endif
 
 
@@ -1068,28 +1454,53 @@ int main(int argc, char const *argv[]) {
 			fprintf(reportFile, "error - invalid -job_grid_json\n");
 			run=false;
 		}else{
-			std::vector<std::string> flatJobIds;
-			collectLeafJobIds(jobGridRoot, flatJobIds);
+			distributedFlatJobIds.clear();
+			distributedJobGridDims.clear();
+			if(!flattenRegularGrid(jobGridRoot, distributedJobGridDims, distributedFlatJobIds)){
+				fprintf(reportFile, "error - invalid -job_grid_json regular structure\n");
+				run=false;
+			}
 			std::string localJobId=std::to_string(uniqueID);
 			long long localJobIdSigned=static_cast<long long>(uniqueID);
-			int ownFlatIndex=-1;
-			for (size_t i = 0; i < flatJobIds.size(); ++i){
-				if(flatJobIds[i]==localJobId){
-					ownFlatIndex=int(i);
+			distributedOwnFlatIndex=-1;
+			for (size_t i = 0; i < distributedFlatJobIds.size(); ++i){
+				if(distributedFlatJobIds[i]==localJobId){
+					distributedOwnFlatIndex=int(i);
 					break;
 				}
 				char* endPtr=nullptr;
-				long long parsed=std::strtoll(flatJobIds[i].c_str(), &endPtr, 10);
+				long long parsed=std::strtoll(distributedFlatJobIds[i].c_str(), &endPtr, 10);
 				if(endPtr && *endPtr=='\0' && parsed==localJobIdSigned){
-					ownFlatIndex=int(i);
+					distributedOwnFlatIndex=int(i);
 					break;
 				}
 			}
 
-			if(ownFlatIndex<0){
+			if(distributedOwnFlatIndex<0){
 				fprintf(reportFile, "error - local job id %s not found in -job_grid_json\n", localJobId.c_str());
 				run=false;
 			}else{
+				if(!endpointGridJson.empty()){
+					Json::Value endpointRoot;
+					if(!parseJsonArray(endpointGridJson, endpointRoot)){
+						fprintf(reportFile, "error - invalid -endpoint_grid_json\n");
+						run=false;
+					}else{
+						std::vector<unsigned> endpointDims;
+						if(!flattenRegularGrid(endpointRoot, endpointDims, distributedFlatEndpoints) || endpointDims!=distributedJobGridDims || distributedFlatEndpoints.size()!=distributedFlatJobIds.size()){
+							fprintf(reportFile, "error - endpoint grid shape mismatch with job grid\n");
+							run=false;
+						}
+					}
+				}else{
+					distributedFlatEndpoints.resize(distributedFlatJobIds.size());
+					for (size_t i = 0; i < distributedFlatEndpoints.size(); ++i){
+						distributedFlatEndpoints[i]=std::string("127.0.0.1:")+std::to_string(8130+i);
+					}
+				}
+			}
+
+			if(run){
 				distributedGridContext.originalDims=DI._dims;
 				distributedGridContext.halfKernel.assign(DI._dims.size(),0u);
 				for (const auto& kernel : kernels){
@@ -1108,7 +1519,7 @@ int main(int argc, char const *argv[]) {
 				distributedIndexAdapter.paddedToOrig=&distributedPaddedToOrig;
 				distributedIndexAdapter.userData=&distributedGridContext;
 
-				fprintf(reportFile, "distributed qs: jobs=%zu local_flat_index=%d\n", flatJobIds.size(), ownFlatIndex);
+				fprintf(reportFile, "distributed qs: jobs=%zu local_flat_index=%d\n", distributedFlatJobIds.size(), distributedOwnFlatIndex);
 
 				DI=createPaddedImage(DI, distributedGridContext.halfKernel);
 				id=createPaddedImage(id, distributedGridContext.halfKernel);
@@ -1330,6 +1741,24 @@ int main(int argc, char const *argv[]) {
 	if(interval>0){
 		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID);
 	}
+#ifdef G2S_QS_DISTRIBUTED
+	std::unique_ptr<DistributedHaloExchange> distributedExchange;
+	DistributedRuntimeHookContext distributedHookContext;
+	QSDistributedRuntimeHooks runtimeHooks={nullptr,nullptr};
+	if(distributedModeActive){
+		distributedExchange=std::make_unique<DistributedHaloExchange>(&DI, distributedGridContext, distributedJobGridDims, distributedOwnFlatIndex, distributedFlatEndpoints, reportFile);
+		if(!distributedExchange->start()){
+			fprintf(reportFile, "warning - distributed runtime disabled (zmq init failed)\n");
+			distributedExchange.reset();
+			distributedModeActive=false;
+		}else{
+			distributedExchange->bootstrapKnownBoundary();
+			distributedHookContext.exchange=distributedExchange.get();
+			runtimeHooks.onCellSimulated=&onDistributedCellSimulated;
+			runtimeHooks.userData=&distributedHookContext;
+		}
+	}
+#endif
 
 	switch (st){
 	case fullSim:
@@ -1337,7 +1766,7 @@ int main(int argc, char const *argv[]) {
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation
 #ifdef G2S_QS_DISTRIBUTED
-			, nullptr
+			, (distributedModeActive ? &distributedIndexAdapter : nullptr), (distributedModeActive ? &runtimeHooks : nullptr)
 #endif
 		);
 		break;
@@ -1346,7 +1775,7 @@ int main(int argc, char const *argv[]) {
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
 			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK
 #ifdef G2S_QS_DISTRIBUTED
-			, (distributedModeActive ? &distributedIndexAdapter : nullptr)
+			, (distributedModeActive ? &distributedIndexAdapter : nullptr), (distributedModeActive ? &runtimeHooks : nullptr)
 #endif
 		);
 		break;
@@ -1359,6 +1788,11 @@ int main(int argc, char const *argv[]) {
 
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
+#ifdef G2S_QS_DISTRIBUTED
+	if(distributedExchange){
+		distributedExchange->stop();
+	}
+#endif
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
