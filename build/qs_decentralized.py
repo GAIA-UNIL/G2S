@@ -222,19 +222,24 @@ def main() -> int:
     for job_id, proc in procs:
         return_code = proc.wait()
         done += 1
-        report(f"progress : {100.0 * done / total:.2f}%")
+        if total > 1 and done < total:
+            report(f"progress : {100.0 * done / total:.2f}%")
         if return_code != 0:
             failed.append((job_id, return_code))
 
+    # Emit one final completion progress marker, then timing, like qs logs.
+    report("progress : 100.00%")
+    elapsed_s = time.time() - start_time
+    elapsed_ms = int(elapsed_s * 1000.0)
     if failed:
         failed_str = ", ".join([f"{job_id}(rc={rc})" for job_id, rc in failed])
         report(f"qs_decentralized: failed jobs: {failed_str}")
-        elapsed_ms = int((time.time() - start_time) * 1000.0)
+        report(f"compuattion time: {elapsed_s:7.2f} s")
         report(f"compuattion time: {elapsed_ms} ms")
         if report_should_close:
             report_file.close()
         return 1
-    elapsed_ms = int((time.time() - start_time) * 1000.0)
+    report(f"compuattion time: {elapsed_s:7.2f} s")
     report(f"compuattion time: {elapsed_ms} ms")
     if report_should_close:
         report_file.close()

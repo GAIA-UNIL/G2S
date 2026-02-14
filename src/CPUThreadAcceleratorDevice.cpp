@@ -254,6 +254,7 @@ void CPUThreadAcceleratorDevice::computeFreqMismatchMap(std::vector<std::vector<
 
 		memset(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize );
 		memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
+		memset(lines,0,sizeof(bool)*_fftSize.back());
 
 		for (size_t i = 0; i < neighborArray.size(); ++i)
 		{
