@@ -357,6 +357,7 @@ int main(int argc, char const *argv[]) {
 	float mer=std::nanf("0");				// maximum exploration ratio, called f in ds
 	float nbCandidate=std::nanf("0");		// 1/f for QS
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	unsigned baseSeed=seed;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 	bool requestFullSimulation=false;
 	bool conciderTiAsCircular=false;
@@ -408,6 +409,7 @@ int main(int argc, char const *argv[]) {
 		seed=atoi((arg.find("-s")->second).c_str());
 	}
 	arg.erase("-s");
+	baseSeed=seed;
 
 	if (arg.count("--forceSimulation") == 1)
 	{
@@ -593,8 +595,7 @@ int main(int argc, char const *argv[]) {
 		run=false;
 	}
 	if(run && !distributedOptions.jobGridPayload.empty()){
-		const unsigned baseSeed=seed;
-		seed=seed+static_cast<unsigned>(distributedOptions.rowMajorJobPosition);
+		seed=baseSeed+static_cast<unsigned>(distributedOptions.rowMajorJobPosition);
 		fprintf(reportFile, "distributed mode: seed=%u (base=%u + row-major-position=%zu)\n",
 			seed,baseSeed,distributedOptions.rowMajorJobPosition);
 	}
@@ -1140,6 +1141,14 @@ int main(int argc, char const *argv[]) {
 	std::vector<g2s_path_index_t> posterioryPath;
 	const g2s_path_index_t maxPosteriorValue=std::numeric_limits<g2s_path_index_t>::max();
 	const g2s_path_index_t numberOfPointToSimulate=simulationPathSize-beginPath;
+	g2s_path_index_t posteriorPathStride=g2s_path_index_t(1);
+	g2s_path_index_t posteriorPathOffset=g2s_path_index_t(0);
+#ifdef G2S_QS_DISTRIBUTED
+	if(!distributedOptions.jobGridPayload.empty() && distributedOptions.flattenedJobCount>0){
+		posteriorPathStride=static_cast<g2s_path_index_t>(distributedOptions.flattenedJobCount);
+		posteriorPathOffset=static_cast<g2s_path_index_t>(distributedOptions.rowMajorJobPosition);
+	}
+#endif
 	if(fullSimulation){
 		posterioryPath.assign(DI.dataSize(),maxPosteriorValue);
 		for (unsigned i = 0; i < DI.dataSize(); ++i)
@@ -1165,8 +1174,226 @@ int main(int argc, char const *argv[]) {
 	}
 	for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
 	{
-		posterioryPath[simulationPathIndex[beginPath+i]]=i;
+		posterioryPath[simulationPathIndex[beginPath+i]]=i*posteriorPathStride+posteriorPathOffset;
 	}
+
+#ifdef G2S_QS_DISTRIBUTED
+	if(usePaddedDomain && !distributedOptions.jobGridPayload.empty()){
+		if(!simuationPathFileName.empty()){
+			fprintf(reportFile, "distributed mode warning: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors\n");
+		}else if(distributedOptions.gridDims.empty() ||
+			distributedOptions.localJobGridCoordinate.size()!=distributedOptions.gridDims.size()){
+			fprintf(reportFile, "distributed mode warning: missing decoded -jg grid metadata, neighbor halos are skipped\n");
+		}else if(distributedOptions.gridDims.size()>outputDims.size()){
+			fprintf(reportFile, "distributed mode warning: -jg rank (%zu) is larger than DI rank (%zu), neighbor halos are skipped\n",
+				distributedOptions.gridDims.size(),outputDims.size());
+		}else{
+			auto buildPosteriorPathFromSeed=[&](g2s::DataImage& localDi, unsigned localSeed, g2s_path_index_t localOffset){
+				std::vector<g2s_path_index_t> localPosterioryPath;
+				if(fullSimulation){
+					const size_t localPathSize=localDi.dataSize();
+					localPosterioryPath.assign(localPathSize,maxPosteriorValue);
+					std::vector<g2s_path_index_t> localSimulationPath(localPathSize,0);
+					size_t localBeginPath=0;
+					for (size_t i = 0; i < localPathSize; ++i)
+					{
+						localSimulationPath[i]=static_cast<g2s_path_index_t>(i);
+						if(!std::isnan(localDi._data[i])){
+							localPosterioryPath[i]=0;
+							std::swap(localSimulationPath[localBeginPath],localSimulationPath[i]);
+							localBeginPath++;
+						}
+					}
+					std::mt19937 localGenerator(localSeed);
+					std::shuffle(localSimulationPath.begin()+localBeginPath, localSimulationPath.end(), localGenerator);
+					for (size_t i = localBeginPath; i < localPathSize; ++i)
+					{
+						localPosterioryPath[localSimulationPath[i]]=
+							static_cast<g2s_path_index_t>(i-localBeginPath)*posteriorPathStride+localOffset;
+					}
+				}else{
+					const size_t localCellCount=localDi.dataSize()/localDi._nbVariable;
+					localPosterioryPath.assign(localCellCount,maxPosteriorValue);
+					std::vector<g2s_path_index_t> localSimulationPath(localCellCount,0);
+					size_t localBeginPath=0;
+					for (size_t i = 0; i < localCellCount; ++i)
+					{
+						localSimulationPath[i]=static_cast<g2s_path_index_t>(i);
+						bool withNan=false;
+						for (unsigned int j = 0; j < localDi._nbVariable; ++j)
+						{
+							withNan|=std::isnan(localDi._data[i*localDi._nbVariable+j]);
+						}
+						if(!withNan){
+							localPosterioryPath[i]=0;
+							std::swap(localSimulationPath[localBeginPath],localSimulationPath[i]);
+							localBeginPath++;
+						}
+					}
+					std::mt19937 localGenerator(localSeed);
+					std::shuffle(localSimulationPath.begin()+localBeginPath, localSimulationPath.end(), localGenerator);
+					for (size_t i = localBeginPath; i < localCellCount; ++i)
+					{
+						localPosterioryPath[localSimulationPath[i]]=
+							static_cast<g2s_path_index_t>(i-localBeginPath)*posteriorPathStride+localOffset;
+					}
+				}
+				return localPosterioryPath;
+			};
+
+			auto copyNeighborHalo=[&](const g2s::DataImage& neighborDi,
+				const std::vector<g2s_path_index_t>& neighborPosterioryPath,
+				const std::vector<int>& neighborOffset)->bool{
+				const size_t rank=outputDims.size();
+				if(rank==0){
+					return false;
+				}
+				std::vector<unsigned> localBegin(rank,0);
+				std::vector<unsigned> neighborBegin(rank,0);
+				std::vector<unsigned> extent(rank,0);
+				for (size_t dim = 0; dim < rank; ++dim)
+				{
+					int currentOffset=0;
+					if(dim<neighborOffset.size()){
+						currentOffset=neighborOffset[dim];
+					}
+					if(currentOffset<0){
+						extent[dim]=spatialPadding[dim];
+						if(extent[dim]==0){
+							return false;
+						}
+						localBegin[dim]=0;
+						neighborBegin[dim]=outputDims[dim]-extent[dim];
+					}else if(currentOffset>0){
+						extent[dim]=spatialPadding[dim];
+						if(extent[dim]==0){
+							return false;
+						}
+						localBegin[dim]=spatialPadding[dim]+outputDims[dim];
+						neighborBegin[dim]=0;
+					}else{
+						extent[dim]=outputDims[dim];
+						if(extent[dim]==0){
+							return false;
+						}
+						localBegin[dim]=spatialPadding[dim];
+						neighborBegin[dim]=0;
+					}
+				}
+
+				std::vector<unsigned> localCoord(rank,0);
+				std::vector<unsigned> neighborCoord(rank,0);
+				std::vector<unsigned> iterator(rank,0);
+				bool copied=false;
+				while(true){
+					for (size_t dim = 0; dim < rank; ++dim)
+					{
+						localCoord[dim]=localBegin[dim]+iterator[dim];
+						neighborCoord[dim]=neighborBegin[dim]+iterator[dim];
+					}
+					const unsigned localCell=qs_padding_utils::coordToIndex(localCoord,DI._dims);
+					const unsigned neighborCell=qs_padding_utils::coordToIndex(neighborCoord,outputDims);
+					memcpy(DI._data+localCell*DI._nbVariable,neighborDi._data+neighborCell*neighborDi._nbVariable,sizeof(float)*DI._nbVariable);
+					if(fullSimulation){
+						for (unsigned int variable = 0; variable < DI._nbVariable; ++variable)
+						{
+							posterioryPath[localCell*DI._nbVariable+variable]=neighborPosterioryPath[neighborCell*DI._nbVariable+variable];
+						}
+					}else{
+						posterioryPath[localCell]=neighborPosterioryPath[neighborCell];
+					}
+					copied=true;
+
+					size_t dim=0;
+					for (; dim < rank; ++dim)
+					{
+						iterator[dim]++;
+						if(iterator[dim]<extent[dim]){
+							break;
+						}
+						iterator[dim]=0;
+					}
+					if(dim==rank){
+						break;
+					}
+				}
+				return copied;
+			};
+
+			size_t mergedNeighborCount=0;
+			const size_t partitionRank=distributedOptions.gridDims.size();
+			size_t combinationCount=1;
+			for (size_t dim = 0; dim < partitionRank; ++dim)
+			{
+				combinationCount*=3;
+			}
+
+			for (size_t combination = 0; combination < combinationCount; ++combination)
+			{
+				size_t localCode=combination;
+				bool withOffset=false;
+				bool inBounds=true;
+				std::vector<int> neighborOffset(partitionRank,0);
+				std::vector<unsigned> neighborCoordinate(partitionRank,0);
+				for (size_t dim = 0; dim < partitionRank; ++dim)
+				{
+					const int delta=int(localCode%3)-1;
+					localCode/=3;
+					neighborOffset[dim]=delta;
+					withOffset|=(delta!=0);
+					const int candidate=int(distributedOptions.localJobGridCoordinate[dim])+delta;
+					if(candidate<0 || candidate>=int(distributedOptions.gridDims[dim])){
+						inBounds=false;
+						break;
+					}
+					neighborCoordinate[dim]=static_cast<unsigned>(candidate);
+				}
+
+				if(!withOffset || !inBounds){
+					continue;
+				}
+
+				const size_t neighborRowMajorPosition=
+					qs_distributed_utils::rowMajorIndexFromCoordinate(neighborCoordinate,distributedOptions.gridDims);
+				if(neighborRowMajorPosition>=distributedOptions.flattenedJobCount){
+					continue;
+				}
+
+				std::string neighborDiName;
+				if(neighborRowMajorPosition<distributedOptions.flattenedDiNames.size()){
+					neighborDiName=distributedOptions.flattenedDiNames[neighborRowMajorPosition];
+				}else if(neighborRowMajorPosition<distributedOptions.flattenedJobIds.size()){
+					neighborDiName=std::string("input_di_")+std::to_string(distributedOptions.flattenedJobIds[neighborRowMajorPosition]);
+				}else{
+					fprintf(reportFile, "distributed mode warning: missing neighbor metadata for row-major position %zu\n",
+						neighborRowMajorPosition);
+					continue;
+				}
+
+				g2s::DataImage neighborDi=g2s::DataImage::createFromFile(neighborDiName);
+				if(neighborDi.isEmpty()){
+					fprintf(reportFile, "distributed mode warning: cannot load neighbor DI '%s' for row-major position %zu\n",
+						neighborDiName.c_str(),neighborRowMajorPosition);
+					continue;
+				}
+				if(neighborDi._dims!=outputDims || neighborDi._nbVariable!=DI._nbVariable){
+					fprintf(reportFile, "distributed mode warning: neighbor DI '%s' shape mismatch, expected rank=%zu variables=%u\n",
+						neighborDiName.c_str(),outputDims.size(),DI._nbVariable);
+					continue;
+				}
+
+				const unsigned neighborSeed=baseSeed+static_cast<unsigned>(neighborRowMajorPosition);
+				const g2s_path_index_t neighborPosteriorOffset=static_cast<g2s_path_index_t>(neighborRowMajorPosition);
+				std::vector<g2s_path_index_t> neighborPosterioryPath=
+					buildPosteriorPathFromSeed(neighborDi,neighborSeed,neighborPosteriorOffset);
+				if(copyNeighborHalo(neighborDi,neighborPosterioryPath,neighborOffset)){
+					mergedNeighborCount++;
+				}
+			}
+			fprintf(reportFile, "distributed mode: merged %zu neighbor halo(s) from -jg/-di_grid_json\n", mergedNeighborCount);
+		}
+	}
+#endif
 
 	// run QS
 

@@ -25,8 +25,13 @@
 
 struct QsDistributedOptions{
 	std::string jobGridPayload;
+	std::string diGridPayload;
 	size_t rowMajorJobPosition=0;
 	size_t flattenedJobCount=0;
+	std::vector<unsigned> gridDims;
+	std::vector<unsigned> localJobGridCoordinate;
+	std::vector<unsigned> flattenedJobIds;
+	std::vector<std::string> flattenedDiNames;
 };
 
 inline void parseDistributedCliArgs(std::multimap<std::string, std::string>& arg, QsDistributedOptions& distributedOptions){
@@ -44,6 +49,10 @@ inline void parseDistributedCliArgs(std::multimap<std::string, std::string>& arg
 	arg.erase("-job_grid");
 	arg.erase("-eg");
 	arg.erase("-endpoint_grid_json");
+	if (arg.count("-di_grid_json") >= 1)
+	{
+		distributedOptions.diGridPayload=arg.find("-di_grid_json")->second;
+	}
 	arg.erase("-di_grid_json");
 }
 
@@ -57,7 +66,6 @@ inline void parseDistributedCliArgs(std::multimap<std::string, std::string>& arg
 #include <memory>
 #include <exception>
 #include <json/json.h>
-#include <zmq.hpp>
 
 namespace qs_distributed_utils {
 
@@ -164,21 +172,170 @@ inline bool decodeJobId(const Json::Value& value, unsigned& out, std::string& er
 	return true;
 }
 
-inline bool flattenRowMajorJobGrid(const Json::Value& node, std::vector<unsigned>& out, std::string& error){
-	if(node.isArray()){
-		for (Json::ArrayIndex i = 0; i < node.size(); ++i)
-		{
-			if(!flattenRowMajorJobGrid(node[i],out,error)){
-				return false;
-			}
+inline bool decodeGridStringValue(const Json::Value& value, std::string& out, std::string& error){
+	if(value.isString()){
+		out=trimWhitespace(value.asString());
+		if(out.empty()){
+			error="empty string value in grid";
+			return false;
 		}
 		return true;
 	}
-	unsigned localId=0;
-	if(!decodeJobId(node,localId,error)){
+#if defined(JSON_HAS_INT64)
+	if(value.isUInt64()){
+		out=std::to_string(value.asUInt64());
+		return true;
+	}
+#endif
+	if(value.isUInt()){
+		out=std::to_string(value.asUInt());
+		return true;
+	}
+#if defined(JSON_HAS_INT64)
+	if(value.isInt64()){
+		const Json::Int64 local=value.asInt64();
+		if(local<0){
+			error="negative integer value in grid";
+			return false;
+		}
+		out=std::to_string(local);
+		return true;
+	}
+#endif
+	if(value.isInt()){
+		const int local=value.asInt();
+		if(local<0){
+			error="negative integer value in grid";
+			return false;
+		}
+		out=std::to_string(local);
+		return true;
+	}
+	if(value.isDouble()){
+		const double local=value.asDouble();
+		if(!std::isfinite(local) || std::floor(local)!=local || local<0.0){
+			error="non integer numeric value in grid";
+			return false;
+		}
+		out=std::to_string(static_cast<unsigned long long>(local));
+		return true;
+	}
+	error="unsupported value type in grid";
+	return false;
+}
+
+inline bool flattenGridLeavesRowMajor(const Json::Value& node,
+	std::vector<unsigned>& gridDims,
+	std::vector<unsigned>& coordinateBuffer,
+	std::vector<std::vector<unsigned> >& coordinates,
+	std::vector<Json::Value>& leaves,
+	std::string& error){
+	if(node.isArray()){
+		if(node.empty()){
+			error="empty dimension in grid";
+			return false;
+		}
+		const size_t depth=coordinateBuffer.size();
+		const unsigned sizeAtDepth=static_cast<unsigned>(node.size());
+		if(gridDims.size()==depth){
+			gridDims.push_back(sizeAtDepth);
+		}else if(gridDims[depth]!=sizeAtDepth){
+			error="ragged grid is not supported";
+			return false;
+		}
+		for (Json::ArrayIndex i = 0; i < node.size(); ++i)
+		{
+			coordinateBuffer.push_back(static_cast<unsigned>(i));
+			if(!flattenGridLeavesRowMajor(node[i],gridDims,coordinateBuffer,coordinates,leaves,error)){
+				return false;
+			}
+			coordinateBuffer.pop_back();
+		}
+		return true;
+	}
+	if(coordinateBuffer.empty()){
+		error="grid root must be an array";
 		return false;
 	}
-	out.push_back(localId);
+	coordinates.push_back(coordinateBuffer);
+	leaves.push_back(node);
+	return true;
+}
+
+inline size_t rowMajorIndexFromCoordinate(const std::vector<unsigned>& coordinate, const std::vector<unsigned>& gridDims){
+	size_t index=0;
+	for (size_t i = 0; i < coordinate.size(); ++i)
+	{
+		index*=gridDims[i];
+		index+=coordinate[i];
+	}
+	return index;
+}
+
+inline std::vector<unsigned> coordinateFromRowMajorIndex(size_t index, const std::vector<unsigned>& gridDims){
+	std::vector<unsigned> coordinate(gridDims.size(),0);
+	for (int i = int(gridDims.size())-1; i >= 0; --i)
+	{
+		if(gridDims[i]==0){
+			continue;
+		}
+		coordinate[i]=static_cast<unsigned>(index%gridDims[i]);
+		index/=gridDims[i];
+	}
+	return coordinate;
+}
+
+inline bool flattenRowMajorJobGrid(const Json::Value& root,
+	std::vector<unsigned>& gridDims,
+	std::vector<std::vector<unsigned> >& coordinates,
+	std::vector<unsigned>& flattenedJobIds,
+	std::string& error){
+	std::vector<unsigned> coordinateBuffer;
+	std::vector<Json::Value> leaves;
+	gridDims.clear();
+	coordinates.clear();
+	flattenedJobIds.clear();
+	if(!flattenGridLeavesRowMajor(root,gridDims,coordinateBuffer,coordinates,leaves,error)){
+		return false;
+	}
+	if(leaves.empty()){
+		error="empty grid";
+		return false;
+	}
+	flattenedJobIds.resize(leaves.size(),0);
+	for (size_t i = 0; i < leaves.size(); ++i)
+	{
+		if(!decodeJobId(leaves[i],flattenedJobIds[i],error)){
+			return false;
+		}
+	}
+	return true;
+}
+
+inline bool flattenRowMajorStringGrid(const Json::Value& root,
+	std::vector<unsigned>& gridDims,
+	std::vector<std::vector<unsigned> >& coordinates,
+	std::vector<std::string>& flattenedValues,
+	std::string& error){
+	std::vector<unsigned> coordinateBuffer;
+	std::vector<Json::Value> leaves;
+	gridDims.clear();
+	coordinates.clear();
+	flattenedValues.clear();
+	if(!flattenGridLeavesRowMajor(root,gridDims,coordinateBuffer,coordinates,leaves,error)){
+		return false;
+	}
+	if(leaves.empty()){
+		error="empty grid";
+		return false;
+	}
+	flattenedValues.resize(leaves.size());
+	for (size_t i = 0; i < leaves.size(); ++i)
+	{
+		if(!decodeGridStringValue(leaves[i],flattenedValues[i],error)){
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -205,6 +362,13 @@ inline bool locateUniqueJobPosition(const std::vector<unsigned>& flattenedJobIds
 } // namespace qs_distributed_utils
 
 inline bool resolveDistributedJobPosition(FILE* reportFile, unsigned localJobId, QsDistributedOptions& distributedOptions){
+	distributedOptions.rowMajorJobPosition=0;
+	distributedOptions.flattenedJobCount=0;
+	distributedOptions.gridDims.clear();
+	distributedOptions.localJobGridCoordinate.clear();
+	distributedOptions.flattenedJobIds.clear();
+	distributedOptions.flattenedDiNames.clear();
+
 	if(distributedOptions.jobGridPayload.empty()){
 		return true;
 	}
@@ -220,8 +384,10 @@ inline bool resolveDistributedJobPosition(FILE* reportFile, unsigned localJobId,
 		return false;
 	}
 
+	std::vector<unsigned> gridDims;
+	std::vector<std::vector<unsigned> > flattenedCoordinates;
 	std::vector<unsigned> flattenedJobIds;
-	if(!qs_distributed_utils::flattenRowMajorJobGrid(parsedJobGrid,flattenedJobIds,dmError)){
+	if(!qs_distributed_utils::flattenRowMajorJobGrid(parsedJobGrid,gridDims,flattenedCoordinates,flattenedJobIds,dmError)){
 		fprintf(reportFile, "distributed mode error: invalid job grid content (%s)\n", dmError.c_str());
 		return false;
 	}
@@ -229,6 +395,41 @@ inline bool resolveDistributedJobPosition(FILE* reportFile, unsigned localJobId,
 	if(!qs_distributed_utils::locateUniqueJobPosition(flattenedJobIds,localJobId,distributedOptions.rowMajorJobPosition,dmError)){
 		fprintf(reportFile, "distributed mode error: cannot locate job id %u in row-major grid (%s)\n", localJobId, dmError.c_str());
 		return false;
+	}
+
+	distributedOptions.gridDims=gridDims;
+	distributedOptions.localJobGridCoordinate=
+		qs_distributed_utils::coordinateFromRowMajorIndex(distributedOptions.rowMajorJobPosition,distributedOptions.gridDims);
+	distributedOptions.flattenedJobIds=flattenedJobIds;
+
+	distributedOptions.flattenedDiNames.resize(flattenedJobIds.size());
+	for (size_t i = 0; i < flattenedJobIds.size(); ++i)
+	{
+		distributedOptions.flattenedDiNames[i]=std::string("input_di_")+std::to_string(flattenedJobIds[i]);
+	}
+
+	if(!distributedOptions.diGridPayload.empty()){
+		Json::Value parsedDiGrid;
+		if(!qs_distributed_utils::parseJsonPayloadOrFile(distributedOptions.diGridPayload,parsedDiGrid,dmError)){
+			fprintf(reportFile, "distributed mode error: invalid -di_grid_json payload (%s)\n", dmError.c_str());
+			return false;
+		}
+		std::vector<unsigned> diGridDims;
+		std::vector<std::vector<unsigned> > diCoordinates;
+		std::vector<std::string> diNames;
+		if(!qs_distributed_utils::flattenRowMajorStringGrid(parsedDiGrid,diGridDims,diCoordinates,diNames,dmError)){
+			fprintf(reportFile, "distributed mode error: invalid -di_grid_json content (%s)\n", dmError.c_str());
+			return false;
+		}
+		if(diGridDims!=distributedOptions.gridDims){
+			fprintf(reportFile, "distributed mode error: -di_grid_json shape does not match -jg shape\n");
+			return false;
+		}
+		if(diNames.size()!=distributedOptions.flattenedJobIds.size()){
+			fprintf(reportFile, "distributed mode error: -di_grid_json size does not match -jg size\n");
+			return false;
+		}
+		distributedOptions.flattenedDiNames=diNames;
 	}
 
 	distributedOptions.flattenedJobCount=flattenedJobIds.size();
