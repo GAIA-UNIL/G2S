@@ -42,7 +42,7 @@ unsigned nChoosek( unsigned n, unsigned k )
 
 void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, QuantileSamplingModule &samplingModule,
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosterioryPath=nullptr){
 	
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
 	for (size_t i = 0; i < TIs.size(); ++i)
@@ -50,21 +50,26 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		marginals.push_back(TIs[i].computeMagninals(categoriesValues));
 	}
 
-	g2s_path_index_t* posterioryPath=(g2s_path_index_t*)malloc( sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
-	memset(posterioryPath,255,sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
-	for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
-	{
-		bool withNan=false;
-		for (unsigned int j = 0; j < di._nbVariable; ++j)
+	bool localPosterioryPathAllocated=false;
+	g2s_path_index_t* posterioryPath=inputPosterioryPath;
+	if(posterioryPath==nullptr){
+		localPosterioryPathAllocated=true;
+		posterioryPath=(g2s_path_index_t*)malloc( sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
+		memset(posterioryPath,255,sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
+		for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 		{
-			withNan|=std::isnan(di._data[i*di._nbVariable+j]);
+			bool withNan=false;
+			for (unsigned int j = 0; j < di._nbVariable; ++j)
+			{
+				withNan|=std::isnan(di._data[i*di._nbVariable+j]);
+			}
+			if(!withNan)
+				posterioryPath[i]=0;
 		}
-		if(!withNan)
-			posterioryPath[i]=0;
-	}
-	for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
-	{
-		posterioryPath[solvingPath[i]]=i;
+		for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
+		{
+			posterioryPath[solvingPath[i]]=i;
+		}
 	}
 	
 	unsigned numberOfVariable=di._nbVariable;
@@ -320,7 +325,9 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 
-	free(posterioryPath);
+	if(localPosterioryPathAllocated){
+		free(posterioryPath);
+	}
 }
 
 
