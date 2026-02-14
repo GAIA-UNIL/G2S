@@ -592,6 +592,12 @@ int main(int argc, char const *argv[]) {
 	if(run && !resolveDistributedJobPosition(reportFile,uniqueID,distributedOptions)){
 		run=false;
 	}
+	if(run && !distributedOptions.jobGridPayload.empty()){
+		const unsigned baseSeed=seed;
+		seed=seed+static_cast<unsigned>(distributedOptions.rowMajorJobPosition);
+		fprintf(reportFile, "distributed mode: seed=%u (base=%u + row-major-position=%zu)\n",
+			seed,baseSeed,distributedOptions.rowMajorJobPosition);
+	}
 #endif
 
 	// print all ignored parameters
