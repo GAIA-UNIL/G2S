@@ -19,6 +19,7 @@
 #include <cmath>
 #include <random>
 #include <algorithm>
+#include <limits>
 
 #include <thread>
 #include <atomic>
@@ -44,6 +45,8 @@
 #include "simulation.hpp"
 #include "simulationAugmentedDim.hpp"
 #include "quantileSamplingModule.hpp"
+#include "qsDistributedUtils.hpp"
+#include "qsPaddingUtils.hpp"
 
 enum simType
 {
@@ -78,6 +81,7 @@ int main(int argc, char const *argv[]) {
 
 	jobIdType uniqueID=-1;
 	bool run=true;
+	QsDistributedOptions distributedOptions;
 
 
 	// manage report file
@@ -113,6 +117,16 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+
+	if (arg.count("-id") == 1)
+	{
+		const long parsedId=atol((arg.find("-id")->second).c_str());
+		if(parsedId>=0){
+			uniqueID=static_cast<jobIdType>(parsedId);
+		}
+	}
+	arg.erase("-id");
+
 	for (int i = 0; i < argc; ++i)
 	{
 		fprintf(reportFile,"%s ",argv[i]);
@@ -294,6 +308,7 @@ int main(int argc, char const *argv[]) {
 		kValueImageFileName=arg.find("-kvi")->second;
 	}
 	arg.erase("-kvi");
+	parseDistributedCliArgs(arg, distributedOptions);
 
 
 
@@ -568,6 +583,17 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile, "%s\n", "narrowness need to be seted" );
 	}*/
 
+#ifndef G2S_QS_DISTRIBUTED
+	if(!distributedOptions.jobGridPayload.empty()){
+		fprintf(reportFile, "distributed mode error: this build does not support distributed memory. Recompile with make G2S_QS_DISTRIBUTED=1\n");
+		run=false;
+	}
+#else
+	if(run && !resolveDistributedJobPosition(reportFile,uniqueID,distributedOptions)){
+		run=false;
+	}
+#endif
+
 	// print all ignored parameters
 	for (std::multimap<std::string, std::string>::iterator it=arg.begin(); it!=arg.end(); ++it){
 		fprintf(reportFile, "%s %s <== ignored !\n", it->first.c_str(), it->second.c_str());
@@ -651,6 +677,17 @@ int main(int argc, char const *argv[]) {
 		}
 		kernels.push_back(g2s::DataImage::genearteKernel(kernelsTypeFG, maxSize, variableWeight, alphas));
 	}
+
+	std::vector<unsigned> outputDims=DI._dims;
+	std::vector<unsigned> spatialPadding(outputDims.size(),0);
+	for (size_t kernelIndex = 0; kernelIndex < kernels.size(); ++kernelIndex)
+	{
+		for (size_t dim = 0; dim < std::min(kernels[kernelIndex]._dims.size(),spatialPadding.size()); ++dim)
+		{
+			spatialPadding[dim]=std::max(spatialPadding[dim],kernels[kernelIndex]._dims[dim]/2);
+		}
+	}
+	const bool usePaddedDomain=qs_padding_utils::hasPadding(spatialPadding);
 
 	std::vector<std::vector<std::vector<int> > > pathPositionArray;
 	for (int kernelIndex = 0; kernelIndex < kernels.size(); ++kernelIndex)
@@ -844,7 +881,7 @@ int main(int argc, char const *argv[]) {
 		DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
 	}
 	
-	unsigned* importDataIndex=(unsigned *)id._data;
+	unsigned* importDataIndex=nullptr;
 	float* seedForIndex=( float* )malloc( sizeof(float) * simulationPathSize );
 	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
 
@@ -884,6 +921,40 @@ int main(int argc, char const *argv[]) {
 			nbCandidate=std::max(nbCandidate,kValueImage._data[i]);
 		}
 	}
+
+	outputDims=DI._dims;
+	if(usePaddedDomain){
+		fprintf(reportFile,"use padded simulation domain with halos:");
+		for (size_t dim = 0; dim < spatialPadding.size(); ++dim)
+		{
+			fprintf(reportFile," %u",spatialPadding[dim]);
+		}
+		fprintf(reportFile,"\n");
+
+		DI=qs_padding_utils::padDataImageWithValue(DI,spatialPadding,std::nanf("0"));
+		id=qs_padding_utils::padDataImageWithValue(id,spatialPadding,0.f);
+
+		if (!idImage.isEmpty())
+		{
+			idImage=qs_padding_utils::padDataImageWithValue(idImage,spatialPadding,std::nanf("0"));
+		}
+		if (!numberOfNeigboursImage.isEmpty())
+		{
+			numberOfNeigboursImage=qs_padding_utils::padDataImageWithValue(numberOfNeigboursImage,spatialPadding,std::nanf("0"));
+		}
+		if (!kernelIndexImage.isEmpty())
+		{
+			kernelIndexImage=qs_padding_utils::padDataImageWithValue(kernelIndexImage,spatialPadding,std::nanf("0"));
+		}
+		if (!kValueImage.isEmpty())
+		{
+			kValueImage=qs_padding_utils::padDataImageWithValue(kValueImage,spatialPadding,std::nanf("0"));
+		}
+
+		qs_padding_utils::mapSimulationPathToPadded(simulationPathIndex,simulationPathSize,fullSimulation,DI._nbVariable,outputDims,spatialPadding);
+	}
+
+	importDataIndex=(unsigned *)id._data;
 
 
 
@@ -1060,6 +1131,37 @@ int main(int argc, char const *argv[]) {
 
 	QuantileSamplingModule QSM(computeDeviceModuleArray,(kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
+	std::vector<g2s_path_index_t> posterioryPath;
+	const g2s_path_index_t maxPosteriorValue=std::numeric_limits<g2s_path_index_t>::max();
+	const g2s_path_index_t numberOfPointToSimulate=simulationPathSize-beginPath;
+	if(fullSimulation){
+		posterioryPath.assign(DI.dataSize(),maxPosteriorValue);
+		for (unsigned i = 0; i < DI.dataSize(); ++i)
+		{
+			if(!std::isnan(DI._data[i])){
+				posterioryPath[i]=0;
+			}
+		}
+	}else{
+		const unsigned cellCount=DI.dataSize()/DI._nbVariable;
+		posterioryPath.assign(cellCount,maxPosteriorValue);
+		for (unsigned i = 0; i < cellCount; ++i)
+		{
+			bool withNan=false;
+			for (unsigned int j = 0; j < DI._nbVariable; ++j)
+			{
+				withNan|=std::isnan(DI._data[i*DI._nbVariable+j]);
+			}
+			if(!withNan){
+				posterioryPath[i]=0;
+			}
+		}
+	}
+	for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
+	{
+		posterioryPath[simulationPathIndex[beginPath+i]]=i;
+	}
+
 	// run QS
 
 	auto begin = std::chrono::high_resolution_clock::now();
@@ -1068,13 +1170,21 @@ int main(int argc, char const *argv[]) {
 	if(fullSimulation) st=fullSim;
 	if(augmentedDimentionSimulation) st=augmentedDimSim;
 
-	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID){
+	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID,
+		bool usePaddedDomain, std::vector<unsigned> spatialPadding, std::vector<unsigned> outputDims){
 		unsigned last=0;
 		while (!computationIsDone)
 		{
 			if(last>=interval){
-				id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
-				DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				if(usePaddedDomain){
+					g2s::DataImage croppedId=qs_padding_utils::cropDataImageCenter(id,spatialPadding,outputDims);
+					g2s::DataImage croppedDI=qs_padding_utils::cropDataImageCenter(DI,spatialPadding,outputDims);
+					croppedId.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+					croppedDI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				}else{
+					id.write(std::string("im_2_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+					DI.write(std::string("im_1_")+std::to_string(uniqueID)+std::string(".auto_bk"));
+				}
 				last=0;
 			}
 			last++;
@@ -1086,24 +1196,24 @@ int main(int argc, char const *argv[]) {
 	std::thread saveThread;
 	std::atomic<bool> computationIsDone(false);
 	if(interval>0){
-		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID);
+		saveThread=std::thread(autoSaveFunction, std::ref(id), std::ref(DI), std::ref(computationIsDone), interval, uniqueID, usePaddedDomain, spatialPadding, outputDims);
 	}
 
 	switch (st){
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posterioryPath.data());
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posterioryPath.data());
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimention sim");
 		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posterioryPath.data());
 		break;
 	}
 
@@ -1132,17 +1242,30 @@ int main(int argc, char const *argv[]) {
 
 	delete[] computeDeviceModuleArray;
 
-	// to remove later
-	id.write(outputIndexFilename);
-	DI.write(outputFilename);
-	//end to remove
-
-	// new filename 
-	id.write(std::string("im_2_")+std::to_string(uniqueID));
-	DI.write(std::string("im_1_")+std::to_string(uniqueID));
-
 	if(saveThread.joinable()){
 		saveThread.join();
+	}
+
+	if(usePaddedDomain){
+		g2s::DataImage croppedId=qs_padding_utils::cropDataImageCenter(id,spatialPadding,outputDims);
+		g2s::DataImage croppedDI=qs_padding_utils::cropDataImageCenter(DI,spatialPadding,outputDims);
+		// to remove later
+		croppedId.write(outputIndexFilename);
+		croppedDI.write(outputFilename);
+		//end to remove
+
+		// new filename
+		croppedId.write(std::string("im_2_")+std::to_string(uniqueID));
+		croppedDI.write(std::string("im_1_")+std::to_string(uniqueID));
+	}else{
+		// to remove later
+		id.write(outputIndexFilename);
+		DI.write(outputFilename);
+		//end to remove
+
+		// new filename
+		id.write(std::string("im_2_")+std::to_string(uniqueID));
+		DI.write(std::string("im_1_")+std::to_string(uniqueID));
 	}
 
 	free(simulationPathIndex);
