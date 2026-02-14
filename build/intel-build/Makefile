@@ -28,6 +28,7 @@ ifeq ($(doseNeedFS_Lib),1)
 endif
 
 export DEST_DIR_EXTENSION:=$(shell pwd)
+export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py
 
 
 CXX_FLAGS+= -xhost -fopenmp -DXEON -DWITH_MKL -I${MKLROOT}/include/fftw -qmkl 
@@ -41,9 +42,9 @@ ifneq ($(origin AS_STATIC), undefined)
 	LDFLAGS_NO_SERVER_ONLY:=$(subst -qmkl,-static-intel -qopenmp-link=static $(MKL_STAT_PATH) ,$(LDFLAGS_NO_SERVER_ONLY))
 endif
 
-.PHONY: all depend algoNames extension clean
+.PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs $(WITH_CUDA)
+all: g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -89,6 +90,11 @@ libg2s.a: DataImage.o
 algoNames:
 	ln -sf ../algosName.config algosName.config
 
+distributed-tools:
+	@ln -sf ../qs_prepare.sh ./qs_prepare.sh
+	@ln -sf ../qs_decentralized.py ./qs_decentralized.py
+	@chmod +x ./qs_prepare.sh ./qs_decentralized.py
+
 extension:libg2s.a algoNames
 	$(MAKE) -C ../extension clean
 	$(MAKE) -C ../extension
@@ -108,6 +114,8 @@ install:create_install_path all
 	@cp -f ./nds $(INSTALL_DIR)/libexec || printf "\e[31error: 'nds' is missing !!\e[0m\n"
 	@cp -f ./ds-l $(INSTALL_DIR)/libexec || printf "\e[31error: 'ds-l' is missing !!\e[0m\n"
 	@cp -f ./auto_qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'auto_qs' is missing !!\e[0m\n"
+	@cp -f ./qs_prepare.sh $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_prepare.sh' is missing !!\e[0m\n"
+	@cp -f ./qs_decentralized.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized.py' is missing !!\e[0m\n"
 	@cp -f ../algosName.config $(INSTALL_DIR)/libexec
 	@cp -f ./g2s_cuda.so $(INSTALL_DIR)/libexec || printf "\e[33mwarning: 'g2s_cuda.so' is missing, this is probably due to the absance of CUDA compiler.\e[0m\n"
 	@printf "\e[32mInstallation Intel finished!\e[0m\n"
@@ -115,5 +123,6 @@ install:create_install_path all
 clean:
 	rm -rf *.o *.so *.a
 	rm -rf g2s_server echo test qs nds ds ds-l errorTest auto_qs
+	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend
