@@ -575,21 +575,21 @@ int main(int argc, char const *argv[]) {
 	}
 	fprintf(stderr, "\n\n" );*/
 
-	unsigned simulationPathSize=0;
-	unsigned* simulationPathIndex=nullptr;
-	unsigned beginPath=0;
+	g2s_path_index_t simulationPathSize=0;
+	g2s_path_index_t* simulationPathIndex=nullptr;
+	g2s_path_index_t beginPath=0;
 	bool fullSimulation=false;
 
 	if(simuationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
 		simulationPathSize=DI.dataSize()/DI._nbVariable;
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
-		for (unsigned i = 0; i < simulationPathSize; ++i)
+		simulationPathIndex=(g2s_path_index_t *)malloc(sizeof(g2s_path_index_t)*simulationPathSize);
+		for (g2s_path_index_t i = 0; i < simulationPathSize; ++i)
 		{
 			simulationPathIndex[i]=i;
 		}
 
-		for (unsigned int i = 0; i < simulationPathSize; ++i)
+		for (g2s_path_index_t i = 0; i < simulationPathSize; ++i)
 		{
 			bool valueSeted=true;
 			for (unsigned int j = 0; j < DI._nbVariable; ++j)
@@ -620,11 +620,11 @@ int main(int argc, char const *argv[]) {
 			return 0;
 		}
 
-		simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPathSize);
+		simulationPathIndex=(g2s_path_index_t *)malloc(sizeof(g2s_path_index_t)*simulationPathSize);
 		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
 		float* simulationPathData=simulationPath._data;
 		std::sort(simulationPathIndex, simulationPathIndex+simulationPathSize,
-			[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
+			[simulationPathData](g2s_path_index_t i1, g2s_path_index_t i2) {return simulationPathData[i1] < simulationPathData[i2];});
 
 		//Search begin path
 		for ( beginPath=0 ; beginPath < simulationPathSize; ++beginPath)

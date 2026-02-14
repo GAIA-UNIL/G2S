@@ -22,6 +22,7 @@
 #include "samplingModule.hpp"
 #include "quantileSamplingModule.hpp"
 #include "fKst.hpp"
+#include "pathIndexType.hpp"
 #include <thread>
 
 unsigned nChoosek( unsigned n, unsigned k )
@@ -40,7 +41,7 @@ unsigned nChoosek( unsigned n, unsigned k )
 
 
 void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, QuantileSamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, unsigned* solvingPath, unsigned numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
   std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false){
 	
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
@@ -49,8 +50,8 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		marginals.push_back(TIs[i].computeMagninals(categoriesValues));
 	}
 
-	unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize()/di._nbVariable);
-	memset(posterioryPath,255,sizeof(unsigned) * di.dataSize()/di._nbVariable);
+	g2s_path_index_t* posterioryPath=(g2s_path_index_t*)malloc( sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
+	memset(posterioryPath,255,sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
 	for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 	{
 		bool withNan=false;
@@ -61,7 +62,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		if(!withNan)
 			posterioryPath[i]=0;
 	}
-	for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
+	for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
 	{
 		posterioryPath[solvingPath[i]]=i;
 	}
@@ -76,7 +77,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, std::placeholders::_1,combinatory, nbThreadsLv2, marginals, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,\
 		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPositionArray, di, samplingModule, TIs, kernels)
-	for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
+	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
 		// 	unsigned currentCell=solvingPath[indexPath];
