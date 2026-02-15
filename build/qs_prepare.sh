@@ -45,7 +45,28 @@ if [[ -z "$job_id" ]]; then
   exit 2
 fi
 
-data_dir="${G2S_DATA_DIR:-/tmp/G2S/data}"
+resolve_data_dir() {
+  if [[ -n "${G2S_DATA_DIR:-}" ]]; then
+    local explicit="${G2S_DATA_DIR%/}"
+    if [[ "$(basename "$explicit")" == "data" ]]; then
+      printf "%s" "$explicit"
+    else
+      printf "%s" "$explicit/data"
+    fi
+    return 0
+  fi
+  local user_name="${USER:-${LOGNAME:-}}"
+  if [[ -n "$user_name" ]]; then
+    local scratch_root="/scratch/${user_name}/G2S"
+    if [[ -d "$scratch_root" ]]; then
+      printf "%s" "$scratch_root/data"
+      return 0
+    fi
+  fi
+  printf "%s" "/tmp/G2S/data"
+}
+
+data_dir="$(resolve_data_dir)"
 mkdir -p "$data_dir"
 
 link_one() {

@@ -9,8 +9,27 @@ import time
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 
-DATA_DIR = os.environ.get("G2S_DATA_DIR", "/tmp/G2S/data")
-LOG_DIR = "/tmp/G2S/logs"
+def resolve_storage_paths() -> Tuple[str, str]:
+    explicit = os.environ.get("G2S_DATA_DIR", "").strip()
+    if explicit:
+        normalized = os.path.normpath(explicit)
+        if os.path.basename(normalized) == "data":
+            root_dir = os.path.dirname(normalized)
+            data_dir = normalized
+        else:
+            root_dir = normalized
+            data_dir = os.path.join(root_dir, "data")
+        return data_dir, os.path.join(root_dir, "logs")
+
+    user_name = os.environ.get("USER", "").strip() or os.environ.get("LOGNAME", "").strip()
+    if user_name:
+        scratch_root = f"/scratch/{user_name}/G2S"
+        if os.path.isdir(scratch_root):
+            return os.path.join(scratch_root, "data"), os.path.join(scratch_root, "logs")
+    return "/tmp/G2S/data", "/tmp/G2S/logs"
+
+
+DATA_DIR, LOG_DIR = resolve_storage_paths()
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT_START = 8130
 PROGRESS_PATTERN = re.compile(r"progress\s*:\s*([0-9]+(?:\.[0-9]+)?)%")
