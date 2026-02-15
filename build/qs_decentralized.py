@@ -2,16 +2,20 @@
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import time
-from typing import Any, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 
 DATA_DIR = os.environ.get("G2S_DATA_DIR", "/tmp/G2S/data")
 LOG_DIR = "/tmp/G2S/logs"
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT_START = 8130
+PROGRESS_PATTERN = re.compile(r"progress\s*:\s*([0-9]+(?:\.[0-9]+)?)%")
+PROGRESS_POLL_INTERVAL_SECONDS = 0.2
+PROGRESS_REPORT_INTERVAL_SECONDS = 1.0
 
 
 def parse_arg_entries(argv: Sequence[str]) -> List[Tuple[str, List[str]]]:
@@ -195,6 +199,65 @@ def write_json_file(path: str, payload: Any) -> None:
         json.dump(payload, stream, separators=(",", ":"))
 
 
+def parse_progress_from_line(line: str) -> Optional[float]:
+    match = PROGRESS_PATTERN.search(line)
+    if match is None:
+        return None
+    value = float(match.group(1))
+    if value < 0.0:
+        return 0.0
+    if value > 100.0:
+        return 100.0
+    return value
+
+
+def read_progress_from_log(
+    log_path: str, offset: int, partial_line: str, finalize: bool = False
+) -> Tuple[int, str, Optional[float]]:
+    latest_progress: Optional[float] = None
+    chunk = b""
+    new_offset = offset
+    try:
+        with open(log_path, "rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            file_size = stream.tell()
+            if file_size < offset:
+                offset = 0
+                partial_line = ""
+            if file_size > offset:
+                stream.seek(offset)
+                chunk = stream.read(file_size - offset)
+                new_offset = offset + len(chunk)
+            else:
+                new_offset = file_size
+    except OSError:
+        if finalize and partial_line:
+            return new_offset, "", parse_progress_from_line(partial_line.strip())
+        return new_offset, partial_line, None
+
+    text = partial_line + chunk.decode("utf-8", errors="ignore")
+    if text.endswith("\n"):
+        lines = text.splitlines()
+        remaining = ""
+    else:
+        pieces = text.split("\n")
+        lines = pieces[:-1]
+        remaining = pieces[-1]
+
+    for line in lines:
+        progress = parse_progress_from_line(line.strip())
+        if progress is not None:
+            latest_progress = progress
+
+    if finalize and remaining:
+        progress = parse_progress_from_line(remaining.strip())
+        if progress is not None:
+            latest_progress = progress
+        remaining = ""
+
+    return new_offset, remaining, latest_progress
+
+
 def main() -> int:
     start_time = time.time()
     entries = parse_arg_entries(sys.argv)
@@ -261,7 +324,7 @@ def main() -> int:
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(LOG_DIR, exist_ok=True)
 
-    all_cmds: List[Tuple[str, List[str]]] = []
+    all_cmds: List[Tuple[str, str, List[str]]] = []
     di_name_flat: List[str] = []
     try:
         for job_id in job_ids:
@@ -271,11 +334,12 @@ def main() -> int:
             di_name_for_grid = local_di[0] if local_di else default_di_name(job_id)
             di_name_flat.append(di_name_for_grid)
 
-            command: List[str] = ["./qs", "-r", f"{LOG_DIR}/{job_id}.log", "-s", common_seed, "-ti"]
+            log_path = os.path.join(LOG_DIR, f"{job_id}.log")
+            command: List[str] = ["./qs", "-r", log_path, "-s", common_seed, "-ti"]
             command.extend(ti_values)
             command.extend(["-di", di_value])
             command.extend(forwarded)
-            all_cmds.append((job_id, command))
+            all_cmds.append((job_id, log_path, command))
     except Exception as exc:
         report(f"qs_dm: cannot prepare jobs ({exc}).")
         if report_should_close:
@@ -292,13 +356,13 @@ def main() -> int:
     write_json_file(endpoint_grid_file, endpoint_grid)
     write_json_file(di_grid_file, di_grid)
 
-    for _, command in all_cmds:
+    for _, _, command in all_cmds:
         command.extend(["-jg", job_grid_file, "-eg", endpoint_grid_file, "-di_grid_json", di_grid_file])
 
-    processes: List[Tuple[str, subprocess.Popen]] = []
+    processes: List[Tuple[str, str, subprocess.Popen]] = []
     try:
-        for job_id, command in all_cmds:
-            processes.append((job_id, subprocess.Popen(command)))
+        for job_id, log_path, command in all_cmds:
+            processes.append((job_id, log_path, subprocess.Popen(command)))
     except Exception as exc:
         report(f"qs_dm: failed to launch child jobs ({exc}).")
         if report_should_close:
@@ -306,15 +370,73 @@ def main() -> int:
         return 1
 
     total = len(processes)
+    job_progress: Dict[str, float] = {}
+    log_offsets: Dict[str, int] = {}
+    log_fragments: Dict[str, str] = {}
+    completed_jobs: Set[str] = set()
     completed = 0
     failed: List[Tuple[str, int]] = []
-    for job_id, process in processes:
-        code = process.wait()
-        completed += 1
-        if total > 1 and completed < total:
-            report(f"progress : {100.0 * completed / total:.2f}%")
-        if code != 0:
-            failed.append((job_id, code))
+
+    for job_id, log_path, _ in processes:
+        initial_offset = 0
+        try:
+            initial_offset = os.path.getsize(log_path)
+        except OSError:
+            initial_offset = 0
+        log_offsets[job_id] = initial_offset
+        log_fragments[job_id] = ""
+        job_progress[job_id] = 0.0
+
+    def update_job_progress(job_id: str, log_path: str, finalize: bool = False) -> None:
+        offset, fragment, progress = read_progress_from_log(
+            log_path, log_offsets[job_id], log_fragments[job_id], finalize
+        )
+        log_offsets[job_id] = offset
+        log_fragments[job_id] = fragment
+        if progress is not None:
+            job_progress[job_id] = max(job_progress[job_id], progress)
+
+    last_progress = -1.0
+    last_report_time = 0.0
+    while completed < total:
+        now = time.time()
+        for job_id, log_path, process in processes:
+            if job_id in completed_jobs:
+                continue
+
+            update_job_progress(job_id, log_path)
+            code = process.poll()
+            if code is None:
+                continue
+
+            update_job_progress(job_id, log_path, finalize=True)
+            completed_jobs.add(job_id)
+            completed += 1
+            job_progress[job_id] = 100.0
+            if code != 0:
+                failed.append((job_id, code))
+            report(f"qs_dm: job {job_id} finished rc={code} ({completed}/{total})")
+
+        aggregate_progress = sum(job_progress.values()) / float(total)
+        should_report = (
+            (last_progress < 0.0)
+            or (aggregate_progress > last_progress + 1e-9)
+            or (completed == total and last_progress < 100.0)
+        )
+        if should_report and (now - last_report_time >= PROGRESS_REPORT_INTERVAL_SECONDS):
+            elapsed = max(now - start_time, 0.0)
+            if aggregate_progress > 0.0 and aggregate_progress < 100.0:
+                eta = elapsed * (100.0 - aggregate_progress) / aggregate_progress
+                report(
+                    f"progress : {aggregate_progress:.2f}% ({completed}/{total} done, eta ~{eta:7.2f} s)"
+                )
+            else:
+                report(f"progress : {aggregate_progress:.2f}% ({completed}/{total} done)")
+            last_progress = aggregate_progress
+            last_report_time = now
+
+        if completed < total:
+            time.sleep(PROGRESS_POLL_INTERVAL_SECONDS)
 
     report("progress : 100.00%")
     elapsed_seconds = time.time() - start_time
