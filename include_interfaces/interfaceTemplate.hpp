@@ -82,29 +82,32 @@ public:
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
 
 	void normalizeJobGridParameter(std::multimap<std::string, std::any> &input){
-		auto convertKey=[&](const std::string &key){
-			std::vector<std::any> values;
-			for (auto it=input.equal_range(key).first; it!=input.equal_range(key).second; ++it)
+		std::vector<std::any> values;
+		auto collectValues=[&](const std::string &key){
+			auto range=input.equal_range(key);
+			for (auto it=range.first; it!=range.second; ++it)
 			{
 				values.push_back(it->second);
 			}
 			input.erase(key);
-			for (size_t i = 0; i < values.size(); ++i)
-			{
-				if(isDataMatrix(values[i])){
-					std::string jsonValue;
-					if(!encodeJobGridMatrixToJsonString(values[i],jsonValue)){
-						sendError("failed to encode -job_grid matrix into JSON");
-					}
-					input.insert(std::pair<std::string,std::any>("-job_grid_json",jsonValue));
-				}else{
-					input.insert(std::pair<std::string,std::any>("-job_grid_json",values[i]));
-				}
-			}
 		};
 
-		if(input.count("-job_grid")>0) convertKey("-job_grid");
-		if(input.count("-jg")>0) convertKey("-jg");
+		collectValues("-jg");
+		collectValues("-job_grid_json");
+		collectValues("-job_grid");
+
+		for (size_t i = 0; i < values.size(); ++i)
+		{
+			if(isDataMatrix(values[i])){
+				std::string jsonValue;
+				if(!encodeJobGridMatrixToJsonString(values[i],jsonValue)){
+					sendError("failed to encode -jg matrix into JSON");
+				}
+				input.insert(std::pair<std::string,std::any>("-jg",jsonValue));
+			}else{
+				input.insert(std::pair<std::string,std::any>("-jg",values[i]));
+			}
+		}
 	}
 
 		//to improuve
@@ -285,7 +288,7 @@ public:
 		auto dataTypeVariable=input.find("-dt");
 		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
 		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
-		std::set<std::string> listOfJsonParameterToUploadIfNeeded= {"-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
+		std::set<std::string> listOfJsonParameterToUploadIfNeeded= {"-jg","-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())
 				if(isDataMatrix(it->second)){
@@ -327,7 +330,7 @@ public:
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
 
 		std::atomic<bool> done(false);
-		normalizeJobGridParameter(input); // convert -jg in json version
+		normalizeJobGridParameter(input); // canonicalize job-grid keys to -jg
 
 		jobIdType id=0;
 		bool stop=false;

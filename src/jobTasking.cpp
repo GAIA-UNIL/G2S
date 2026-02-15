@@ -249,7 +249,7 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 						argv[0]=(char *)"bash";
 					if(argv[0])
 					{
-						execv(argv[0], argv);
+						execvp(argv[0], argv);
 					}
 					else
 					{

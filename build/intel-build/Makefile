@@ -44,7 +44,7 @@ endif
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds-l libg2s.a errorTest auto_qs distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs nds ds-l libg2s.a errorTest algoNames auto_qs distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 

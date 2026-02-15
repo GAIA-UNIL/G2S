@@ -21,7 +21,7 @@ export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds-l libg2s.a errorTest test auto_qs distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs nds ds-l libg2s.a errorTest test auto_qs algoNames distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
