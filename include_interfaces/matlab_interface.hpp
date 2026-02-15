@@ -24,10 +24,8 @@
 #include "mexInterrupt.hpp"
 #include "matrix.h"
 #include "interfaceTemplate.hpp"
-#include <cmath>
+#include <functional>
 #include <limits>
-#include <string>
-#include <vector>
 
 #ifndef MATLAB_VERSION
 #define MATLAB_VERSION 0
@@ -38,146 +36,6 @@ class InterfaceTemplateMatlab: public InterfaceTemplate
 
 std::future<void> InterruptCheck;
 std::atomic<bool> _done=false;
-
-bool scalarToIntegerString(mxArray const* array, mwIndex linearIndex, std::string& out){
-	switch (mxGetClassID(array))
-	{
-		case mxLOGICAL_CLASS:
-		{
-			const mxLogical* data = mxGetLogicals(array);
-			if(!data) data = (const mxLogical*)mxGetData(array);
-			out = data[linearIndex] ? "1" : "0";
-			return true;
-		}
-		case mxDOUBLE_CLASS:
-		{
-			const double* data = (const double*)mxGetData(array);
-			double value = data[linearIndex];
-			if(!std::isfinite(value) || std::floor(value)!=value) return false;
-			if(value>=0.0 && value<=double(std::numeric_limits<unsigned long long>::max())){
-				out=std::to_string((unsigned long long)value);
-				return true;
-			}
-			if(value>=double(std::numeric_limits<long long>::min()) && value<=double(std::numeric_limits<long long>::max())){
-				out=std::to_string((long long)value);
-				return true;
-			}
-			return false;
-		}
-		case mxSINGLE_CLASS:
-		{
-			const float* data = (const float*)mxGetData(array);
-			float value = data[linearIndex];
-			if(!std::isfinite(value) || std::floor(value)!=value) return false;
-			if(value>=0.f && value<=float(std::numeric_limits<unsigned long long>::max())){
-				out=std::to_string((unsigned long long)value);
-				return true;
-			}
-			if(value>=float(std::numeric_limits<long long>::min()) && value<=float(std::numeric_limits<long long>::max())){
-				out=std::to_string((long long)value);
-				return true;
-			}
-			return false;
-		}
-		case mxUINT8_CLASS:
-			out=std::to_string(((const uint8_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxUINT16_CLASS:
-			out=std::to_string(((const uint16_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxUINT32_CLASS:
-			out=std::to_string(((const uint32_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxUINT64_CLASS:
-			out=std::to_string(((const uint64_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxINT8_CLASS:
-			out=std::to_string(((const int8_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxINT16_CLASS:
-			out=std::to_string(((const int16_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxINT32_CLASS:
-			out=std::to_string(((const int32_t*)mxGetData(array))[linearIndex]);
-			return true;
-		case mxINT64_CLASS:
-			out=std::to_string(((const int64_t*)mxGetData(array))[linearIndex]);
-			return true;
-		default:
-			return false;
-	}
-}
-
-mwIndex columnMajorIndex(const std::vector<mwSize>& coords, const mwSize* dims){
-	mwIndex index = 0;
-	mwIndex stride = 1;
-	for (size_t i = 0; i < coords.size(); ++i)
-	{
-		index += coords[i] * stride;
-		stride *= dims[i];
-	}
-	return index;
-}
-
-bool matlabArrayToJsonRecursive(mxArray const* array,
-							    const mwSize* dims,
-							    int ndims,
-							    int level,
-							    std::vector<mwSize>& coords,
-							    Json::Value& output){
-	if(level>=ndims){
-		std::string valueAsString;
-		if(!scalarToIntegerString(array,columnMajorIndex(coords,dims),valueAsString)) return false;
-		output=Json::Value(valueAsString);
-		return true;
-	}
-	output=Json::Value(Json::arrayValue);
-	for (mwSize i = 0; i < dims[level]; ++i)
-	{
-		coords[level]=i;
-		Json::Value child;
-		if(!matlabArrayToJsonRecursive(array,dims,ndims,level+1,coords,child)) return false;
-		output.append(child);
-	}
-	return true;
-}
-
-std::string buildJobGridJson(mxArray const* array){
-	Json::Value root;
-	const int ndims=mxGetNumberOfDimensions(array);
-	const mwSize *dims=mxGetDimensions(array);
-	std::vector<mwSize> coords(std::max(ndims,1),0);
-
-	if(!matlabArrayToJsonRecursive(array,dims,ndims,0,coords,root))
-		sendError("-job_grid/-jg must contain finite integer identifiers");
-
-	Json::StreamWriterBuilder builder;
-	builder["commentStyle"] = "None";
-	builder["indentation"] = "";
-	return Json::writeString(builder, root);
-}
-
-void normalizeJobGridInput(std::multimap<std::string, std::any> &inputs){
-	if(inputs.count("-jg")==0){
-		auto alias=inputs.find("-job_grid");
-		if(alias==inputs.end()) alias=inputs.find("-job_grid_json");
-		if(alias!=inputs.end()){
-			if(alias->second.type()==typeid(mxArray const*)){
-				mxArray const* array=std::any_cast<mxArray const*>(alias->second);
-				if(mxIsNumeric(array) || mxIsLogical(array)){
-					std::string jsonGrid=buildJobGridJson(array);
-					inputs.insert({"-jg",std::any(jsonGrid)});
-				}else{
-					inputs.insert({"-jg",std::any(toString(alias->second))});
-				}
-			}else{
-				inputs.insert({"-jg",std::any(toString(alias->second))});
-			}
-		}
-	}
-	inputs.erase("-job_grid");
-	inputs.erase("-job_grid_json");
-}
 
 public:
 
@@ -298,6 +156,123 @@ public:
 		*(unsigned*)mxGetPr(output)=val;
 		return std::any(output);
 	};
+
+	bool matlabElementToUnsignedString(mxArray const* matrix, size_t linearIndex, std::string &stringValue){
+		switch(mxGetClassID(matrix)){
+			case mxUINT8_CLASS:
+				stringValue=std::to_string(((uint8_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT16_CLASS:
+				stringValue=std::to_string(((uint16_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT32_CLASS:
+				stringValue=std::to_string(((uint32_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxUINT64_CLASS:
+				stringValue=std::to_string(((uint64_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT8_CLASS:
+				if(((int8_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int8_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT16_CLASS:
+				if(((int16_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int16_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT32_CLASS:
+				if(((int32_t*)mxGetData(matrix))[linearIndex]<0) return false;
+				stringValue=std::to_string(((int32_t*)mxGetData(matrix))[linearIndex]);
+				return true;
+			case mxINT64_CLASS:
+			{
+				int64_t value=((int64_t*)mxGetData(matrix))[linearIndex];
+				if(value<0) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxDOUBLE_CLASS:
+			{
+				double value=((double*)mxGetData(matrix))[linearIndex];
+				if(!std::isfinite(value) || value<0. || std::floor(value)!=value || value>double(std::numeric_limits<unsigned long long>::max())) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxSINGLE_CLASS:
+			{
+				float value=((float*)mxGetData(matrix))[linearIndex];
+				if(!std::isfinite(value) || value<0.f || std::floor(value)!=value || value>float(std::numeric_limits<unsigned long long>::max())) return false;
+				stringValue=std::to_string((uint64_t)value);
+				return true;
+			}
+			case mxLOGICAL_CLASS:
+			{
+				stringValue=(((mxLogical*)mxGetData(matrix))[linearIndex] ? "1" : "0");
+				return true;
+			}
+			default:
+				return false;
+		}
+	}
+
+	bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue) override{
+		mxArray const* prh=std::any_cast<mxArray const*>(matrix);
+		if(!mxIsNumeric(prh) && !mxIsLogical(prh)){
+			return false;
+		}
+
+		mwSize nbDim=mxGetNumberOfDimensions(prh);
+		const mwSize *dims=mxGetDimensions(prh);
+		std::vector<size_t> strides(nbDim,1);
+		for (mwSize i = 1; i < nbDim; ++i)
+		{
+			strides[i]=strides[i-1]*dims[i-1];
+		}
+		std::vector<mwSize> coordinate(nbDim,0);
+
+		bool isValid=true;
+		auto currentLinearIndex=[&]()->size_t{
+			size_t linearIndex=0;
+			for (mwSize i = 0; i < nbDim; ++i)
+			{
+				linearIndex+=size_t(coordinate[i])*strides[i];
+			}
+			return linearIndex;
+		};
+
+		std::function<Json::Value(mwSize)> buildJson=[&](mwSize dim)->Json::Value{
+			Json::Value values(Json::arrayValue);
+			const mwSize inputDim=nbDim-1-dim;
+			if(dim==nbDim-1){
+				for (mwSize i = 0; i < dims[inputDim]; ++i)
+				{
+					coordinate[inputDim]=i;
+					std::string stringValue;
+					if(!matlabElementToUnsignedString(prh,currentLinearIndex(),stringValue)){
+						isValid=false;
+						return Json::Value();
+					}
+					values.append(stringValue);
+				}
+				return values;
+			}
+			for (mwSize i = 0; i < dims[inputDim]; ++i)
+			{
+				coordinate[inputDim]=i;
+				values.append(buildJson(dim+1));
+				if(!isValid) return Json::Value();
+			}
+			return values;
+		};
+
+		Json::Value root=buildJson(0);
+		if(!isValid) return false;
+
+		Json::StreamWriterBuilder builder;
+		builder["commentStyle"] = "None";
+		builder["indentation"] = "";
+		jsonValue=Json::writeString(builder, root);
+		return true;
+	}
 
 	void sendError(std::string val){
 		mexErrMsgIdAndTxt("g2s:error", val.c_str());
@@ -541,8 +516,6 @@ public:
 				}
 			}
 		}
-
-		normalizeJobGridInput(inputs);
 
 		runStandardCommunication(inputs, outputs, nlhs);
 

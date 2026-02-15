@@ -18,13 +18,11 @@
 #include "interfaceTemplate.hpp"
 #include <algorithm>
 #include <any>
-#include <cmath>
-#include <limits>
 #include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <functional>
 
 /* ------------------------------------------------------------------
  * NumPy ≥ 2.0 compatibility wrappers (strict PyArrayObject typing)
@@ -37,7 +35,6 @@
 #define PyArray_DIMS_SAFE(o)    PyArray_DIMS(NPY_OBJ(o))
 #define PyArray_NDIM_SAFE(o)    PyArray_NDIM(NPY_OBJ(o))
 #define PyArray_SIZE_SAFE(o)    PyArray_SIZE(NPY_OBJ(o))
-#define PyArray_ITEMSIZE_SAFE(o) PyArray_ITEMSIZE(NPY_OBJ(o))
 #define PyArray_BYTES_SAFE(o)   PyArray_BYTES(NPY_OBJ(o))
 #define PyArray_STRIDES_SAFE(o) PyArray_STRIDES(NPY_OBJ(o))
 #define PyArray_ISOBJECT_SAFE(o) (PyTypeNum_ISOBJECT(PyArray_TYPE_SAFE(o)))
@@ -51,158 +48,6 @@
 class InterfaceTemplatePython3 : public InterfaceTemplate {
 private:
     PyThreadState* _save = nullptr;
-
-    bool pyScalarToIntegerString(PyObject* value, std::string& out) {
-        if (PyBool_Check(value)) {
-            out = (value == Py_True) ? "1" : "0";
-            return true;
-        }
-        if (PyLong_Check(value)) {
-            PyObject* asText = PyObject_Str(value);
-            if (!asText) {
-                return false;
-            }
-            out = PyUnicode_AsUTF8(asText);
-            Py_DECREF(asText);
-            return true;
-        }
-        if (PyFloat_Check(value)) {
-            const double scalar = PyFloat_AsDouble(value);
-            if (!std::isfinite(scalar) || std::floor(scalar) != scalar) {
-                return false;
-            }
-            if (scalar >= 0.0 &&
-                scalar <= static_cast<double>(std::numeric_limits<unsigned long long>::max())) {
-                out = std::to_string(static_cast<unsigned long long>(scalar));
-                return true;
-            }
-            if (scalar >= static_cast<double>(std::numeric_limits<long long>::min()) &&
-                scalar <= static_cast<double>(std::numeric_limits<long long>::max())) {
-                out = std::to_string(static_cast<long long>(scalar));
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool pyArrayElementToIntegerString(PyObject* arrayObject, npy_intp flatIndex, std::string& out) {
-        char* elementPtr = PyArray_BYTES_SAFE(arrayObject) + flatIndex * PyArray_ITEMSIZE_SAFE(arrayObject);
-        PyObject* scalar = PyArray_GETITEM_SAFE(arrayObject, elementPtr);
-        if (!scalar) {
-            return false;
-        }
-        const bool ok = pyScalarToIntegerString(scalar, out);
-        Py_DECREF(scalar);
-        return ok;
-    }
-
-    bool pyArrayToJsonRecursive(PyObject* arrayObject,
-                                const std::vector<npy_intp>& dims,
-                                size_t level,
-                                npy_intp& flatIndex,
-                                Json::Value& output) {
-        if (level >= dims.size()) {
-            std::string valueAsString;
-            if (!pyArrayElementToIntegerString(arrayObject, flatIndex, valueAsString)) {
-                return false;
-            }
-            output = Json::Value(valueAsString);
-            ++flatIndex;
-            return true;
-        }
-
-        output = Json::Value(Json::arrayValue);
-        for (npy_intp i = 0; i < dims[level]; ++i) {
-            Json::Value child;
-            if (!pyArrayToJsonRecursive(arrayObject, dims, level + 1, flatIndex, child)) {
-                return false;
-            }
-            output.append(child);
-        }
-        return true;
-    }
-
-    bool pyNestedSequenceToJson(PyObject* value, Json::Value& output) {
-        if (PyList_Check(value) || PyTuple_Check(value)) {
-            output = Json::Value(Json::arrayValue);
-            const Py_ssize_t count = PySequence_Size(value);
-            for (Py_ssize_t i = 0; i < count; ++i) {
-                PyObject* child = PySequence_GetItem(value, i);
-                if (!child) {
-                    return false;
-                }
-                Json::Value childJson;
-                const bool ok = pyNestedSequenceToJson(child, childJson);
-                Py_DECREF(child);
-                if (!ok) {
-                    return false;
-                }
-                output.append(childJson);
-            }
-            return true;
-        }
-
-        std::string valueAsString;
-        if (!pyScalarToIntegerString(value, valueAsString)) {
-            return false;
-        }
-        output = Json::Value(valueAsString);
-        return true;
-    }
-
-    std::string buildJobGridJson(PyObject* value) {
-        Json::Value root;
-        if (PyArray_Check(value)) {
-            PyObject* contiguous =
-                PyArray_FromAny(value, nullptr, 0, 0, NPY_ARRAY_CARRAY_RO, nullptr);
-            if (!contiguous) {
-                sendError("invalid -job_grid/-jg matrix");
-            }
-
-            const int ndim = PyArray_NDIM_SAFE(contiguous);
-            std::vector<npy_intp> dims;
-            dims.reserve(std::max(ndim, 0));
-            for (int i = 0; i < ndim; ++i) {
-                dims.push_back(PyArray_DIMS_SAFE(contiguous)[i]);
-            }
-
-            npy_intp flatIndex = 0;
-            const bool ok = pyArrayToJsonRecursive(contiguous, dims, 0, flatIndex, root);
-            Py_DECREF(contiguous);
-            if (!ok) {
-                sendError("-job_grid/-jg must contain finite integer identifiers");
-            }
-        } else {
-            if (!pyNestedSequenceToJson(value, root)) {
-                sendError("-job_grid/-jg must be an integer matrix/array");
-            }
-        }
-
-        Json::StreamWriterBuilder builder;
-        builder["commentStyle"] = "None";
-        builder["indentation"] = "";
-        return Json::writeString(builder, root);
-    }
-
-    void normalizeJobGridInput(std::multimap<std::string, std::any>& inputs) {
-        if (inputs.count("-jg") == 0) {
-            auto alias = inputs.find("-job_grid");
-            if (alias == inputs.end()) {
-                alias = inputs.find("-job_grid_json");
-            }
-            if (alias != inputs.end()) {
-                if (alias->second.type() == typeid(PyObject*)) {
-                    PyObject* value = std::any_cast<PyObject*>(alias->second);
-                    const std::string jsonValue = buildJobGridJson(value);
-                    inputs.emplace("-jg", std::any(jsonValue));
-                } else {
-                    inputs.emplace("-jg", std::any(toString(alias->second)));
-                }
-            }
-        }
-        inputs.erase("-job_grid");
-        inputs.erase("-job_grid_json");
-    }
 
 public:
     /* ------------ threading ------------ */
@@ -272,6 +117,95 @@ public:
 
     std::any Uint32ToNative(unsigned val) override {
         return std::any(PyLong_FromUnsignedLong(val));
+    }
+
+    bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue) override{
+        PyObject* source=std::any_cast<PyObject*>(matrix);
+        PyObject* contiguous=PyArray_ContiguousFromAny(source, NPY_NOTYPE, 1, NPY_MAXDIMS);
+        if(!contiguous){
+            PyErr_Clear();
+            return false;
+        }
+
+        bool ok=true;
+        auto getStringValue=[&](const char* ptr, std::string &out){
+            PyObject* item=PyArray_GETITEM_SAFE(contiguous, ptr);
+            if(!item){ok=false; return;}
+
+            // Prefer exact integer conversion when possible.
+            PyObject* asIndex=PyNumber_Index(item);
+            if(asIndex){
+                unsigned long long value=PyLong_AsUnsignedLongLong(asIndex);
+                Py_DECREF(asIndex);
+                Py_DECREF(item);
+                if(PyErr_Occurred()){ok=false; PyErr_Clear(); return;}
+                out=std::to_string(value);
+                return;
+            }
+            PyErr_Clear();
+
+            // Accept finite non-negative integer-like floats.
+            PyObject* asFloat=PyNumber_Float(item);
+            Py_DECREF(item);
+            if(!asFloat){ok=false; PyErr_Clear(); return;}
+            double value=PyFloat_AsDouble(asFloat);
+            Py_DECREF(asFloat);
+            if(PyErr_Occurred()){ok=false; PyErr_Clear(); return;}
+            if(!std::isfinite(value) || value<0. || std::floor(value)!=value){
+                ok=false;
+                return;
+            }
+            out=std::to_string((unsigned long long)value);
+        };
+
+        char* basePtr=PyArray_BYTES_SAFE(contiguous);
+        int nbDim=PyArray_NDIM_SAFE(contiguous);
+        npy_intp *dims=PyArray_DIMS_SAFE(contiguous);
+        npy_intp *strides=PyArray_STRIDES_SAFE(contiguous);
+        std::vector<npy_intp> coordinate(nbDim,0);
+
+        auto currentPtr=[&]()->char*{
+            char* ptr=basePtr;
+            for (int i = 0; i < nbDim; ++i)
+            {
+                ptr+=coordinate[i]*strides[i];
+            }
+            return ptr;
+        };
+
+        std::function<Json::Value(int)> buildJson=[&](int dim)->Json::Value{
+            Json::Value values(Json::arrayValue);
+            const int inputDim=nbDim-1-dim;
+            if(dim==nbDim-1){
+                for (npy_intp i = 0; i < dims[inputDim]; ++i)
+                {
+                    coordinate[inputDim]=i;
+                    std::string stringValue;
+                    getStringValue(currentPtr(), stringValue);
+                    if(!ok) return Json::Value();
+                    values.append(stringValue);
+                }
+                return values;
+            }
+            for (npy_intp i = 0; i < dims[inputDim]; ++i)
+            {
+                coordinate[inputDim]=i;
+                values.append(buildJson(dim+1));
+                if(!ok) return Json::Value();
+            }
+            return values;
+        };
+
+        Json::Value root=buildJson(0);
+        Py_DECREF(contiguous);
+        if(!ok){
+            return false;
+        }
+        Json::StreamWriterBuilder builder;
+        builder["commentStyle"] = "None";
+        builder["indentation"] = "";
+        jsonValue=Json::writeString(builder, root);
+        return true;
     }
 
 
@@ -486,8 +420,6 @@ public:
                 addInputsToInputsMap(inputs,"-dt",PyArray_CastToType(dt,PyArray_DescrFromType(NPY_FLOAT),0));
             }
         }
-
-        normalizeJobGridInput(inputs);
 
         // Remove all entries where value is None
         for (auto it = inputs.begin(); it != inputs.end(); ) {
