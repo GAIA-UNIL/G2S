@@ -1829,36 +1829,7 @@ int main(int argc, char const *argv[]) {
 								zmq::message_t outgoing(payload.size());
 								memcpy(outgoing.data(),payload.data(),payload.size());
 								distributedXpubSocket->send(outgoing);
-								const unsigned char* rawPayload=payload.data();
-								const size_t payloadSize=payload.size();
-								if(payloadSize>=1){
-									size_t offset=1;
-									if(rawPayload[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Vector)){
-										g2s_path_index_t globalPosition=0;
-										uint32_t valueCount=0;
-										if(readRawBytes(rawPayload,payloadSize,offset,globalPosition) &&
-											readRawBytes(rawPayload,payloadSize,offset,valueCount)){
-											flockfile(stderr);
-											fprintf(stderr,"[job %u] send V global=%llu values=%u\n",
-												distributedSendContext.jobId,
-												static_cast<unsigned long long>(globalPosition),
-												valueCount);
-											funlockfile(stderr);
-										}
-									}else if(rawPayload[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Full)){
-										g2s_path_index_t globalPosition=0;
-										float value=std::nanf("0");
-										if(readRawBytes(rawPayload,payloadSize,offset,globalPosition) &&
-											readRawBytes(rawPayload,payloadSize,offset,value)){
-											flockfile(stderr);
-											fprintf(stderr,"[job %u] send F global=%llu value=%g\n",
-												distributedSendContext.jobId,
-												static_cast<unsigned long long>(globalPosition),
-												value);
-											funlockfile(stderr);
-										}
-									}
-								}
+								// send/receive debug prints disabled on request.
 							}catch(const zmq::error_t&){
 								break;
 							}
@@ -1873,9 +1844,7 @@ int main(int argc, char const *argv[]) {
 							const size_t messageSize=updateMessage.size();
 							if(messageSize<1){
 								distributedReceiveStats.invalidMessageCount++;
-								flockfile(stderr);
-								fprintf(stderr,"[job %u] recv invalid empty\n",distributedSendContext.jobId);
-								funlockfile(stderr);
+								// send/receive debug prints disabled on request.
 								continue;
 							}
 							const unsigned char* rawMessage=
@@ -1887,17 +1856,13 @@ int main(int argc, char const *argv[]) {
 								if(!readRawBytes(rawMessage,messageSize,offset,globalPosition) ||
 									!readRawBytes(rawMessage,messageSize,offset,valueCount)){
 									distributedReceiveStats.invalidMessageCount++;
-									flockfile(stderr);
-									fprintf(stderr,"[job %u] recv invalid V header\n",distributedSendContext.jobId);
-									funlockfile(stderr);
+									// send/receive debug prints disabled on request.
 									continue;
 								}
 								const size_t valuesBytes=static_cast<size_t>(valueCount)*sizeof(float);
 								if(offset+valuesBytes!=messageSize){
 									distributedReceiveStats.invalidMessageCount++;
-									flockfile(stderr);
-									fprintf(stderr,"[job %u] recv invalid V size\n",distributedSendContext.jobId);
-									funlockfile(stderr);
+									// send/receive debug prints disabled on request.
 									continue;
 								}
 								std::vector<float> values(valueCount);
@@ -1932,13 +1897,7 @@ int main(int argc, char const *argv[]) {
 									}
 								}
 								distributedReceiveStats.vectorMessageCount++;
-								flockfile(stderr);
-								fprintf(stderr,"[job %u] recv V global=%llu values=%u %s\n",
-									distributedSendContext.jobId,
-									static_cast<unsigned long long>(globalPosition),
-									valueCount,
-									(found ? "applied" : "skipped"));
-								funlockfile(stderr);
+								// send/receive debug prints disabled on request.
 							}else if(rawMessage[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Full)){
 								g2s_path_index_t globalPosition=0;
 								float value=std::nanf("0");
@@ -1946,9 +1905,7 @@ int main(int argc, char const *argv[]) {
 									!readRawBytes(rawMessage,messageSize,offset,value) ||
 									offset!=messageSize){
 									distributedReceiveStats.invalidMessageCount++;
-									flockfile(stderr);
-									fprintf(stderr,"[job %u] recv invalid F payload\n",distributedSendContext.jobId);
-									funlockfile(stderr);
+									// send/receive debug prints disabled on request.
 									continue;
 								}
 								bool found=false;
@@ -1974,20 +1931,10 @@ int main(int argc, char const *argv[]) {
 									}
 								}
 								distributedReceiveStats.fullMessageCount++;
-								flockfile(stderr);
-								fprintf(stderr,"[job %u] recv F global=%llu value=%g %s\n",
-									distributedSendContext.jobId,
-									static_cast<unsigned long long>(globalPosition),
-									value,
-									(found ? "applied" : "skipped"));
-								funlockfile(stderr);
+								// send/receive debug prints disabled on request.
 							}else{
 								distributedReceiveStats.invalidMessageCount++;
-								flockfile(stderr);
-								fprintf(stderr,"[job %u] recv invalid kind=%u\n",
-									distributedSendContext.jobId,
-									static_cast<unsigned>(rawMessage[0]));
-								funlockfile(stderr);
+								// send/receive debug prints disabled on request.
 							}
 						}
 					});
