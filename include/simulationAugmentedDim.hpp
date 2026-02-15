@@ -23,6 +23,7 @@
 #include "quantileSamplingModule.hpp"
 #include "fKst.hpp"
 #include "pathIndexType.hpp"
+#include "simulationUpdateCallback.hpp"
 #include <thread>
 
 unsigned nChoosek( unsigned n, unsigned k )
@@ -42,7 +43,8 @@ unsigned nChoosek( unsigned n, unsigned k )
 
 void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, QuantileSamplingModule &samplingModule,
  std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii,g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosterioryPath=nullptr){
+  std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, unsigned nbThreadsLv2=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosterioryPath=nullptr,
+  g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr){
 	
 	std::vector<std::vector<std::vector<unsigned> > > marginals;
 	for (size_t i = 0; i < TIs.size(); ++i)
@@ -81,7 +83,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 	int combinatory=nChoosek(di._dims.size(),TIs[0]._dims.size());
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, std::placeholders::_1,combinatory, nbThreadsLv2, marginals, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate,\
-		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, useExternalPosteriorPath) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+		posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii, useExternalPosteriorPath, updateCallback, updateCallbackUserData) shared( pathPositionArray, di, samplingModule, TIs, kernels)
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -321,6 +323,9 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		if(std::isnan(di._data[currentCell])||forceSimulation){
 			#pragma omp atomic write
 			di._data[currentCell]=categoriesValues[0][classIndex];
+			if(updateCallback){
+				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);
+			}
 		}
 
 		if(indexPath%(numberOfPointToSimulate/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);

@@ -23,6 +23,12 @@
 
 #include <thread>
 #include <atomic>
+#include <memory>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
+#include <cstdint>
+#include <cstring>
 
 #include "utils.hpp"
 #include "DataImage.hpp"
@@ -47,6 +53,9 @@
 #include "quantileSamplingModule.hpp"
 #include "qsDistributedUtils.hpp"
 #include "qsPaddingUtils.hpp"
+#ifdef G2S_QS_DISTRIBUTED
+#include <zmq.hpp>
+#endif
 
 enum simType
 {
@@ -54,6 +63,242 @@ enum simType
 	fullSim,
 	augmentedDimSim
 };
+
+#ifdef G2S_QS_DISTRIBUTED
+struct QsDistributedSendContext{
+	g2s::DataImage* di=nullptr;
+	g2s_path_index_t* posterioryPath=nullptr;
+	size_t posterioryPathSize=0;
+	jobIdType jobId=jobIdType(-1);
+	std::mutex queueMutex;
+	std::condition_variable queueCv;
+	std::deque<std::vector<unsigned char> > queue;
+};
+
+struct QsDistributedReceiveStats{
+	std::atomic<unsigned long long> vectorMessageCount;
+	std::atomic<unsigned long long> fullMessageCount;
+	std::atomic<unsigned long long> invalidMessageCount;
+	QsDistributedReceiveStats():
+		vectorMessageCount(0),
+		fullMessageCount(0),
+		invalidMessageCount(0){}
+};
+
+struct QsDistributedGlobalToLocalEntry{
+	g2s_path_index_t globalPathIndex=g2s_path_index_t(0);
+	g2s_path_index_t localIndex=g2s_path_index_t(0);
+};
+
+struct QsDistributedLookupState{
+	size_t ownerCount=0;
+	std::vector<std::vector<QsDistributedGlobalToLocalEntry> > vectorTableByOwner;
+	std::vector<std::vector<QsDistributedGlobalToLocalEntry> > fullTableByOwner;
+	std::vector<size_t> vectorCursorByOwner;
+	std::vector<size_t> fullCursorByOwner;
+};
+
+template<typename TValue>
+inline void appendRawBytes(std::vector<unsigned char>& payload, const TValue& value){
+	const unsigned char* rawValue=reinterpret_cast<const unsigned char*>(&value);
+	payload.insert(payload.end(),rawValue,rawValue+sizeof(TValue));
+}
+
+template<typename TValue>
+inline bool readRawBytes(const unsigned char* rawData, size_t rawSize, size_t& offset, TValue& outValue){
+	if(offset+sizeof(TValue)>rawSize){
+		return false;
+	}
+	memcpy(&outValue,rawData+offset,sizeof(TValue));
+	offset+=sizeof(TValue);
+	return true;
+}
+
+inline bool findLookupEntryWithCursor(
+	const std::vector<QsDistributedGlobalToLocalEntry>& table,
+	size_t& cursor,
+	g2s_path_index_t globalPathIndex,
+	g2s_path_index_t& localIndexOut){
+	if(table.empty()){
+		return false;
+	}
+	if(cursor>=table.size()){
+		cursor=table.size()-1;
+	}
+
+	size_t index=cursor;
+	if(table[index].globalPathIndex<=globalPathIndex){
+		while(index+1<table.size() && table[index].globalPathIndex<globalPathIndex){
+			++index;
+		}
+		if(table[index].globalPathIndex==globalPathIndex){
+			cursor=index;
+			localIndexOut=table[index].localIndex;
+			return true;
+		}
+		if(index>0){
+			while(index>0 && table[index].globalPathIndex>globalPathIndex){
+				--index;
+			}
+			if(table[index].globalPathIndex==globalPathIndex){
+				cursor=index;
+				localIndexOut=table[index].localIndex;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	while(index>0 && table[index].globalPathIndex>globalPathIndex){
+		--index;
+	}
+	if(table[index].globalPathIndex==globalPathIndex){
+		cursor=index;
+		localIndexOut=table[index].localIndex;
+		return true;
+	}
+	return false;
+}
+
+inline bool isPaddedCellIndex(unsigned cellIndex,
+	const std::vector<unsigned>& paddedDims,
+	const std::vector<unsigned>& spatialPadding,
+	const std::vector<unsigned>& outputDims){
+	const std::vector<unsigned> coord=qs_padding_utils::indexToCoord(cellIndex,paddedDims);
+	for (size_t dim = 0; dim < coord.size(); ++dim)
+	{
+		const unsigned centerBegin=spatialPadding[dim];
+		const unsigned centerEnd=spatialPadding[dim]+outputDims[dim];
+		if(coord[dim]<centerBegin || coord[dim]>=centerEnd){
+			return true;
+		}
+	}
+	return false;
+}
+
+inline void buildDistributedLookupTables(g2s::DataImage& di,
+	const std::vector<g2s_path_index_t>& posterioryPath,
+	bool fullSimulation,
+	bool usePaddedDomain,
+	const std::vector<unsigned>& spatialPadding,
+	const std::vector<unsigned>& outputDims,
+	size_t ownerCount,
+	QsDistributedLookupState& lookupState){
+	lookupState.ownerCount=ownerCount;
+	lookupState.vectorTableByOwner.clear();
+	lookupState.fullTableByOwner.clear();
+	lookupState.vectorCursorByOwner.clear();
+	lookupState.fullCursorByOwner.clear();
+	if(ownerCount==0 || !usePaddedDomain){
+		return;
+	}
+	if(di._dims.size()!=spatialPadding.size() || di._dims.size()!=outputDims.size()){
+		return;
+	}
+	lookupState.vectorTableByOwner.resize(ownerCount);
+	lookupState.fullTableByOwner.resize(ownerCount);
+
+	const g2s_path_index_t maxPosteriorValue=std::numeric_limits<g2s_path_index_t>::max();
+	const unsigned cellCount=di.dataSize()/di._nbVariable;
+
+	if(fullSimulation){
+		if(posterioryPath.size()!=di.dataSize()){
+			return;
+		}
+		for (unsigned cell = 0; cell < cellCount; ++cell)
+		{
+			if(!isPaddedCellIndex(cell,di._dims,spatialPadding,outputDims)){
+				continue;
+			}
+			for (unsigned variable = 0; variable < di._nbVariable; ++variable)
+			{
+				const unsigned scalarIndex=cell*di._nbVariable+variable;
+				const g2s_path_index_t globalPathIndex=posterioryPath[scalarIndex];
+				if(globalPathIndex==g2s_path_index_t(0) || globalPathIndex==maxPosteriorValue){
+					continue;
+				}
+				const size_t owner=static_cast<size_t>(globalPathIndex%g2s_path_index_t(ownerCount));
+				lookupState.fullTableByOwner[owner].push_back({globalPathIndex,static_cast<g2s_path_index_t>(scalarIndex)});
+			}
+		}
+	}else{
+		if(posterioryPath.size()!=cellCount){
+			return;
+		}
+		for (unsigned cell = 0; cell < cellCount; ++cell)
+		{
+			if(!isPaddedCellIndex(cell,di._dims,spatialPadding,outputDims)){
+				continue;
+			}
+			const g2s_path_index_t globalPathIndex=posterioryPath[cell];
+			if(globalPathIndex==g2s_path_index_t(0) || globalPathIndex==maxPosteriorValue){
+				continue;
+			}
+			const size_t owner=static_cast<size_t>(globalPathIndex%g2s_path_index_t(ownerCount));
+			lookupState.vectorTableByOwner[owner].push_back({globalPathIndex,static_cast<g2s_path_index_t>(cell)});
+		}
+	}
+
+	auto sortAndUnique=[](std::vector<std::vector<QsDistributedGlobalToLocalEntry> >& tableByOwner){
+		for (size_t owner = 0; owner < tableByOwner.size(); ++owner)
+		{
+			std::vector<QsDistributedGlobalToLocalEntry>& table=tableByOwner[owner];
+			std::sort(table.begin(),table.end(),[](const QsDistributedGlobalToLocalEntry& left,
+				const QsDistributedGlobalToLocalEntry& right){
+				return left.globalPathIndex<right.globalPathIndex;
+			});
+			table.erase(std::unique(table.begin(),table.end(),[](const QsDistributedGlobalToLocalEntry& left,
+				const QsDistributedGlobalToLocalEntry& right){
+				return left.globalPathIndex==right.globalPathIndex;
+			}),table.end());
+		}
+	};
+
+	sortAndUnique(lookupState.vectorTableByOwner);
+	sortAndUnique(lookupState.fullTableByOwner);
+	lookupState.vectorCursorByOwner.assign(ownerCount,0);
+	lookupState.fullCursorByOwner.assign(ownerCount,0);
+}
+
+static void enqueueDistributedSimulationUpdate(g2s_simulation_update_kind kind,
+	g2s_path_index_t localIndex, unsigned variableIndex, void* userData){
+	(void)variableIndex;
+	QsDistributedSendContext* sendContext=static_cast<QsDistributedSendContext*>(userData);
+	if(sendContext==nullptr || sendContext->di==nullptr || sendContext->posterioryPath==nullptr){
+		return;
+	}
+	if(static_cast<size_t>(localIndex)>=sendContext->posterioryPathSize){
+		return;
+	}
+
+	const g2s_path_index_t globalPathIndex=sendContext->posterioryPath[localIndex];
+	if(globalPathIndex==std::numeric_limits<g2s_path_index_t>::max()){
+		return;
+	}
+
+	std::vector<unsigned char> payload;
+	payload.reserve(1+sizeof(g2s_path_index_t)+sizeof(uint32_t)+sendContext->di->_nbVariable*sizeof(float));
+	payload.push_back(static_cast<unsigned char>(kind));
+	appendRawBytes(payload,globalPathIndex);
+
+	if(kind==g2s_simulation_update_kind::Vector){
+		const uint32_t valueCount=static_cast<uint32_t>(sendContext->di->_nbVariable);
+		appendRawBytes(payload,valueCount);
+		const float* valuePtr=sendContext->di->_data+static_cast<size_t>(localIndex)*sendContext->di->_nbVariable;
+		const unsigned char* rawValues=reinterpret_cast<const unsigned char*>(valuePtr);
+		payload.insert(payload.end(),rawValues,rawValues+sizeof(float)*valueCount);
+	}else{
+		const float value=sendContext->di->_data[localIndex];
+		appendRawBytes(payload,value);
+	}
+
+	{
+		std::lock_guard<std::mutex> queueLock(sendContext->queueMutex);
+		sendContext->queue.push_back(std::move(payload));
+	}
+	sendContext->queueCv.notify_one();
+}
+#endif
 
 
 void printHelp(){
@@ -82,6 +327,20 @@ int main(int argc, char const *argv[]) {
 	jobIdType uniqueID=-1;
 	bool run=true;
 	QsDistributedOptions distributedOptions;
+	g2s_simulation_update_callback_t simulationUpdateCallback=nullptr;
+	void* simulationUpdateCallbackUserData=nullptr;
+#ifdef G2S_QS_DISTRIBUTED
+	std::unique_ptr<zmq::context_t> distributedContext;
+	std::unique_ptr<zmq::socket_t> distributedXpubSocket;
+	std::unique_ptr<zmq::socket_t> distributedSubSocket;
+	std::thread distributedPublisherThread;
+	std::thread distributedNeighborReceiverThread;
+	std::atomic<bool> distributedPublisherStop(false);
+	std::atomic<bool> distributedNeighborReceiverStop(false);
+	QsDistributedSendContext distributedSendContext;
+	QsDistributedReceiveStats distributedReceiveStats;
+	QsDistributedLookupState distributedLookupState;
+#endif
 
 
 	// manage report file
@@ -1178,6 +1437,15 @@ int main(int argc, char const *argv[]) {
 	}
 
 #ifdef G2S_QS_DISTRIBUTED
+	if(!distributedOptions.jobGridPayload.empty()){
+		distributedSendContext.di=&DI;
+		distributedSendContext.posterioryPath=posterioryPath.data();
+		distributedSendContext.posterioryPathSize=posterioryPath.size();
+		distributedSendContext.jobId=uniqueID;
+	}
+#endif
+
+#ifdef G2S_QS_DISTRIBUTED
 	if(usePaddedDomain && !distributedOptions.jobGridPayload.empty()){
 		if(!simuationPathFileName.empty()){
 			fprintf(reportFile, "distributed mode warning: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors\n");
@@ -1393,7 +1661,331 @@ int main(int argc, char const *argv[]) {
 			fprintf(reportFile, "distributed mode: merged %zu neighbor halo(s) from -jg/-di_grid_json\n", mergedNeighborCount);
 		}
 	}
+	#endif
+
+#ifdef G2S_QS_DISTRIBUTED
+	if(!distributedOptions.jobGridPayload.empty()){
+		buildDistributedLookupTables(DI,
+			posterioryPath,
+			fullSimulation,
+			usePaddedDomain,
+			spatialPadding,
+			outputDims,
+			distributedOptions.flattenedJobCount,
+			distributedLookupState);
+		size_t vectorLookupCount=0;
+		size_t fullLookupCount=0;
+		for (size_t owner = 0; owner < distributedLookupState.vectorTableByOwner.size(); ++owner)
+		{
+			vectorLookupCount+=distributedLookupState.vectorTableByOwner[owner].size();
+		}
+		for (size_t owner = 0; owner < distributedLookupState.fullTableByOwner.size(); ++owner)
+		{
+			fullLookupCount+=distributedLookupState.fullTableByOwner[owner].size();
+		}
+		fprintf(reportFile, "distributed mode: precomputed lookup entries vector=%zu full=%zu owners=%zu\n",
+			vectorLookupCount,fullLookupCount,distributedLookupState.ownerCount);
+	}
 #endif
+
+	#ifdef G2S_QS_DISTRIBUTED
+	if(!distributedOptions.jobGridPayload.empty()){
+		auto normalizeEndpointAddress=[](const std::string& rawEndpoint){
+			std::string endpoint=qs_distributed_utils::trimWhitespace(rawEndpoint);
+			if(endpoint.find("://")==std::string::npos){
+				endpoint=std::string("tcp://")+endpoint;
+			}
+			return endpoint;
+		};
+
+		std::vector<size_t> neighborRowMajorPositions;
+		const size_t partitionRank=distributedOptions.gridDims.size();
+		size_t combinationCount=1;
+		for (size_t dim = 0; dim < partitionRank; ++dim)
+		{
+			combinationCount*=3;
+		}
+		for (size_t combination = 0; combination < combinationCount; ++combination)
+		{
+			size_t localCode=combination;
+			bool withOffset=false;
+			bool inBounds=true;
+			std::vector<unsigned> neighborCoordinate(partitionRank,0);
+			for (size_t dim = 0; dim < partitionRank; ++dim)
+			{
+				const int delta=int(localCode%3)-1;
+				localCode/=3;
+				withOffset|=(delta!=0);
+				const int candidate=int(distributedOptions.localJobGridCoordinate[dim])+delta;
+				if(candidate<0 || candidate>=int(distributedOptions.gridDims[dim])){
+					inBounds=false;
+					break;
+				}
+				neighborCoordinate[dim]=static_cast<unsigned>(candidate);
+			}
+			if(!withOffset || !inBounds){
+				continue;
+			}
+			neighborRowMajorPositions.push_back(
+				qs_distributed_utils::rowMajorIndexFromCoordinate(neighborCoordinate,distributedOptions.gridDims));
+		}
+
+		const size_t expectedNeighborCount=neighborRowMajorPositions.size();
+		if(distributedOptions.flattenedEndpointNames.size()!=distributedOptions.flattenedJobCount){
+			fprintf(reportFile, "distributed mode error: endpoint grid size mismatch with job grid\n");
+			run=false;
+		}
+		if(run){
+			try{
+				distributedContext.reset(new zmq::context_t(1));
+				distributedXpubSocket.reset(new zmq::socket_t(*distributedContext,ZMQ_XPUB));
+				distributedSubSocket.reset(new zmq::socket_t(*distributedContext,ZMQ_SUB));
+
+				int linger=0;
+				distributedXpubSocket->setsockopt(ZMQ_LINGER,&linger,sizeof(linger));
+				distributedSubSocket->setsockopt(ZMQ_LINGER,&linger,sizeof(linger));
+				int xpubVerbose=1;
+				distributedXpubSocket->setsockopt(ZMQ_XPUB_VERBOSE,&xpubVerbose,sizeof(xpubVerbose));
+				int subReceiveTimeoutMs=250;
+				distributedSubSocket->setsockopt(ZMQ_RCVTIMEO,&subReceiveTimeoutMs,sizeof(subReceiveTimeoutMs));
+
+				const std::string localEndpoint=
+					normalizeEndpointAddress(distributedOptions.flattenedEndpointNames[distributedOptions.rowMajorJobPosition]);
+				distributedXpubSocket->bind(localEndpoint.c_str());
+				distributedSubSocket->setsockopt(ZMQ_SUBSCRIBE,"",0);
+
+				for (size_t i = 0; i < expectedNeighborCount; ++i)
+				{
+					const size_t neighborPosition=neighborRowMajorPositions[i];
+					if(neighborPosition>=distributedOptions.flattenedEndpointNames.size()){
+						fprintf(reportFile, "distributed mode error: missing endpoint for neighbor position %zu\n", neighborPosition);
+						run=false;
+						break;
+					}
+					const std::string neighborEndpoint=
+						normalizeEndpointAddress(distributedOptions.flattenedEndpointNames[neighborPosition]);
+					distributedSubSocket->connect(neighborEndpoint.c_str());
+				}
+
+				if(run){
+					fprintf(reportFile, "distributed mode: waiting for %zu neighbor subscription(s)\n", expectedNeighborCount);
+					size_t connectedNeighborCount=0;
+					while(connectedNeighborCount<expectedNeighborCount){
+						zmq::message_t subscriptionMessage;
+						const bool received=distributedXpubSocket->recv(&subscriptionMessage);
+						if(!received || subscriptionMessage.size()<1){
+							continue;
+						}
+						const unsigned char* rawMessage=
+							static_cast<const unsigned char*>(subscriptionMessage.data());
+						if(rawMessage[0]==1){
+							connectedNeighborCount++;
+							fprintf(reportFile, "distributed mode: connected neighbors %zu/%zu\n",
+								connectedNeighborCount,expectedNeighborCount);
+						}
+					}
+					fprintf(reportFile, "distributed mode: all neighbors connected, simulation can start\n");
+
+					distributedPublisherStop=false;
+					distributedNeighborReceiverStop=false;
+					distributedPublisherThread=std::thread([&distributedPublisherStop,&distributedSendContext,&distributedXpubSocket](){
+						while(true){
+							std::vector<unsigned char> payload;
+							{
+								std::unique_lock<std::mutex> queueLock(distributedSendContext.queueMutex);
+								distributedSendContext.queueCv.wait(queueLock,[&distributedPublisherStop,&distributedSendContext](){
+									return distributedPublisherStop || !distributedSendContext.queue.empty();
+								});
+								if(distributedPublisherStop && distributedSendContext.queue.empty()){
+									break;
+								}
+								payload=std::move(distributedSendContext.queue.front());
+								distributedSendContext.queue.pop_front();
+							}
+							if(payload.empty() || !distributedXpubSocket){
+								continue;
+							}
+							try{
+								zmq::message_t outgoing(payload.size());
+								memcpy(outgoing.data(),payload.data(),payload.size());
+								distributedXpubSocket->send(outgoing);
+								const unsigned char* rawPayload=payload.data();
+								const size_t payloadSize=payload.size();
+								if(payloadSize>=1){
+									size_t offset=1;
+									if(rawPayload[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Vector)){
+										g2s_path_index_t globalPosition=0;
+										uint32_t valueCount=0;
+										if(readRawBytes(rawPayload,payloadSize,offset,globalPosition) &&
+											readRawBytes(rawPayload,payloadSize,offset,valueCount)){
+											flockfile(stderr);
+											fprintf(stderr,"[job %u] send V global=%llu values=%u\n",
+												distributedSendContext.jobId,
+												static_cast<unsigned long long>(globalPosition),
+												valueCount);
+											funlockfile(stderr);
+										}
+									}else if(rawPayload[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Full)){
+										g2s_path_index_t globalPosition=0;
+										float value=std::nanf("0");
+										if(readRawBytes(rawPayload,payloadSize,offset,globalPosition) &&
+											readRawBytes(rawPayload,payloadSize,offset,value)){
+											flockfile(stderr);
+											fprintf(stderr,"[job %u] send F global=%llu value=%g\n",
+												distributedSendContext.jobId,
+												static_cast<unsigned long long>(globalPosition),
+												value);
+											funlockfile(stderr);
+										}
+									}
+								}
+							}catch(const zmq::error_t&){
+								break;
+							}
+						}
+					});
+					distributedNeighborReceiverThread=std::thread([&distributedNeighborReceiverStop,&distributedSubSocket,&distributedReceiveStats,&distributedSendContext,&distributedLookupState,&DI](){
+						while(!distributedNeighborReceiverStop){
+							zmq::message_t updateMessage;
+							if(!distributedSubSocket || !distributedSubSocket->recv(&updateMessage)){
+								continue;
+							}
+							const size_t messageSize=updateMessage.size();
+							if(messageSize<1){
+								distributedReceiveStats.invalidMessageCount++;
+								flockfile(stderr);
+								fprintf(stderr,"[job %u] recv invalid empty\n",distributedSendContext.jobId);
+								funlockfile(stderr);
+								continue;
+							}
+							const unsigned char* rawMessage=
+								static_cast<const unsigned char*>(updateMessage.data());
+							size_t offset=1;
+							if(rawMessage[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Vector)){
+								g2s_path_index_t globalPosition=0;
+								uint32_t valueCount=0;
+								if(!readRawBytes(rawMessage,messageSize,offset,globalPosition) ||
+									!readRawBytes(rawMessage,messageSize,offset,valueCount)){
+									distributedReceiveStats.invalidMessageCount++;
+									flockfile(stderr);
+									fprintf(stderr,"[job %u] recv invalid V header\n",distributedSendContext.jobId);
+									funlockfile(stderr);
+									continue;
+								}
+								const size_t valuesBytes=static_cast<size_t>(valueCount)*sizeof(float);
+								if(offset+valuesBytes!=messageSize){
+									distributedReceiveStats.invalidMessageCount++;
+									flockfile(stderr);
+									fprintf(stderr,"[job %u] recv invalid V size\n",distributedSendContext.jobId);
+									funlockfile(stderr);
+									continue;
+								}
+								std::vector<float> values(valueCount);
+								if(valuesBytes>0){
+									memcpy(values.data(),rawMessage+offset,valuesBytes);
+								}
+								bool found=false;
+								g2s_path_index_t localCell=0;
+								if(distributedLookupState.ownerCount>0){
+									const size_t owner=static_cast<size_t>(globalPosition%g2s_path_index_t(distributedLookupState.ownerCount));
+									if(owner<distributedLookupState.vectorTableByOwner.size() &&
+										owner<distributedLookupState.vectorCursorByOwner.size()){
+										found=findLookupEntryWithCursor(
+											distributedLookupState.vectorTableByOwner[owner],
+											distributedLookupState.vectorCursorByOwner[owner],
+											globalPosition,
+											localCell);
+									}
+								}
+								if(found){
+									const unsigned effectiveValueCount=std::min<unsigned>(DI._nbVariable,valueCount);
+									for (unsigned variable = 0; variable < effectiveValueCount; ++variable)
+									{
+										const size_t scalarIndex=static_cast<size_t>(localCell)*DI._nbVariable+variable;
+										float currentValue=std::nanf("0");
+										#pragma omp atomic read
+										currentValue=DI._data[scalarIndex];
+										if(std::isnan(currentValue)){
+											#pragma omp atomic write
+											DI._data[scalarIndex]=values[variable];
+										}
+									}
+								}
+								distributedReceiveStats.vectorMessageCount++;
+								flockfile(stderr);
+								fprintf(stderr,"[job %u] recv V global=%llu values=%u %s\n",
+									distributedSendContext.jobId,
+									static_cast<unsigned long long>(globalPosition),
+									valueCount,
+									(found ? "applied" : "skipped"));
+								funlockfile(stderr);
+							}else if(rawMessage[0]==static_cast<unsigned char>(g2s_simulation_update_kind::Full)){
+								g2s_path_index_t globalPosition=0;
+								float value=std::nanf("0");
+								if(!readRawBytes(rawMessage,messageSize,offset,globalPosition) ||
+									!readRawBytes(rawMessage,messageSize,offset,value) ||
+									offset!=messageSize){
+									distributedReceiveStats.invalidMessageCount++;
+									flockfile(stderr);
+									fprintf(stderr,"[job %u] recv invalid F payload\n",distributedSendContext.jobId);
+									funlockfile(stderr);
+									continue;
+								}
+								bool found=false;
+								g2s_path_index_t localScalarIndex=0;
+								if(distributedLookupState.ownerCount>0){
+									const size_t owner=static_cast<size_t>(globalPosition%g2s_path_index_t(distributedLookupState.ownerCount));
+									if(owner<distributedLookupState.fullTableByOwner.size() &&
+										owner<distributedLookupState.fullCursorByOwner.size()){
+										found=findLookupEntryWithCursor(
+											distributedLookupState.fullTableByOwner[owner],
+											distributedLookupState.fullCursorByOwner[owner],
+											globalPosition,
+											localScalarIndex);
+									}
+								}
+								if(found && static_cast<size_t>(localScalarIndex)<DI.dataSize()){
+									float currentValue=std::nanf("0");
+									#pragma omp atomic read
+									currentValue=DI._data[localScalarIndex];
+									if(std::isnan(currentValue)){
+										#pragma omp atomic write
+										DI._data[localScalarIndex]=value;
+									}
+								}
+								distributedReceiveStats.fullMessageCount++;
+								flockfile(stderr);
+								fprintf(stderr,"[job %u] recv F global=%llu value=%g %s\n",
+									distributedSendContext.jobId,
+									static_cast<unsigned long long>(globalPosition),
+									value,
+									(found ? "applied" : "skipped"));
+								funlockfile(stderr);
+							}else{
+								distributedReceiveStats.invalidMessageCount++;
+								flockfile(stderr);
+								fprintf(stderr,"[job %u] recv invalid kind=%u\n",
+									distributedSendContext.jobId,
+									static_cast<unsigned>(rawMessage[0]));
+								funlockfile(stderr);
+							}
+						}
+					});
+					simulationUpdateCallback=enqueueDistributedSimulationUpdate;
+					simulationUpdateCallbackUserData=&distributedSendContext;
+				}
+			}catch(const zmq::error_t& e){
+				fprintf(reportFile, "distributed mode error: ZMQ initialization failed (%s)\n", e.what());
+				run=false;
+			}
+		}
+		}
+	#endif
+
+	if(!run){
+		fprintf(reportFile, "simulation interupted !!\n");
+		return 0;
+	}
 
 	// run QS
 
@@ -1436,17 +2028,17 @@ int main(int argc, char const *argv[]) {
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posterioryPath.data());
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posterioryPath.data());
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimention sim");
 		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posterioryPath.data());
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	}
 
@@ -1514,6 +2106,31 @@ int main(int argc, char const *argv[]) {
 		g2s_cudaLibrary_handle=nullptr;
 	}
 	#endif
+
+#ifdef G2S_QS_DISTRIBUTED
+	simulationUpdateCallback=nullptr;
+	simulationUpdateCallbackUserData=nullptr;
+	distributedPublisherStop=true;
+	distributedSendContext.queueCv.notify_all();
+	if(distributedPublisherThread.joinable()){
+		distributedPublisherThread.join();
+	}
+	distributedNeighborReceiverStop=true;
+	if(distributedNeighborReceiverThread.joinable()){
+		distributedNeighborReceiverThread.join();
+	}
+	if(distributedReceiveStats.vectorMessageCount.load()>0 ||
+		distributedReceiveStats.fullMessageCount.load()>0 ||
+		distributedReceiveStats.invalidMessageCount.load()>0){
+		fprintf(reportFile, "distributed mode: received updates vector=%llu full=%llu invalid=%llu\n",
+			distributedReceiveStats.vectorMessageCount.load(),
+			distributedReceiveStats.fullMessageCount.load(),
+			distributedReceiveStats.invalidMessageCount.load());
+	}
+	distributedSubSocket.reset();
+	distributedXpubSocket.reset();
+	distributedContext.reset();
+#endif
 
 	return 0;
 }

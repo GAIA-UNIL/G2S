@@ -25,12 +25,14 @@
 
 struct QsDistributedOptions{
 	std::string jobGridPayload;
+	std::string endpointGridPayload;
 	std::string diGridPayload;
 	size_t rowMajorJobPosition=0;
 	size_t flattenedJobCount=0;
 	std::vector<unsigned> gridDims;
 	std::vector<unsigned> localJobGridCoordinate;
 	std::vector<unsigned> flattenedJobIds;
+	std::vector<std::string> flattenedEndpointNames;
 	std::vector<std::string> flattenedDiNames;
 };
 
@@ -47,6 +49,12 @@ inline void parseDistributedCliArgs(std::multimap<std::string, std::string>& arg
 	arg.erase("-jg");
 	arg.erase("-job_grid_json");
 	arg.erase("-job_grid");
+	if (arg.count("-eg") >= 1)
+	{
+		distributedOptions.endpointGridPayload=arg.find("-eg")->second;
+	}else if(arg.count("-endpoint_grid_json") >= 1){
+		distributedOptions.endpointGridPayload=arg.find("-endpoint_grid_json")->second;
+	}
 	arg.erase("-eg");
 	arg.erase("-endpoint_grid_json");
 	if (arg.count("-di_grid_json") >= 1)
@@ -367,6 +375,7 @@ inline bool resolveDistributedJobPosition(FILE* reportFile, unsigned localJobId,
 	distributedOptions.gridDims.clear();
 	distributedOptions.localJobGridCoordinate.clear();
 	distributedOptions.flattenedJobIds.clear();
+	distributedOptions.flattenedEndpointNames.clear();
 	distributedOptions.flattenedDiNames.clear();
 
 	if(distributedOptions.jobGridPayload.empty()){
@@ -406,6 +415,36 @@ inline bool resolveDistributedJobPosition(FILE* reportFile, unsigned localJobId,
 	for (size_t i = 0; i < flattenedJobIds.size(); ++i)
 	{
 		distributedOptions.flattenedDiNames[i]=std::string("input_di_")+std::to_string(flattenedJobIds[i]);
+	}
+
+	distributedOptions.flattenedEndpointNames.resize(flattenedJobIds.size());
+	if(!distributedOptions.endpointGridPayload.empty()){
+		Json::Value parsedEndpointGrid;
+		if(!qs_distributed_utils::parseJsonPayloadOrFile(distributedOptions.endpointGridPayload,parsedEndpointGrid,dmError)){
+			fprintf(reportFile, "distributed mode error: invalid -eg payload (%s)\n", dmError.c_str());
+			return false;
+		}
+		std::vector<unsigned> endpointGridDims;
+		std::vector<std::vector<unsigned> > endpointCoordinates;
+		std::vector<std::string> endpointNames;
+		if(!qs_distributed_utils::flattenRowMajorStringGrid(parsedEndpointGrid,endpointGridDims,endpointCoordinates,endpointNames,dmError)){
+			fprintf(reportFile, "distributed mode error: invalid -eg content (%s)\n", dmError.c_str());
+			return false;
+		}
+		if(endpointGridDims!=distributedOptions.gridDims){
+			fprintf(reportFile, "distributed mode error: -eg shape does not match -jg shape\n");
+			return false;
+		}
+		if(endpointNames.size()!=distributedOptions.flattenedJobIds.size()){
+			fprintf(reportFile, "distributed mode error: -eg size does not match -jg size\n");
+			return false;
+		}
+		distributedOptions.flattenedEndpointNames=endpointNames;
+	}else{
+		for (size_t i = 0; i < distributedOptions.flattenedEndpointNames.size(); ++i)
+		{
+			distributedOptions.flattenedEndpointNames[i]=std::string("localhost:")+std::to_string(8130+int(i));
+		}
 	}
 
 	if(!distributedOptions.diGridPayload.empty()){
