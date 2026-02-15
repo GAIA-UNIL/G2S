@@ -182,6 +182,7 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 	bool usePaddedDomain,
 	const std::vector<unsigned>& spatialPadding,
 	const std::vector<unsigned>& outputDims,
+	bool forceSimulation,
 	size_t ownerCount,
 	QsDistributedLookupState& lookupState){
 	lookupState.ownerCount=ownerCount;
@@ -213,8 +214,14 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 			for (unsigned variable = 0; variable < di._nbVariable; ++variable)
 			{
 				const unsigned scalarIndex=cell*di._nbVariable+variable;
+				// Do not classify hard data from path value alone: in distributed mode,
+				// globalPathIndex==0 can be a valid simulated index (owner 0, first rank).
+				// Filter hard data from DI content instead.
+				if(!forceSimulation && !std::isnan(di._data[scalarIndex])){
+					continue;
+				}
 				const g2s_path_index_t globalPathIndex=posterioryPath[scalarIndex];
-				if(globalPathIndex==g2s_path_index_t(0) || globalPathIndex==maxPosteriorValue){
+				if(globalPathIndex==maxPosteriorValue){
 					continue;
 				}
 				const size_t owner=static_cast<size_t>(globalPathIndex%g2s_path_index_t(ownerCount));
@@ -230,8 +237,20 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 			if(!isPaddedCellIndex(cell,di._dims,spatialPadding,outputDims)){
 				continue;
 			}
+			// Same rule as full-sim: skip hard-data cells based on DI, not on
+			// global path value, to avoid dropping valid global index 0 updates.
+			if(!forceSimulation){
+				bool withNan=false;
+				for (unsigned variable = 0; variable < di._nbVariable; ++variable)
+				{
+					withNan|=std::isnan(di._data[cell*di._nbVariable+variable]);
+				}
+				if(!withNan){
+					continue;
+				}
+			}
 			const g2s_path_index_t globalPathIndex=posterioryPath[cell];
-			if(globalPathIndex==g2s_path_index_t(0) || globalPathIndex==maxPosteriorValue){
+			if(globalPathIndex==maxPosteriorValue){
 				continue;
 			}
 			const size_t owner=static_cast<size_t>(globalPathIndex%g2s_path_index_t(ownerCount));
@@ -1671,6 +1690,7 @@ int main(int argc, char const *argv[]) {
 			usePaddedDomain,
 			spatialPadding,
 			outputDims,
+			forceSimulation,
 			distributedOptions.flattenedJobCount,
 			distributedLookupState);
 		size_t vectorLookupCount=0;
