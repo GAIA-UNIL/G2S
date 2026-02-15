@@ -116,7 +116,7 @@ zmq::message_t sendData( char* dataName){
 int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 	size_t inSize=sizeBuffer;
 	char hash[65]={0};
-	if(inSize>=64+sizeof(int)*2){
+	if(inSize>=65){
 		memcpy(hash,data,64);
 		//fprintf(stderr, "add file %s\n", hash);
 		data+=64;
@@ -268,7 +268,6 @@ int dataIsPresent(char* dataName){
 	if(fileExist(filename)) isPresent=3;
 	return isPresent;
 }
-
 
 
 

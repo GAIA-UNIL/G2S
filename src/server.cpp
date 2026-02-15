@@ -331,7 +331,7 @@ int main(int argc, char const *argv[]) {
 						}
 					case UPLOAD_JSON :
 						{
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, false);
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
 							receiver.send(reply,zmq::send_flags::none);

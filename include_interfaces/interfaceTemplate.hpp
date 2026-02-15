@@ -23,6 +23,7 @@
 #include <any>
 #include <set>
 #include <thread>
+#include <cctype>
 #include "DataImage.hpp"
 
 #ifdef WITH_WEB_SUPPORT
@@ -188,11 +189,103 @@ public:
 		return std::string(sourceName);
 	}
 
+	static std::string trimWhitespaceCopy(const std::string &value){
+		size_t begin=0;
+		size_t end=value.size();
+		while(begin<end && std::isspace(static_cast<unsigned char>(value[begin]))){
+			++begin;
+		}
+		while(end>begin && std::isspace(static_cast<unsigned char>(value[end-1]))){
+			--end;
+		}
+		return value.substr(begin,end-begin);
+	}
+
+	static bool isInlineJsonPayload(const std::string &value){
+		const std::string trimmed=trimWhitespaceCopy(value);
+		if(trimmed.empty()){
+			return false;
+		}
+		const char first=trimmed.front();
+		return (first=='[' || first=='{');
+	}
+
+	std::string uploadJson(zmq::socket_t &socket, const std::string &jsonPayload){
+		bool withTimeout=false;
+		char sourceName[65]={0};
+		const size_t payloadSize=jsonPayload.size();
+		const unsigned char *payloadBytes=(const unsigned char*)jsonPayload.data();
+		std::vector<unsigned char> hash(32);
+		picosha2::hash256(payloadBytes,payloadBytes+payloadSize,hash.begin(),hash.end());
+
+		infoContainer task;
+		task.version=1;
+		task.task=EXIST;
+
+		zmq::message_t request(sizeof(infoContainer)+64*sizeof(unsigned char));
+		char * positionInTheStream=(char*)request.data();
+
+		char hashInHexa[65]={0};
+		for (int i = 0; i < 32; ++i)
+		{
+			snprintf(hashInHexa+2*i,65-2*i,"%02x",hash.data()[i]);
+		}
+		memcpy(sourceName,hashInHexa,65*sizeof(char));
+
+		memcpy(positionInTheStream,&task,sizeof(infoContainer));
+		positionInTheStream+=sizeof(infoContainer);
+		memcpy(positionInTheStream,hashInHexa,64*sizeof(unsigned char));
+		positionInTheStream+=64*sizeof(unsigned char);
+
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout sending json existence request");
+		}
+
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving json existence response");
+		}
+		if(reply.size()!=sizeof(int)) sendError("wrong answer if json data exist!");
+		const int isPresent=*((int*)reply.data());
+
+		if(isPresent!=2){
+			infoContainer uploadTask;
+			uploadTask.version=1;
+			uploadTask.task=UPLOAD_JSON;
+
+			zmq::message_t uploadRequest(sizeof(infoContainer)+64*sizeof(unsigned char)+payloadSize);
+			char * uploadPos=(char*)uploadRequest.data();
+			memcpy(uploadPos,&uploadTask,sizeof(infoContainer));
+			uploadPos+=sizeof(infoContainer);
+			memcpy(uploadPos,hashInHexa,64*sizeof(unsigned char));
+			uploadPos+=64*sizeof(unsigned char);
+			if(payloadSize>0){
+				memcpy(uploadPos,jsonPayload.data(),payloadSize);
+				uploadPos+=payloadSize;
+			}
+
+			if(!socket.send(uploadRequest,zmq::send_flags::none) && withTimeout){
+				sendError("timeout sending json upload");
+			}
+
+			zmq::message_t uploadReply;
+			if(!socket.recv(uploadReply) && withTimeout){
+				sendError("timeout receive json upload");
+			}
+			if(uploadReply.size()!=sizeof(int)) sendError("wrong answer in json upload");
+			if(*((int*)uploadReply.data())!=0 && *((int*)uploadReply.data())!=1){
+				sendError("error in json upload");
+			}
+		}
+		return std::string(sourceName);
+	}
+
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
 		auto dataTypeVariable=input.find("-dt");
 		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
 		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
+		std::set<std::string> listOfJsonParameterToUploadIfNeeded= {"-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())
 				if(isDataMatrix(it->second)){
@@ -204,6 +297,13 @@ public:
 			if(listOfParameterToUploadIfNeededWithoutdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithoutdataTypeVariable.end()){
 				if(isDataMatrix(it->second))
 					it->second=std::any(uploadData(socket, it->second));
+			}
+			if(listOfJsonParameterToUploadIfNeeded.find(it->first) != listOfJsonParameterToUploadIfNeeded.end()){
+				const std::string payload=toString(it->second);
+				if(isInlineJsonPayload(payload)){
+					const std::string jsonHash=uploadJson(socket,payload);
+					it->second=std::any(std::string("/tmp/G2S/data/")+jsonHash+std::string(".json"));
+				}
 			}
 		}
 		input.erase("-dt");
