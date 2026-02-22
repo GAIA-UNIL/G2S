@@ -45,7 +45,11 @@ Implemented:
   - branch stops on missing child for known neighbor
   - `totalStat` and `maxDepth` logic selects deepest compatible statistics
   - if multiple branches reach same depth, stats are summed bin-by-bin
-  - debug trace per simulated pixel prints conditioning sequence (`_` for missing), `maxDepth`, `globalStat`, and final sample
+- per-level internal progress reset removed for SNESIM by using callback-based overall progress aggregation
+- path-position and per-pixel trace dumps are kept in code but disabled by default
+- temporary posterior CSV dump has been removed from SNESIM output
+- computation timing now reports the simulation-loop duration (QS-style lines)
+- tree build/load phase timing is logged separately (`[SNESIM] tree creation time`)
 - simulation neighbor budget now follows full level template length (`numberNeighbor = pathPositionArray.size()`) instead of fixed 16
 - conditioning decode now reads categorical class from encoded neighbor vectors (one-hot block), not from raw first scalar
 - build integration for c++ and intel Makefiles
@@ -199,3 +203,7 @@ For every SNESIM-related code change:
 - 2026-02-22: Implemented full per-level tree creation with fixed-size node arrays and level-specific tree cache files (`tree_level_<L>.meta`), with legacy `tree.meta` fallback only for level `0`.
 - 2026-02-22: Implemented recursive tree simulation traversal with depth-based stat aggregation (`totalStat`, `maxDepth`), NaN branch-all behavior, and per-level shared `pathPositionArray` in CPU workers.
 - 2026-02-22: Removed fixed 16-neighbor cap for SNESIM simulation passes (now uses full per-level template length) and fixed categorical conditioning decode from encoded neighbor vectors.
+- 2026-02-22: Disabled verbose SNESIM trace/path-position dumps by default and added SNESIM overall-progress reporting across all grid levels using simulation callbacks.
+- 2026-02-22: Progress prints inside `simulation.hpp` are now muted when a callback is provided; distributed QS (`dm_qs`) regains progress through callback-side reporting.
+- 2026-02-22: Removed SNESIM posterior CSV output and added QS-style computation timing for the SNESIM simulation loop only.
+- 2026-02-22: Added explicit tree creation timing logs with `[SNESIM] tree creation time` in seconds and milliseconds plus structured syntax `[SNESIM_TIMING] tree_creation_ms=... tree_creation_s=...`.

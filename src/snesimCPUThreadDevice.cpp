@@ -433,18 +433,19 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 	const size_t categoryIndex = distribution(randomGenerator);
 	const int sampledCategory = categories[categoryIndex];
 
-	{
-		std::lock_guard<std::mutex> guard(g_traceReportMutex);
-		std::fprintf(g_traceReportFile,
-			"[SNESIM_TRACE] level=%u worker=%u ti=%u conditioning=%s maxDepth=%d globalStat=%s sample=%d\n",
-			activeLevel,
-			_workerId,
-			trainingImageIndex,
-			buildConditioningSequence(pathPositionArray, neighborArrayVector, neighborValueArrayVector, categories).c_str(),
-			maxDepth,
-			buildStatsString(totalStat).c_str(),
-			sampledCategory);
-	}
+	// Debug trace intentionally disabled for regular runs.
+	// {
+	// 	std::lock_guard<std::mutex> guard(g_traceReportMutex);
+	// 	std::fprintf(g_traceReportFile,
+	// 		"[SNESIM_TRACE] level=%u worker=%u ti=%u conditioning=%s maxDepth=%d globalStat=%s sample=%d\n",
+	// 		activeLevel,
+	// 		_workerId,
+	// 		trainingImageIndex,
+	// 		buildConditioningSequence(pathPositionArray, neighborArrayVector, neighborValueArrayVector, categories).c_str(),
+	// 		maxDepth,
+	// 		buildStatsString(totalStat).c_str(),
+	// 		sampledCategory);
+	// }
 
 	return sampledCategory;
 }

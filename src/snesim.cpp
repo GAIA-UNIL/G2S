@@ -16,12 +16,12 @@
 */
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -79,6 +79,40 @@ struct GridLevelPlan {
 	std::vector<g2s_path_index_t> simulationPath;
 	std::vector<std::vector<int> > pathPositionArray;
 };
+
+struct SNESIMOverallProgressContext {
+	std::atomic<unsigned long long> completed{0ULL};
+	std::atomic<int> lastPrintedPercent{-1};
+	unsigned long long total = 0ULL;
+	FILE* reportFile = stdout;
+};
+
+void snesimOverallProgressCallback(g2s_simulation_update_kind /*kind*/,
+	g2s_path_index_t /*localIndex*/,
+	unsigned /*variableIndex*/,
+	void* userData) {
+	SNESIMOverallProgressContext* context = static_cast<SNESIMOverallProgressContext*>(userData);
+	if (context == nullptr || context->reportFile == nullptr || context->total == 0ULL) {
+		return;
+	}
+
+	unsigned long long completed = context->completed.fetch_add(1ULL, std::memory_order_relaxed) + 1ULL;
+	if (completed > context->total) {
+		completed = context->total;
+	}
+
+	const int progressPercent = static_cast<int>((100.0 * static_cast<double>(completed)) / static_cast<double>(context->total));
+	int previousPercent = context->lastPrintedPercent.load(std::memory_order_relaxed);
+	while (progressPercent > previousPercent
+		&& !context->lastPrintedPercent.compare_exchange_weak(previousPercent, progressPercent, std::memory_order_relaxed)) {
+	}
+
+	if (progressPercent > previousPercent) {
+		fprintf(context->reportFile,
+			"[SNESIM] progress overall: %.2f%%\n",
+			100.0 * static_cast<double>(completed) / static_cast<double>(context->total));
+	}
+}
 
 void printHelp() {
 	printf("SNESIM scaffold options:\n");
@@ -736,7 +770,8 @@ void buildMultigridPlans(const g2s::DataImage& destinationImage,
 		GridLevelPlan plan;
 		plan.level = levels[levelIndex];
 		plan.pathPositionArray = buildPathPositionArrayForLevel(destinationImage._dims, config.templateRadius, plan.level);
-		logPathPositionArray(reportFile, plan.level, plan.pathPositionArray);
+		// Verbose path-position dump disabled for regular runs.
+		// logPathPositionArray(reportFile, plan.level, plan.pathPositionArray);
 		for (unsigned cellIndex = 0; cellIndex < cellCount; ++cellIndex) {
 			if (alreadyPlanned[cellIndex] != 0u) {
 				continue;
@@ -764,48 +799,6 @@ void buildMultigridPlans(const g2s::DataImage& destinationImage,
 			static_cast<unsigned long>(plan.pathPositionArray.size()));
 		levelPlans.push_back(plan);
 	}
-}
-
-bool writePosteriorCsv2D(const std::string& outputCsvPath,
-	const std::vector<unsigned>& dims,
-	const std::vector<g2s_path_index_t>& posteriorPath,
-	std::string& errorMessage) {
-	// Temporary debug export to validate multigrid/posterior ordering on 2D test cases.
-	// Keep for now; can be gated or removed once tree logic is fully validated.
-	if (dims.size() != 2u) {
-		errorMessage = "posterior CSV export skipped: destination image is not 2D";
-		return false;
-	}
-	const unsigned nx = dims[0];
-	const unsigned ny = dims[1];
-	const size_t cellCount = static_cast<size_t>(nx) * static_cast<size_t>(ny);
-	if (posteriorPath.size() < cellCount) {
-		errorMessage = "posterior CSV export skipped: posterior size does not match 2D grid";
-		return false;
-	}
-
-	std::ofstream outFile(outputCsvPath.c_str(), std::ios::out | std::ios::trunc);
-	if (!outFile.good()) {
-		errorMessage = "cannot open posterior CSV file: " + outputCsvPath;
-		return false;
-	}
-
-	for (unsigned y = 0; y < ny; ++y) {
-		for (unsigned x = 0; x < nx; ++x) {
-			if (x > 0u) {
-				outFile << ",";
-			}
-			const size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * static_cast<size_t>(nx);
-			outFile << posteriorPath[index];
-		}
-		outFile << "\n";
-	}
-
-	if (!outFile.good()) {
-		errorMessage = "error while writing posterior CSV file: " + outputCsvPath;
-		return false;
-	}
-	return true;
 }
 
 std::vector<std::vector<float> > buildCategoriesValues(const snesim::TrainingImageSummary& summary) {
@@ -1048,6 +1041,7 @@ int main(int argc, char const* argv[]) {
 
 	std::map<unsigned, std::vector<std::shared_ptr<const snesim::SearchTree> > > treesByLevel;
 	std::map<unsigned, std::shared_ptr<const snesim::SearchTree> > mergedTreeByLevel;
+	auto treeCreationBegin = std::chrono::high_resolution_clock::now();
 	for (size_t i = 0; i < levelPlans.size(); ++i) {
 		const GridLevelPlan& levelPlan = levelPlans[i];
 		// Build/load one tree per TI for this exact level so each level uses
@@ -1094,6 +1088,13 @@ int main(int argc, char const* argv[]) {
 			mergedTreeByLevel[levelPlan.level] = mergedTree;
 		}
 	}
+	auto treeCreationEnd = std::chrono::high_resolution_clock::now();
+	double treeCreationTime = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(treeCreationEnd - treeCreationBegin).count();
+	fprintf(reportFile, "[SNESIM] tree creation time: %7.2f s\n", treeCreationTime / 1000);
+	fprintf(reportFile, "[SNESIM] tree creation time: %.0f ms\n", treeCreationTime);
+	fprintf(reportFile, "[SNESIM_TIMING] tree_creation_ms=%.0f tree_creation_s=%.6f\n",
+		treeCreationTime,
+		treeCreationTime / 1000.0);
 
 	snesim::SNESIMCPUThreadDevice::clearSharedTrees();
 	snesim::SNESIMCPUThreadDevice::setSharedTrees(treesByLevel);
@@ -1135,6 +1136,14 @@ int main(int argc, char const* argv[]) {
 	std::vector<unsigned> importDataIndex(computeCellCount(destinationImage), 0u);
 	std::mt19937 randomGenerator(options.simulationConfig.seed);
 	std::uniform_real_distribution<float> seedDistribution(0.f, std::nextafter(1.f, 0.f));
+	unsigned long long overallSimulationPointCount = 0ULL;
+	for (size_t levelIndex = 0; levelIndex < levelPlans.size(); ++levelIndex) {
+		overallSimulationPointCount += static_cast<unsigned long long>(levelPlans[levelIndex].simulationPath.size());
+	}
+	SNESIMOverallProgressContext overallProgressContext;
+	overallProgressContext.total = overallSimulationPointCount;
+	overallProgressContext.reportFile = reportFile;
+	auto simulationLoopBegin = std::chrono::high_resolution_clock::now();
 
 	for (size_t levelIndex = 0; levelIndex < levelPlans.size(); ++levelIndex) {
 		const GridLevelPlan& levelPlan = levelPlans[levelIndex];
@@ -1181,9 +1190,21 @@ int main(int argc, char const* argv[]) {
 			false,
 			false,
 			posteriorPath.data(),
-			nullptr,
-			nullptr);
+			(overallSimulationPointCount > 0ULL ? snesimOverallProgressCallback : nullptr),
+			(overallSimulationPointCount > 0ULL ? static_cast<void*>(&overallProgressContext) : nullptr));
 	}
+	if (overallSimulationPointCount > 0ULL
+		&& overallProgressContext.lastPrintedPercent.load(std::memory_order_relaxed) < 100) {
+		const unsigned long long completed = overallProgressContext.completed.load(std::memory_order_relaxed);
+		fprintf(reportFile,
+			"[SNESIM] progress overall: %.2f%%\n",
+			100.0 * static_cast<double>(std::min(completed, overallSimulationPointCount))
+				/ static_cast<double>(overallSimulationPointCount));
+	}
+	auto simulationLoopEnd = std::chrono::high_resolution_clock::now();
+	double simulationLoopTime = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(simulationLoopEnd - simulationLoopBegin).count();
+	fprintf(reportFile, "compuattion time: %7.2f s\n", simulationLoopTime / 1000);
+	fprintf(reportFile, "compuattion time: %.0f ms\n", simulationLoopTime);
 
 	if (options.outputName.empty()) {
 		const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
@@ -1197,14 +1218,6 @@ int main(int argc, char const* argv[]) {
 	if (options.outputName != conventionalOutputName) {
 		destinationImage.write(conventionalOutputName);
 		fprintf(reportFile, "[SNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());
-	}
-	// Temporary debug output: dump posterior path as 2D CSV to inspect ordering.
-	const std::string posteriorCsvPath = options.outputName + "_posterior.csv";
-	std::string posteriorCsvError;
-	if (writePosteriorCsv2D(posteriorCsvPath, destinationImage._dims, posteriorPath, posteriorCsvError)) {
-		fprintf(reportFile, "[SNESIM] posterior CSV written to '%s'\n", posteriorCsvPath.c_str());
-	} else {
-		fprintf(reportFile, "[SNESIM] %s\n", posteriorCsvError.c_str());
 	}
 
 	if (options.closeReportFile) {

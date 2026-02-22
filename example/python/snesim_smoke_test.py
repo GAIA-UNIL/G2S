@@ -16,12 +16,14 @@ ti_raw = numpy.array(Image.open(BytesIO(resp.content)))
 simulation, *_ = g2s(
     '-a', 'snesim',
     '-ti', ti_raw,
-    '-di', numpy.zeros((200, 200)) * numpy.nan,
+    '-di', numpy.zeros((1000, 1000)) * numpy.nan,
     '-dt', [1],                   # 1 => categorical
-    #'-j', 0.5,
+    '-j', 1.0001,
     '-mg', 4,
     '-tpl', 3
 )
+
+print(_)
 
 # display results
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 4))
