@@ -13,11 +13,6 @@
 
 namespace snesim {
 
-struct ConditioningDatum {
-	unsigned location = 0;
-	int category = 0;
-};
-
 enum class TreeSelectionMode {
 	PerTrainingImage = 0,
 	Merged = 1
@@ -42,6 +37,9 @@ public:
 	static void setMergedTreeForLevel(unsigned gridLevel, std::shared_ptr<const SearchTree> mergedTree);
 	static bool hasMergedTreeForLevel(unsigned gridLevel);
 	static std::shared_ptr<const SearchTree> mergedTreeForLevel(unsigned gridLevel);
+	static void setPathPositionArrayForLevel(unsigned gridLevel, const std::vector<std::vector<int> >& pathPositionArray);
+	static bool hasPathPositionArrayForLevel(unsigned gridLevel);
+	static std::vector<std::vector<int> > pathPositionArrayForLevel(unsigned gridLevel);
 
 	// Global level switch: one call updates the active level for all workers.
 	static void setGlobalGridLevel(unsigned gridLevel);
@@ -53,7 +51,8 @@ public:
 		unsigned cellIndex,
 		unsigned variableIndex,
 		unsigned trainingImageIndex,
-		const std::vector<ConditioningDatum>& conditioningData,
+		const std::vector<std::vector<int> >& neighborArrayVector,
+		const std::vector<std::vector<float> >& neighborValueArrayVector,
 		std::mt19937& randomGenerator) const;
 
 private:
@@ -68,6 +67,8 @@ private:
 	static std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > > _sharedTreesByLevel;
 	// Optional merged tree per level (recomputed per run).
 	static std::map<unsigned, std::shared_ptr<const SearchTree> > _mergedTreesByLevel;
+	// Deterministic template offsets per level used by tree traversal.
+	static std::map<unsigned, std::vector<std::vector<int> > > _pathPositionArrayByLevel;
 	// One global level value used by all workers in a level pass.
 	static std::atomic<unsigned> _globalGridLevel;
 	static std::atomic<unsigned> _treeSelectionMode;

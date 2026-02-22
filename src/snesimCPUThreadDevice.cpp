@@ -1,12 +1,148 @@
 #include "snesimCPUThreadDevice.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
+#include <map>
+
+namespace {
+
+int compareOffsetLexicographic(const std::vector<int>& left, const std::vector<int>& right) {
+	const size_t commonSize = std::min(left.size(), right.size());
+	for (size_t i = 0; i < commonSize; ++i) {
+		if (left[i] < right[i]) {
+			return -1;
+		}
+		if (left[i] > right[i]) {
+			return 1;
+		}
+	}
+	if (left.size() < right.size()) {
+		return -1;
+	}
+	if (left.size() > right.size()) {
+		return 1;
+	}
+	return 0;
+}
+
+void updateTotalStatFromNode(const snesim::TreeNode& node,
+	int currentDepth,
+	std::vector<unsigned long long>& totalStat,
+	int& maxDepth) {
+	if (currentDepth > maxDepth) {
+		for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
+			totalStat[classIndex] = static_cast<unsigned long long>(node.categoryCounts[classIndex]);
+		}
+		maxDepth = currentDepth;
+		return;
+	}
+
+	if (currentDepth == maxDepth) {
+		for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
+			totalStat[classIndex] += static_cast<unsigned long long>(node.categoryCounts[classIndex]);
+		}
+	}
+}
+
+void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
+	int nodeIndex,
+	int currentDepth,
+	const std::vector<std::vector<int> >& pathPositionArray,
+	size_t pathIndex,
+	const std::vector<std::vector<int> >& neighborArrayVector,
+	const std::vector<std::vector<float> >& neighborValueArrayVector,
+	size_t neighborIndex,
+	const std::map<int, unsigned>& categoryToClassIndex,
+	std::vector<unsigned long long>& totalStat,
+	int& maxDepth) {
+	if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
+		return;
+	}
+
+	const snesim::TreeNode& node = nodes[static_cast<size_t>(nodeIndex)];
+	if (node.categoryCounts.size() != totalStat.size() || node.childNodeIndex.size() != totalStat.size()) {
+		return;
+	}
+	updateTotalStatFromNode(node, currentDepth, totalStat, maxDepth);
+
+	if (pathIndex >= pathPositionArray.size()) {
+		return;
+	}
+
+	const std::vector<int>& expectedOffset = pathPositionArray[pathIndex];
+	const size_t alignedNeighborIndex = neighborIndex;
+	const bool sameOffset = alignedNeighborIndex < neighborArrayVector.size()
+		&& compareOffsetLexicographic(neighborArrayVector[alignedNeighborIndex], expectedOffset) == 0;
+
+	bool hasKnownNeighbor = false;
+	unsigned knownClassIndex = 0u;
+	bool branchAll = true;
+	if (sameOffset) {
+		if (alignedNeighborIndex < neighborValueArrayVector.size() && !neighborValueArrayVector[alignedNeighborIndex].empty()) {
+			const float rawValue = neighborValueArrayVector[alignedNeighborIndex][0];
+			if (std::isfinite(rawValue)) {
+				const int roundedCategory = static_cast<int>(std::round(rawValue));
+				std::map<int, unsigned>::const_iterator categoryIt = categoryToClassIndex.find(roundedCategory);
+				if (categoryIt != categoryToClassIndex.end()) {
+					hasKnownNeighbor = true;
+					knownClassIndex = categoryIt->second;
+					branchAll = false;
+				}
+			}
+		}
+	}
+
+	if (hasKnownNeighbor) {
+		const int childNode = node.childNodeIndex[knownClassIndex];
+		if (childNode < 0) {
+			return;
+		}
+		depthSearchTreeRecursive(nodes,
+			childNode,
+			currentDepth + 1,
+			pathPositionArray,
+			pathIndex + 1,
+			neighborArrayVector,
+			neighborValueArrayVector,
+			alignedNeighborIndex + 1,
+			categoryToClassIndex,
+			totalStat,
+			maxDepth);
+		return;
+	}
+
+	if (branchAll) {
+		for (size_t classIndex = 0; classIndex < node.childNodeIndex.size(); ++classIndex) {
+			const int childNode = node.childNodeIndex[classIndex];
+			if (childNode < 0) {
+				continue;
+			}
+			depthSearchTreeRecursive(nodes,
+				childNode,
+				currentDepth + 1,
+				pathPositionArray,
+				pathIndex + 1,
+				neighborArrayVector,
+				neighborValueArrayVector,
+				sameOffset ?
+						(alignedNeighborIndex + 1) :
+						alignedNeighborIndex,
+				categoryToClassIndex,
+				totalStat,
+				maxDepth);
+		}
+	}
+}
+
+} // namespace
 
 namespace snesim {
 
 std::mutex SNESIMCPUThreadDevice::_sharedTreeMutex;
 std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > > SNESIMCPUThreadDevice::_sharedTreesByLevel;
 std::map<unsigned, std::shared_ptr<const SearchTree> > SNESIMCPUThreadDevice::_mergedTreesByLevel;
+std::map<unsigned, std::vector<std::vector<int> > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
 std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
 
@@ -33,6 +169,7 @@ void SNESIMCPUThreadDevice::clearSharedTrees() {
 	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
 	_sharedTreesByLevel.clear();
 	_mergedTreesByLevel.clear();
+	_pathPositionArrayByLevel.clear();
 }
 
 void SNESIMCPUThreadDevice::setSharedTreesForLevel(unsigned gridLevel, const std::vector<std::shared_ptr<const SearchTree> >& treesByTrainingImage) {
@@ -91,6 +228,25 @@ std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::mergedTreeForLevel(unsi
 	return std::shared_ptr<const SearchTree>();
 }
 
+void SNESIMCPUThreadDevice::setPathPositionArrayForLevel(unsigned gridLevel, const std::vector<std::vector<int> >& pathPositionArray) {
+	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
+	_pathPositionArrayByLevel[gridLevel] = pathPositionArray;
+}
+
+bool SNESIMCPUThreadDevice::hasPathPositionArrayForLevel(unsigned gridLevel) {
+	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
+	return _pathPositionArrayByLevel.find(gridLevel) != _pathPositionArrayByLevel.end();
+}
+
+std::vector<std::vector<int> > SNESIMCPUThreadDevice::pathPositionArrayForLevel(unsigned gridLevel) {
+	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
+	std::map<unsigned, std::vector<std::vector<int> > >::const_iterator it = _pathPositionArrayByLevel.find(gridLevel);
+	if (it != _pathPositionArrayByLevel.end()) {
+		return it->second;
+	}
+	return std::vector<std::vector<int> >();
+}
+
 void SNESIMCPUThreadDevice::setGlobalGridLevel(unsigned gridLevel) {
 	// Global level switch for all workers before each simulation level pass.
 	_globalGridLevel.store(gridLevel, std::memory_order_relaxed);
@@ -145,15 +301,9 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 	unsigned /*cellIndex*/,
 	unsigned /*variableIndex*/,
 	unsigned trainingImageIndex,
-	const std::vector<ConditioningDatum>& conditioningData,
+	const std::vector<std::vector<int> >& neighborArrayVector,
+	const std::vector<std::vector<float> >& neighborValueArrayVector,
 	std::mt19937& randomGenerator) const {
-	// TODO (real SNESIM):
-	// - decode conditioningData into template order
-	// - traverse child nodes in _sharedTree
-	// - retrieve conditional probabilities at reached node
-	// - sample category from that conditional distribution
-	(void)conditioningData;
-
 	const std::shared_ptr<const SearchTree> activeTree = resolveActiveTree(trainingImageIndex);
 	if (!activeTree) {
 		return 0;
@@ -169,20 +319,41 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		return categories[0];
 	}
 
-	const TreeNode& rootNode = nodes[0];
-	if (rootNode.categoryCounts.size() != categories.size()) {
+	if (nodes[0].categoryCounts.size() != categories.size() || nodes[0].childNodeIndex.size() != categories.size()) {
 		return categories[0];
 	}
 
-	// Placeholder behavior: sample from root histogram only.
-	// Full node traversal by conditioning pattern is intentionally deferred.
-	std::vector<double> weights(rootNode.categoryCounts.size(), 1.0);
+	// Prepare category->class lookup for neighbor value routing.
+	std::map<int, unsigned> categoryToClassIndex;
+	for (size_t classIndex = 0; classIndex < categories.size(); ++classIndex) {
+		categoryToClassIndex[categories[classIndex]] = static_cast<unsigned>(classIndex);
+	}
+
+	// Depth search over tree with branch-all whenever neighborhood has NaN/missing value.
+	const unsigned activeLevel = globalGridLevel();
+	const std::vector<std::vector<int> > pathPositionArray = pathPositionArrayForLevel(activeLevel);
+	std::vector<unsigned long long> totalStat(categories.size(), 0ULL);
+	int maxDepth = -1;
+	depthSearchTreeRecursive(nodes,
+		0,
+		0,
+		pathPositionArray,
+		0u,
+		neighborArrayVector,
+		neighborValueArrayVector,
+		0u,
+		categoryToClassIndex,
+		totalStat,
+		maxDepth);
+
+	std::vector<double> weights(totalStat.size(), 0.0);
 	bool hasPositiveWeight = false;
-	for (size_t i = 0; i < rootNode.categoryCounts.size(); ++i) {
-		weights[i] = static_cast<double>(rootNode.categoryCounts[i]);
+	for (size_t i = 0; i < totalStat.size(); ++i) {
+		weights[i] = static_cast<double>(totalStat[i]);
 		hasPositiveWeight = hasPositiveWeight || (weights[i] > 0.0);
 	}
 	if (!hasPositiveWeight) {
+		// Safety fallback should not happen, because root depth (0) should always seed totalStat.
 		return categories[0];
 	}
 

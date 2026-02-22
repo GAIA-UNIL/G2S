@@ -37,14 +37,21 @@ Implemented:
   - branch creation by next free node index (`-1` means no branch)
   - count updates at each visited node
   - invalid templates (outside/NaN/unmapped category) skipped for now
+- recursive tree-based pixel simulation in `SNESIMCPUThreadDevice::simulatePixel`
+  - per-level `pathPositionArray` is shared to all workers
+  - depth search follows template order
+  - neighbor subset and template path advance together in lockstep order
+  - NaN/missing/unknown neighbor values trigger branch-all exploration
+  - branch stops on missing child for known neighbor
+  - `totalStat` and `maxDepth` logic selects deepest compatible statistics
+  - if multiple branches reach same depth, stats are summed bin-by-bin
 - build integration for c++ and intel Makefiles
 - algorithm registration in `build/algosName.config`
 
 Not implemented yet:
 
-- full tree traversal using conditioning pattern
-- conditional probability lookup beyond root histogram placeholder
 - finalized posterior/path strategy for production behavior
+- extended multi-variable conditioning/traversal behavior beyond current first-variable categorical path
 
 ## Code Map
 
@@ -139,6 +146,7 @@ Note:
 4. Register shared trees in `SNESIMCPUThreadDevice`, then create one worker per CPU thread.
    - per-TI trees are always registered by level
    - merged tree is also registered by level when strategy is `merged`
+   - level `pathPositionArray` is also registered so all workers traverse with same deterministic template order
 5. Loop levels from highest to `0`:
    - set global worker level once
    - call default `simulation(...)` with that level path, that level `pathPositionArray`, shared posterior path, and optional `-ii` image
@@ -168,10 +176,9 @@ For every SNESIM-related code change:
 
 ## Open Tasks
 
-- implement tree traversal and conditional sampling per node
-- replace root-histogram placeholder sampling with proper conditional node sampling
 - finalize and validate production multigrid path/posterior strategy
 - add reproducibility and regression tests for cache reuse and categorical validation
+- optimize branch-all recursion cost for sparse conditioning cases
 
 ## Change Log
 
@@ -187,3 +194,4 @@ For every SNESIM-related code change:
 - 2026-02-22: Removed `-maxn` from active SNESIM CLI usage (now ignored if provided); current scaffold uses internal fixed neighbor limit for simulation.
 - 2026-02-22: Updated template argument semantics to radius-based (`-tpl` / `--template-radius`), so `3` means `±3`; `--template-size` kept as deprecated alias.
 - 2026-02-22: Implemented full per-level tree creation with fixed-size node arrays and level-specific tree cache files (`tree_level_<L>.meta`), with legacy `tree.meta` fallback only for level `0`.
+- 2026-02-22: Implemented recursive tree simulation traversal with depth-based stat aggregation (`totalStat`, `maxDepth`), NaN branch-all behavior, and per-level shared `pathPositionArray` in CPU workers.

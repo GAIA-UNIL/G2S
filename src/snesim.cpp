@@ -834,7 +834,7 @@ public:
 		buildCategoryLookup();
 	}
 
-	matchLocation sample(std::vector<std::vector<int> > /*neighborArrayVector*/,
+	matchLocation sample(std::vector<std::vector<int> > neighborArrayVector,
 		std::vector<std::vector<float> > neighborValueArrayVector,
 		float seed,
 		matchLocation /*verbatimRecord*/,
@@ -852,22 +852,15 @@ public:
 			return fallback;
 		}
 
-		std::vector<snesim::ConditioningDatum> conditioningData;
-		conditioningData.reserve(neighborValueArrayVector.size());
-		for (size_t i = 0; i < neighborValueArrayVector.size(); ++i) {
-			if (neighborValueArrayVector[i].empty()) {
-				continue;
-			}
-			const float value = neighborValueArrayVector[i][0];
-			if (!std::isfinite(value)) {
-				continue;
-			}
-			conditioningData.push_back(snesim::ConditioningDatum{0u, static_cast<int>(std::round(value))});
-		}
-
 		const unsigned workerIndex = moduleID % _workers->size();
 		std::mt19937 randomGenerator(static_cast<unsigned>(seed * 4294967295.0f) ^ (workerIndex * 2654435761u));
-		const int category = (*_workers)[workerIndex].simulatePixel(_trainingImages[trainingImageIndex], 0u, 0u, trainingImageIndex, conditioningData, randomGenerator);
+		const int category = (*_workers)[workerIndex].simulatePixel(_trainingImages[trainingImageIndex],
+			0u,
+			0u,
+			trainingImageIndex,
+			neighborArrayVector,
+			neighborValueArrayVector,
+			randomGenerator);
 
 		if (_treeStrategy == TreeStrategy::Merged) {
 			std::map<int, std::vector<matchLocation> >::const_iterator categoryList = _categoryCandidates.find(category);
@@ -1104,6 +1097,9 @@ int main(int argc, char const* argv[]) {
 
 	snesim::SNESIMCPUThreadDevice::clearSharedTrees();
 	snesim::SNESIMCPUThreadDevice::setSharedTrees(treesByLevel);
+	for (size_t i = 0; i < levelPlans.size(); ++i) {
+		snesim::SNESIMCPUThreadDevice::setPathPositionArrayForLevel(levelPlans[i].level, levelPlans[i].pathPositionArray);
+	}
 	for (std::map<unsigned, std::shared_ptr<const snesim::SearchTree> >::const_iterator it = mergedTreeByLevel.begin();
 		it != mergedTreeByLevel.end();
 		++it) {
@@ -1187,15 +1183,18 @@ int main(int argc, char const* argv[]) {
 	}
 
 	if (options.outputName.empty()) {
-		if (options.uniqueID != std::numeric_limits<unsigned>::max()) {
-			options.outputName = std::to_string(options.uniqueID);
-		} else {
-			options.outputName = "snesim_output";
-		}
+		const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
+		options.outputName = std::string("im_1_") + std::to_string(conventionalUniqueID);
 	}
 
 	destinationImage.write(options.outputName);
 	fprintf(reportFile, "[SNESIM] output written with id '%s'\n", options.outputName.c_str());
+	const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
+	const std::string conventionalOutputName = std::string("im_1_") + std::to_string(conventionalUniqueID);
+	if (options.outputName != conventionalOutputName) {
+		destinationImage.write(conventionalOutputName);
+		fprintf(reportFile, "[SNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());
+	}
 	// Temporary debug output: dump posterior path as 2D CSV to inspect ordering.
 	const std::string posteriorCsvPath = options.outputName + "_posterior.csv";
 	std::string posteriorCsvError;
