@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <map>
+#include <sstream>
 
 namespace {
 
@@ -53,7 +55,6 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	const std::vector<std::vector<int> >& neighborArrayVector,
 	const std::vector<std::vector<float> >& neighborValueArrayVector,
 	size_t neighborIndex,
-	const std::map<int, unsigned>& categoryToClassIndex,
 	std::vector<unsigned long long>& totalStat,
 	int& maxDepth) {
 	if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
@@ -80,13 +81,23 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	bool branchAll = true;
 	if (sameOffset) {
 		if (alignedNeighborIndex < neighborValueArrayVector.size() && !neighborValueArrayVector[alignedNeighborIndex].empty()) {
-			const float rawValue = neighborValueArrayVector[alignedNeighborIndex][0];
-			if (std::isfinite(rawValue)) {
-				const int roundedCategory = static_cast<int>(std::round(rawValue));
-				std::map<int, unsigned>::const_iterator categoryIt = categoryToClassIndex.find(roundedCategory);
-				if (categoryIt != categoryToClassIndex.end()) {
+			hasKnownNeighbor = false;
+			if (neighborValueArrayVector[alignedNeighborIndex].size() >= totalStat.size() && !totalStat.empty()) {
+				int foundClass = -1;
+				for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
+					const float value = neighborValueArrayVector[alignedNeighborIndex][classIndex];
+					if (!std::isfinite(value) || value <= 0.5f) {
+						continue;
+					}
+					if (foundClass >= 0) {
+						foundClass = -2;
+						break;
+					}
+					foundClass = static_cast<int>(classIndex);
+				}
+				if (foundClass >= 0) {
 					hasKnownNeighbor = true;
-					knownClassIndex = categoryIt->second;
+					knownClassIndex = static_cast<unsigned>(foundClass);
 					branchAll = false;
 				}
 			}
@@ -101,14 +112,13 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 		depthSearchTreeRecursive(nodes,
 			childNode,
 			currentDepth + 1,
-			pathPositionArray,
-			pathIndex + 1,
-			neighborArrayVector,
-			neighborValueArrayVector,
-			alignedNeighborIndex + 1,
-			categoryToClassIndex,
-			totalStat,
-			maxDepth);
+				pathPositionArray,
+				pathIndex + 1,
+				neighborArrayVector,
+				neighborValueArrayVector,
+				alignedNeighborIndex + 1,
+				totalStat,
+				maxDepth);
 		return;
 	}
 
@@ -122,17 +132,79 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 				childNode,
 				currentDepth + 1,
 				pathPositionArray,
-				pathIndex + 1,
-				neighborArrayVector,
-				neighborValueArrayVector,
-				sameOffset ?
-						(alignedNeighborIndex + 1) :
-						alignedNeighborIndex,
-				categoryToClassIndex,
-				totalStat,
-				maxDepth);
+					pathIndex + 1,
+					neighborArrayVector,
+					neighborValueArrayVector,
+					sameOffset ?
+							(alignedNeighborIndex + 1) :
+							alignedNeighborIndex,
+					totalStat,
+					maxDepth);
+			}
 		}
+}
+
+std::string buildConditioningSequence(const std::vector<std::vector<int> >& pathPositionArray,
+	const std::vector<std::vector<int> >& neighborArrayVector,
+	const std::vector<std::vector<float> >& neighborValueArrayVector,
+	const std::vector<int>& categories) {
+	std::ostringstream stream;
+	size_t neighborIndex = 0u;
+	for (size_t pathIndex = 0; pathIndex < pathPositionArray.size(); ++pathIndex) {
+		if (pathIndex > 0u) {
+			stream << ",";
+		}
+
+		bool matched = false;
+		if (neighborIndex < neighborArrayVector.size()) {
+			matched = compareOffsetLexicographic(neighborArrayVector[neighborIndex], pathPositionArray[pathIndex]) == 0;
+		}
+		if (!matched) {
+			stream << "_";
+			continue;
+		}
+
+		bool isKnownCategory = false;
+		int decodedClass = -1;
+		if (neighborIndex < neighborValueArrayVector.size() && !neighborValueArrayVector[neighborIndex].empty()) {
+			if (neighborValueArrayVector[neighborIndex].size() >= categories.size() && !categories.empty()) {
+				for (size_t classIndex = 0; classIndex < categories.size(); ++classIndex) {
+					const float value = neighborValueArrayVector[neighborIndex][classIndex];
+					if (!std::isfinite(value) || value <= 0.5f) {
+						continue;
+					}
+					if (decodedClass >= 0) {
+						decodedClass = -2;
+						break;
+					}
+					decodedClass = static_cast<int>(classIndex);
+				}
+				isKnownCategory = decodedClass >= 0;
+			}
+		}
+		if (isKnownCategory) {
+			stream << categories[static_cast<size_t>(decodedClass)];
+		} else {
+			stream << "_";
+		}
+
+		++neighborIndex;
 	}
+
+	return stream.str();
+}
+
+std::string buildStatsString(const std::vector<unsigned long long>& values) {
+	std::ostringstream stream;
+	stream << "[";
+	for (size_t i = 0; i < values.size(); ++i) {
+		if (i > 0u) {
+			stream << ",";
+		}
+		stream << values[i];
+	}
+	stream << "]";
+	return stream.str();
 }
 
 } // namespace
@@ -145,6 +217,8 @@ std::map<unsigned, std::shared_ptr<const SearchTree> > SNESIMCPUThreadDevice::_m
 std::map<unsigned, std::vector<std::vector<int> > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
 std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
+static FILE* g_traceReportFile = stderr;
+static std::mutex g_traceReportMutex;
 
 SNESIMCPUThreadDevice::SNESIMCPUThreadDevice(unsigned workerId, std::shared_ptr<const SearchTree> sharedTree) :
 	_workerId(workerId),
@@ -247,6 +321,11 @@ std::vector<std::vector<int> > SNESIMCPUThreadDevice::pathPositionArrayForLevel(
 	return std::vector<std::vector<int> >();
 }
 
+void SNESIMCPUThreadDevice::setTraceReportFile(FILE* reportFile) {
+	std::lock_guard<std::mutex> guard(g_traceReportMutex);
+	g_traceReportFile = (reportFile != nullptr) ? reportFile : stderr;
+}
+
 void SNESIMCPUThreadDevice::setGlobalGridLevel(unsigned gridLevel) {
 	// Global level switch for all workers before each simulation level pass.
 	_globalGridLevel.store(gridLevel, std::memory_order_relaxed);
@@ -323,12 +402,6 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		return categories[0];
 	}
 
-	// Prepare category->class lookup for neighbor value routing.
-	std::map<int, unsigned> categoryToClassIndex;
-	for (size_t classIndex = 0; classIndex < categories.size(); ++classIndex) {
-		categoryToClassIndex[categories[classIndex]] = static_cast<unsigned>(classIndex);
-	}
-
 	// Depth search over tree with branch-all whenever neighborhood has NaN/missing value.
 	const unsigned activeLevel = globalGridLevel();
 	const std::vector<std::vector<int> > pathPositionArray = pathPositionArrayForLevel(activeLevel);
@@ -342,7 +415,6 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		neighborArrayVector,
 		neighborValueArrayVector,
 		0u,
-		categoryToClassIndex,
 		totalStat,
 		maxDepth);
 
@@ -359,7 +431,22 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 
 	std::discrete_distribution<size_t> distribution(weights.begin(), weights.end());
 	const size_t categoryIndex = distribution(randomGenerator);
-	return categories[categoryIndex];
+	const int sampledCategory = categories[categoryIndex];
+
+	{
+		std::lock_guard<std::mutex> guard(g_traceReportMutex);
+		std::fprintf(g_traceReportFile,
+			"[SNESIM_TRACE] level=%u worker=%u ti=%u conditioning=%s maxDepth=%d globalStat=%s sample=%d\n",
+			activeLevel,
+			_workerId,
+			trainingImageIndex,
+			buildConditioningSequence(pathPositionArray, neighborArrayVector, neighborValueArrayVector, categories).c_str(),
+			maxDepth,
+			buildStatsString(totalStat).c_str(),
+			sampledCategory);
+	}
+
+	return sampledCategory;
 }
 
 } // namespace snesim

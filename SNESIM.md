@@ -45,6 +45,9 @@ Implemented:
   - branch stops on missing child for known neighbor
   - `totalStat` and `maxDepth` logic selects deepest compatible statistics
   - if multiple branches reach same depth, stats are summed bin-by-bin
+  - debug trace per simulated pixel prints conditioning sequence (`_` for missing), `maxDepth`, `globalStat`, and final sample
+- simulation neighbor budget now follows full level template length (`numberNeighbor = pathPositionArray.size()`) instead of fixed 16
+- conditioning decode now reads categorical class from encoded neighbor vectors (one-hot block), not from raw first scalar
 - build integration for c++ and intel Makefiles
 - algorithm registration in `build/algosName.config`
 
@@ -195,3 +198,4 @@ For every SNESIM-related code change:
 - 2026-02-22: Updated template argument semantics to radius-based (`-tpl` / `--template-radius`), so `3` means `±3`; `--template-size` kept as deprecated alias.
 - 2026-02-22: Implemented full per-level tree creation with fixed-size node arrays and level-specific tree cache files (`tree_level_<L>.meta`), with legacy `tree.meta` fallback only for level `0`.
 - 2026-02-22: Implemented recursive tree simulation traversal with depth-based stat aggregation (`totalStat`, `maxDepth`), NaN branch-all behavior, and per-level shared `pathPositionArray` in CPU workers.
+- 2026-02-22: Removed fixed 16-neighbor cap for SNESIM simulation passes (now uses full per-level template length) and fixed categorical conditioning decode from encoded neighbor vectors.

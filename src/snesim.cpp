@@ -1110,6 +1110,7 @@ int main(int argc, char const* argv[]) {
 		options.treeStrategy == TreeStrategy::Merged ?
 			snesim::TreeSelectionMode::Merged :
 			snesim::TreeSelectionMode::PerTrainingImage);
+	snesim::SNESIMCPUThreadDevice::setTraceReportFile(reportFile);
 
 	std::shared_ptr<const snesim::SearchTree> workerFallbackTree;
 	if (!levelPlans.empty()) {
@@ -1130,7 +1131,7 @@ int main(int argc, char const* argv[]) {
 	SNESIMSamplingModule samplingModule(&noComputeDevices, trainingImages, &workers, options.treeStrategy);
 	std::vector<g2s::DataImage> kernels;
 	std::vector<std::vector<float> > categoriesValues = buildCategoriesValues(summary);
-	std::vector<unsigned> numberNeighbor(1, 16u);
+	std::vector<unsigned> numberNeighbor;
 	std::vector<unsigned> importDataIndex(computeCellCount(destinationImage), 0u);
 	std::mt19937 randomGenerator(options.simulationConfig.seed);
 	std::uniform_real_distribution<float> seedDistribution(0.f, std::nextafter(1.f, 0.f));
@@ -1150,6 +1151,8 @@ int main(int argc, char const* argv[]) {
 
 		std::vector<std::vector<std::vector<int> > > pathPositionArray(1);
 		pathPositionArray[0] = levelPlan.pathPositionArray;
+		numberNeighbor.assign(std::max(1u, summary.nbVariable),
+			static_cast<unsigned>(levelPlan.pathPositionArray.size()));
 
 		fprintf(reportFile,
 			"[SNESIM] level %u running default simulation() with %lu path nodes\n",
