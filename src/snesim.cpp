@@ -1111,7 +1111,6 @@ int main(int argc, char const* argv[]) {
 		options.treeStrategy == TreeStrategy::Merged ?
 			snesim::TreeSelectionMode::Merged :
 			snesim::TreeSelectionMode::PerTrainingImage);
-	snesim::SNESIMCPUThreadDevice::setTraceReportFile(reportFile);
 
 	std::shared_ptr<const snesim::SearchTree> workerFallbackTree;
 	if (!levelPlans.empty()) {

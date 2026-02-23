@@ -2,10 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <limits>
 #include <map>
-#include <sstream>
 
 namespace {
 
@@ -144,69 +142,6 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 		}
 }
 
-std::string buildConditioningSequence(const std::vector<std::vector<int> >& pathPositionArray,
-	const std::vector<std::vector<int> >& neighborArrayVector,
-	const std::vector<std::vector<float> >& neighborValueArrayVector,
-	const std::vector<int>& categories) {
-	std::ostringstream stream;
-	size_t neighborIndex = 0u;
-	for (size_t pathIndex = 0; pathIndex < pathPositionArray.size(); ++pathIndex) {
-		if (pathIndex > 0u) {
-			stream << ",";
-		}
-
-		bool matched = false;
-		if (neighborIndex < neighborArrayVector.size()) {
-			matched = compareOffsetLexicographic(neighborArrayVector[neighborIndex], pathPositionArray[pathIndex]) == 0;
-		}
-		if (!matched) {
-			stream << "_";
-			continue;
-		}
-
-		bool isKnownCategory = false;
-		int decodedClass = -1;
-		if (neighborIndex < neighborValueArrayVector.size() && !neighborValueArrayVector[neighborIndex].empty()) {
-			if (neighborValueArrayVector[neighborIndex].size() >= categories.size() && !categories.empty()) {
-				for (size_t classIndex = 0; classIndex < categories.size(); ++classIndex) {
-					const float value = neighborValueArrayVector[neighborIndex][classIndex];
-					if (!std::isfinite(value) || value <= 0.5f) {
-						continue;
-					}
-					if (decodedClass >= 0) {
-						decodedClass = -2;
-						break;
-					}
-					decodedClass = static_cast<int>(classIndex);
-				}
-				isKnownCategory = decodedClass >= 0;
-			}
-		}
-		if (isKnownCategory) {
-			stream << categories[static_cast<size_t>(decodedClass)];
-		} else {
-			stream << "_";
-		}
-
-		++neighborIndex;
-	}
-
-	return stream.str();
-}
-
-std::string buildStatsString(const std::vector<unsigned long long>& values) {
-	std::ostringstream stream;
-	stream << "[";
-	for (size_t i = 0; i < values.size(); ++i) {
-		if (i > 0u) {
-			stream << ",";
-		}
-		stream << values[i];
-	}
-	stream << "]";
-	return stream.str();
-}
-
 } // namespace
 
 namespace snesim {
@@ -217,8 +152,6 @@ std::map<unsigned, std::shared_ptr<const SearchTree> > SNESIMCPUThreadDevice::_m
 std::map<unsigned, std::vector<std::vector<int> > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
 std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
-static FILE* g_traceReportFile = stderr;
-static std::mutex g_traceReportMutex;
 
 SNESIMCPUThreadDevice::SNESIMCPUThreadDevice(unsigned workerId, std::shared_ptr<const SearchTree> sharedTree) :
 	_workerId(workerId),
@@ -319,11 +252,6 @@ std::vector<std::vector<int> > SNESIMCPUThreadDevice::pathPositionArrayForLevel(
 		return it->second;
 	}
 	return std::vector<std::vector<int> >();
-}
-
-void SNESIMCPUThreadDevice::setTraceReportFile(FILE* reportFile) {
-	std::lock_guard<std::mutex> guard(g_traceReportMutex);
-	g_traceReportFile = (reportFile != nullptr) ? reportFile : stderr;
 }
 
 void SNESIMCPUThreadDevice::setGlobalGridLevel(unsigned gridLevel) {
@@ -432,20 +360,6 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 	std::discrete_distribution<size_t> distribution(weights.begin(), weights.end());
 	const size_t categoryIndex = distribution(randomGenerator);
 	const int sampledCategory = categories[categoryIndex];
-
-	// Debug trace intentionally disabled for regular runs.
-	// {
-	// 	std::lock_guard<std::mutex> guard(g_traceReportMutex);
-	// 	std::fprintf(g_traceReportFile,
-	// 		"[SNESIM_TRACE] level=%u worker=%u ti=%u conditioning=%s maxDepth=%d globalStat=%s sample=%d\n",
-	// 		activeLevel,
-	// 		_workerId,
-	// 		trainingImageIndex,
-	// 		buildConditioningSequence(pathPositionArray, neighborArrayVector, neighborValueArrayVector, categories).c_str(),
-	// 		maxDepth,
-	// 		buildStatsString(totalStat).c_str(),
-	// 		sampledCategory);
-	// }
 
 	return sampledCategory;
 }

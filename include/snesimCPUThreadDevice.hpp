@@ -2,7 +2,6 @@
 #define G2S_SNESIM_CPU_THREAD_DEVICE_HPP
 
 #include <atomic>
-#include <cstdio>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -41,7 +40,6 @@ public:
 	static void setPathPositionArrayForLevel(unsigned gridLevel, const std::vector<std::vector<int> >& pathPositionArray);
 	static bool hasPathPositionArrayForLevel(unsigned gridLevel);
 	static std::vector<std::vector<int> > pathPositionArrayForLevel(unsigned gridLevel);
-	static void setTraceReportFile(FILE* reportFile);
 
 	// Global level switch: one call updates the active level for all workers.
 	static void setGlobalGridLevel(unsigned gridLevel);

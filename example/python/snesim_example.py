@@ -12,18 +12,18 @@ resp.raise_for_status()
 ti_raw = numpy.array(Image.open(BytesIO(resp.content)))
 
 # SNESIM call using G2S
-# 4 grid levels total: 3 -> 2 -> 1 -> 0 (because -mg is max level)
-simulation, *_ = g2s(
+# 5 grid levels total: 4 -> 3 -> 2 -> 1 -> 0 (because -mg is the max level)
+simulation, t, *_ = g2s(
     '-a', 'snesim',
     '-ti', ti_raw,
     '-di', numpy.zeros((1000, 1000)) * numpy.nan,
     '-dt', [1],                   # 1 => categorical
-    '-j', 1.0001,
+    '-j', 0.5,
     '-mg', 4,
     '-tpl', 3
 )
 
-print(_)
+print("SNESIM duration:", t)
 
 # display results
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 4))

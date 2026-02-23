@@ -46,7 +46,7 @@ Implemented:
   - `totalStat` and `maxDepth` logic selects deepest compatible statistics
   - if multiple branches reach same depth, stats are summed bin-by-bin
 - per-level internal progress reset removed for SNESIM by using callback-based overall progress aggregation
-- path-position and per-pixel trace dumps are kept in code but disabled by default
+- path-position dump helper is kept in code but disabled by default
 - temporary posterior CSV dump has been removed from SNESIM output
 - computation timing now reports the simulation-loop duration (QS-style lines)
 - tree build/load phase timing is logged separately (`[SNESIM] tree creation time`)
@@ -65,7 +65,7 @@ Not implemented yet:
 - App entrypoint and multi-grid orchestration: `src/snesim.cpp`
 - Tree structures and cache: `include/snesimTree.hpp`, `src/snesimTree.cpp`
 - SNESIM CPU worker and shared tree-level switch: `include/snesimCPUThreadDevice.hpp`, `src/snesimCPUThreadDevice.cpp`
-- Python example script: `example/python/snesim_smoke_test.py`
+- Python example script: `example/python/snesim_example.py`
 - Build wiring: `build/c++-build/Makefile`, `build/intel-build/Makefile`
 - Algo registry: `build/algosName.config`
 
@@ -163,7 +163,7 @@ Note:
 
 Run:
 
-- `python3 example/python/snesim_smoke_test.py`
+- `python3 example/python/snesim_example.py`
 
 What it checks:
 
@@ -190,7 +190,8 @@ For every SNESIM-related code change:
 ## Change Log
 
 - 2026-02-21: Created SNESIM scaffold (app, tree/cache module, non-FFT CPU worker module, build integration, algo registration).
-- 2026-02-21: Added Python example script `example/python/snesim_smoke_test.py` using `strebelle.tiff` URL loading.
+- 2026-02-21: Added Python example script `example/python/snesim_example.py` using `strebelle.tiff` URL loading.
+- 2026-02-23: Removed inactive SNESIM trace helper plumbing from `SNESIMCPUThreadDevice` and renamed the Python example to `snesim_example.py`; clarified `-mg` example commentary (`4` means levels `4..0`).
 - 2026-02-21: Added global multigrid planning (descending levels, per-level paths, deterministic per-level `pathPositionArray`, posterior path).
 - 2026-02-22: Removed `snesimSimulation` module dependency; `src/snesim.cpp` now calls default `simulation(...)` directly per grid level.
 - 2026-02-22: Added explicit shared-tree memory and global-level-switch comments/contract in `SNESIMCPUThreadDevice` and tree scaffold comments in `snesimTree`.
