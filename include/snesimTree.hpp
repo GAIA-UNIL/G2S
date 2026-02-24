@@ -39,6 +39,9 @@ struct TreeBuildConfig {
 	std::vector<int> templateRadius;
 	unsigned gridLevel = 0;
 	unsigned maxConditioningData = 0;
+	unsigned branchCount = 0;
+	bool wildcardEnabled = false;
+	unsigned wildcardDepth = 0;
 };
 
 struct TrainingImageSummary {
@@ -67,6 +70,10 @@ SearchTree buildBasicTree(const g2s::DataImage& trainingImage,
 SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 	const TrainingImageSummary& summary,
 	const std::vector<std::vector<int> >& pathPositionArray);
+SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
+	const TrainingImageSummary& summary,
+	const std::vector<std::vector<int> >& pathPositionArray,
+	const TreeBuildConfig& config);
 SearchTree mergeTrees(const std::vector<const SearchTree*>& trees,
 	MergePolicy policy = MergePolicy::SumCounts);
 

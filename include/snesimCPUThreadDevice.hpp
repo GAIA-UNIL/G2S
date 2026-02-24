@@ -46,6 +46,9 @@ public:
 	static unsigned globalGridLevel();
 	static void setTreeSelectionMode(TreeSelectionMode mode);
 	static TreeSelectionMode treeSelectionMode();
+	static void setWildcardConfig(bool enabled, unsigned depth);
+	static bool wildcardEnabled();
+	static unsigned wildcardDepth();
 
 	int simulatePixel(const g2s::DataImage& simulationGrid,
 		unsigned cellIndex,
@@ -72,6 +75,8 @@ private:
 	// One global level value used by all workers in a level pass.
 	static std::atomic<unsigned> _globalGridLevel;
 	static std::atomic<unsigned> _treeSelectionMode;
+	static std::atomic<unsigned> _wildcardEnabled;
+	static std::atomic<unsigned> _wildcardDepth;
 };
 
 } // namespace snesim

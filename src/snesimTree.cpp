@@ -108,6 +108,27 @@ bool parseUnsignedValue(const std::string& raw, unsigned& outValue) {
 	return true;
 }
 
+bool parseBoolValue(const std::string& raw, bool& outValue) {
+	const std::string cleaned = trim(raw);
+	if (cleaned.empty()) {
+		return false;
+	}
+	if (cleaned == "1" || cleaned == "true" || cleaned == "TRUE") {
+		outValue = true;
+		return true;
+	}
+	if (cleaned == "0" || cleaned == "false" || cleaned == "FALSE") {
+		outValue = false;
+		return true;
+	}
+	unsigned numericValue = 0u;
+	if (parseUnsignedValue(cleaned, numericValue)) {
+		outValue = (numericValue != 0u);
+		return true;
+	}
+	return false;
+}
+
 bool parseKeyValueLine(const std::string& line, std::string& outKey, std::string& outValue) {
 	const std::string trimmed = trim(line);
 	if (trimmed.empty()) {
@@ -135,11 +156,23 @@ unsigned computeCellCount(const std::vector<unsigned>& dims) {
 	return cellCount;
 }
 
-snesim::TreeNode makeNode(size_t numberOfClasses) {
+snesim::TreeNode makeNode(size_t numberOfClasses, size_t branchCount) {
 	snesim::TreeNode node;
 	node.categoryCounts.assign(numberOfClasses, 0u);
-	node.childNodeIndex.assign(numberOfClasses, -1);
+	node.childNodeIndex.assign(branchCount, -1);
 	return node;
+}
+
+unsigned resolveBranchCount(size_t numberOfClasses, const snesim::TreeBuildConfig& config) {
+	const unsigned classCount = static_cast<unsigned>(numberOfClasses);
+	unsigned branchCount = config.branchCount;
+	if (branchCount == 0u) {
+		branchCount = classCount;
+		if (config.wildcardEnabled && config.wildcardDepth > 0u) {
+			branchCount = classCount + 1u;
+		}
+	}
+	return std::max(classCount, branchCount);
 }
 
 void incrementCount(unsigned& counter) {
@@ -181,14 +214,12 @@ bool tryCategoryToClassIndex(float rawValue,
 	return true;
 }
 
-bool extractTemplateSequence(const g2s::DataImage& trainingImage,
+bool extractTemplateClassSequence(const g2s::DataImage& trainingImage,
 	unsigned cellIndex,
 	const std::vector<std::vector<int> >& pathPositionArray,
 	const std::map<int, unsigned>& categoryToClassIndex,
-	std::vector<float>& sequenceValues,
-	bool& hasInvalidTemplateValue) {
-	hasInvalidTemplateValue = false;
-	sequenceValues.assign(pathPositionArray.size(), std::numeric_limits<float>::quiet_NaN());
+	std::vector<int>& sequenceClassIndex) {
+	sequenceClassIndex.assign(pathPositionArray.size(), -1);
 
 	std::vector<int> centerCoordinates;
 	flattenIndexToCoordinates(cellIndex, trainingImage._dims, centerCoordinates);
@@ -196,8 +227,7 @@ bool extractTemplateSequence(const g2s::DataImage& trainingImage,
 	for (size_t pathIndex = 0; pathIndex < pathPositionArray.size(); ++pathIndex) {
 		const std::vector<int>& offset = pathPositionArray[pathIndex];
 		if (offset.size() != trainingImage._dims.size()) {
-			hasInvalidTemplateValue = true;
-			continue;
+			return false;
 		}
 
 		bool isOutside = false;
@@ -214,25 +244,23 @@ bool extractTemplateSequence(const g2s::DataImage& trainingImage,
 		}
 
 		if (isOutside) {
-			hasInvalidTemplateValue = true;
 			continue;
 		}
 
 		const float rawNeighborValue = trainingImage._data[neighborCellIndex * trainingImage._nbVariable];
 		unsigned neighborClassIndex = 0u;
 		if (!tryCategoryToClassIndex(rawNeighborValue, categoryToClassIndex, neighborClassIndex)) {
-			hasInvalidTemplateValue = true;
 			continue;
 		}
-		sequenceValues[pathIndex] = static_cast<float>(neighborClassIndex);
+		sequenceClassIndex[pathIndex] = static_cast<int>(neighborClassIndex);
 	}
 
 	return true;
 }
 
-bool areNodesCompatible(const std::vector<snesim::TreeNode>& nodes, size_t numberOfClasses) {
+bool areNodesCompatible(const std::vector<snesim::TreeNode>& nodes, size_t numberOfClasses, size_t branchCount) {
 	for (size_t i = 0; i < nodes.size(); ++i) {
-		if (nodes[i].categoryCounts.size() != numberOfClasses || nodes[i].childNodeIndex.size() != numberOfClasses) {
+		if (nodes[i].categoryCounts.size() != numberOfClasses || nodes[i].childNodeIndex.size() != branchCount) {
 			return false;
 		}
 	}
@@ -242,7 +270,8 @@ bool areNodesCompatible(const std::vector<snesim::TreeNode>& nodes, size_t numbe
 int cloneSubtreeFrom(const snesim::SearchTree& sourceTree,
 	int sourceRootIndex,
 	std::vector<snesim::TreeNode>& destinationNodes,
-	size_t numberOfClasses) {
+	size_t numberOfClasses,
+	size_t branchCount) {
 	if (sourceRootIndex < 0 || static_cast<size_t>(sourceRootIndex) >= sourceTree.nodes().size()) {
 		return -1;
 	}
@@ -252,7 +281,7 @@ int cloneSubtreeFrom(const snesim::SearchTree& sourceTree,
 	stack.push_back(sourceRootIndex);
 
 	const int destinationRoot = static_cast<int>(destinationNodes.size());
-	destinationNodes.push_back(makeNode(numberOfClasses));
+	destinationNodes.push_back(makeNode(numberOfClasses, branchCount));
 	indexMap[sourceRootIndex] = destinationRoot;
 
 	while (!stack.empty()) {
@@ -267,9 +296,9 @@ int cloneSubtreeFrom(const snesim::SearchTree& sourceTree,
 
 		const snesim::TreeNode& sourceNode = sourceTree.nodes()[static_cast<size_t>(currentSource)];
 		destinationNodes[static_cast<size_t>(currentDestination)].categoryCounts = sourceNode.categoryCounts;
-		destinationNodes[static_cast<size_t>(currentDestination)].childNodeIndex.assign(numberOfClasses, -1);
+		destinationNodes[static_cast<size_t>(currentDestination)].childNodeIndex.assign(branchCount, -1);
 
-		for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
+		for (size_t classIndex = 0; classIndex < branchCount; ++classIndex) {
 			const int sourceChild = sourceNode.childNodeIndex[classIndex];
 			if (sourceChild < 0 || static_cast<size_t>(sourceChild) >= sourceTree.nodes().size()) {
 				continue;
@@ -279,7 +308,7 @@ int cloneSubtreeFrom(const snesim::SearchTree& sourceTree,
 			std::map<int, int>::const_iterator childIt = indexMap.find(sourceChild);
 			if (childIt == indexMap.end()) {
 				destinationChild = static_cast<int>(destinationNodes.size());
-				destinationNodes.push_back(makeNode(numberOfClasses));
+				destinationNodes.push_back(makeNode(numberOfClasses, branchCount));
 				indexMap[sourceChild] = destinationChild;
 				stack.push_back(sourceChild);
 			} else {
@@ -336,7 +365,14 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 	if (numberOfClasses == 0u) {
 		return;
 	}
-	if (!areNodesCompatible(_nodes, numberOfClasses) || !areNodesCompatible(other._nodes, numberOfClasses)) {
+	if (_nodes.empty() || other._nodes.empty()) {
+		return;
+	}
+	const size_t branchCount = _nodes[0].childNodeIndex.size();
+	if (branchCount == 0u || branchCount != other._nodes[0].childNodeIndex.size()) {
+		return;
+	}
+	if (!areNodesCompatible(_nodes, numberOfClasses, branchCount) || !areNodesCompatible(other._nodes, numberOfClasses, branchCount)) {
 		return;
 	}
 
@@ -365,7 +401,7 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 				static_cast<unsigned long long>(std::numeric_limits<unsigned>::max())));
 		}
 
-		for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
+		for (size_t classIndex = 0; classIndex < branchCount; ++classIndex) {
 			const int sourceChild = sourceNode.childNodeIndex[classIndex];
 			if (sourceChild < 0 || static_cast<size_t>(sourceChild) >= other._nodes.size()) {
 				continue;
@@ -373,7 +409,7 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 
 			const int destinationChild = _nodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex];
 			if (destinationChild < 0) {
-				const int clonedRoot = cloneSubtreeFrom(other, sourceChild, _nodes, numberOfClasses);
+				const int clonedRoot = cloneSubtreeFrom(other, sourceChild, _nodes, numberOfClasses, branchCount);
 				if (clonedRoot >= 0) {
 					_nodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex] = clonedRoot;
 				}
@@ -502,9 +538,10 @@ bool summarizeCategoricalTrainingImage(const g2s::DataImage& trainingImage,
 
 SearchTree buildBasicTree(const g2s::DataImage& /*trainingImage*/,
 	const TrainingImageSummary& summary,
-	const TreeBuildConfig& /*config*/) {
+	const TreeBuildConfig& config) {
 	const size_t numberOfClasses = summary.categories.size();
-	TreeNode rootNode = makeNode(numberOfClasses);
+	const unsigned branchCount = resolveBranchCount(numberOfClasses, config);
+	TreeNode rootNode = makeNode(numberOfClasses, branchCount);
 	for (size_t classIndex = 0; classIndex < numberOfClasses && classIndex < summary.categoryFrequency.size(); ++classIndex) {
 		rootNode.categoryCounts[classIndex] = summary.categoryFrequency[classIndex];
 	}
@@ -517,10 +554,26 @@ SearchTree buildBasicTree(const g2s::DataImage& /*trainingImage*/,
 SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 	const TrainingImageSummary& summary,
 	const std::vector<std::vector<int> >& pathPositionArray) {
+	TreeBuildConfig strictConfig;
+	strictConfig.wildcardEnabled = false;
+	strictConfig.wildcardDepth = 0u;
+	strictConfig.branchCount = static_cast<unsigned>(summary.categories.size());
+	return buildTreeForLevel(trainingImage, summary, pathPositionArray, strictConfig);
+}
+
+SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
+	const TrainingImageSummary& summary,
+	const std::vector<std::vector<int> >& pathPositionArray,
+	const TreeBuildConfig& config) {
 	const size_t numberOfClasses = summary.categories.size();
 	if (numberOfClasses == 0u || trainingImage._data == nullptr || trainingImage._dims.empty()) {
 		return SearchTree(summary.categories, std::vector<TreeNode>());
 	}
+	const unsigned branchCount = resolveBranchCount(numberOfClasses, config);
+	const bool wildcardEnabled = config.wildcardEnabled
+		&& config.wildcardDepth > 0u
+		&& branchCount > static_cast<unsigned>(numberOfClasses);
+	const unsigned wildcardBranchIndex = static_cast<unsigned>(numberOfClasses);
 
 	std::map<int, unsigned> categoryToClassIndex;
 	for (size_t i = 0; i < summary.categories.size(); ++i) {
@@ -529,10 +582,10 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 
 	std::vector<TreeNode> nodes;
 	nodes.reserve(std::max(2u, computeCellCount(trainingImage._dims) / 2u));
-	nodes.push_back(makeNode(numberOfClasses));
+	nodes.push_back(makeNode(numberOfClasses, branchCount));
 
 	const unsigned cellCount = computeCellCount(trainingImage._dims);
-	std::vector<float> templateSequence;
+	std::vector<int> templateSequence;
 	for (unsigned cellIndex = 0; cellIndex < cellCount; ++cellIndex) {
 		// Central value drives the histogram update target.
 		// Missing center values are skipped immediately.
@@ -542,42 +595,104 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 			continue;
 		}
 
-		bool hasInvalidTemplateValue = false;
-		// Extract full sequence first. Invalid/outside values are written as NaN and flagged.
-		extractTemplateSequence(trainingImage,
+		// Missing/outside/NaN template values are encoded as -1.
+		if (!extractTemplateClassSequence(trainingImage,
 			cellIndex,
 			pathPositionArray,
 			categoryToClassIndex,
-			templateSequence,
-			hasInvalidTemplateValue);
-		if (hasInvalidTemplateValue) {
+			templateSequence)) {
 			continue;
 		}
 
-		// Counts are updated at every visited node for the central class.
-		// Child node allocation is contiguous: each new branch gets the next free index.
-		int currentNode = 0;
-		incrementCount(nodes[0].categoryCounts[centerClassIndex]);
+		bool isSequenceValid = true;
 		for (size_t pathIndex = 0; pathIndex < templateSequence.size(); ++pathIndex) {
-			const float branchClassRaw = templateSequence[pathIndex];
-			if (!std::isfinite(branchClassRaw) || branchClassRaw < 0.f) {
-				currentNode = -1;
+			if (templateSequence[pathIndex] >= 0) {
+				continue;
+			}
+			const bool allowWildcardAtDepth = wildcardEnabled && pathIndex < config.wildcardDepth;
+			if (!allowWildcardAtDepth) {
+				isSequenceValid = false;
 				break;
 			}
-			const unsigned branchClass = static_cast<unsigned>(branchClassRaw);
-			if (branchClass >= numberOfClasses) {
-				currentNode = -1;
-				break;
+		}
+		if (!isSequenceValid) {
+			continue;
+		}
+
+		// Expand the path set only in the wildcard prefix region.
+		std::vector<int> activeNodes(1, 0);
+		std::vector<int> visitedNodes(1, 0);
+		std::vector<int> nextNodes;
+		bool pathConstructionOk = true;
+		for (size_t pathIndex = 0; pathIndex < templateSequence.size(); ++pathIndex) {
+			nextNodes.clear();
+			const int sequenceClass = templateSequence[pathIndex];
+			const bool allowWildcardAtDepth = wildcardEnabled && pathIndex < config.wildcardDepth;
+
+			for (size_t activeIndex = 0; activeIndex < activeNodes.size(); ++activeIndex) {
+				const int parentNodeIndex = activeNodes[activeIndex];
+				if (parentNodeIndex < 0 || static_cast<size_t>(parentNodeIndex) >= nodes.size()) {
+					pathConstructionOk = false;
+					break;
+				}
+
+				TreeNode& parentNode = nodes[static_cast<size_t>(parentNodeIndex)];
+				if (sequenceClass >= 0) {
+					const unsigned knownBranchIndex = static_cast<unsigned>(sequenceClass);
+					if (knownBranchIndex >= numberOfClasses) {
+						pathConstructionOk = false;
+						break;
+					}
+
+					int knownChild = parentNode.childNodeIndex[knownBranchIndex];
+					if (knownChild < 0) {
+						knownChild = static_cast<int>(nodes.size());
+						parentNode.childNodeIndex[knownBranchIndex] = knownChild;
+						nodes.push_back(makeNode(numberOfClasses, branchCount));
+					}
+					nextNodes.push_back(knownChild);
+
+					if (allowWildcardAtDepth) {
+						int wildcardChild = parentNode.childNodeIndex[wildcardBranchIndex];
+						if (wildcardChild < 0) {
+							wildcardChild = static_cast<int>(nodes.size());
+							parentNode.childNodeIndex[wildcardBranchIndex] = wildcardChild;
+							nodes.push_back(makeNode(numberOfClasses, branchCount));
+						}
+						nextNodes.push_back(wildcardChild);
+					}
+				} else if (allowWildcardAtDepth) {
+					int wildcardChild = parentNode.childNodeIndex[wildcardBranchIndex];
+					if (wildcardChild < 0) {
+						wildcardChild = static_cast<int>(nodes.size());
+						parentNode.childNodeIndex[wildcardBranchIndex] = wildcardChild;
+						nodes.push_back(makeNode(numberOfClasses, branchCount));
+					}
+					nextNodes.push_back(wildcardChild);
+				} else {
+					pathConstructionOk = false;
+					break;
+				}
 			}
 
-			int nextNode = nodes[static_cast<size_t>(currentNode)].childNodeIndex[branchClass];
-			if (nextNode < 0) {
-				nextNode = static_cast<int>(nodes.size());
-				nodes[static_cast<size_t>(currentNode)].childNodeIndex[branchClass] = nextNode;
-				nodes.push_back(makeNode(numberOfClasses));
+			if (!pathConstructionOk || nextNodes.empty()) {
+				pathConstructionOk = false;
+				break;
 			}
-			currentNode = nextNode;
-			incrementCount(nodes[static_cast<size_t>(currentNode)].categoryCounts[centerClassIndex]);
+			visitedNodes.insert(visitedNodes.end(), nextNodes.begin(), nextNodes.end());
+			activeNodes.swap(nextNodes);
+		}
+		if (!pathConstructionOk) {
+			continue;
+		}
+
+		// One count increment per visited node and path permutation.
+		for (size_t visitedIndex = 0; visitedIndex < visitedNodes.size(); ++visitedIndex) {
+			const int nodeIndex = visitedNodes[visitedIndex];
+			if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
+				continue;
+			}
+			incrementCount(nodes[static_cast<size_t>(nodeIndex)].categoryCounts[centerClassIndex]);
 		}
 	}
 
@@ -645,7 +760,7 @@ bool TreeCacheRepository::save(const std::string& trainingImageSourceName,
 		return false;
 	}
 
-	outFile << "version=2\n";
+	outFile << "version=3\n";
 	outFile << "source_name=" << record.summary.sourceName << "\n";
 	outFile << "cache_name=" << record.summary.cacheName << "\n";
 	outFile << "nb_dim=" << record.summary.dims.size() << "\n";
@@ -660,6 +775,13 @@ bool TreeCacheRepository::save(const std::string& trainingImageSourceName,
 	outFile << "max_conditioning_data=" << record.config.maxConditioningData << "\n";
 
 	const std::vector<TreeNode>& nodes = record.tree.nodes();
+	unsigned effectiveBranchCount = resolveBranchCount(record.summary.categories.size(), record.config);
+	if (!nodes.empty()) {
+		effectiveBranchCount = static_cast<unsigned>(nodes[0].childNodeIndex.size());
+	}
+	outFile << "branch_count=" << effectiveBranchCount << "\n";
+	outFile << "wildcard_enabled=" << (record.config.wildcardEnabled ? 1 : 0) << "\n";
+	outFile << "wildcard_depth=" << record.config.wildcardDepth << "\n";
 	outFile << "node_count=" << nodes.size() << "\n";
 	for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
 		outFile << "node_" << nodeIndex << "_counts=" << joinUnsignedVector(nodes[nodeIndex].categoryCounts) << "\n";
@@ -755,6 +877,15 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 	if (!parseUnsignedValue(fields["grid_level"], outRecord.config.gridLevel)) {
 		outRecord.config.gridLevel = gridLevel;
 	}
+	if (!parseUnsignedValue(fields["wildcard_depth"], outRecord.config.wildcardDepth)) {
+		outRecord.config.wildcardDepth = 0u;
+	}
+	if (!parseBoolValue(fields["wildcard_enabled"], outRecord.config.wildcardEnabled)) {
+		outRecord.config.wildcardEnabled = false;
+	}
+	if (!parseUnsignedValue(fields["branch_count"], outRecord.config.branchCount)) {
+		outRecord.config.branchCount = 0u;
+	}
 
 	unsigned parsedNodeCount = 0u;
 	if (!parseUnsignedValue(fields["node_count"], parsedNodeCount)) {
@@ -767,9 +898,17 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 		return false;
 	}
 
+	unsigned loadedBranchCount = outRecord.config.branchCount;
+	if (loadedBranchCount == 0u) {
+		loadedBranchCount = static_cast<unsigned>(numberOfClasses);
+	}
+	if (loadedBranchCount < numberOfClasses) {
+		errorMessage = "invalid branch_count in tree cache: " + metadataPath;
+		return false;
+	}
+
 	std::vector<TreeNode> nodes;
 	if (parsedNodeCount > 0u) {
-		nodes.assign(parsedNodeCount, makeNode(numberOfClasses));
 		for (unsigned nodeIndex = 0u; nodeIndex < parsedNodeCount; ++nodeIndex) {
 			const std::string countKey = "node_" + std::to_string(nodeIndex) + "_counts";
 			const std::string childrenKey = "node_" + std::to_string(nodeIndex) + "_children";
@@ -784,16 +923,29 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 				errorMessage = "invalid " + countKey + " in tree cache: " + metadataPath;
 				return false;
 			}
-			if (!parseIntVector(fields[childrenKey], nodeChildren) || nodeChildren.size() != numberOfClasses) {
+			if (!parseIntVector(fields[childrenKey], nodeChildren)) {
 				errorMessage = "invalid " + childrenKey + " in tree cache: " + metadataPath;
 				return false;
 			}
+			if (nodeChildren.size() < numberOfClasses) {
+				errorMessage = "invalid " + childrenKey + " in tree cache: " + metadataPath;
+				return false;
+			}
+			if (fields["branch_count"].empty()) {
+				loadedBranchCount = static_cast<unsigned>(nodeChildren.size());
+			}
+			if (nodeChildren.size() != loadedBranchCount) {
+				errorMessage = "inconsistent branch_count in tree cache: " + metadataPath;
+				return false;
+			}
 
-			nodes[nodeIndex].categoryCounts = nodeCounts;
-			nodes[nodeIndex].childNodeIndex = nodeChildren;
+			TreeNode node = makeNode(numberOfClasses, loadedBranchCount);
+			node.categoryCounts = nodeCounts;
+			node.childNodeIndex = nodeChildren;
+			nodes.push_back(node);
 		}
 		for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
-			for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
+			for (size_t classIndex = 0; classIndex < loadedBranchCount; ++classIndex) {
 				const int child = nodes[nodeIndex].childNodeIndex[classIndex];
 				if (child < -1 || child >= static_cast<int>(nodes.size())) {
 					errorMessage = "invalid child index in tree cache: " + metadataPath;
@@ -813,13 +965,17 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 			rootCounts = outRecord.summary.categoryFrequency;
 		}
 
-		TreeNode rootNode = makeNode(numberOfClasses);
+		if (loadedBranchCount < numberOfClasses) {
+			loadedBranchCount = static_cast<unsigned>(numberOfClasses);
+		}
+		TreeNode rootNode = makeNode(numberOfClasses, loadedBranchCount);
 		for (size_t classIndex = 0; classIndex < numberOfClasses && classIndex < rootCounts.size(); ++classIndex) {
 			rootNode.categoryCounts[classIndex] = rootCounts[classIndex];
 		}
 		nodes.push_back(rootNode);
 	}
 
+	outRecord.config.branchCount = loadedBranchCount;
 	outRecord.tree = SearchTree(outRecord.summary.categories, nodes);
 	return true;
 }

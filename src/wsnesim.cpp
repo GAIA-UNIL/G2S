@@ -66,7 +66,8 @@ struct CliOptions {
 	std::string destinationImageName;
 	std::string trainingImageIndexName;
 	std::string outputName;
-	std::string treeRoot = "/tmp/G2S/data/snesim_trees";
+	std::string treeRoot = "/tmp/G2S/data/wsnesim_trees";
+	unsigned wildcardDepth = 0u;
 	TreeStrategy treeStrategy = TreeStrategy::Merged;
 	bool treeStrategyExplicit = false;
 
@@ -109,13 +110,13 @@ void snesimOverallProgressCallback(g2s_simulation_update_kind /*kind*/,
 
 	if (progressPercent > previousPercent) {
 		fprintf(context->reportFile,
-			"[SNESIM] progress overall: %.2f%%\n",
+			"[WSNESIM] progress overall: %.2f%%\n",
 			100.0 * static_cast<double>(completed) / static_cast<double>(context->total));
 	}
 }
 
 void printHelp() {
-	printf("SNESIM scaffold options:\n");
+	printf("WSNESIM options:\n");
 	printf("  -ti <hash_or_name> [repeat]   Training image ids (required)\n");
 	printf("  -di <hash_or_name>            Destination image id (required)\n");
 	printf("  -ii <hash_or_name>            TI index image (optional, selects tree/TI per node)\n");
@@ -125,6 +126,7 @@ void printHelp() {
 	printf("  -mg <level>                   Max multi-grid level (levels run from <level> down to 0)\n");
 	printf("  -tpl <radius> [repeat]        Template radius (3 means offsets in [-3,+3])\n");
 	printf("  --template-radius <radius>    Same as -tpl\n");
+	printf("  --wd <depth>                  Wildcard prefix depth for tree levels (default=0)\n");
 	printf("  -tree-root <path>             Tree cache root (optional)\n");
 	printf("  -force-tree                   Force tree rebuild and overwrite cache\n");
 	printf("  -s <seed>                     Random seed (optional)\n");
@@ -237,7 +239,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 
 	std::string errorMessage;
 	if (!setupReportFile(args, outOptions, errorMessage)) {
-		fprintf(stderr, "[SNESIM] %s\n", errorMessage.c_str());
+		fprintf(stderr, "[WSNESIM] %s\n", errorMessage.c_str());
 		return false;
 	}
 
@@ -285,7 +287,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	if (args.count("-ii") == 1) {
 		outOptions.trainingImageIndexName = args.find("-ii")->second;
 	} else if (args.count("-ii") > 1) {
-		fprintf(outOptions.reportFile, "[SNESIM] only one -ii image is supported\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] only one -ii image is supported\n");
 		return false;
 	}
 	args.erase("-ii");
@@ -299,13 +301,13 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		const std::string strategyValue = args.find("--tree-strategy")->second;
 		TreeStrategy parsedStrategy;
 		if (!parseTreeStrategy(strategyValue, parsedStrategy)) {
-			fprintf(outOptions.reportFile, "[SNESIM] invalid --tree-strategy value: %s\n", strategyValue.c_str());
+			fprintf(outOptions.reportFile, "[WSNESIM] invalid --tree-strategy value: %s\n", strategyValue.c_str());
 			return false;
 		}
 		outOptions.treeStrategy = parsedStrategy;
 		outOptions.treeStrategyExplicit = true;
 	} else if (args.count("--tree-strategy") > 1) {
-		fprintf(outOptions.reportFile, "[SNESIM] only one --tree-strategy value is supported\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] only one --tree-strategy value is supported\n");
 		return false;
 	}
 	args.erase("--tree-strategy");
@@ -316,7 +318,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("-mg"); it != args.upper_bound("-mg"); ++it) {
 			unsigned level;
 			if (!parseUnsignedFromString(it->second, level)) {
-				fprintf(outOptions.reportFile, "[SNESIM] invalid -mg value ignored: %s\n", it->second.c_str());
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid -mg value ignored: %s\n", it->second.c_str());
 				continue;
 			}
 			parsedMaxLevel = std::max(parsedMaxLevel, level);
@@ -334,7 +336,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("--mg-level"); it != args.upper_bound("--mg-level"); ++it) {
 			unsigned level;
 			if (!parseUnsignedFromString(it->second, level)) {
-				fprintf(outOptions.reportFile, "[SNESIM] invalid --mg-level value ignored: %s\n", it->second.c_str());
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid --mg-level value ignored: %s\n", it->second.c_str());
 				continue;
 			}
 			parsedMaxLevel = std::max(parsedMaxLevel, level);
@@ -350,7 +352,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("-tpl"); it != args.upper_bound("-tpl"); ++it) {
 			int radiusValue;
 			if (!parseIntFromString(it->second, radiusValue)) {
-				fprintf(outOptions.reportFile, "[SNESIM] invalid -tpl value ignored: %s\n", it->second.c_str());
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid -tpl value ignored: %s\n", it->second.c_str());
 				continue;
 			}
 			outOptions.treeBuildConfig.templateRadius.push_back(radiusValue);
@@ -362,7 +364,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("--template-radius"); it != args.upper_bound("--template-radius"); ++it) {
 			int radiusValue;
 			if (!parseIntFromString(it->second, radiusValue)) {
-				fprintf(outOptions.reportFile, "[SNESIM] invalid --template-radius value ignored: %s\n", it->second.c_str());
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid --template-radius value ignored: %s\n", it->second.c_str());
 				continue;
 			}
 			outOptions.treeBuildConfig.templateRadius.push_back(radiusValue);
@@ -375,17 +377,35 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("--template-size"); it != args.upper_bound("--template-size"); ++it) {
 			int radiusValue;
 			if (!parseIntFromString(it->second, radiusValue)) {
-				fprintf(outOptions.reportFile, "[SNESIM] invalid --template-size value ignored: %s\n", it->second.c_str());
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid --template-size value ignored: %s\n", it->second.c_str());
 				continue;
 			}
 			outOptions.treeBuildConfig.templateRadius.push_back(radiusValue);
 		}
-		fprintf(outOptions.reportFile, "[SNESIM] --template-size is deprecated; values are interpreted as radius\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] --template-size is deprecated; values are interpreted as radius\n");
 	}
 	args.erase("--template-size");
 
+	if (args.count("--wd") >= 1) {
+		unsigned parsedWildcardDepth = outOptions.wildcardDepth;
+		bool hasValidValue = false;
+		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("--wd"); it != args.upper_bound("--wd"); ++it) {
+			unsigned localDepth = 0u;
+			if (!parseUnsignedFromString(it->second, localDepth)) {
+				fprintf(outOptions.reportFile, "[WSNESIM] invalid --wd value ignored: %s\n", it->second.c_str());
+				continue;
+			}
+			parsedWildcardDepth = std::max(parsedWildcardDepth, localDepth);
+			hasValidValue = true;
+		}
+		if (hasValidValue) {
+			outOptions.wildcardDepth = parsedWildcardDepth;
+		}
+	}
+	args.erase("--wd");
+
 	if (args.count("-maxn") > 0) {
-		fprintf(outOptions.reportFile, "[SNESIM] -maxn is not used in this SNESIM scaffold and is ignored\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] -maxn is not used in this WSNESIM scaffold and is ignored\n");
 	}
 	args.erase("-maxn");
 
@@ -427,7 +447,7 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	if (!outOptions.trainingImageIndexName.empty()) {
 		if (outOptions.treeStrategy != TreeStrategy::Ii) {
 			fprintf(outOptions.reportFile,
-				"[SNESIM] -ii provided: forcing tree strategy to 'ii' (was '%s')\n",
+				"[WSNESIM] -ii provided: forcing tree strategy to 'ii' (was '%s')\n",
 				treeStrategyName(outOptions.treeStrategy));
 		}
 		outOptions.treeStrategy = TreeStrategy::Ii;
@@ -438,15 +458,15 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	}
 
 	if (outOptions.trainingImageNames.empty()) {
-		fprintf(outOptions.reportFile, "[SNESIM] missing mandatory parameter: -ti\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] missing mandatory parameter: -ti\n");
 		return false;
 	}
 	if (outOptions.destinationImageName.empty()) {
-		fprintf(outOptions.reportFile, "[SNESIM] missing mandatory parameter: -di\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] missing mandatory parameter: -di\n");
 		return false;
 	}
 	if (outOptions.treeStrategy == TreeStrategy::Ii && outOptions.trainingImageIndexName.empty()) {
-		fprintf(outOptions.reportFile, "[SNESIM] --tree-strategy ii requires -ii\n");
+		fprintf(outOptions.reportFile, "[WSNESIM] --tree-strategy ii requires -ii\n");
 		return false;
 	}
 
@@ -580,17 +600,17 @@ std::shared_ptr<const snesim::SearchTree> loadOrCreateTree(const std::string& tr
 				&& loadedRecord.config.wildcardEnabled == treeConfig.wildcardEnabled
 				&& loadedRecord.config.wildcardDepth == treeConfig.wildcardDepth;
 			if (compatible) {
-				fprintf(reportFile, "[SNESIM] reuse cached tree for TI '%s' at level %u (%s)\n",
+				fprintf(reportFile, "[WSNESIM] reuse cached tree for TI '%s' at level %u (%s)\n",
 					trainingImageName.c_str(),
 					treeConfig.gridLevel,
 					cacheRepository.getTrainingImageCacheFolder(trainingImageName).c_str());
 				return std::make_shared<snesim::SearchTree>(loadedRecord.tree);
 			}
-			fprintf(reportFile, "[SNESIM] cached tree is incompatible for TI '%s' level %u, rebuilding\n",
+			fprintf(reportFile, "[WSNESIM] cached tree is incompatible for TI '%s' level %u, rebuilding\n",
 				trainingImageName.c_str(),
 				treeConfig.gridLevel);
 		} else {
-			fprintf(reportFile, "[SNESIM] no reusable cache for TI '%s' level %u: %s\n",
+			fprintf(reportFile, "[WSNESIM] no reusable cache for TI '%s' level %u: %s\n",
 				trainingImageName.c_str(),
 				treeConfig.gridLevel,
 				loadError.c_str());
@@ -605,12 +625,12 @@ std::shared_ptr<const snesim::SearchTree> loadOrCreateTree(const std::string& tr
 
 	std::string saveError;
 	if (!cacheRepository.save(trainingImageName, record, treeConfig.gridLevel, saveError)) {
-		fprintf(reportFile, "[SNESIM] warning: cannot cache tree for TI '%s' level %u: %s\n",
+		fprintf(reportFile, "[WSNESIM] warning: cannot cache tree for TI '%s' level %u: %s\n",
 			trainingImageName.c_str(),
 			treeConfig.gridLevel,
 			saveError.c_str());
 	} else {
-		fprintf(reportFile, "[SNESIM] tree cache updated for TI '%s' level %u in %s\n",
+		fprintf(reportFile, "[WSNESIM] tree cache updated for TI '%s' level %u in %s\n",
 			trainingImageName.c_str(),
 			treeConfig.gridLevel,
 			cacheRepository.getTrainingImageCacheFolder(trainingImageName).c_str());
@@ -731,11 +751,11 @@ void logPathPositionArray(FILE* reportFile,
 	unsigned gridLevel,
 	const std::vector<std::vector<int> >& pathPositionArray) {
 	fprintf(reportFile,
-		"[SNESIM] level %u pathPositionArray begin (size=%lu)\n",
+		"[WSNESIM] level %u pathPositionArray begin (size=%lu)\n",
 		gridLevel,
 		static_cast<unsigned long>(pathPositionArray.size()));
 	for (size_t i = 0; i < pathPositionArray.size(); ++i) {
-		fprintf(reportFile, "[SNESIM] level %u pathPositionArray[%lu] = (",
+		fprintf(reportFile, "[WSNESIM] level %u pathPositionArray[%lu] = (",
 			gridLevel,
 			static_cast<unsigned long>(i));
 		for (size_t j = 0; j < pathPositionArray[i].size(); ++j) {
@@ -746,7 +766,7 @@ void logPathPositionArray(FILE* reportFile,
 		}
 		fprintf(reportFile, ")\n");
 	}
-	fprintf(reportFile, "[SNESIM] level %u pathPositionArray end\n", gridLevel);
+	fprintf(reportFile, "[WSNESIM] level %u pathPositionArray end\n", gridLevel);
 }
 
 void buildMultigridPlans(const g2s::DataImage& destinationImage,
@@ -755,7 +775,7 @@ void buildMultigridPlans(const g2s::DataImage& destinationImage,
 	std::vector<g2s_path_index_t>& posteriorPath,
 	FILE* reportFile) {
 	const std::vector<unsigned> levels = buildDescendingGridLevels(config.maxGridLevel);
-	fprintf(reportFile, "[SNESIM] max grid level=%u (levels %u..0)\n", config.maxGridLevel, config.maxGridLevel);
+	fprintf(reportFile, "[WSNESIM] max grid level=%u (levels %u..0)\n", config.maxGridLevel, config.maxGridLevel);
 	const unsigned cellCount = computeCellCount(destinationImage);
 	const g2s_path_index_t maxPathValue = std::numeric_limits<g2s_path_index_t>::max();
 	levelPlans.clear();
@@ -796,7 +816,7 @@ void buildMultigridPlans(const g2s::DataImage& destinationImage,
 			posteriorPath[cellIndex] = nextOrder++;
 		}
 		fprintf(reportFile,
-			"[SNESIM] level %u planned with %lu nodes and %lu path offsets\n",
+			"[WSNESIM] level %u planned with %lu nodes and %lu path offsets\n",
 			plan.level,
 			static_cast<unsigned long>(plan.simulationPath.size()),
 			static_cast<unsigned long>(plan.pathPositionArray.size()));
@@ -971,7 +991,7 @@ int main(int argc, char const* argv[]) {
 	}
 	FILE* reportFile = options.reportFile;
 	if (options.verbose) {
-		fprintf(reportFile, "[SNESIM] verbose mode enabled\n");
+		fprintf(reportFile, "[WSNESIM] verbose mode enabled\n");
 	}
 
 	std::vector<g2s::DataImage> trainingImages;
@@ -987,7 +1007,7 @@ int main(int argc, char const* argv[]) {
 		snesim::TrainingImageSummary summary;
 		std::string summaryError;
 		if (!snesim::summarizeCategoricalTrainingImage(trainingImage, trainingImageName, summary, summaryError)) {
-			fprintf(reportFile, "[SNESIM] %s\n", summaryError.c_str());
+			fprintf(reportFile, "[WSNESIM] %s\n", summaryError.c_str());
 			if (options.closeReportFile) {
 				fclose(reportFile);
 			}
@@ -996,7 +1016,7 @@ int main(int argc, char const* argv[]) {
 
 		if (!trainingSummaries.empty()) {
 			if (summary.nbVariable != trainingSummaries[0].nbVariable || summary.categories != trainingSummaries[0].categories) {
-				fprintf(reportFile, "[SNESIM] all TIs must share the same variable count and categories in this scaffold\n");
+				fprintf(reportFile, "[WSNESIM] all TIs must share the same variable count and categories in this scaffold\n");
 				if (options.closeReportFile) {
 					fclose(reportFile);
 				}
@@ -1013,7 +1033,7 @@ int main(int argc, char const* argv[]) {
 	std::set<int> categorySet(summary.categories.begin(), summary.categories.end());
 	std::string destinationError;
 	if (!validateDestinationImage(destinationImage, summary.nbVariable, categorySet, destinationError)) {
-		fprintf(reportFile, "[SNESIM] %s\n", destinationError.c_str());
+		fprintf(reportFile, "[WSNESIM] %s\n", destinationError.c_str());
 		if (options.closeReportFile) {
 			fclose(reportFile);
 		}
@@ -1026,7 +1046,7 @@ int main(int argc, char const* argv[]) {
 		tiSelectionImage = g2s::DataImage::createFromFile(options.trainingImageIndexName);
 		std::string tiSelectionError;
 		if (!validateTrainingImageSelectionImage(tiSelectionImage, destinationImage, static_cast<unsigned>(trainingImages.size()), tiSelectionError)) {
-			fprintf(reportFile, "[SNESIM] %s\n", tiSelectionError.c_str());
+			fprintf(reportFile, "[WSNESIM] %s\n", tiSelectionError.c_str());
 			if (options.closeReportFile) {
 				fclose(reportFile);
 			}
@@ -1034,7 +1054,8 @@ int main(int argc, char const* argv[]) {
 		}
 	}
 
-	fprintf(reportFile, "[SNESIM] tree strategy: %s\n", treeStrategyName(options.treeStrategy));
+	fprintf(reportFile, "[WSNESIM] tree strategy: %s\n", treeStrategyName(options.treeStrategy));
+	fprintf(reportFile, "[WSNESIM] wildcard depth (--wd): %u\n", options.wildcardDepth);
 
 	std::vector<GridLevelPlan> levelPlans;
 	std::vector<g2s_path_index_t> posteriorPath;
@@ -1051,9 +1072,10 @@ int main(int argc, char const* argv[]) {
 		// its own deterministic pathPositionArray statistics.
 		snesim::TreeBuildConfig levelTreeConfig = options.treeBuildConfig;
 		levelTreeConfig.gridLevel = levelPlan.level;
-		levelTreeConfig.wildcardEnabled = false;
-		levelTreeConfig.wildcardDepth = 0u;
-		levelTreeConfig.branchCount = static_cast<unsigned>(summary.categories.size());
+		levelTreeConfig.wildcardEnabled = options.wildcardDepth > 0u;
+		levelTreeConfig.wildcardDepth = options.wildcardDepth;
+		levelTreeConfig.branchCount = static_cast<unsigned>(summary.categories.size())
+			+ (levelTreeConfig.wildcardEnabled ? 1u : 0u);
 
 		std::vector<std::shared_ptr<const snesim::SearchTree> > treesByTrainingImage;
 		treesByTrainingImage.reserve(trainingImages.size());
@@ -1069,7 +1091,7 @@ int main(int argc, char const* argv[]) {
 				reportFile);
 			if (!levelTree) {
 				fprintf(reportFile,
-					"[SNESIM] failed to build/load tree for TI '%s' at level %u\n",
+					"[WSNESIM] failed to build/load tree for TI '%s' at level %u\n",
 					options.trainingImageNames[tiIndex].c_str(),
 					levelPlan.level);
 				if (options.closeReportFile) {
@@ -1085,7 +1107,7 @@ int main(int argc, char const* argv[]) {
 		if (options.treeStrategy == TreeStrategy::Merged) {
 			std::shared_ptr<const snesim::SearchTree> mergedTree = buildMergedTree(treesByTrainingImage);
 			if (!mergedTree) {
-				fprintf(reportFile, "[SNESIM] failed to build merged tree at level %u\n", levelPlan.level);
+				fprintf(reportFile, "[WSNESIM] failed to build merged tree at level %u\n", levelPlan.level);
 				if (options.closeReportFile) {
 					fclose(reportFile);
 				}
@@ -1096,9 +1118,9 @@ int main(int argc, char const* argv[]) {
 	}
 	auto treeCreationEnd = std::chrono::high_resolution_clock::now();
 	double treeCreationTime = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(treeCreationEnd - treeCreationBegin).count();
-	fprintf(reportFile, "[SNESIM] tree creation time: %7.2f s\n", treeCreationTime / 1000);
-	fprintf(reportFile, "[SNESIM] tree creation time: %.0f ms\n", treeCreationTime);
-	fprintf(reportFile, "[SNESIM_TIMING] tree_creation_ms=%.0f tree_creation_s=%.6f\n",
+	fprintf(reportFile, "[WSNESIM] tree creation time: %7.2f s\n", treeCreationTime / 1000);
+	fprintf(reportFile, "[WSNESIM] tree creation time: %.0f ms\n", treeCreationTime);
+	fprintf(reportFile, "[WSNESIM_TIMING] tree_creation_ms=%.0f tree_creation_s=%.6f\n",
 		treeCreationTime,
 		treeCreationTime / 1000.0);
 
@@ -1117,7 +1139,7 @@ int main(int argc, char const* argv[]) {
 		options.treeStrategy == TreeStrategy::Merged ?
 			snesim::TreeSelectionMode::Merged :
 			snesim::TreeSelectionMode::PerTrainingImage);
-	snesim::SNESIMCPUThreadDevice::setWildcardConfig(false, 0u);
+	snesim::SNESIMCPUThreadDevice::setWildcardConfig(options.wildcardDepth > 0u, options.wildcardDepth);
 
 	std::shared_ptr<const snesim::SearchTree> workerFallbackTree;
 	if (!levelPlans.empty()) {
@@ -1154,7 +1176,7 @@ int main(int argc, char const* argv[]) {
 	for (size_t levelIndex = 0; levelIndex < levelPlans.size(); ++levelIndex) {
 		const GridLevelPlan& levelPlan = levelPlans[levelIndex];
 		if (levelPlan.simulationPath.empty()) {
-			fprintf(reportFile, "[SNESIM] level %u skipped (empty path)\n", levelPlan.level);
+			fprintf(reportFile, "[WSNESIM] level %u skipped (empty path)\n", levelPlan.level);
 			continue;
 		}
 
@@ -1170,7 +1192,7 @@ int main(int argc, char const* argv[]) {
 			static_cast<unsigned>(levelPlan.pathPositionArray.size()));
 
 		fprintf(reportFile,
-			"[SNESIM] level %u running default simulation() with %lu path nodes\n",
+			"[WSNESIM] level %u running default simulation() with %lu path nodes\n",
 			levelPlan.level,
 			static_cast<unsigned long>(levelPlan.simulationPath.size()));
 
@@ -1203,7 +1225,7 @@ int main(int argc, char const* argv[]) {
 		&& overallProgressContext.lastPrintedPercent.load(std::memory_order_relaxed) < 100) {
 		const unsigned long long completed = overallProgressContext.completed.load(std::memory_order_relaxed);
 		fprintf(reportFile,
-			"[SNESIM] progress overall: %.2f%%\n",
+			"[WSNESIM] progress overall: %.2f%%\n",
 			100.0 * static_cast<double>(std::min(completed, overallSimulationPointCount))
 				/ static_cast<double>(overallSimulationPointCount));
 	}
@@ -1218,12 +1240,12 @@ int main(int argc, char const* argv[]) {
 	}
 
 	destinationImage.write(options.outputName);
-	fprintf(reportFile, "[SNESIM] output written with id '%s'\n", options.outputName.c_str());
+	fprintf(reportFile, "[WSNESIM] output written with id '%s'\n", options.outputName.c_str());
 	const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
 	const std::string conventionalOutputName = std::string("im_1_") + std::to_string(conventionalUniqueID);
 	if (options.outputName != conventionalOutputName) {
 		destinationImage.write(conventionalOutputName);
-		fprintf(reportFile, "[SNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());
+		fprintf(reportFile, "[WSNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());
 	}
 
 	if (options.closeReportFile) {

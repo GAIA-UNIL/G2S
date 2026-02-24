@@ -63,9 +63,11 @@ Not implemented yet:
 ## Code Map
 
 - App entrypoint and multi-grid orchestration: `src/snesim.cpp`
+- WSNESIM entrypoint and multi-grid orchestration: `src/wsnesim.cpp`
 - Tree structures and cache: `include/snesimTree.hpp`, `src/snesimTree.cpp`
 - SNESIM CPU worker and shared tree-level switch: `include/snesimCPUThreadDevice.hpp`, `src/snesimCPUThreadDevice.cpp`
 - Python example script: `example/python/snesim_example.py`
+- Python example script (wildcard): `example/python/wsnesim_example.py`
 - Build wiring: `build/c++-build/Makefile`, `build/intel-build/Makefile`
 - Algo registry: `build/algosName.config`
 
@@ -164,6 +166,7 @@ Note:
 Run:
 
 - `python3 example/python/snesim_example.py`
+- `python3 example/python/wsnesim_example.py`
 
 What it checks:
 
@@ -189,6 +192,8 @@ For every SNESIM-related code change:
 
 ## Change Log
 
+- 2026-02-24: Added Python example script `example/python/wsnesim_example.py` showing `-a wsnesim` and wildcard prefix depth usage (`--wd 2`).
+- 2026-02-24: Added separate `wsnesim` executable/algorithm with wildcard-prefix depth (`--wd`), wildcard-aware tree branch `[nClasses]`, ws-specific tree cache root (`/tmp/G2S/data/wsnesim_trees`), and cache compatibility metadata (`branch_count`, `wildcard_enabled`, `wildcard_depth`) while keeping strict `snesim` behavior unchanged (`--wd 0` equivalent path).
 - 2026-02-21: Created SNESIM scaffold (app, tree/cache module, non-FFT CPU worker module, build integration, algo registration).
 - 2026-02-21: Added Python example script `example/python/snesim_example.py` using `strebelle.tiff` URL loading.
 - 2026-02-23: Removed inactive SNESIM trace helper plumbing from `SNESIMCPUThreadDevice` and renamed the Python example to `snesim_example.py`; clarified `-mg` example commentary (`4` means levels `4..0`).

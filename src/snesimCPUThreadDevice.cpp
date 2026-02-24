@@ -45,6 +45,31 @@ void updateTotalStatFromNode(const snesim::TreeNode& node,
 	}
 }
 
+bool decodeKnownClass(const std::vector<float>& encodedNeighbor,
+	size_t classCount,
+	unsigned& knownClassIndex) {
+	if (encodedNeighbor.size() < classCount || classCount == 0u) {
+		return false;
+	}
+
+	int foundClass = -1;
+	for (size_t classIndex = 0; classIndex < classCount; ++classIndex) {
+		const float value = encodedNeighbor[classIndex];
+		if (!std::isfinite(value) || value <= 0.5f) {
+			continue;
+		}
+		if (foundClass >= 0) {
+			return false;
+		}
+		foundClass = static_cast<int>(classIndex);
+	}
+	if (foundClass < 0) {
+		return false;
+	}
+	knownClassIndex = static_cast<unsigned>(foundClass);
+	return true;
+}
+
 void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	int nodeIndex,
 	int currentDepth,
@@ -53,6 +78,9 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	const std::vector<std::vector<int> >& neighborArrayVector,
 	const std::vector<std::vector<float> >& neighborValueArrayVector,
 	size_t neighborIndex,
+	bool wildcardEnabled,
+	unsigned wildcardDepth,
+	unsigned wildcardBranchIndex,
 	std::vector<unsigned long long>& totalStat,
 	int& maxDepth) {
 	if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
@@ -60,7 +88,8 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	}
 
 	const snesim::TreeNode& node = nodes[static_cast<size_t>(nodeIndex)];
-	if (node.categoryCounts.size() != totalStat.size() || node.childNodeIndex.size() != totalStat.size()) {
+	const size_t classCount = totalStat.size();
+	if (node.categoryCounts.size() != classCount || node.childNodeIndex.size() < classCount) {
 		return;
 	}
 	updateTotalStatFromNode(node, currentDepth, totalStat, maxDepth);
@@ -73,73 +102,104 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	const size_t alignedNeighborIndex = neighborIndex;
 	const bool sameOffset = alignedNeighborIndex < neighborArrayVector.size()
 		&& compareOffsetLexicographic(neighborArrayVector[alignedNeighborIndex], expectedOffset) == 0;
+	const size_t nextNeighborIndex = sameOffset ? (alignedNeighborIndex + 1u) : alignedNeighborIndex;
+	const bool allowWildcardAtDepth = wildcardEnabled
+		&& pathIndex < wildcardDepth
+		&& wildcardBranchIndex < node.childNodeIndex.size();
 
 	bool hasKnownNeighbor = false;
 	unsigned knownClassIndex = 0u;
-	bool branchAll = true;
 	if (sameOffset) {
 		if (alignedNeighborIndex < neighborValueArrayVector.size() && !neighborValueArrayVector[alignedNeighborIndex].empty()) {
-			hasKnownNeighbor = false;
-			if (neighborValueArrayVector[alignedNeighborIndex].size() >= totalStat.size() && !totalStat.empty()) {
-				int foundClass = -1;
-				for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
-					const float value = neighborValueArrayVector[alignedNeighborIndex][classIndex];
-					if (!std::isfinite(value) || value <= 0.5f) {
-						continue;
-					}
-					if (foundClass >= 0) {
-						foundClass = -2;
-						break;
-					}
-					foundClass = static_cast<int>(classIndex);
-				}
-				if (foundClass >= 0) {
-					hasKnownNeighbor = true;
-					knownClassIndex = static_cast<unsigned>(foundClass);
-					branchAll = false;
-				}
-			}
+			hasKnownNeighbor = decodeKnownClass(neighborValueArrayVector[alignedNeighborIndex], classCount, knownClassIndex);
 		}
 	}
 
 	if (hasKnownNeighbor) {
-		const int childNode = node.childNodeIndex[knownClassIndex];
-		if (childNode < 0) {
+		if (knownClassIndex >= classCount) {
 			return;
 		}
-		depthSearchTreeRecursive(nodes,
-			childNode,
-			currentDepth + 1,
+		const int knownChild = node.childNodeIndex[knownClassIndex];
+		if (knownChild >= 0) {
+			depthSearchTreeRecursive(nodes,
+				knownChild,
+				currentDepth + 1,
 				pathPositionArray,
 				pathIndex + 1,
 				neighborArrayVector,
 				neighborValueArrayVector,
-				alignedNeighborIndex + 1,
+				nextNeighborIndex,
+				wildcardEnabled,
+				wildcardDepth,
+				wildcardBranchIndex,
 				totalStat,
 				maxDepth);
+			return;
+		}
+
+		if (allowWildcardAtDepth) {
+			const int wildcardChild = node.childNodeIndex[wildcardBranchIndex];
+			if (wildcardChild < 0) {
+				return;
+			}
+			depthSearchTreeRecursive(nodes,
+				wildcardChild,
+				currentDepth + 1,
+				pathPositionArray,
+				pathIndex + 1,
+				neighborArrayVector,
+				neighborValueArrayVector,
+				nextNeighborIndex,
+				wildcardEnabled,
+				wildcardDepth,
+				wildcardBranchIndex,
+				totalStat,
+				maxDepth);
+		}
 		return;
 	}
 
-	if (branchAll) {
-		for (size_t classIndex = 0; classIndex < node.childNodeIndex.size(); ++classIndex) {
-			const int childNode = node.childNodeIndex[classIndex];
-			if (childNode < 0) {
-				continue;
-			}
-			depthSearchTreeRecursive(nodes,
-				childNode,
-				currentDepth + 1,
-				pathPositionArray,
-					pathIndex + 1,
-					neighborArrayVector,
-					neighborValueArrayVector,
-					sameOffset ?
-							(alignedNeighborIndex + 1) :
-							alignedNeighborIndex,
-					totalStat,
-					maxDepth);
-			}
+	if (allowWildcardAtDepth) {
+		const int wildcardChild = node.childNodeIndex[wildcardBranchIndex];
+		if (wildcardChild < 0) {
+			return;
 		}
+		depthSearchTreeRecursive(nodes,
+			wildcardChild,
+			currentDepth + 1,
+			pathPositionArray,
+			pathIndex + 1,
+			neighborArrayVector,
+			neighborValueArrayVector,
+			nextNeighborIndex,
+			wildcardEnabled,
+			wildcardDepth,
+			wildcardBranchIndex,
+			totalStat,
+			maxDepth);
+		return;
+	}
+
+	// Strict SNESIM behavior for non-wildcard depths: branch-all on missing/unknown.
+	for (size_t classIndex = 0; classIndex < classCount; ++classIndex) {
+		const int childNode = node.childNodeIndex[classIndex];
+		if (childNode < 0) {
+			continue;
+		}
+		depthSearchTreeRecursive(nodes,
+			childNode,
+			currentDepth + 1,
+			pathPositionArray,
+			pathIndex + 1,
+			neighborArrayVector,
+			neighborValueArrayVector,
+			nextNeighborIndex,
+			wildcardEnabled,
+			wildcardDepth,
+			wildcardBranchIndex,
+			totalStat,
+			maxDepth);
+	}
 }
 
 } // namespace
@@ -152,6 +212,8 @@ std::map<unsigned, std::shared_ptr<const SearchTree> > SNESIMCPUThreadDevice::_m
 std::map<unsigned, std::vector<std::vector<int> > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
 std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
+std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardEnabled(0u);
+std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardDepth(0u);
 
 SNESIMCPUThreadDevice::SNESIMCPUThreadDevice(unsigned workerId, std::shared_ptr<const SearchTree> sharedTree) :
 	_workerId(workerId),
@@ -271,6 +333,19 @@ TreeSelectionMode SNESIMCPUThreadDevice::treeSelectionMode() {
 	return static_cast<TreeSelectionMode>(_treeSelectionMode.load(std::memory_order_relaxed));
 }
 
+void SNESIMCPUThreadDevice::setWildcardConfig(bool enabled, unsigned depth) {
+	_wildcardEnabled.store(enabled ? 1u : 0u, std::memory_order_relaxed);
+	_wildcardDepth.store(enabled ? depth : 0u, std::memory_order_relaxed);
+}
+
+bool SNESIMCPUThreadDevice::wildcardEnabled() {
+	return _wildcardEnabled.load(std::memory_order_relaxed) != 0u;
+}
+
+unsigned SNESIMCPUThreadDevice::wildcardDepth() {
+	return _wildcardDepth.load(std::memory_order_relaxed);
+}
+
 std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::resolveActiveTree(unsigned trainingImageIndex) const {
 	// Resolution order:
 	// 1) merged tree at current level (if merged mode)
@@ -326,13 +401,18 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		return categories[0];
 	}
 
-	if (nodes[0].categoryCounts.size() != categories.size() || nodes[0].childNodeIndex.size() != categories.size()) {
+	if (nodes[0].categoryCounts.size() != categories.size() || nodes[0].childNodeIndex.size() < categories.size()) {
 		return categories[0];
 	}
 
-	// Depth search over tree with branch-all whenever neighborhood has NaN/missing value.
+	// Depth search over tree:
+	// - strict mode branches all class children on missing values
+	// - wildcard mode uses known-first with optional wildcard fallback in prefix depths.
 	const unsigned activeLevel = globalGridLevel();
 	const std::vector<std::vector<int> > pathPositionArray = pathPositionArrayForLevel(activeLevel);
+	const bool useWildcard = wildcardEnabled() && wildcardDepth() > 0u;
+	const unsigned wildcardPrefixDepth = wildcardDepth();
+	const unsigned wildcardBranchIndex = static_cast<unsigned>(categories.size());
 	std::vector<unsigned long long> totalStat(categories.size(), 0ULL);
 	int maxDepth = -1;
 	depthSearchTreeRecursive(nodes,
@@ -343,6 +423,9 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		neighborArrayVector,
 		neighborValueArrayVector,
 		0u,
+		useWildcard,
+		wildcardPrefixDepth,
+		wildcardBranchIndex,
 		totalStat,
 		maxDepth);
 
