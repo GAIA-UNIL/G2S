@@ -2,6 +2,7 @@
 #define G2S_SNESIM_CPU_THREAD_DEVICE_HPP
 
 #include <atomic>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -39,6 +40,7 @@ public:
 	static std::shared_ptr<const SearchTree> mergedTreeForLevel(unsigned gridLevel);
 	static void setPathPositionArrayForLevel(unsigned gridLevel, const std::vector<std::vector<int> >& pathPositionArray);
 	static bool hasPathPositionArrayForLevel(unsigned gridLevel);
+	static std::shared_ptr<const std::vector<std::vector<int> > > pathPositionArrayHandleForLevel(unsigned gridLevel);
 	static std::vector<std::vector<int> > pathPositionArrayForLevel(unsigned gridLevel);
 
 	// Global level switch: one call updates the active level for all workers.
@@ -60,11 +62,19 @@ public:
 		std::mt19937& randomGenerator) const;
 
 private:
-	std::shared_ptr<const SearchTree> resolveActiveTree(unsigned trainingImageIndex) const;
+	void refreshLevelCache(unsigned activeLevel) const;
+	std::shared_ptr<const SearchTree> resolveActiveTree(unsigned trainingImageIndex, TreeSelectionMode mode) const;
 
 	unsigned _workerId = 0;
 	unsigned _initialGridLevel = 0;
 	std::shared_ptr<const SearchTree> _fallbackTree;
+	mutable unsigned _cachedLevel = std::numeric_limits<unsigned>::max();
+	mutable bool _cachedLevelValid = false;
+	mutable std::vector<std::shared_ptr<const SearchTree> > _cachedTreesByTrainingImage;
+	mutable std::shared_ptr<const SearchTree> _cachedMergedTree;
+	mutable std::shared_ptr<const SearchTree> _cachedAnySharedTree;
+	mutable std::shared_ptr<const std::vector<std::vector<int> > > _cachedPathPositionArray;
+	mutable unsigned long long _cachedSharedStateVersion = 0u;
 
 	// Shared tree registry: level -> immutable tree handles by TI index.
 	static std::mutex _sharedTreeMutex;
@@ -72,13 +82,14 @@ private:
 	// Optional merged tree per level (recomputed per run).
 	static std::map<unsigned, std::shared_ptr<const SearchTree> > _mergedTreesByLevel;
 	// Deterministic template offsets per level used by tree traversal.
-	static std::map<unsigned, std::vector<std::vector<int> > > _pathPositionArrayByLevel;
+	static std::map<unsigned, std::shared_ptr<const std::vector<std::vector<int> > > > _pathPositionArrayByLevel;
 	// One global level value used by all workers in a level pass.
 	static std::atomic<unsigned> _globalGridLevel;
 	static std::atomic<unsigned> _treeSelectionMode;
 	static std::atomic<unsigned> _wildcardEnabled;
 	static std::atomic<unsigned> _wildcardDepth;
 	static std::atomic<unsigned> _wildcardMode;
+	static std::atomic<unsigned long long> _sharedStateVersion;
 };
 
 } // namespace snesim

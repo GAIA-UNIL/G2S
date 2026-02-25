@@ -216,12 +216,13 @@ namespace snesim {
 std::mutex SNESIMCPUThreadDevice::_sharedTreeMutex;
 std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > > SNESIMCPUThreadDevice::_sharedTreesByLevel;
 std::map<unsigned, std::shared_ptr<const SearchTree> > SNESIMCPUThreadDevice::_mergedTreesByLevel;
-std::map<unsigned, std::vector<std::vector<int> > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
+std::map<unsigned, std::shared_ptr<const std::vector<std::vector<int> > > > SNESIMCPUThreadDevice::_pathPositionArrayByLevel;
 std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
 std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardEnabled(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardDepth(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardMode(static_cast<unsigned>(WildcardMode::Prefix));
+std::atomic<unsigned long long> SNESIMCPUThreadDevice::_sharedStateVersion(1u);
 
 SNESIMCPUThreadDevice::SNESIMCPUThreadDevice(unsigned workerId, std::shared_ptr<const SearchTree> sharedTree) :
 	_workerId(workerId),
@@ -247,11 +248,13 @@ void SNESIMCPUThreadDevice::clearSharedTrees() {
 	_sharedTreesByLevel.clear();
 	_mergedTreesByLevel.clear();
 	_pathPositionArrayByLevel.clear();
+	_sharedStateVersion.fetch_add(1u, std::memory_order_relaxed);
 }
 
 void SNESIMCPUThreadDevice::setSharedTreesForLevel(unsigned gridLevel, const std::vector<std::shared_ptr<const SearchTree> >& treesByTrainingImage) {
 	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
 	_sharedTreesByLevel[gridLevel] = treesByTrainingImage;
+	_sharedStateVersion.fetch_add(1u, std::memory_order_relaxed);
 }
 
 void SNESIMCPUThreadDevice::setSharedTrees(const std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > >& treesByLevel) {
@@ -260,6 +263,7 @@ void SNESIMCPUThreadDevice::setSharedTrees(const std::map<unsigned, std::vector<
 	for (std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > >::const_iterator it = treesByLevel.begin(); it != treesByLevel.end(); ++it) {
 		_sharedTreesByLevel[it->first] = it->second;
 	}
+	_sharedStateVersion.fetch_add(1u, std::memory_order_relaxed);
 }
 
 bool SNESIMCPUThreadDevice::hasSharedTreeForLevel(unsigned gridLevel, unsigned trainingImageIndex) {
@@ -289,6 +293,7 @@ void SNESIMCPUThreadDevice::setMergedTreeForLevel(unsigned gridLevel, std::share
 	}
 	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
 	_mergedTreesByLevel[gridLevel] = mergedTree;
+	_sharedStateVersion.fetch_add(1u, std::memory_order_relaxed);
 }
 
 bool SNESIMCPUThreadDevice::hasMergedTreeForLevel(unsigned gridLevel) {
@@ -307,19 +312,29 @@ std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::mergedTreeForLevel(unsi
 
 void SNESIMCPUThreadDevice::setPathPositionArrayForLevel(unsigned gridLevel, const std::vector<std::vector<int> >& pathPositionArray) {
 	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
-	_pathPositionArrayByLevel[gridLevel] = pathPositionArray;
+	_pathPositionArrayByLevel[gridLevel] = std::make_shared<std::vector<std::vector<int> > >(pathPositionArray);
+	_sharedStateVersion.fetch_add(1u, std::memory_order_relaxed);
 }
 
 bool SNESIMCPUThreadDevice::hasPathPositionArrayForLevel(unsigned gridLevel) {
 	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
-	return _pathPositionArrayByLevel.find(gridLevel) != _pathPositionArrayByLevel.end();
+	std::map<unsigned, std::shared_ptr<const std::vector<std::vector<int> > > >::const_iterator it = _pathPositionArrayByLevel.find(gridLevel);
+	return it != _pathPositionArrayByLevel.end() && static_cast<bool>(it->second);
+}
+
+std::shared_ptr<const std::vector<std::vector<int> > > SNESIMCPUThreadDevice::pathPositionArrayHandleForLevel(unsigned gridLevel) {
+	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
+	std::map<unsigned, std::shared_ptr<const std::vector<std::vector<int> > > >::const_iterator it = _pathPositionArrayByLevel.find(gridLevel);
+	if (it != _pathPositionArrayByLevel.end()) {
+		return it->second;
+	}
+	return std::shared_ptr<const std::vector<std::vector<int> > >();
 }
 
 std::vector<std::vector<int> > SNESIMCPUThreadDevice::pathPositionArrayForLevel(unsigned gridLevel) {
-	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
-	std::map<unsigned, std::vector<std::vector<int> > >::const_iterator it = _pathPositionArrayByLevel.find(gridLevel);
-	if (it != _pathPositionArrayByLevel.end()) {
-		return it->second;
+	const std::shared_ptr<const std::vector<std::vector<int> > > pathPositionArray = pathPositionArrayHandleForLevel(gridLevel);
+	if (pathPositionArray) {
+		return *pathPositionArray;
 	}
 	return std::vector<std::vector<int> >();
 }
@@ -359,37 +374,78 @@ WildcardMode SNESIMCPUThreadDevice::wildcardMode() {
 	return static_cast<WildcardMode>(_wildcardMode.load(std::memory_order_relaxed));
 }
 
-std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::resolveActiveTree(unsigned trainingImageIndex) const {
+void SNESIMCPUThreadDevice::refreshLevelCache(unsigned activeLevel) const {
+	const unsigned long long sharedStateVersion = _sharedStateVersion.load(std::memory_order_relaxed);
+	if (_cachedLevelValid
+		&& _cachedLevel == activeLevel
+		&& _cachedSharedStateVersion == sharedStateVersion) {
+		return;
+	}
+
+	_cachedTreesByTrainingImage.clear();
+	_cachedMergedTree.reset();
+	_cachedAnySharedTree.reset();
+	_cachedPathPositionArray.reset();
+
+	std::lock_guard<std::mutex> guard(_sharedTreeMutex);
+	std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > >::const_iterator levelTreeIt = _sharedTreesByLevel.find(activeLevel);
+	if (levelTreeIt != _sharedTreesByLevel.end()) {
+		_cachedTreesByTrainingImage = levelTreeIt->second;
+		for (size_t tiIndex = 0; tiIndex < _cachedTreesByTrainingImage.size(); ++tiIndex) {
+			if (_cachedTreesByTrainingImage[tiIndex]) {
+				_cachedAnySharedTree = _cachedTreesByTrainingImage[tiIndex];
+				break;
+			}
+		}
+	}
+
+	std::map<unsigned, std::shared_ptr<const SearchTree> >::const_iterator mergedTreeIt = _mergedTreesByLevel.find(activeLevel);
+	if (mergedTreeIt != _mergedTreesByLevel.end()) {
+		_cachedMergedTree = mergedTreeIt->second;
+	}
+
+	std::map<unsigned, std::shared_ptr<const std::vector<std::vector<int> > > >::const_iterator pathIt = _pathPositionArrayByLevel.find(activeLevel);
+	if (pathIt != _pathPositionArrayByLevel.end()) {
+		_cachedPathPositionArray = pathIt->second;
+	}
+
+	if (!_cachedAnySharedTree) {
+		for (std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > >::const_iterator anyLevelIt = _sharedTreesByLevel.begin();
+			anyLevelIt != _sharedTreesByLevel.end();
+			++anyLevelIt) {
+			for (size_t tiIndex = 0; tiIndex < anyLevelIt->second.size(); ++tiIndex) {
+				if (anyLevelIt->second[tiIndex]) {
+					_cachedAnySharedTree = anyLevelIt->second[tiIndex];
+					break;
+				}
+			}
+			if (_cachedAnySharedTree) {
+				break;
+			}
+		}
+	}
+
+	_cachedLevel = activeLevel;
+	_cachedLevelValid = true;
+	_cachedSharedStateVersion = _sharedStateVersion.load(std::memory_order_relaxed);
+}
+
+std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::resolveActiveTree(unsigned trainingImageIndex, TreeSelectionMode mode) const {
 	// Resolution order:
 	// 1) merged tree at current level (if merged mode)
 	// 2) TI-specific tree at current level
 	// 3) constructor fallback tree
-	// 4) first available shared tree across levels
-	const unsigned activeLevel = globalGridLevel();
-	if (treeSelectionMode() == TreeSelectionMode::Merged) {
-		std::shared_ptr<const SearchTree> mergedTree = mergedTreeForLevel(activeLevel);
-		if (mergedTree) {
-			return mergedTree;
-		}
+	// 4) first available shared tree
+	if (mode == TreeSelectionMode::Merged && _cachedMergedTree) {
+		return _cachedMergedTree;
 	}
-	std::shared_ptr<const SearchTree> levelTree = sharedTreeForLevel(activeLevel, trainingImageIndex);
-	if (levelTree) {
-		return levelTree;
+	if (trainingImageIndex < _cachedTreesByTrainingImage.size() && _cachedTreesByTrainingImage[trainingImageIndex]) {
+		return _cachedTreesByTrainingImage[trainingImageIndex];
 	}
 	if (_fallbackTree) {
 		return _fallbackTree;
 	}
-	{
-		std::lock_guard<std::mutex> guard(_sharedTreeMutex);
-		for (std::map<unsigned, std::vector<std::shared_ptr<const SearchTree> > >::const_iterator levelIt = _sharedTreesByLevel.begin(); levelIt != _sharedTreesByLevel.end(); ++levelIt) {
-			for (size_t tiIndex = 0; tiIndex < levelIt->second.size(); ++tiIndex) {
-				if (levelIt->second[tiIndex]) {
-					return levelIt->second[tiIndex];
-				}
-			}
-		}
-	}
-	return std::shared_ptr<const SearchTree>();
+	return _cachedAnySharedTree;
 }
 
 int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*/,
@@ -399,7 +455,10 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 	const std::vector<std::vector<int> >& neighborArrayVector,
 	const std::vector<std::vector<float> >& neighborValueArrayVector,
 	std::mt19937& randomGenerator) const {
-	const std::shared_ptr<const SearchTree> activeTree = resolveActiveTree(trainingImageIndex);
+	const unsigned activeLevel = globalGridLevel();
+	refreshLevelCache(activeLevel);
+	const TreeSelectionMode selectionMode = treeSelectionMode();
+	const std::shared_ptr<const SearchTree> activeTree = resolveActiveTree(trainingImageIndex, selectionMode);
 	if (!activeTree) {
 		return 0;
 	}
@@ -420,9 +479,11 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 
 	// Depth search over tree:
 	// - strict mode branches all class children on missing values
-	// - wildcard mode uses known-first with optional wildcard fallback in active depths.
-	const unsigned activeLevel = globalGridLevel();
-	const std::vector<std::vector<int> > pathPositionArray = pathPositionArrayForLevel(activeLevel);
+	// - wildcard mode keeps known neighbors strict and routes unknown/missing through wildcard in active depths.
+	static const std::vector<std::vector<int> > kEmptyPathPositionArray;
+	const std::vector<std::vector<int> >& pathPositionArray = _cachedPathPositionArray
+		? *_cachedPathPositionArray
+		: kEmptyPathPositionArray;
 	const bool useWildcard = wildcardEnabled() && wildcardDepth() > 0u;
 	const unsigned wildcardDepthValue = wildcardDepth();
 	const WildcardMode wildcardModeValue = wildcardMode();
