@@ -18,7 +18,7 @@ simulation, t, *_ = g2s(
     '-ti', ti_raw,
     '-di', numpy.zeros((1000, 1000)) * numpy.nan,
     '-dt', [1],                   # 1 => categorical
-    '-j', 0.5,
+    '-j', 1.001,
     '-mg', 4,
     '-tpl', 3
 )

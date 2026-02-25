@@ -1046,8 +1046,19 @@ int main(int argc, char const* argv[]) {
 	std::map<unsigned, std::vector<std::shared_ptr<const snesim::SearchTree> > > treesByLevel;
 	std::map<unsigned, std::shared_ptr<const snesim::SearchTree> > mergedTreeByLevel;
 	auto treeCreationBegin = std::chrono::high_resolution_clock::now();
-	for (size_t i = 0; i < levelPlans.size(); ++i) {
-		const GridLevelPlan& levelPlan = levelPlans[i];
+	struct TreeBuildTask {
+		size_t levelPlanIndex = 0u;
+		size_t trainingImageIndex = 0u;
+		snesim::TreeBuildConfig config;
+	};
+	struct TreeBuildResult {
+		std::shared_ptr<const snesim::SearchTree> tree;
+	};
+
+	std::vector<TreeBuildTask> treeBuildTasks;
+	treeBuildTasks.reserve(levelPlans.size() * trainingImages.size());
+	for (size_t levelPlanIndex = 0; levelPlanIndex < levelPlans.size(); ++levelPlanIndex) {
+		const GridLevelPlan& levelPlan = levelPlans[levelPlanIndex];
 		// Build/load one tree per TI for this exact level so each level uses
 		// its own deterministic pathPositionArray statistics.
 		snesim::TreeBuildConfig levelTreeConfig = options.treeBuildConfig;
@@ -1056,22 +1067,89 @@ int main(int argc, char const* argv[]) {
 		levelTreeConfig.wildcardDepth = 0u;
 		levelTreeConfig.wildcardMode = snesim::WildcardMode::Prefix;
 		levelTreeConfig.branchCount = static_cast<unsigned>(summary.categories.size());
-
-		std::vector<std::shared_ptr<const snesim::SearchTree> > treesByTrainingImage;
-		treesByTrainingImage.reserve(trainingImages.size());
 		for (size_t tiIndex = 0; tiIndex < trainingImages.size(); ++tiIndex) {
-			std::shared_ptr<const snesim::SearchTree> levelTree = loadOrCreateTree(
-				options.trainingImageNames[tiIndex],
-				trainingImages[tiIndex],
-				trainingSummaries[tiIndex],
-				levelTreeConfig,
-				levelPlan.pathPositionArray,
-				options.forceTreeRebuild,
-				cacheRepository,
-				reportFile);
-			if (!levelTree) {
+			TreeBuildTask task;
+			task.levelPlanIndex = levelPlanIndex;
+			task.trainingImageIndex = tiIndex;
+			task.config = levelTreeConfig;
+			treeBuildTasks.push_back(task);
+		}
+	}
+
+	const unsigned requestedTreeWorkers = std::max(1u, options.simulationConfig.nbThreads);
+	const unsigned treeWorkerCount = std::min<unsigned>(
+		requestedTreeWorkers,
+		static_cast<unsigned>(std::max<size_t>(1u, treeBuildTasks.size())));
+	fprintf(reportFile,
+		"[SNESIM] tree creation workers=%u tasks=%lu\n",
+		treeWorkerCount,
+		static_cast<unsigned long>(treeBuildTasks.size()));
+
+	std::vector<TreeBuildResult> treeBuildResults(treeBuildTasks.size());
+	std::atomic<size_t> nextTreeBuildTask(0u);
+	std::vector<std::thread> treeBuildWorkers;
+	treeBuildWorkers.reserve(treeWorkerCount);
+	for (unsigned workerIndex = 0; workerIndex < treeWorkerCount; ++workerIndex) {
+		treeBuildWorkers.push_back(std::thread([&]() {
+			for (;;) {
+				const size_t taskIndex = nextTreeBuildTask.fetch_add(1u, std::memory_order_relaxed);
+				if (taskIndex >= treeBuildTasks.size()) {
+					break;
+				}
+				const TreeBuildTask& task = treeBuildTasks[taskIndex];
+				const GridLevelPlan& levelPlan = levelPlans[task.levelPlanIndex];
+				treeBuildResults[taskIndex].tree = loadOrCreateTree(
+					options.trainingImageNames[task.trainingImageIndex],
+					trainingImages[task.trainingImageIndex],
+					trainingSummaries[task.trainingImageIndex],
+					task.config,
+					levelPlan.pathPositionArray,
+					options.forceTreeRebuild,
+					cacheRepository,
+					reportFile);
+			}
+		}));
+	}
+	for (size_t workerIndex = 0; workerIndex < treeBuildWorkers.size(); ++workerIndex) {
+		treeBuildWorkers[workerIndex].join();
+	}
+
+	for (size_t taskIndex = 0; taskIndex < treeBuildTasks.size(); ++taskIndex) {
+		const TreeBuildTask& task = treeBuildTasks[taskIndex];
+		const GridLevelPlan& levelPlan = levelPlans[task.levelPlanIndex];
+		const std::shared_ptr<const snesim::SearchTree>& levelTree = treeBuildResults[taskIndex].tree;
+		if (!levelTree) {
+			fprintf(reportFile,
+				"[SNESIM] failed to build/load tree for TI '%s' at level %u\n",
+				options.trainingImageNames[task.trainingImageIndex].c_str(),
+				levelPlan.level);
+			if (options.closeReportFile) {
+				fclose(reportFile);
+			}
+			return 0;
+		}
+		std::vector<std::shared_ptr<const snesim::SearchTree> >& treesByTrainingImage = treesByLevel[levelPlan.level];
+		if (treesByTrainingImage.empty()) {
+			treesByTrainingImage.assign(trainingImages.size(), std::shared_ptr<const snesim::SearchTree>());
+		}
+		treesByTrainingImage[task.trainingImageIndex] = levelTree;
+	}
+
+	for (size_t levelPlanIndex = 0; levelPlanIndex < levelPlans.size(); ++levelPlanIndex) {
+		const GridLevelPlan& levelPlan = levelPlans[levelPlanIndex];
+		std::map<unsigned, std::vector<std::shared_ptr<const snesim::SearchTree> > >::iterator levelTreesIt = treesByLevel.find(levelPlan.level);
+		if (levelTreesIt == treesByLevel.end()
+			|| levelTreesIt->second.size() != trainingImages.size()) {
+			fprintf(reportFile, "[SNESIM] incomplete tree set at level %u\n", levelPlan.level);
+			if (options.closeReportFile) {
+				fclose(reportFile);
+			}
+			return 0;
+		}
+		for (size_t tiIndex = 0; tiIndex < levelTreesIt->second.size(); ++tiIndex) {
+			if (!levelTreesIt->second[tiIndex]) {
 				fprintf(reportFile,
-					"[SNESIM] failed to build/load tree for TI '%s' at level %u\n",
+					"[SNESIM] missing tree for TI '%s' at level %u\n",
 					options.trainingImageNames[tiIndex].c_str(),
 					levelPlan.level);
 				if (options.closeReportFile) {
@@ -1079,13 +1157,9 @@ int main(int argc, char const* argv[]) {
 				}
 				return 0;
 			}
-			treesByTrainingImage.push_back(levelTree);
 		}
-
-		treesByLevel[levelPlan.level] = treesByTrainingImage;
-
 		if (options.treeStrategy == TreeStrategy::Merged) {
-			std::shared_ptr<const snesim::SearchTree> mergedTree = buildMergedTree(treesByTrainingImage);
+			std::shared_ptr<const snesim::SearchTree> mergedTree = buildMergedTree(levelTreesIt->second);
 			if (!mergedTree) {
 				fprintf(reportFile, "[SNESIM] failed to build merged tree at level %u\n", levelPlan.level);
 				if (options.closeReportFile) {

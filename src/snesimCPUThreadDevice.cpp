@@ -26,13 +26,16 @@ int compareOffsetLexicographic(const std::vector<int>& left, const std::vector<i
 	return 0;
 }
 
-void updateTotalStatFromNode(const snesim::TreeNode& node,
+void updateTotalStatFromNode(const std::vector<unsigned>& categoryCountsFlat,
+	size_t nodeIndex,
+	size_t classCount,
 	int currentDepth,
 	std::vector<unsigned long long>& totalStat,
 	int& maxDepth) {
+	const size_t countOffset = nodeIndex * classCount;
 	if (currentDepth > maxDepth) {
 		for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
-			totalStat[classIndex] = static_cast<unsigned long long>(node.categoryCounts[classIndex]);
+			totalStat[classIndex] = static_cast<unsigned long long>(categoryCountsFlat[countOffset + classIndex]);
 		}
 		maxDepth = currentDepth;
 		return;
@@ -40,7 +43,7 @@ void updateTotalStatFromNode(const snesim::TreeNode& node,
 
 	if (currentDepth == maxDepth) {
 		for (size_t classIndex = 0; classIndex < totalStat.size(); ++classIndex) {
-			totalStat[classIndex] += static_cast<unsigned long long>(node.categoryCounts[classIndex]);
+			totalStat[classIndex] += static_cast<unsigned long long>(categoryCountsFlat[countOffset + classIndex]);
 		}
 	}
 }
@@ -88,7 +91,11 @@ bool isWildcardActiveAtDepth(size_t pathIndex,
 	return pathIndex >= suffixStart;
 }
 
-void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
+void depthSearchTreeRecursive(const std::vector<unsigned>& categoryCountsFlat,
+	const std::vector<int>& childNodeIndexFlat,
+	size_t nodeCount,
+	size_t classCount,
+	size_t branchCount,
 	int nodeIndex,
 	int currentDepth,
 	const std::vector<std::vector<int> >& pathPositionArray,
@@ -102,16 +109,19 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	unsigned wildcardBranchIndex,
 	std::vector<unsigned long long>& totalStat,
 	int& maxDepth) {
-	if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
+	if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodeCount) {
+		return;
+	}
+	if (classCount == 0u || branchCount < classCount) {
 		return;
 	}
 
-	const snesim::TreeNode& node = nodes[static_cast<size_t>(nodeIndex)];
-	const size_t classCount = totalStat.size();
-	if (node.categoryCounts.size() != classCount || node.childNodeIndex.size() < classCount) {
-		return;
-	}
-	updateTotalStatFromNode(node, currentDepth, totalStat, maxDepth);
+	updateTotalStatFromNode(categoryCountsFlat,
+		static_cast<size_t>(nodeIndex),
+		classCount,
+		currentDepth,
+		totalStat,
+		maxDepth);
 
 	if (pathIndex >= pathPositionArray.size()) {
 		return;
@@ -128,7 +138,7 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 		wildcardDepth,
 		wildcardMode,
 		wildcardBranchIndex,
-		node.childNodeIndex.size());
+		branchCount);
 
 	bool hasKnownNeighbor = false;
 	unsigned knownClassIndex = 0u;
@@ -142,9 +152,14 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 		if (knownClassIndex >= classCount) {
 			return;
 		}
-		const int knownChild = node.childNodeIndex[knownClassIndex];
+		const size_t childrenOffset = static_cast<size_t>(nodeIndex) * branchCount;
+		const int knownChild = childNodeIndexFlat[childrenOffset + knownClassIndex];
 		if (knownChild >= 0) {
-			depthSearchTreeRecursive(nodes,
+			depthSearchTreeRecursive(categoryCountsFlat,
+				childNodeIndexFlat,
+				nodeCount,
+				classCount,
+				branchCount,
 				knownChild,
 				currentDepth + 1,
 				pathPositionArray,
@@ -165,11 +180,16 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	}
 
 	if (allowWildcardAtDepth) {
-		const int wildcardChild = node.childNodeIndex[wildcardBranchIndex];
+		const size_t childrenOffset = static_cast<size_t>(nodeIndex) * branchCount;
+		const int wildcardChild = childNodeIndexFlat[childrenOffset + wildcardBranchIndex];
 		if (wildcardChild < 0) {
 			return;
 		}
-		depthSearchTreeRecursive(nodes,
+		depthSearchTreeRecursive(categoryCountsFlat,
+			childNodeIndexFlat,
+			nodeCount,
+			classCount,
+			branchCount,
 			wildcardChild,
 			currentDepth + 1,
 			pathPositionArray,
@@ -187,12 +207,17 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	}
 
 	// Strict SNESIM behavior for non-wildcard depths: branch-all on missing/unknown.
+	const size_t childrenOffset = static_cast<size_t>(nodeIndex) * branchCount;
 	for (size_t classIndex = 0; classIndex < classCount; ++classIndex) {
-		const int childNode = node.childNodeIndex[classIndex];
+		const int childNode = childNodeIndexFlat[childrenOffset + classIndex];
 		if (childNode < 0) {
 			continue;
 		}
-		depthSearchTreeRecursive(nodes,
+		depthSearchTreeRecursive(categoryCountsFlat,
+			childNodeIndexFlat,
+			nodeCount,
+			classCount,
+			branchCount,
 			childNode,
 			currentDepth + 1,
 			pathPositionArray,
@@ -468,12 +493,19 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		return 0;
 	}
 
-	const std::vector<TreeNode>& nodes = activeTree->nodes();
-	if (nodes.empty()) {
+	const size_t classCount = categories.size();
+	const size_t nodeCount = activeTree->nodeCount();
+	const size_t branchCount = activeTree->branchCount();
+	const std::vector<unsigned>& categoryCountsFlat = activeTree->categoryCountsFlat();
+	const std::vector<int>& childNodeIndexFlat = activeTree->childNodeIndexFlat();
+	if (nodeCount == 0u) {
 		return categories[0];
 	}
-
-	if (nodes[0].categoryCounts.size() != categories.size() || nodes[0].childNodeIndex.size() < categories.size()) {
+	if (classCount == 0u || branchCount < classCount) {
+		return categories[0];
+	}
+	if (categoryCountsFlat.size() < nodeCount * classCount
+		|| childNodeIndexFlat.size() < nodeCount * branchCount) {
 		return categories[0];
 	}
 
@@ -488,9 +520,13 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 	const unsigned wildcardDepthValue = wildcardDepth();
 	const WildcardMode wildcardModeValue = wildcardMode();
 	const unsigned wildcardBranchIndex = static_cast<unsigned>(categories.size());
-	std::vector<unsigned long long> totalStat(categories.size(), 0ULL);
+	std::vector<unsigned long long> totalStat(classCount, 0ULL);
 	int maxDepth = -1;
-	depthSearchTreeRecursive(nodes,
+	depthSearchTreeRecursive(categoryCountsFlat,
+		childNodeIndexFlat,
+		nodeCount,
+		classCount,
+		branchCount,
 		0,
 		0,
 		pathPositionArray,

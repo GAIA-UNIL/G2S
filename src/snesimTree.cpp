@@ -56,6 +56,28 @@ std::string joinIntVector(const std::vector<int>& values) {
 	return oss.str();
 }
 
+std::string joinUnsignedSlice(const std::vector<unsigned>& values, size_t offset, size_t length) {
+	std::ostringstream oss;
+	for (size_t i = 0; i < length; ++i) {
+		if (i > 0) {
+			oss << ",";
+		}
+		oss << values[offset + i];
+	}
+	return oss.str();
+}
+
+std::string joinIntSlice(const std::vector<int>& values, size_t offset, size_t length) {
+	std::ostringstream oss;
+	for (size_t i = 0; i < length; ++i) {
+		if (i > 0) {
+			oss << ",";
+		}
+		oss << values[offset + i];
+	}
+	return oss.str();
+}
+
 bool parseUnsignedVector(const std::string& raw, std::vector<unsigned>& outValues) {
 	outValues.clear();
 	std::stringstream ss(raw);
@@ -379,30 +401,144 @@ SearchTree::SearchTree() {
 }
 
 SearchTree::SearchTree(const std::vector<int>& categories, const std::vector<TreeNode>& nodes) :
+	_categories(categories) {
+	assignFromNodes(nodes);
+}
+
+SearchTree::SearchTree(const std::vector<int>& categories,
+	unsigned branchCount,
+	const std::vector<unsigned>& categoryCountsFlat,
+	const std::vector<int>& childNodeIndexFlat) :
 	_categories(categories),
-	_nodes(nodes) {
+	_branchCount(branchCount),
+	_categoryCountsFlat(categoryCountsFlat),
+	_childNodeIndexFlat(childNodeIndexFlat),
+	_nodesCacheValid(false) {
+	if (_branchCount < _categories.size()) {
+		_branchCount = static_cast<unsigned>(_categories.size());
+	}
+	const size_t numberOfClasses = _categories.size();
+	if (numberOfClasses == 0u) {
+		_categoryCountsFlat.clear();
+		_childNodeIndexFlat.clear();
+		_branchCount = 0u;
+		return;
+	}
+	if (_branchCount == 0u) {
+		_branchCount = static_cast<unsigned>(numberOfClasses);
+	}
+	const size_t classCount = numberOfClasses;
+	const size_t countsNodeCount = _categoryCountsFlat.size() / classCount;
+	const size_t childrenNodeCount = (_branchCount == 0u) ? 0u : (_childNodeIndexFlat.size() / _branchCount);
+	const size_t nodeCount = std::min(countsNodeCount, childrenNodeCount);
+	_categoryCountsFlat.resize(nodeCount * classCount);
+	_childNodeIndexFlat.resize(nodeCount * _branchCount);
+}
+
+void SearchTree::assignFromNodes(const std::vector<TreeNode>& nodes) {
+	_nodesCache.clear();
+	_nodesCacheValid = false;
+	_categoryCountsFlat.clear();
+	_childNodeIndexFlat.clear();
+
+	const size_t numberOfClasses = _categories.size();
+	if (numberOfClasses == 0u || nodes.empty()) {
+		_branchCount = static_cast<unsigned>(numberOfClasses);
+		return;
+	}
+
+	size_t branchCount = nodes[0].childNodeIndex.size();
+	if (branchCount < numberOfClasses) {
+		branchCount = numberOfClasses;
+	}
+	_branchCount = static_cast<unsigned>(branchCount);
+	const size_t nodeCount = nodes.size();
+	_categoryCountsFlat.assign(nodeCount * numberOfClasses, 0u);
+	_childNodeIndexFlat.assign(nodeCount * branchCount, -1);
+
+	for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+		const TreeNode& node = nodes[nodeIndex];
+		const size_t countsOffset = nodeIndex * numberOfClasses;
+		const size_t childrenOffset = nodeIndex * branchCount;
+		for (size_t classIndex = 0; classIndex < numberOfClasses && classIndex < node.categoryCounts.size(); ++classIndex) {
+			_categoryCountsFlat[countsOffset + classIndex] = node.categoryCounts[classIndex];
+		}
+		for (size_t branchIndex = 0; branchIndex < branchCount && branchIndex < node.childNodeIndex.size(); ++branchIndex) {
+			_childNodeIndexFlat[childrenOffset + branchIndex] = node.childNodeIndex[branchIndex];
+		}
+	}
 }
 
 const std::vector<int>& SearchTree::categories() const {
 	return _categories;
 }
 
+size_t SearchTree::nodeCount() const {
+	const size_t classCount = _categories.size();
+	if (classCount == 0u) {
+		return 0u;
+	}
+	return _categoryCountsFlat.size() / classCount;
+}
+
+unsigned SearchTree::branchCount() const {
+	return _branchCount;
+}
+
+const std::vector<unsigned>& SearchTree::categoryCountsFlat() const {
+	return _categoryCountsFlat;
+}
+
+const std::vector<int>& SearchTree::childNodeIndexFlat() const {
+	return _childNodeIndexFlat;
+}
+
 const std::vector<TreeNode>& SearchTree::nodes() const {
-	return _nodes;
+	if (_nodesCacheValid) {
+		return _nodesCache;
+	}
+
+	_nodesCache.clear();
+	const size_t numberOfClasses = _categories.size();
+	const size_t branchCountValue = _branchCount;
+	const size_t nodeCountValue = nodeCount();
+	if (numberOfClasses == 0u || nodeCountValue == 0u || branchCountValue == 0u) {
+		_nodesCacheValid = true;
+		return _nodesCache;
+	}
+
+	_nodesCache.resize(nodeCountValue);
+	for (size_t nodeIndex = 0; nodeIndex < nodeCountValue; ++nodeIndex) {
+		TreeNode node;
+		node.categoryCounts.assign(numberOfClasses, 0u);
+		node.childNodeIndex.assign(branchCountValue, -1);
+
+		const size_t countsOffset = nodeIndex * numberOfClasses;
+		const size_t childrenOffset = nodeIndex * branchCountValue;
+		for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
+			node.categoryCounts[classIndex] = _categoryCountsFlat[countsOffset + classIndex];
+		}
+		for (size_t branchIndex = 0; branchIndex < branchCountValue; ++branchIndex) {
+			node.childNodeIndex[branchIndex] = _childNodeIndexFlat[childrenOffset + branchIndex];
+		}
+		_nodesCache[nodeIndex] = node;
+	}
+	_nodesCacheValid = true;
+	return _nodesCache;
 }
 
 SearchTree SearchTree::deepCopy() const {
-	return SearchTree(_categories, _nodes);
+	return *this;
 }
 
 void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) {
 	if (policy != MergePolicy::SumCounts) {
 		return;
 	}
-	if (other._nodes.empty()) {
+	if (other.nodeCount() == 0u) {
 		return;
 	}
-	if (_nodes.empty()) {
+	if (nodeCount() == 0u) {
 		*this = other.deepCopy();
 		return;
 	}
@@ -414,14 +550,15 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 	if (numberOfClasses == 0u) {
 		return;
 	}
-	if (_nodes.empty() || other._nodes.empty()) {
+	const size_t branchCount = _branchCount;
+	if (branchCount == 0u || branchCount != other._branchCount) {
 		return;
 	}
-	const size_t branchCount = _nodes[0].childNodeIndex.size();
-	if (branchCount == 0u || branchCount != other._nodes[0].childNodeIndex.size()) {
-		return;
-	}
-	if (!areNodesCompatible(_nodes, numberOfClasses, branchCount) || !areNodesCompatible(other._nodes, numberOfClasses, branchCount)) {
+
+	const std::vector<TreeNode>& destinationNodeView = nodes();
+	const std::vector<TreeNode>& sourceNodeView = other.nodes();
+	std::vector<TreeNode> destinationNodes(destinationNodeView.begin(), destinationNodeView.end());
+	if (!areNodesCompatible(destinationNodes, numberOfClasses, branchCount) || !areNodesCompatible(sourceNodeView, numberOfClasses, branchCount)) {
 		return;
 	}
 
@@ -432,17 +569,17 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 		const std::pair<int, int> current = mergeStack.back();
 		mergeStack.pop_back();
 
-		if (current.first < 0 || static_cast<size_t>(current.first) >= _nodes.size()) {
+		if (current.first < 0 || static_cast<size_t>(current.first) >= destinationNodes.size()) {
 			continue;
 		}
-		if (current.second < 0 || static_cast<size_t>(current.second) >= other._nodes.size()) {
+		if (current.second < 0 || static_cast<size_t>(current.second) >= sourceNodeView.size()) {
 			continue;
 		}
 
-		const TreeNode& sourceNode = other._nodes[static_cast<size_t>(current.second)];
+		const TreeNode& sourceNode = sourceNodeView[static_cast<size_t>(current.second)];
 		for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
 			const unsigned sourceCount = sourceNode.categoryCounts[classIndex];
-			unsigned& destinationCount = _nodes[static_cast<size_t>(current.first)].categoryCounts[classIndex];
+			unsigned& destinationCount = destinationNodes[static_cast<size_t>(current.first)].categoryCounts[classIndex];
 			const unsigned long long mergedCount = static_cast<unsigned long long>(destinationCount)
 				+ static_cast<unsigned long long>(sourceCount);
 			destinationCount = static_cast<unsigned>(std::min<unsigned long long>(
@@ -452,21 +589,23 @@ void SearchTree::addStatisticsFrom(const SearchTree& other, MergePolicy policy) 
 
 		for (size_t classIndex = 0; classIndex < branchCount; ++classIndex) {
 			const int sourceChild = sourceNode.childNodeIndex[classIndex];
-			if (sourceChild < 0 || static_cast<size_t>(sourceChild) >= other._nodes.size()) {
+			if (sourceChild < 0 || static_cast<size_t>(sourceChild) >= sourceNodeView.size()) {
 				continue;
 			}
 
-			const int destinationChild = _nodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex];
+			const int destinationChild = destinationNodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex];
 			if (destinationChild < 0) {
-				const int clonedRoot = cloneSubtreeFrom(other, sourceChild, _nodes, numberOfClasses, branchCount);
+				const int clonedRoot = cloneSubtreeFrom(other, sourceChild, destinationNodes, numberOfClasses, branchCount);
 				if (clonedRoot >= 0) {
-					_nodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex] = clonedRoot;
+					destinationNodes[static_cast<size_t>(current.first)].childNodeIndex[classIndex] = clonedRoot;
 				}
 			} else {
 				mergeStack.push_back(std::make_pair(destinationChild, sourceChild));
 			}
 		}
 	}
+
+	assignFromNodes(destinationNodes);
 }
 
 bool ensureDirectory(const std::string& directory, std::string& errorMessage) {
@@ -822,19 +961,29 @@ bool TreeCacheRepository::save(const std::string& trainingImageSourceName,
 	outFile << "grid_level=" << record.config.gridLevel << "\n";
 	outFile << "max_conditioning_data=" << record.config.maxConditioningData << "\n";
 
-	const std::vector<TreeNode>& nodes = record.tree.nodes();
-	unsigned effectiveBranchCount = resolveBranchCount(record.summary.categories.size(), record.config);
-	if (!nodes.empty()) {
-		effectiveBranchCount = static_cast<unsigned>(nodes[0].childNodeIndex.size());
+	const size_t classCount = record.summary.categories.size();
+	const size_t nodeCount = record.tree.nodeCount();
+	unsigned effectiveBranchCount = resolveBranchCount(classCount, record.config);
+	if (record.tree.branchCount() > 0u) {
+		effectiveBranchCount = record.tree.branchCount();
+	}
+	const std::vector<unsigned>& categoryCountsFlat = record.tree.categoryCountsFlat();
+	const std::vector<int>& childNodeIndexFlat = record.tree.childNodeIndexFlat();
+	if (categoryCountsFlat.size() < nodeCount * classCount
+		|| childNodeIndexFlat.size() < nodeCount * effectiveBranchCount) {
+		errorMessage = "tree storage is inconsistent and cannot be cached";
+		return false;
 	}
 	outFile << "branch_count=" << effectiveBranchCount << "\n";
 	outFile << "wildcard_enabled=" << (record.config.wildcardEnabled ? 1 : 0) << "\n";
 	outFile << "wildcard_depth=" << record.config.wildcardDepth << "\n";
 	outFile << "wildcard_mode=" << wildcardModeName(record.config.wildcardMode) << "\n";
-	outFile << "node_count=" << nodes.size() << "\n";
-	for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
-		outFile << "node_" << nodeIndex << "_counts=" << joinUnsignedVector(nodes[nodeIndex].categoryCounts) << "\n";
-		outFile << "node_" << nodeIndex << "_children=" << joinIntVector(nodes[nodeIndex].childNodeIndex) << "\n";
+	outFile << "node_count=" << nodeCount << "\n";
+	for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+		const size_t countsOffset = nodeIndex * classCount;
+		const size_t childrenOffset = nodeIndex * effectiveBranchCount;
+		outFile << "node_" << nodeIndex << "_counts=" << joinUnsignedSlice(categoryCountsFlat, countsOffset, classCount) << "\n";
+		outFile << "node_" << nodeIndex << "_children=" << joinIntSlice(childNodeIndexFlat, childrenOffset, effectiveBranchCount) << "\n";
 	}
 
 	if (!outFile.good()) {
@@ -959,7 +1108,8 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 		return false;
 	}
 
-	std::vector<TreeNode> nodes;
+	std::vector<unsigned> categoryCountsFlat;
+	std::vector<int> childNodeIndexFlat;
 	if (parsedNodeCount > 0u) {
 		for (unsigned nodeIndex = 0u; nodeIndex < parsedNodeCount; ++nodeIndex) {
 			const std::string countKey = "node_" + std::to_string(nodeIndex) + "_counts";
@@ -990,16 +1140,24 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 				errorMessage = "inconsistent branch_count in tree cache: " + metadataPath;
 				return false;
 			}
+			if (categoryCountsFlat.empty()) {
+				categoryCountsFlat.assign(static_cast<size_t>(parsedNodeCount) * numberOfClasses, 0u);
+				childNodeIndexFlat.assign(static_cast<size_t>(parsedNodeCount) * loadedBranchCount, -1);
+			}
 
-			TreeNode node = makeNode(numberOfClasses, loadedBranchCount);
-			node.categoryCounts = nodeCounts;
-			node.childNodeIndex = nodeChildren;
-			nodes.push_back(node);
+			const size_t countsOffset = static_cast<size_t>(nodeIndex) * numberOfClasses;
+			const size_t childrenOffset = static_cast<size_t>(nodeIndex) * loadedBranchCount;
+			for (size_t classIndex = 0; classIndex < numberOfClasses; ++classIndex) {
+				categoryCountsFlat[countsOffset + classIndex] = nodeCounts[classIndex];
+			}
+			for (size_t branchIndex = 0; branchIndex < loadedBranchCount; ++branchIndex) {
+				childNodeIndexFlat[childrenOffset + branchIndex] = nodeChildren[branchIndex];
+			}
 		}
-		for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
+		for (size_t nodeIndex = 0; nodeIndex < parsedNodeCount; ++nodeIndex) {
 			for (size_t classIndex = 0; classIndex < loadedBranchCount; ++classIndex) {
-				const int child = nodes[nodeIndex].childNodeIndex[classIndex];
-				if (child < -1 || child >= static_cast<int>(nodes.size())) {
+				const int child = childNodeIndexFlat[nodeIndex * loadedBranchCount + classIndex];
+				if (child < -1 || child >= static_cast<int>(parsedNodeCount)) {
 					errorMessage = "invalid child index in tree cache: " + metadataPath;
 					return false;
 				}
@@ -1020,15 +1178,15 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 		if (loadedBranchCount < numberOfClasses) {
 			loadedBranchCount = static_cast<unsigned>(numberOfClasses);
 		}
-		TreeNode rootNode = makeNode(numberOfClasses, loadedBranchCount);
+		categoryCountsFlat.assign(numberOfClasses, 0u);
+		childNodeIndexFlat.assign(loadedBranchCount, -1);
 		for (size_t classIndex = 0; classIndex < numberOfClasses && classIndex < rootCounts.size(); ++classIndex) {
-			rootNode.categoryCounts[classIndex] = rootCounts[classIndex];
+			categoryCountsFlat[classIndex] = rootCounts[classIndex];
 		}
-		nodes.push_back(rootNode);
 	}
 
 	outRecord.config.branchCount = loadedBranchCount;
-	outRecord.tree = SearchTree(outRecord.summary.categories, nodes);
+	outRecord.tree = SearchTree(outRecord.summary.categories, loadedBranchCount, categoryCountsFlat, childNodeIndexFlat);
 	return true;
 }
 

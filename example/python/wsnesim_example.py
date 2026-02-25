@@ -34,7 +34,7 @@ print("WSNESIM duration:", t)
 
 # display results
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 4))
-fig.suptitle('WSNESIM Unconditional simulation (wildcard depth = 2)', size='x-large')
+fig.suptitle(f"WSNESIM Unconditional simulation (wildcard depth = {wd})", size='x-large')
 ax1.imshow(ti_raw, cmap='tab20')
 ax1.set_title('Training image (categorical)')
 ax1.axis('off')

@@ -29,15 +29,29 @@ class SearchTree {
 public:
 	SearchTree();
 	SearchTree(const std::vector<int>& categories, const std::vector<TreeNode>& nodes);
+	SearchTree(const std::vector<int>& categories,
+		unsigned branchCount,
+		const std::vector<unsigned>& categoryCountsFlat,
+		const std::vector<int>& childNodeIndexFlat);
 
 	const std::vector<int>& categories() const;
+	size_t nodeCount() const;
+	unsigned branchCount() const;
+	const std::vector<unsigned>& categoryCountsFlat() const;
+	const std::vector<int>& childNodeIndexFlat() const;
 	const std::vector<TreeNode>& nodes() const;
 	SearchTree deepCopy() const;
 	void addStatisticsFrom(const SearchTree& other, MergePolicy policy = MergePolicy::SumCounts);
 
 private:
+	void assignFromNodes(const std::vector<TreeNode>& nodes);
+
 	std::vector<int> _categories;
-	std::vector<TreeNode> _nodes;
+	unsigned _branchCount = 0u;
+	std::vector<unsigned> _categoryCountsFlat;
+	std::vector<int> _childNodeIndexFlat;
+	mutable std::vector<TreeNode> _nodesCache;
+	mutable bool _nodesCacheValid = false;
 };
 
 struct TreeBuildConfig {
