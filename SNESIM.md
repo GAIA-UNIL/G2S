@@ -192,8 +192,9 @@ For every SNESIM-related code change:
 
 ## Change Log
 
-- 2026-02-24: Added Python example script `example/python/wsnesim_example.py` showing `-a wsnesim` and wildcard prefix depth usage (`--wd 2`).
-- 2026-02-24: Added separate `wsnesim` executable/algorithm with wildcard-prefix depth (`--wd`), wildcard-aware tree branch `[nClasses]`, ws-specific tree cache root (`/tmp/G2S/data/wsnesim_trees`), and cache compatibility metadata (`branch_count`, `wildcard_enabled`, `wildcard_depth`) while keeping strict `snesim` behavior unchanged (`--wd 0` equivalent path).
+- 2026-02-24: Added Python example script `example/python/wsnesim_example.py` showing `-a wsnesim` and wildcard depth usage (`--wd 2`).
+- 2026-02-24: Added `wsnesim` wildcard mode switch (`--wd-mode prefix|suffix`, default `suffix`) and propagated mode through tree build, worker traversal, and cache metadata compatibility (`wildcard_mode`).
+- 2026-02-24: Added separate `wsnesim` executable/algorithm with wildcard depth (`--wd`), wildcard-aware tree branch `[nClasses]`, ws-specific tree cache root (`/tmp/G2S/data/wsnesim_trees`), and cache compatibility metadata (`branch_count`, `wildcard_enabled`, `wildcard_depth`) while keeping strict `snesim` behavior unchanged (`--wd 0` equivalent path).
 - 2026-02-21: Created SNESIM scaffold (app, tree/cache module, non-FFT CPU worker module, build integration, algo registration).
 - 2026-02-21: Added Python example script `example/python/snesim_example.py` using `strebelle.tiff` URL loading.
 - 2026-02-23: Removed inactive SNESIM trace helper plumbing from `SNESIMCPUThreadDevice` and renamed the Python example to `snesim_example.py`; clarified `-mg` example commentary (`4` means levels `4..0`).

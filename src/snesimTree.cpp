@@ -175,6 +175,55 @@ unsigned resolveBranchCount(size_t numberOfClasses, const snesim::TreeBuildConfi
 	return std::max(classCount, branchCount);
 }
 
+const char* wildcardModeName(snesim::WildcardMode mode) {
+	switch (mode) {
+	case snesim::WildcardMode::Suffix:
+		return "suffix";
+	case snesim::WildcardMode::Prefix:
+	default:
+		return "prefix";
+	}
+}
+
+bool parseWildcardMode(const std::string& rawValue, snesim::WildcardMode& outMode) {
+	const std::string cleaned = trim(rawValue);
+	if (cleaned == "prefix") {
+		outMode = snesim::WildcardMode::Prefix;
+		return true;
+	}
+	if (cleaned == "suffix") {
+		outMode = snesim::WildcardMode::Suffix;
+		return true;
+	}
+	unsigned numericMode = 0u;
+	if (parseUnsignedValue(cleaned, numericMode)) {
+		if (numericMode == static_cast<unsigned>(snesim::WildcardMode::Prefix)) {
+			outMode = snesim::WildcardMode::Prefix;
+			return true;
+		}
+		if (numericMode == static_cast<unsigned>(snesim::WildcardMode::Suffix)) {
+			outMode = snesim::WildcardMode::Suffix;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool isWildcardActiveAtDepth(size_t pathIndex,
+	size_t pathSize,
+	const snesim::TreeBuildConfig& config,
+	bool wildcardEnabled) {
+	if (!wildcardEnabled) {
+		return false;
+	}
+	if (config.wildcardMode == snesim::WildcardMode::Prefix) {
+		return pathIndex < static_cast<size_t>(config.wildcardDepth);
+	}
+	const size_t wildcardDepth = static_cast<size_t>(config.wildcardDepth);
+	const size_t suffixStart = (wildcardDepth >= pathSize) ? 0u : (pathSize - wildcardDepth);
+	return pathIndex >= suffixStart;
+}
+
 void incrementCount(unsigned& counter) {
 	if (counter < std::numeric_limits<unsigned>::max()) {
 		++counter;
@@ -609,7 +658,7 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 			if (templateSequence[pathIndex] >= 0) {
 				continue;
 			}
-			const bool allowWildcardAtDepth = wildcardEnabled && pathIndex < config.wildcardDepth;
+			const bool allowWildcardAtDepth = isWildcardActiveAtDepth(pathIndex, templateSequence.size(), config, wildcardEnabled);
 			if (!allowWildcardAtDepth) {
 				isSequenceValid = false;
 				break;
@@ -619,7 +668,7 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 			continue;
 		}
 
-		// Expand the path set only in the wildcard prefix region.
+		// Expand the path set only in levels where wildcard mode is active.
 		std::vector<int> activeNodes(1, 0);
 		std::vector<int> visitedNodes(1, 0);
 		std::vector<int> nextNodes;
@@ -627,7 +676,7 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 		for (size_t pathIndex = 0; pathIndex < templateSequence.size(); ++pathIndex) {
 			nextNodes.clear();
 			const int sequenceClass = templateSequence[pathIndex];
-			const bool allowWildcardAtDepth = wildcardEnabled && pathIndex < config.wildcardDepth;
+			const bool allowWildcardAtDepth = isWildcardActiveAtDepth(pathIndex, templateSequence.size(), config, wildcardEnabled);
 
 			for (size_t activeIndex = 0; activeIndex < activeNodes.size(); ++activeIndex) {
 				const int parentNodeIndex = activeNodes[activeIndex];
@@ -636,7 +685,6 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 					break;
 				}
 
-				TreeNode& parentNode = nodes[static_cast<size_t>(parentNodeIndex)];
 				if (sequenceClass >= 0) {
 					const unsigned knownBranchIndex = static_cast<unsigned>(sequenceClass);
 					if (knownBranchIndex >= numberOfClasses) {
@@ -644,28 +692,28 @@ SearchTree buildTreeForLevel(const g2s::DataImage& trainingImage,
 						break;
 					}
 
-					int knownChild = parentNode.childNodeIndex[knownBranchIndex];
+					int knownChild = nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[knownBranchIndex];
 					if (knownChild < 0) {
 						knownChild = static_cast<int>(nodes.size());
-						parentNode.childNodeIndex[knownBranchIndex] = knownChild;
+						nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[knownBranchIndex] = knownChild;
 						nodes.push_back(makeNode(numberOfClasses, branchCount));
 					}
 					nextNodes.push_back(knownChild);
 
 					if (allowWildcardAtDepth) {
-						int wildcardChild = parentNode.childNodeIndex[wildcardBranchIndex];
+						int wildcardChild = nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[wildcardBranchIndex];
 						if (wildcardChild < 0) {
 							wildcardChild = static_cast<int>(nodes.size());
-							parentNode.childNodeIndex[wildcardBranchIndex] = wildcardChild;
+							nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[wildcardBranchIndex] = wildcardChild;
 							nodes.push_back(makeNode(numberOfClasses, branchCount));
 						}
 						nextNodes.push_back(wildcardChild);
 					}
 				} else if (allowWildcardAtDepth) {
-					int wildcardChild = parentNode.childNodeIndex[wildcardBranchIndex];
+					int wildcardChild = nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[wildcardBranchIndex];
 					if (wildcardChild < 0) {
 						wildcardChild = static_cast<int>(nodes.size());
-						parentNode.childNodeIndex[wildcardBranchIndex] = wildcardChild;
+						nodes[static_cast<size_t>(parentNodeIndex)].childNodeIndex[wildcardBranchIndex] = wildcardChild;
 						nodes.push_back(makeNode(numberOfClasses, branchCount));
 					}
 					nextNodes.push_back(wildcardChild);
@@ -760,7 +808,7 @@ bool TreeCacheRepository::save(const std::string& trainingImageSourceName,
 		return false;
 	}
 
-	outFile << "version=3\n";
+	outFile << "version=4\n";
 	outFile << "source_name=" << record.summary.sourceName << "\n";
 	outFile << "cache_name=" << record.summary.cacheName << "\n";
 	outFile << "nb_dim=" << record.summary.dims.size() << "\n";
@@ -782,6 +830,7 @@ bool TreeCacheRepository::save(const std::string& trainingImageSourceName,
 	outFile << "branch_count=" << effectiveBranchCount << "\n";
 	outFile << "wildcard_enabled=" << (record.config.wildcardEnabled ? 1 : 0) << "\n";
 	outFile << "wildcard_depth=" << record.config.wildcardDepth << "\n";
+	outFile << "wildcard_mode=" << wildcardModeName(record.config.wildcardMode) << "\n";
 	outFile << "node_count=" << nodes.size() << "\n";
 	for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
 		outFile << "node_" << nodeIndex << "_counts=" << joinUnsignedVector(nodes[nodeIndex].categoryCounts) << "\n";
@@ -885,6 +934,9 @@ bool TreeCacheRepository::load(const std::string& trainingImageSourceName,
 	}
 	if (!parseUnsignedValue(fields["branch_count"], outRecord.config.branchCount)) {
 		outRecord.config.branchCount = 0u;
+	}
+	if (!parseWildcardMode(fields["wildcard_mode"], outRecord.config.wildcardMode)) {
+		outRecord.config.wildcardMode = WildcardMode::Prefix;
 	}
 
 	unsigned parsedNodeCount = 0u;

@@ -68,6 +68,7 @@ struct CliOptions {
 	std::string outputName;
 	std::string treeRoot = "/tmp/G2S/data/wsnesim_trees";
 	unsigned wildcardDepth = 0u;
+	snesim::WildcardMode wildcardMode = snesim::WildcardMode::Suffix;
 	TreeStrategy treeStrategy = TreeStrategy::Merged;
 	bool treeStrategyExplicit = false;
 
@@ -126,7 +127,8 @@ void printHelp() {
 	printf("  -mg <level>                   Max multi-grid level (levels run from <level> down to 0)\n");
 	printf("  -tpl <radius> [repeat]        Template radius (3 means offsets in [-3,+3])\n");
 	printf("  --template-radius <radius>    Same as -tpl\n");
-	printf("  --wd <depth>                  Wildcard prefix depth for tree levels (default=0)\n");
+	printf("  --wd <depth>                  Wildcard depth for tree traversal (default=0)\n");
+	printf("  --wd-mode <prefix|suffix>     Wildcard depth placement (default=suffix)\n");
 	printf("  -tree-root <path>             Tree cache root (optional)\n");
 	printf("  -force-tree                   Force tree rebuild and overwrite cache\n");
 	printf("  -s <seed>                     Random seed (optional)\n");
@@ -163,6 +165,28 @@ bool parseIntFromString(const std::string& rawValue, int& outValue) {
 	}
 	outValue = static_cast<int>(parsedValue);
 	return true;
+}
+
+const char* wildcardModeName(snesim::WildcardMode mode) {
+	switch (mode) {
+	case snesim::WildcardMode::Prefix:
+		return "prefix";
+	case snesim::WildcardMode::Suffix:
+	default:
+		return "suffix";
+	}
+}
+
+bool parseWildcardMode(const std::string& rawValue, snesim::WildcardMode& outMode) {
+	if (rawValue == "prefix") {
+		outMode = snesim::WildcardMode::Prefix;
+		return true;
+	}
+	if (rawValue == "suffix") {
+		outMode = snesim::WildcardMode::Suffix;
+		return true;
+	}
+	return false;
 }
 
 const char* treeStrategyName(TreeStrategy strategy) {
@@ -404,6 +428,20 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	}
 	args.erase("--wd");
 
+	if (args.count("--wd-mode") == 1) {
+		const std::string modeValue = args.find("--wd-mode")->second;
+		snesim::WildcardMode parsedMode = outOptions.wildcardMode;
+		if (!parseWildcardMode(modeValue, parsedMode)) {
+			fprintf(outOptions.reportFile, "[WSNESIM] invalid --wd-mode value: %s\n", modeValue.c_str());
+			return false;
+		}
+		outOptions.wildcardMode = parsedMode;
+	} else if (args.count("--wd-mode") > 1) {
+		fprintf(outOptions.reportFile, "[WSNESIM] only one --wd-mode value is supported\n");
+		return false;
+	}
+	args.erase("--wd-mode");
+
 	if (args.count("-maxn") > 0) {
 		fprintf(outOptions.reportFile, "[WSNESIM] -maxn is not used in this WSNESIM scaffold and is ignored\n");
 	}
@@ -598,7 +636,8 @@ std::shared_ptr<const snesim::SearchTree> loadOrCreateTree(const std::string& tr
 				&& loadedRecord.config.gridLevel == treeConfig.gridLevel
 				&& loadedRecord.config.branchCount == treeConfig.branchCount
 				&& loadedRecord.config.wildcardEnabled == treeConfig.wildcardEnabled
-				&& loadedRecord.config.wildcardDepth == treeConfig.wildcardDepth;
+				&& loadedRecord.config.wildcardDepth == treeConfig.wildcardDepth
+				&& loadedRecord.config.wildcardMode == treeConfig.wildcardMode;
 			if (compatible) {
 				fprintf(reportFile, "[WSNESIM] reuse cached tree for TI '%s' at level %u (%s)\n",
 					trainingImageName.c_str(),
@@ -1056,6 +1095,7 @@ int main(int argc, char const* argv[]) {
 
 	fprintf(reportFile, "[WSNESIM] tree strategy: %s\n", treeStrategyName(options.treeStrategy));
 	fprintf(reportFile, "[WSNESIM] wildcard depth (--wd): %u\n", options.wildcardDepth);
+	fprintf(reportFile, "[WSNESIM] wildcard mode (--wd-mode): %s\n", wildcardModeName(options.wildcardMode));
 
 	std::vector<GridLevelPlan> levelPlans;
 	std::vector<g2s_path_index_t> posteriorPath;
@@ -1074,6 +1114,7 @@ int main(int argc, char const* argv[]) {
 		levelTreeConfig.gridLevel = levelPlan.level;
 		levelTreeConfig.wildcardEnabled = options.wildcardDepth > 0u;
 		levelTreeConfig.wildcardDepth = options.wildcardDepth;
+		levelTreeConfig.wildcardMode = options.wildcardMode;
 		levelTreeConfig.branchCount = static_cast<unsigned>(summary.categories.size())
 			+ (levelTreeConfig.wildcardEnabled ? 1u : 0u);
 
@@ -1139,7 +1180,7 @@ int main(int argc, char const* argv[]) {
 		options.treeStrategy == TreeStrategy::Merged ?
 			snesim::TreeSelectionMode::Merged :
 			snesim::TreeSelectionMode::PerTrainingImage);
-	snesim::SNESIMCPUThreadDevice::setWildcardConfig(options.wildcardDepth > 0u, options.wildcardDepth);
+	snesim::SNESIMCPUThreadDevice::setWildcardConfig(options.wildcardDepth > 0u, options.wildcardDepth, options.wildcardMode);
 
 	std::shared_ptr<const snesim::SearchTree> workerFallbackTree;
 	if (!levelPlans.empty()) {

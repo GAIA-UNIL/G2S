@@ -70,6 +70,24 @@ bool decodeKnownClass(const std::vector<float>& encodedNeighbor,
 	return true;
 }
 
+bool isWildcardActiveAtDepth(size_t pathIndex,
+	size_t pathSize,
+	bool wildcardEnabled,
+	unsigned wildcardDepth,
+	snesim::WildcardMode wildcardMode,
+	unsigned wildcardBranchIndex,
+	size_t branchCount) {
+	if (!wildcardEnabled || wildcardBranchIndex >= branchCount) {
+		return false;
+	}
+	if (wildcardMode == snesim::WildcardMode::Prefix) {
+		return pathIndex < static_cast<size_t>(wildcardDepth);
+	}
+	const size_t depth = static_cast<size_t>(wildcardDepth);
+	const size_t suffixStart = (depth >= pathSize) ? 0u : (pathSize - depth);
+	return pathIndex >= suffixStart;
+}
+
 void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	int nodeIndex,
 	int currentDepth,
@@ -80,6 +98,7 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	size_t neighborIndex,
 	bool wildcardEnabled,
 	unsigned wildcardDepth,
+	snesim::WildcardMode wildcardMode,
 	unsigned wildcardBranchIndex,
 	std::vector<unsigned long long>& totalStat,
 	int& maxDepth) {
@@ -103,9 +122,13 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 	const bool sameOffset = alignedNeighborIndex < neighborArrayVector.size()
 		&& compareOffsetLexicographic(neighborArrayVector[alignedNeighborIndex], expectedOffset) == 0;
 	const size_t nextNeighborIndex = sameOffset ? (alignedNeighborIndex + 1u) : alignedNeighborIndex;
-	const bool allowWildcardAtDepth = wildcardEnabled
-		&& pathIndex < wildcardDepth
-		&& wildcardBranchIndex < node.childNodeIndex.size();
+	const bool allowWildcardAtDepth = isWildcardActiveAtDepth(pathIndex,
+		pathPositionArray.size(),
+		wildcardEnabled,
+		wildcardDepth,
+		wildcardMode,
+		wildcardBranchIndex,
+		node.childNodeIndex.size());
 
 	bool hasKnownNeighbor = false;
 	unsigned knownClassIndex = 0u;
@@ -131,31 +154,13 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 				nextNeighborIndex,
 				wildcardEnabled,
 				wildcardDepth,
-				wildcardBranchIndex,
-				totalStat,
-				maxDepth);
-			return;
-		}
-
-		if (allowWildcardAtDepth) {
-			const int wildcardChild = node.childNodeIndex[wildcardBranchIndex];
-			if (wildcardChild < 0) {
-				return;
-			}
-			depthSearchTreeRecursive(nodes,
-				wildcardChild,
-				currentDepth + 1,
-				pathPositionArray,
-				pathIndex + 1,
-				neighborArrayVector,
-				neighborValueArrayVector,
-				nextNeighborIndex,
-				wildcardEnabled,
-				wildcardDepth,
+				wildcardMode,
 				wildcardBranchIndex,
 				totalStat,
 				maxDepth);
 		}
+		// Known neighbor values do not fallback to wildcard.
+		// If the known class branch is missing, traversal stops here.
 		return;
 	}
 
@@ -170,13 +175,14 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 			pathPositionArray,
 			pathIndex + 1,
 			neighborArrayVector,
-			neighborValueArrayVector,
-			nextNeighborIndex,
-			wildcardEnabled,
-			wildcardDepth,
-			wildcardBranchIndex,
-			totalStat,
-			maxDepth);
+				neighborValueArrayVector,
+				nextNeighborIndex,
+				wildcardEnabled,
+				wildcardDepth,
+				wildcardMode,
+				wildcardBranchIndex,
+				totalStat,
+				maxDepth);
 		return;
 	}
 
@@ -196,6 +202,7 @@ void depthSearchTreeRecursive(const std::vector<snesim::TreeNode>& nodes,
 			nextNeighborIndex,
 			wildcardEnabled,
 			wildcardDepth,
+			wildcardMode,
 			wildcardBranchIndex,
 			totalStat,
 			maxDepth);
@@ -214,6 +221,7 @@ std::atomic<unsigned> SNESIMCPUThreadDevice::_globalGridLevel(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_treeSelectionMode(static_cast<unsigned>(TreeSelectionMode::PerTrainingImage));
 std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardEnabled(0u);
 std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardDepth(0u);
+std::atomic<unsigned> SNESIMCPUThreadDevice::_wildcardMode(static_cast<unsigned>(WildcardMode::Prefix));
 
 SNESIMCPUThreadDevice::SNESIMCPUThreadDevice(unsigned workerId, std::shared_ptr<const SearchTree> sharedTree) :
 	_workerId(workerId),
@@ -333,9 +341,10 @@ TreeSelectionMode SNESIMCPUThreadDevice::treeSelectionMode() {
 	return static_cast<TreeSelectionMode>(_treeSelectionMode.load(std::memory_order_relaxed));
 }
 
-void SNESIMCPUThreadDevice::setWildcardConfig(bool enabled, unsigned depth) {
+void SNESIMCPUThreadDevice::setWildcardConfig(bool enabled, unsigned depth, WildcardMode mode) {
 	_wildcardEnabled.store(enabled ? 1u : 0u, std::memory_order_relaxed);
 	_wildcardDepth.store(enabled ? depth : 0u, std::memory_order_relaxed);
+	_wildcardMode.store(enabled ? static_cast<unsigned>(mode) : static_cast<unsigned>(WildcardMode::Prefix), std::memory_order_relaxed);
 }
 
 bool SNESIMCPUThreadDevice::wildcardEnabled() {
@@ -344,6 +353,10 @@ bool SNESIMCPUThreadDevice::wildcardEnabled() {
 
 unsigned SNESIMCPUThreadDevice::wildcardDepth() {
 	return _wildcardDepth.load(std::memory_order_relaxed);
+}
+
+WildcardMode SNESIMCPUThreadDevice::wildcardMode() {
+	return static_cast<WildcardMode>(_wildcardMode.load(std::memory_order_relaxed));
 }
 
 std::shared_ptr<const SearchTree> SNESIMCPUThreadDevice::resolveActiveTree(unsigned trainingImageIndex) const {
@@ -407,11 +420,12 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 
 	// Depth search over tree:
 	// - strict mode branches all class children on missing values
-	// - wildcard mode uses known-first with optional wildcard fallback in prefix depths.
+	// - wildcard mode uses known-first with optional wildcard fallback in active depths.
 	const unsigned activeLevel = globalGridLevel();
 	const std::vector<std::vector<int> > pathPositionArray = pathPositionArrayForLevel(activeLevel);
 	const bool useWildcard = wildcardEnabled() && wildcardDepth() > 0u;
-	const unsigned wildcardPrefixDepth = wildcardDepth();
+	const unsigned wildcardDepthValue = wildcardDepth();
+	const WildcardMode wildcardModeValue = wildcardMode();
 	const unsigned wildcardBranchIndex = static_cast<unsigned>(categories.size());
 	std::vector<unsigned long long> totalStat(categories.size(), 0ULL);
 	int maxDepth = -1;
@@ -424,7 +438,8 @@ int SNESIMCPUThreadDevice::simulatePixel(const g2s::DataImage& /*simulationGrid*
 		neighborValueArrayVector,
 		0u,
 		useWildcard,
-		wildcardPrefixDepth,
+		wildcardDepthValue,
+		wildcardModeValue,
 		wildcardBranchIndex,
 		totalStat,
 		maxDepth);

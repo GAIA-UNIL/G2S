@@ -13,7 +13,11 @@ ti_raw = numpy.array(Image.open(BytesIO(resp.content)))
 
 # WSNESIM call using G2S
 # 5 grid levels total: 4 -> 3 -> 2 -> 1 -> 0 (because -mg is the max level)
-# --wd is wildcard prefix depth (here: wildcard branches active only for first 2 tree levels)
+# --wd is wildcard depth; default --wd-mode is suffix.
+import sys
+wd=sys.argv[1];
+print("wd:",wd)
+
 simulation, t, *_ = g2s(
     '-a', 'wsnesim',
     '-ti', ti_raw,
@@ -22,7 +26,8 @@ simulation, t, *_ = g2s(
     '-j', 1.001,
     '-mg', 4,
     '-tpl', 3,
-    '--wd', 1
+    '--wd', wd,
+    '--wd-mod','prefix'
 )
 
 print("WSNESIM duration:", t)

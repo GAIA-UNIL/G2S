@@ -20,6 +20,11 @@ enum class MergePolicy {
 	SumCounts = 0
 };
 
+enum class WildcardMode {
+	Prefix = 0,
+	Suffix = 1
+};
+
 class SearchTree {
 public:
 	SearchTree();
@@ -42,6 +47,7 @@ struct TreeBuildConfig {
 	unsigned branchCount = 0;
 	bool wildcardEnabled = false;
 	unsigned wildcardDepth = 0;
+	WildcardMode wildcardMode = WildcardMode::Prefix;
 };
 
 struct TrainingImageSummary {

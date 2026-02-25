@@ -578,7 +578,8 @@ std::shared_ptr<const snesim::SearchTree> loadOrCreateTree(const std::string& tr
 				&& loadedRecord.config.gridLevel == treeConfig.gridLevel
 				&& loadedRecord.config.branchCount == treeConfig.branchCount
 				&& loadedRecord.config.wildcardEnabled == treeConfig.wildcardEnabled
-				&& loadedRecord.config.wildcardDepth == treeConfig.wildcardDepth;
+				&& loadedRecord.config.wildcardDepth == treeConfig.wildcardDepth
+				&& loadedRecord.config.wildcardMode == treeConfig.wildcardMode;
 			if (compatible) {
 				fprintf(reportFile, "[SNESIM] reuse cached tree for TI '%s' at level %u (%s)\n",
 					trainingImageName.c_str(),
@@ -1053,6 +1054,7 @@ int main(int argc, char const* argv[]) {
 		levelTreeConfig.gridLevel = levelPlan.level;
 		levelTreeConfig.wildcardEnabled = false;
 		levelTreeConfig.wildcardDepth = 0u;
+		levelTreeConfig.wildcardMode = snesim::WildcardMode::Prefix;
 		levelTreeConfig.branchCount = static_cast<unsigned>(summary.categories.size());
 
 		std::vector<std::shared_ptr<const snesim::SearchTree> > treesByTrainingImage;
@@ -1117,7 +1119,7 @@ int main(int argc, char const* argv[]) {
 		options.treeStrategy == TreeStrategy::Merged ?
 			snesim::TreeSelectionMode::Merged :
 			snesim::TreeSelectionMode::PerTrainingImage);
-	snesim::SNESIMCPUThreadDevice::setWildcardConfig(false, 0u);
+	snesim::SNESIMCPUThreadDevice::setWildcardConfig(false, 0u, snesim::WildcardMode::Prefix);
 
 	std::shared_ptr<const snesim::SearchTree> workerFallbackTree;
 	if (!levelPlans.empty()) {
