@@ -38,6 +38,7 @@ build/c++-build/*
 !build/c++-build/Makefile
 !build/c++-build/*.sh
 !build/c++-build/*.bat
+build/c++-build/qs_prepare.sh
 build/em-build/*
 !build/em-build/Makefile
 build/intel-build/*
@@ -68,3 +69,4 @@ _site
 Gemfile.lock
 build/python-build/g2s/_version.py
 include/zmq.hpp
+change_odc.md

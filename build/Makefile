@@ -3,8 +3,11 @@ BUILD_DIR=../.
 export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
-export CXXFLAGS= -Wno-vla-extension #-flto
+G2S_PATH_INDEX_TYPE ?= unsigned
+G2S_QS_DISTRIBUTED ?= 0
+export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE)
+export CXXFLAGS= -Wno-vla-extension -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE) #-flto
+export QS_DISTRIBUTED_LIBS=
 export INC=-I$(BUILD_DIR)/../include
 ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
@@ -15,6 +18,12 @@ export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
 export ExtraDevice=AcceleratorDevice.o
+
+ifeq ($(G2S_QS_DISTRIBUTED),1)
+	export CFLAGS += -DG2S_QS_DISTRIBUTED
+	export CXXFLAGS += -DG2S_QS_DISTRIBUTED
+	export QS_DISTRIBUTED_LIBS += -lzmq -ljsoncpp
+endif
 
 export brewIsAvailable := $(shell brew -v > /dev/null 2>&1 && echo 1 || echo 0)
 

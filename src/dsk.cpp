@@ -511,16 +511,16 @@ int main(int argc, char const *argv[]) {
 		return 0;
 	}
 
-	unsigned simulationPathSize=0;
-	unsigned* simulationPathIndex=(unsigned *)malloc(sizeof(unsigned)*simulationPath.dataSize());
+	g2s_path_index_t simulationPathSize=0;
+	g2s_path_index_t* simulationPathIndex=(g2s_path_index_t *)malloc(sizeof(g2s_path_index_t)*simulationPath.dataSize());
 	std::iota(simulationPathIndex,simulationPathIndex+simulationPath.dataSize(),0);
 	float* simulationPathData=simulationPath._data;
 	std::sort(simulationPathIndex, simulationPathIndex+simulationPath.dataSize(),
-		[simulationPathData](unsigned i1, unsigned i2) {return simulationPathData[i1] < simulationPathData[i2];});
+		[simulationPathData](g2s_path_index_t i1, g2s_path_index_t i2) {return simulationPathData[i1] < simulationPathData[i2];});
 
 	//Search begin path
 
-	unsigned beginPath=0;
+	g2s_path_index_t beginPath=0;
 
 	for ( beginPath=0 ; beginPath < simulationPath.dataSize(); ++beginPath)
 	{

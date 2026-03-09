@@ -23,6 +23,7 @@
 #include <any>
 #include <set>
 #include <thread>
+#include <cctype>
 #include "DataImage.hpp"
 
 #ifdef WITH_WEB_SUPPORT
@@ -64,6 +65,7 @@ public:
 	virtual void sendError(std::string val)=0;
 	virtual void sendWarning(std::string val)=0;
 	virtual void eraseAndPrint(std::string val)=0;
+	virtual bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue){return false;}
 
 	std::string toString(std::any val){
 		if(val.type()==typeid(nullptr))
@@ -78,6 +80,35 @@ public:
 
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
+
+	void normalizeJobGridParameter(std::multimap<std::string, std::any> &input){
+		std::vector<std::any> values;
+		auto collectValues=[&](const std::string &key){
+			auto range=input.equal_range(key);
+			for (auto it=range.first; it!=range.second; ++it)
+			{
+				values.push_back(it->second);
+			}
+			input.erase(key);
+		};
+
+		collectValues("-jg");
+		collectValues("-job_grid_json");
+		collectValues("-job_grid");
+
+		for (size_t i = 0; i < values.size(); ++i)
+		{
+			if(isDataMatrix(values[i])){
+				std::string jsonValue;
+				if(!encodeJobGridMatrixToJsonString(values[i],jsonValue)){
+					sendError("failed to encode -jg matrix into JSON");
+				}
+				input.insert(std::pair<std::string,std::any>("-jg",jsonValue));
+			}else{
+				input.insert(std::pair<std::string,std::any>("-jg",values[i]));
+			}
+		}
+	}
 
 		//to improuve
 	std::string uploadData(zmq::socket_t &socket, std::any matrix, std::any dataTypeVariable=nullptr){
@@ -161,11 +192,103 @@ public:
 		return std::string(sourceName);
 	}
 
+	static std::string trimWhitespaceCopy(const std::string &value){
+		size_t begin=0;
+		size_t end=value.size();
+		while(begin<end && std::isspace(static_cast<unsigned char>(value[begin]))){
+			++begin;
+		}
+		while(end>begin && std::isspace(static_cast<unsigned char>(value[end-1]))){
+			--end;
+		}
+		return value.substr(begin,end-begin);
+	}
+
+	static bool isInlineJsonPayload(const std::string &value){
+		const std::string trimmed=trimWhitespaceCopy(value);
+		if(trimmed.empty()){
+			return false;
+		}
+		const char first=trimmed.front();
+		return (first=='[' || first=='{');
+	}
+
+	std::string uploadJson(zmq::socket_t &socket, const std::string &jsonPayload){
+		bool withTimeout=false;
+		char sourceName[65]={0};
+		const size_t payloadSize=jsonPayload.size();
+		const unsigned char *payloadBytes=(const unsigned char*)jsonPayload.data();
+		std::vector<unsigned char> hash(32);
+		picosha2::hash256(payloadBytes,payloadBytes+payloadSize,hash.begin(),hash.end());
+
+		infoContainer task;
+		task.version=1;
+		task.task=EXIST;
+
+		zmq::message_t request(sizeof(infoContainer)+64*sizeof(unsigned char));
+		char * positionInTheStream=(char*)request.data();
+
+		char hashInHexa[65]={0};
+		for (int i = 0; i < 32; ++i)
+		{
+			snprintf(hashInHexa+2*i,65-2*i,"%02x",hash.data()[i]);
+		}
+		memcpy(sourceName,hashInHexa,65*sizeof(char));
+
+		memcpy(positionInTheStream,&task,sizeof(infoContainer));
+		positionInTheStream+=sizeof(infoContainer);
+		memcpy(positionInTheStream,hashInHexa,64*sizeof(unsigned char));
+		positionInTheStream+=64*sizeof(unsigned char);
+
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout sending json existence request");
+		}
+
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving json existence response");
+		}
+		if(reply.size()!=sizeof(int)) sendError("wrong answer if json data exist!");
+		const int isPresent=*((int*)reply.data());
+
+		if(isPresent!=2){
+			infoContainer uploadTask;
+			uploadTask.version=1;
+			uploadTask.task=UPLOAD_JSON;
+
+			zmq::message_t uploadRequest(sizeof(infoContainer)+64*sizeof(unsigned char)+payloadSize);
+			char * uploadPos=(char*)uploadRequest.data();
+			memcpy(uploadPos,&uploadTask,sizeof(infoContainer));
+			uploadPos+=sizeof(infoContainer);
+			memcpy(uploadPos,hashInHexa,64*sizeof(unsigned char));
+			uploadPos+=64*sizeof(unsigned char);
+			if(payloadSize>0){
+				memcpy(uploadPos,jsonPayload.data(),payloadSize);
+				uploadPos+=payloadSize;
+			}
+
+			if(!socket.send(uploadRequest,zmq::send_flags::none) && withTimeout){
+				sendError("timeout sending json upload");
+			}
+
+			zmq::message_t uploadReply;
+			if(!socket.recv(uploadReply) && withTimeout){
+				sendError("timeout receive json upload");
+			}
+			if(uploadReply.size()!=sizeof(int)) sendError("wrong answer in json upload");
+			if(*((int*)uploadReply.data())!=0 && *((int*)uploadReply.data())!=1){
+				sendError("error in json upload");
+			}
+		}
+		return std::string(sourceName);
+	}
+
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
 		auto dataTypeVariable=input.find("-dt");
 		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
 		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
+		std::set<std::string> listOfJsonParameterToUploadIfNeeded= {"-jg","-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())
 				if(isDataMatrix(it->second)){
@@ -177,6 +300,13 @@ public:
 			if(listOfParameterToUploadIfNeededWithoutdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithoutdataTypeVariable.end()){
 				if(isDataMatrix(it->second))
 					it->second=std::any(uploadData(socket, it->second));
+			}
+			if(listOfJsonParameterToUploadIfNeeded.find(it->first) != listOfJsonParameterToUploadIfNeeded.end()){
+				const std::string payload=toString(it->second);
+				if(isInlineJsonPayload(payload)){
+					const std::string jsonHash=uploadJson(socket,payload);
+					it->second=std::any(std::string("/tmp/G2S/data/")+jsonHash+std::string(".json"));
+				}
 			}
 		}
 		input.erase("-dt");
@@ -200,6 +330,7 @@ public:
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
 
 		std::atomic<bool> done(false);
+		normalizeJobGridParameter(input); // canonicalize job-grid keys to -jg
 
 		jobIdType id=0;
 		bool stop=false;
