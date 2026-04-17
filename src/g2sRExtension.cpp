@@ -316,6 +316,22 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 			}
 			result.push_back(localVector);
 		}
+		if(Rcpp::is<Rcpp::CharacterVector>(args[i]) && 0==strcmp(Rcpp::as<std::string>(args[i]).c_str(),"-mi")){
+			std::vector<std::string> localVector;
+			localVector.push_back("-mi");
+			for (int j=i+1; j < args.size(); ++j)
+			{
+				if(Rcpp::is<Rcpp::CharacterVector>(args[j]) && Rcpp::as<std::string>(args[j]).c_str()[0]=='-'){
+					break;
+				}
+				if(Rcpp::is<Rcpp::CharacterVector>(args[j])){
+					localVector.push_back(Rcpp::as<std::string>(args[j]));
+				}else{
+					localVector.push_back(uploadData(socket, &args[j]));
+				}
+			}
+			result.push_back(localVector);
+		}
 	}
 
 	return result;
@@ -518,6 +534,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 				   !inputArray[i].compare("-ti") ||
 				   !inputArray[i].compare("-di") ||
 				   !inputArray[i].compare("-sp") ||
+				   !inputArray[i].compare("-mi") ||
 				   !inputArray[i].compare("-ki") ||
 				   !inputArray[i].compare("-a")){
 					managed=true;
