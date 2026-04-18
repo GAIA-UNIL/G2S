@@ -1,0 +1,7 @@
+
+.DS_Store
+_site
+Gemfile.lock
+build
+*.npz
+*.pyc

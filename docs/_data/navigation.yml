@@ -1,0 +1,25 @@
+- title: Brief overview
+  url: /briefOverview.html
+- title: Installation
+  url: /installation.html
+  sublinks:
+    - title: Installation of the server
+      url: /installation/server.html
+    - title: Installation of interfaces
+      url: /installation/interfaces.html
+- title: Run the server
+  url: /runTheServer.html
+- title: Using the interfaces
+  url: /usingTheInterfaces.html
+- title: Algorithms
+  url: /algorithms.html
+  sublinks:
+    - title: QuickSampling
+      url: /algorithms/QuickSampling.html
+    - title: Narrow Distribution Selection
+      url: /algorithms/NarrowDistributionSelection.html
+    - title: AutoQS
+      url: /algorithms/AutoQS.html
+
+
+
