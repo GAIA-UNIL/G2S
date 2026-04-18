@@ -516,8 +516,12 @@ int main(int argc, char const *argv[]) {
 	}
 	if(!maskImageFileName.empty()){
 		maskImage=g2s::DataImage::createFromFile(maskImageFileName);
-		if(maskImage._nbVariable==1 && maskImage._dims.size()==TIs[0]._dims.size()+1 && maskImage._dims.back()==TIs.size()){
-			maskImage=maskImage.convertLastDimInVariable();
+		if(maskImage._nbVariable==1 && maskImage._dims.size()==TIs[0]._dims.size()+1){
+			if(maskImage._dims.back()==TIs.size()){
+				maskImage=maskImage.convertLastDimInVariable();
+			}else if(maskImage._dims.front()==TIs.size()){
+				maskImage.convertFirstDimInVariable();
+			}
 		}
 		if(maskImage._dims!=DI._dims || maskImage._nbVariable!=TIs.size()){
 			fprintf(reportFile,"error: -mi mask must have the same spatial geometry as -di and one value per TI\n");
@@ -705,7 +709,7 @@ int main(int argc, char const *argv[]) {
 		memset(id._data,0,sizeof(unsigned)*simulationPathSize);
 	}
 
-	unsigned* importDataIndex=(unsigned*)id._data;
+	unsigned* importDataIndex=nullptr;
 	float* seedForIndex=(float*)malloc(sizeof(float)*simulationPathSize);
 	std::uniform_real_distribution<float> uniformDistributionOverSource(0.f,1.f);
 	for (g2s_path_index_t i = 0; i < simulationPathSize; ++i)
@@ -781,6 +785,8 @@ int main(int argc, char const *argv[]) {
 		}
 		qs_padding_utils::mapSimulationPathToPadded(simulationPathIndex,simulationPathSize,fullSimulation,DI._nbVariable,outputDims,spatialPadding);
 	}
+
+	importDataIndex=(unsigned*)id._data;
 
 	AnchorSamplingData anchorStack=AnchorSamplingData::build(TIs,categoriesValues,(maskImage.isEmpty() ? nullptr : &maskImage));
 	AnchorSamplingModule ASM(&anchorStack,&TIs[0],(kernels.size()==1 ? &kernels[0] : nullptr),nbCandidate,!needCrossMeasurement,considerTiAsCircular);

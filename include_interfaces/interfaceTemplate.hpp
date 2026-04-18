@@ -44,6 +44,18 @@ class InterfaceTemplate
 {
 public:
 
+	static std::set<std::string> parametersUploadedWithDataType(){
+		return {"-ti","-di","-nl"};
+	}
+
+	static std::set<std::string> parametersUploadedWithoutDataType(){
+		return {"-ki","-sp","-ii","-mi","-ni","-kii","-kvi"};
+	}
+
+	static std::set<std::string> jsonParametersUploaded(){
+		return {"-jg","-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
+	}
+
 	virtual unsigned anyNativeToUnsigned(std::any val)=0;
 	virtual float anyNativeToFloat(std::any val)=0;
 	virtual double anyNativeToDouble(std::any val)=0;
@@ -286,9 +298,9 @@ public:
 	void lookForUpload(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
 
 		auto dataTypeVariable=input.find("-dt");
-		std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable= {"-ti","-di","-nl"};
-		std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable= {"-ki","-sp","-ii","-ni","-kii","-kvi"};
-		std::set<std::string> listOfJsonParameterToUploadIfNeeded= {"-jg","-job_grid_json","-endpoint_grid_json","-di_grid_json","-eg"};
+		const std::set<std::string> listOfParameterToUploadIfNeededWithdataTypeVariable=parametersUploadedWithDataType();
+		const std::set<std::string> listOfParameterToUploadIfNeededWithoutdataTypeVariable=parametersUploadedWithoutDataType();
+		const std::set<std::string> listOfJsonParameterToUploadIfNeeded=jsonParametersUploaded();
 		for (auto it=input.begin(); it!=input.end(); ++it){
 			if(listOfParameterToUploadIfNeededWithdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithdataTypeVariable.end())
 				if(isDataMatrix(it->second)){

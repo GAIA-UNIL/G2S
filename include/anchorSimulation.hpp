@@ -277,8 +277,10 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 		anchorSimulationConvertNeighbors(di,neighborValueArrayVector,categoriesValues,numberOfVariable);
 		SamplingModule::matchLocation importIndex=samplingModule.sample(currentCell,neighborArrayVector,neighborValueArrayVector,localSeed,fullStationary,UINT_MAX,localk,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]) : nullptr));
 
-		const unsigned originalIndex=usePaddedDomain ? anchorSimulationOriginalIndex(importIndex.index,di._dims,spatialPadding,outputDims) : importIndex.index;
-		importDataIndex[currentCell]=originalIndex*TIs.size()+importIndex.TI;
+		(void)usePaddedDomain;
+		(void)spatialPadding;
+		(void)outputDims;
+		importDataIndex[currentCell]=importIndex.TI;
 		for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
 			if(std::isnan(di._data[currentCell*di._nbVariable+j]) || forceSimulation){
@@ -447,8 +449,10 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 		anchorSimulationConvertNeighbors(di,neighborValueArrayVector,categoriesValues,numberOfVariable);
 		SamplingModule::matchLocation importIndex=samplingModule.sample(currentPosition,neighborArrayVector,neighborValueArrayVector,localSeed,fullStationary,currentVariable,localk,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]) : nullptr));
 
-		const unsigned originalIndex=usePaddedDomain ? anchorSimulationOriginalIndex(importIndex.index,di._dims,spatialPadding,outputDims) : importIndex.index;
-		importDataIndex[currentCell]=originalIndex*TIs.size()+importIndex.TI;
+		(void)usePaddedDomain;
+		(void)spatialPadding;
+		(void)outputDims;
+		importDataIndex[currentCell]=importIndex.TI;
 		if(std::isnan(di._data[currentCell]) || forceSimulation){
 			#pragma omp atomic write
 			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];

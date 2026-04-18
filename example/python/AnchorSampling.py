@@ -24,7 +24,7 @@ mask = numpy.zeros(di.shape + (2,), dtype=float)
 mask[..., 0] = 1.0
 mask[..., 1] = 0.2
 
-simulation, *_ = g2s(
+simulation, selected_ti, *_ = g2s(
     "-a", "as",
     "-ti", [ti1, ti2],
     "-di", di,
@@ -32,16 +32,16 @@ simulation, *_ = g2s(
     "-mi", mask,
     "-dt", [0],
     "-k", 2,
-    "-n", 8,
+    "-n", 20,
     "-j", 0.5,
 )
 
-fig, axes = plt.subplots(1, 4, figsize=(12, 3), sharex=True, sharey=True)
+fig, axes = plt.subplots(1, 5, figsize=(15, 3), sharex=True, sharey=True)
 fig.suptitle("Anchor Sampling")
 for ax, image, title in zip(
     axes,
-    [ti1, ti2, di, simulation],
-    ["TI 1", "TI 2", "Conditioning", "AS result"],
+    [ti1, ti2, di, simulation, selected_ti],
+    ["TI 1", "TI 2", "Conditioning", "AS result", "Selected TI id"],
 ):
     ax.imshow(image)
     ax.set_title(title)

@@ -240,9 +240,6 @@ public:
 			float maskWeight=std::nanf("0");
 			if(_stack->_hasMask){
 				maskWeight=_stack->_maskWeights[_stack->maskIndex(currentCell,ti)];
-				if(std::isnan(maskWeight)){
-					continue;
-				}
 			}
 
 			float score=0.f;
@@ -340,24 +337,27 @@ public:
 		unsigned selectedPosition=0;
 		if(_stack->_hasMask){
 			float weightSum=0.f;
+			size_t lastPositiveWeightIndex=candidates.size();
 			for (size_t i = 0; i < candidates.size(); ++i)
 			{
-				if(candidates[i].weight>0.f){
+				if(std::isfinite(candidates[i].weight) && candidates[i].weight>0.f){
 					weightSum+=candidates[i].weight;
+					lastPositiveWeightIndex=i;
 				}
 			}
 
 			if(weightSum>0.f){
 				const float threshold=seed*weightSum;
 				float cumulative=0.f;
+				selectedPosition=static_cast<unsigned>(lastPositiveWeightIndex);
 				for (size_t i = 0; i < candidates.size(); ++i)
 				{
-					if(candidates[i].weight<=0.f){
+					if(!std::isfinite(candidates[i].weight) || candidates[i].weight<=0.f){
 						continue;
 					}
 					cumulative+=candidates[i].weight;
 					if(threshold<=cumulative){
-						selectedPosition=i;
+						selectedPosition=static_cast<unsigned>(i);
 						break;
 					}
 				}
