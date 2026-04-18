@@ -405,7 +405,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		if(updateCallback){
 			updateCallback(g2s_simulation_update_kind::Vector, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);
 		}
-		if(indexPath%(displayRatio)==0)
+		if(updateCallback==nullptr && indexPath%(displayRatio)==0)
 			fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 
@@ -682,7 +682,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), currentVariable, updateCallbackUserData);
 			}
 		}
-		if(indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+		if(updateCallback==nullptr && indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	}
 
 	for (int i = 0; i < nbThreads; ++i)

@@ -70,9 +70,16 @@ struct QsDistributedSendContext{
 	g2s_path_index_t* posterioryPath=nullptr;
 	size_t posterioryPathSize=0;
 	jobIdType jobId=jobIdType(-1);
+	FILE* reportFile=nullptr;
+	unsigned long long progressTotal=0ULL;
+	std::atomic<unsigned long long> progressCompleted;
+	std::atomic<int> progressLastPrintedPercent;
 	std::mutex queueMutex;
 	std::condition_variable queueCv;
 	std::deque<std::vector<unsigned char> > queue;
+	QsDistributedSendContext():
+		progressCompleted(0ULL),
+		progressLastPrintedPercent(-1){}
 };
 
 struct QsDistributedReceiveStats{
@@ -316,6 +323,22 @@ static void enqueueDistributedSimulationUpdate(g2s_simulation_update_kind kind,
 		sendContext->queue.push_back(std::move(payload));
 	}
 	sendContext->queueCv.notify_one();
+
+	if(sendContext->reportFile!=nullptr && sendContext->progressTotal>0ULL){
+		unsigned long long completed=sendContext->progressCompleted.fetch_add(1ULL,std::memory_order_relaxed)+1ULL;
+		if(completed>sendContext->progressTotal){
+			completed=sendContext->progressTotal;
+		}
+		const int progressPercent=static_cast<int>((100.0*static_cast<double>(completed))/static_cast<double>(sendContext->progressTotal));
+		int previousPercent=sendContext->progressLastPrintedPercent.load(std::memory_order_relaxed);
+		while(progressPercent>previousPercent &&
+			!sendContext->progressLastPrintedPercent.compare_exchange_weak(previousPercent,progressPercent,std::memory_order_relaxed)){
+		}
+		if(progressPercent>previousPercent){
+			fprintf(sendContext->reportFile, "progress : %.2f%%\n",
+				100.0*static_cast<double>(completed)/static_cast<double>(sendContext->progressTotal));
+		}
+	}
 }
 #endif
 
@@ -1961,6 +1984,14 @@ int main(int argc, char const *argv[]) {
 	simType st=vectorSim;
 	if(fullSimulation) st=fullSim;
 	if(augmentedDimentionSimulation) st=augmentedDimSim;
+	#ifdef G2S_QS_DISTRIBUTED
+	if(simulationUpdateCallback!=nullptr){
+		distributedSendContext.reportFile=reportFile;
+		distributedSendContext.progressTotal=static_cast<unsigned long long>(simulationPathSize-beginPath);
+		distributedSendContext.progressCompleted.store(0ULL,std::memory_order_relaxed);
+		distributedSendContext.progressLastPrintedPercent.store(-1,std::memory_order_relaxed);
+	}
+	#endif
 
 	auto autoSaveFunction=[](g2s::DataImage &id, g2s::DataImage &DI, std::atomic<bool>  &computationIsDone, unsigned interval, jobIdType uniqueID,
 		bool usePaddedDomain, std::vector<unsigned> spatialPadding, std::vector<unsigned> outputDims){
@@ -2008,6 +2039,17 @@ int main(int argc, char const *argv[]) {
 			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	}
+	#ifdef G2S_QS_DISTRIBUTED
+	if(simulationUpdateCallback!=nullptr &&
+		distributedSendContext.reportFile!=nullptr &&
+		distributedSendContext.progressTotal>0ULL &&
+		distributedSendContext.progressLastPrintedPercent.load(std::memory_order_relaxed)<100){
+		const unsigned long long completed=distributedSendContext.progressCompleted.load(std::memory_order_relaxed);
+		fprintf(distributedSendContext.reportFile, "progress : %.2f%%\n",
+			100.0*static_cast<double>(std::min(completed,distributedSendContext.progressTotal))
+			/static_cast<double>(distributedSendContext.progressTotal));
+	}
+	#endif
 
 	auto end = std::chrono::high_resolution_clock::now();
 	computationIsDone=true;
