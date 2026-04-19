@@ -1,0 +1,9 @@
+
+.DS_Store
+.bundle
+_site
+vendor
+Gemfile.lock
+build
+*.npz
+*.pyc
