@@ -33,6 +33,7 @@ Outputs: `sim` = simulation, `index` = selected TI id for each simulated value, 
 | `-k` | Number of best anchored TI candidates retained before sampling. | &#x2714; |
 | `-n` | Number of closest neighbors to consider. As in QS, this can be scalar or variable-specific. | &#x2714; |
 | `-ki` | Optional kernel image defining the neighborhood footprint and weights. | |
+| `-cnorm` / `-cn` | Continuous mismatch norm power(s). Use one strictly positive value to apply the same `p` to all continuous variables, or one value per continuous variable. Continuous mismatch uses the rooted Lp form `pow(sum(pow(abs(diff),p)),1/p)` (kernel-weighted internally). Default is `2` (L2). | |
 | `-sp` | Optional simulation path. Default is a random path. As in QS, explicit path images are supported. | |
 | `-j` | Parallel execution settings. Same meaning as in QS. | |
 | `-s` | Random seed value. | |
@@ -87,3 +88,4 @@ Use QS when:
 
 - AS keeps the same general workflow as QS, including categorical, continuous, multivariate, kernel-based, and path-image driven simulations.
 - In masked runs, AS computes mismatch first, applies `-mi` admissibility masking before top-`k` ranking (dropping non-finite and non-positive entries), then uses `-mi` as relative weights inside the retained set.
+- For `-cnorm` / `-cn`, if you provide more than one value, the number of values must match the number of continuous variables in `-dt`.

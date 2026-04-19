@@ -166,6 +166,7 @@ private:
 	const AnchorSamplingData *_stack=nullptr;
 	g2s::DataImage *_kernel=nullptr;
 	g2s::DataImage *_referenceGrid=nullptr;
+	std::vector<float> _continuousNormPowerByVariable;
 	float _k=1.f;
 	bool _completeTIs=true;
 	bool _circularTI=false;
@@ -175,16 +176,28 @@ public:
 		const AnchorSamplingData *stack,
 		g2s::DataImage *referenceGrid,
 		g2s::DataImage *kernel,
+		const std::vector<float> &continuousNormPowerByVariable,
 		float k,
 		bool completeTIs,
 		bool circularTI):
 		_stack(stack),
 		_kernel(kernel),
 		_referenceGrid(referenceGrid),
+		_continuousNormPowerByVariable(continuousNormPowerByVariable),
 		_k(k),
 		_completeTIs(completeTIs),
 		_circularTI(circularTI)
 	{
+		if(_continuousNormPowerByVariable.size()!=_stack->_nbVariable){
+			_continuousNormPowerByVariable.assign(_stack->_nbVariable,2.f);
+		}
+		for (unsigned variable = 0; variable < _stack->_nbVariable; ++variable)
+		{
+			const float p=_continuousNormPowerByVariable[variable];
+			if(!std::isfinite(p) || p<=0.f){
+				_continuousNormPowerByVariable[variable]=2.f;
+			}
+		}
 	}
 
 	inline SamplingModule::matchLocation sample(
@@ -250,6 +263,8 @@ public:
 			float score=0.f;
 			float support=0.f;
 			float penalty=0.f;
+			std::vector<float> continuousPowerSums(_stack->_nbVariable,0.f);
+			std::vector<float> continuousSupportSums(_stack->_nbVariable,0.f);
 
 			for (size_t neighbor = 0; neighbor < neighborArrayVector.size(); ++neighbor)
 			{
@@ -286,24 +301,43 @@ public:
 					}
 
 					const float tiValue=_stack->_expandedValues[_stack->expandedIndex(anchoredNeighborCell,expandedVariable,ti)];
+					const unsigned originalVariable=expandedInfo.originalVariable;
+					const float pNorm=_continuousNormPowerByVariable[originalVariable];
 					if(_completeTIs){
 						if(expandedInfo.kind==AnchorSamplingExpandedVariable::Kind::Continuous){
-							const float diff=tiValue-neighborValue;
-							score-=kernelWeight*diff*diff;
+							const float diff=std::fabs(tiValue-neighborValue);
+							const float supportWeight=std::fabs(kernelWeight);
+							continuousPowerSums[originalVariable]+=supportWeight*std::pow(diff,pNorm);
+							continuousSupportSums[originalVariable]+=supportWeight;
 						}else if(neighborValue>0.5f){
 							score+=kernelWeight*tiValue;
 						}
 					}else{
 						const float supportWeight=std::fabs(kernelWeight);
 						if(expandedInfo.kind==AnchorSamplingExpandedVariable::Kind::Continuous){
-							const float diff=tiValue-neighborValue;
-							penalty+=supportWeight*diff*diff;
-							support+=supportWeight;
+							const float diff=std::fabs(tiValue-neighborValue);
+							continuousPowerSums[originalVariable]+=supportWeight*std::pow(diff,pNorm);
+							continuousSupportSums[originalVariable]+=supportWeight;
 						}else if(neighborValue>0.5f){
 							penalty+=supportWeight*(1.f-tiValue);
 							support+=supportWeight;
 						}
 					}
+				}
+			}
+
+			for (unsigned variable = 0; variable < _stack->_nbVariable; ++variable)
+			{
+				if(continuousSupportSums[variable]<=0.f){
+					continue;
+				}
+				const float pNorm=_continuousNormPowerByVariable[variable];
+				const float normValue=std::pow(std::max(0.f,continuousPowerSums[variable]),1.f/pNorm);
+				if(_completeTIs){
+					score-=normValue;
+				}else{
+					penalty+=normValue;
+					support+=continuousSupportSums[variable];
 				}
 			}
 

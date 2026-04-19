@@ -20,9 +20,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <random>
+#include <sstream>
+#include <string>
 #include <thread>
 
 #include "utils.hpp"
@@ -272,6 +275,7 @@ int main(int argc, char const *argv[]) {
 	bool circularSimulation=false;
 	bool forceSimulation=false;
 	bool maxNK=false;
+	std::vector<float> continuousNormPInput;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -372,6 +376,53 @@ int main(int argc, char const *argv[]) {
 	}
 	arg.erase("-maxNK");
 
+	auto appendContinuousNormValues=[&](const std::string &rawValue, const char *flagName){
+		std::string normalized=rawValue;
+		for (size_t i = 0; i < normalized.size(); ++i)
+		{
+			if(normalized[i]==',' || normalized[i]==';'){
+				normalized[i]=' ';
+			}
+		}
+
+		std::stringstream stream(normalized);
+		std::string token;
+		bool foundToken=false;
+		while(stream>>token){
+			foundToken=true;
+			char *endPtr=nullptr;
+			const float parsedValue=strtof(token.c_str(),&endPtr);
+			if(endPtr==token.c_str() || *endPtr!='\0' || !std::isfinite(parsedValue) || parsedValue<=0.f){
+				fprintf(reportFile,"error: %s expects strictly positive finite value(s), got '%s'\n",flagName,rawValue.c_str());
+				run=false;
+				return;
+			}
+			continuousNormPInput.push_back(parsedValue);
+		}
+		if(!foundToken){
+			fprintf(reportFile,"error: %s expects at least one value\n",flagName);
+			run=false;
+		}
+	};
+
+	if (arg.count("-cn") >= 1)
+	{
+		for (auto val=arg.lower_bound("-cn"); val!=arg.upper_bound("-cn"); ++val)
+		{
+			appendContinuousNormValues(val->second,"-cn");
+		}
+	}
+	arg.erase("-cn");
+
+	if (arg.count("-cnorm") >= 1)
+	{
+		for (auto val=arg.lower_bound("-cnorm"); val!=arg.upper_bound("-cnorm"); ++val)
+		{
+			appendContinuousNormValues(val->second,"-cnorm");
+		}
+	}
+	arg.erase("-cnorm");
+
 	float alpha=0.f;
 	g2s::KernelType kernelTypeForGeneration=g2s::UNIFORM;
 	int kernelSize=-1;
@@ -452,6 +503,45 @@ int main(int argc, char const *argv[]) {
 				return 0;
 			}
 		}
+	}
+
+	std::vector<unsigned> continuousVariableIndexes;
+	for (unsigned variable = 0; variable < DI._nbVariable; ++variable)
+	{
+		if(DI._types[variable]==g2s::DataImage::VaraibleType::Continuous){
+			continuousVariableIndexes.push_back(variable);
+		}
+	}
+
+	std::vector<float> continuousNormPowerByVariable(DI._nbVariable,2.f);
+	if(continuousVariableIndexes.empty() && !continuousNormPInput.empty()){
+		fprintf(reportFile,"warning: -cnorm/-cn provided but no continuous variable is defined in -dt, option ignored\n");
+	}
+	if(!continuousVariableIndexes.empty()){
+		std::vector<float> resolvedContinuousNormP;
+		if(continuousNormPInput.empty()){
+			resolvedContinuousNormP.assign(continuousVariableIndexes.size(),2.f);
+		}else if(continuousNormPInput.size()==1){
+			resolvedContinuousNormP.assign(continuousVariableIndexes.size(),continuousNormPInput[0]);
+		}else if(continuousNormPInput.size()==continuousVariableIndexes.size()){
+			resolvedContinuousNormP=continuousNormPInput;
+		}else{
+			fprintf(reportFile,
+				"error: continuous norm expects either 1 value or one value per continuous variable (%zu expected, got %zu)\n",
+				continuousVariableIndexes.size(),continuousNormPInput.size());
+			return 0;
+		}
+
+		for (size_t i = 0; i < continuousVariableIndexes.size(); ++i)
+		{
+			continuousNormPowerByVariable[continuousVariableIndexes[i]]=resolvedContinuousNormP[i];
+		}
+		fprintf(reportFile,"AS continuous norm powers:");
+		for (size_t i = 0; i < continuousVariableIndexes.size(); ++i)
+		{
+			fprintf(reportFile," v%u->%g",continuousVariableIndexes[i],continuousNormPowerByVariable[continuousVariableIndexes[i]]);
+		}
+		fprintf(reportFile,"\n");
 	}
 
 	const bool needCrossMeasurement=std::any_of(TIs.begin(),TIs.end(),[](const g2s::DataImage &ti){
@@ -789,7 +879,7 @@ int main(int argc, char const *argv[]) {
 	importDataIndex=(unsigned*)id._data;
 
 	AnchorSamplingData anchorStack=AnchorSamplingData::build(TIs,categoriesValues,(maskImage.isEmpty() ? nullptr : &maskImage));
-	AnchorSamplingModule ASM(&anchorStack,&TIs[0],(kernels.size()==1 ? &kernels[0] : nullptr),nbCandidate,!needCrossMeasurement,considerTiAsCircular);
+	AnchorSamplingModule ASM(&anchorStack,&TIs[0],(kernels.size()==1 ? &kernels[0] : nullptr),continuousNormPowerByVariable,nbCandidate,!needCrossMeasurement,considerTiAsCircular);
 
 	std::vector<g2s_path_index_t> posteriorPath;
 	const g2s_path_index_t maxPosteriorValue=std::numeric_limits<g2s_path_index_t>::max();

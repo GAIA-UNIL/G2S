@@ -75,6 +75,8 @@ An R interface is available in the repository. Please refer to the installation 
 
 For distributed QuickSampling, the Python and MATLAB interfaces also accept native `-jg` / `-job_grid` matrices. They automatically convert these matrices to the JSON payload expected by the distributed helpers, and the interface-side normalization prefers the short flag `-jg`.
 
+For Anchor Sampling continuous norms (`-cnorm` / `-cn`), Python and MATLAB can pass either a scalar (single `p` for all continuous variables) or a vector (one `p` per continuous variable).
+
 ### Asynchronous mode flags
 The following options represent the **Asynchronous mode**, which allows you to submit multiple jobs simultaneously and retrieve the results of each of them later on (as opposed to synchronous communication with the server, where you need to wait until a job is finished before you can submit a new one). You launch the async mode by simply adding the `-submitOnly` flag to your g2s call. This will give only the job ID as an output, so the g2s call becomes `jobid = g2s(flag1,value1, flag2,value2, ...)`. Don't forget to always include the server address if it's not local! See the example section for a demonstration in *MATLAB* and *Python*.
 
