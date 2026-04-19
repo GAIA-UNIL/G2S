@@ -30,6 +30,10 @@ The `docs/algorithms/example/` folder is a generated docs mirror (from `docs/syn
 
 In Anchor Sampling, candidate mismatch is computed first, `-mi` invalid entries (`NaN`, `inf`, and non-positive values) are excluded before top-`k` ranking, and `-mi` weights are then used for weighted draw within the retained candidates.
 
+## Python AS example note
+
+`example/python/AnchorSampling.py` is now a minimal synthetic AS demo (based on the larger `AnchorSamplingSyntheticExperiment.py` flow): one masked AS run, concise metrics, and a compact 4-panel visualization. It also keeps the safer Python interface call pattern with repeated `-ti` arguments and explicit `float32` arrays.
+
 ## Online Demo (Back! but slow)
 
 An interactive online version is available [here](https://www.mgravey.com/mps.online/), to experiment with small unconditional simulations.
