@@ -24,11 +24,17 @@ The `docs/algorithms/example/` folder is a generated docs mirror (from `docs/syn
 
 ## Build note
 
-`make` in `build/Makefile` probes whether compiling a tiny source with `#include <zmq.hpp>` succeeds. If not, it runs `wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp -O include/zmq.hpp`.
+`make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
 ## AS mask order (`-mi`)
 
 In Anchor Sampling, candidate mismatch is computed first, `-mi` invalid entries (`NaN`, `inf`, and non-positive values) are excluded before top-`k` ranking, and `-mi` weights are then used for weighted draw within the retained candidates.
+
+## AS continuous norm (`-cnorm` / `-cn`)
+
+Anchor Sampling continuous mismatch now supports configurable Lp norms with the proper root:
+`pow(sum(pow(abs(diff), p)), 1/p)` (kernel-weighted internally).
+Use one value to apply the same `p` to all continuous variables, or pass one value per continuous variable to configure each independently.
 
 ## Python AS example note
 
