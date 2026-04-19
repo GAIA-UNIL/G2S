@@ -15,6 +15,9 @@ dirs:
 include/zmq.hpp:
 	mkdir -p include
 	curl -L "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -o include/zmq.hpp
+
+include/zmq.h:
+	mkdir -p include
 	curl -L "https://raw.githubusercontent.com/zeromq/libzmq/master/include/zmq.h" -o include/zmq.h
 
 
@@ -36,13 +39,13 @@ version:
 	echo "__version__ = \"$(shell cat $(VERSION_FILE))\"" > g2s/_version.py
 
 # Build wheels and sdist
-build:preprocess version include/zmq.hpp
+build:preprocess version include/zmq.hpp include/zmq.h
 	$(PYTHON) -m build
 
 wheel:preprocess build
 	@echo "✅ Wheel built."
 
-sdist: version preprocess include/zmq.hpp
+sdist: version preprocess include/zmq.hpp include/zmq.h
 	$(PYTHON) -m build --sdist
 	@echo "✅ Source distribution created."
 
