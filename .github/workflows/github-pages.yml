@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'docs/**'
+      - 'example/**'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,10 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: ./docs
+
+      - name: Sync embedded examples
+        run: bash ./sync_examples.sh
+        working-directory: ./docs
 
       - name: Build site
         run: bundle exec jekyll build

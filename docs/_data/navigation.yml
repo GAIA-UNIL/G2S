@@ -16,6 +16,8 @@
   sublinks:
     - title: QuickSampling
       url: /algorithms/QuickSampling.html
+    - title: Anchor Sampling
+      url: /algorithms/AnchorSampling.html
     - title: QS Calibration
       url: /algorithms/QSCalibration.html
     - title: Distributed QuickSampling

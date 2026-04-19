@@ -227,20 +227,25 @@ public:
 			kernelCenter=kernelCenter*kernel->_dims[i]+kernel->_dims[i]/2;
 		}
 
-		for (size_t orderIndex = 0; orderIndex < candidateOrder.size(); ++orderIndex)
-		{
-			const unsigned ti=candidateOrder[orderIndex];
-			const bool centerValid=(variableOfInterest==UINT_MAX)
-				? bool(_stack->_centerValidVector[_stack->vectorValidityIndex(currentCell,ti)])
-				: bool(_stack->_centerValidScalar[_stack->scalarValidityIndex(currentCell,variableOfInterest,ti)]);
-			if(!centerValid){
-				continue;
-			}
+			for (size_t orderIndex = 0; orderIndex < candidateOrder.size(); ++orderIndex)
+			{
+				const unsigned ti=candidateOrder[orderIndex];
+				const bool centerValid=(variableOfInterest==UINT_MAX)
+					? bool(_stack->_centerValidVector[_stack->vectorValidityIndex(currentCell,ti)])
+					: bool(_stack->_centerValidScalar[_stack->scalarValidityIndex(currentCell,variableOfInterest,ti)]);
+				if(!centerValid){
+					continue;
+				}
 
-			float maskWeight=std::nanf("0");
-			if(_stack->_hasMask){
-				maskWeight=_stack->_maskWeights[_stack->maskIndex(currentCell,ti)];
-			}
+				float maskWeight=std::nanf("0");
+				if(_stack->_hasMask){
+					maskWeight=_stack->_maskWeights[_stack->maskIndex(currentCell,ti)];
+					// Apply the mask admissibility before ranking: NaN/inf/non-positive
+					// entries are excluded and cannot be part of the top-k set.
+					if(!std::isfinite(maskWeight) || maskWeight<=0.f){
+						continue;
+					}
+				}
 
 			float score=0.f;
 			float support=0.f;

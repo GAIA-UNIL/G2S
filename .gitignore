@@ -32,6 +32,7 @@
 *.app
 
 *.bk
+*.auto_bk
 
 *.bgrid
 build/c++-build/*
@@ -68,5 +69,7 @@ build/algosName.config
 _site
 Gemfile.lock
 build/python-build/g2s/_version.py
+# Auto-fetched by build/Makefile after a failed zmq.hpp compile probe
 include/zmq.hpp
+docs/algorithms/example/
 change_odc.md
