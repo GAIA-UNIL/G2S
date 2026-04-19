@@ -67,6 +67,17 @@ else
 	export OPENCL_LIB=
 endif
 
+ZMQ_HPP_PATH := ../include/zmq.hpp
+ZMQ_HPP_AVAILABLE := $(shell echo 'int main(){}' | c++ -xc++ -include zmq.hpp - -o /dev/null $(CFLAGS) $(INC) $(LIBINC) $(OPENCL_INC) 2>/dev/null && echo 1 || echo 0)
+ifeq ($(ZMQ_HPP_AVAILABLE),0)
+ZMQ_HPP_DOWNLOADED := $(shell command -v wget >/dev/null 2>&1 && mkdir -p ../include && wget -q "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O "$(ZMQ_HPP_PATH).tmp" && mv "$(ZMQ_HPP_PATH).tmp" "$(ZMQ_HPP_PATH)" && echo 1 || echo 0)
+ifeq ($(ZMQ_HPP_DOWNLOADED),1)
+$(info Downloaded missing zmq.hpp to $(ZMQ_HPP_PATH))
+else
+$(error zmq.hpp is missing and automatic download failed. Install wget or place include/zmq.hpp manually)
+endif
+endif
+
 dosentSupportOMP:= $(shell echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 1 || echo 0)
 ifeq ($(dosentSupportOMP),1)
 	export CFLAGS += -fopenmp

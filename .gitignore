@@ -32,6 +32,7 @@
 *.app
 
 *.bk
+*.auto_bk
 
 *.bgrid
 build/c++-build/*
@@ -55,6 +56,8 @@ build/python-build/G2S.egg-info
 build/python-build/build
 build/python-build/dist
 *.pyc
+__pycache__/
+.pytest_cache/
 
 *.config
 *.Rhistory
@@ -68,5 +71,12 @@ build/algosName.config
 _site
 Gemfile.lock
 build/python-build/g2s/_version.py
+# Auto-fetched by build/Makefile after a failed zmq.hpp compile probe
 include/zmq.hpp
+docs/algorithms/example/
 change_odc.md
+/build/python-build/include
+/build/python-build/include_interfaces
+/build/python-build/src
+/build/python-build/src_interfaces
+/build/python-build/jsoncpp

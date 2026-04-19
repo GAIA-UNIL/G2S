@@ -13,14 +13,14 @@
 <div class="langcontent code interface python">
 ```python
 #This code requires the G2S server to be running
-{% assign url="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/python/" | append: include.exampleName | append: ".py" %}
-{% remote_include url %}
+{% assign local_path="example/python/" | append: include.exampleName | append: ".py" %}
+{% include_relative {{ local_path }} %}
 ```
 </div>
 <div class="langcontent code interface matlab">
 ```matlab
 %This code requires the G2S server to be running
-{% assign url="https://raw.githubusercontent.com/GAIA-UNIL/G2S/master/example/matlab/" | append: include.exampleName | append: ".m" %}
-{% remote_include url %}
+{% assign local_path="example/matlab/" | append: include.exampleName | append: ".m" %}
+{% include_relative {{ local_path }} %}
 ```
 </div>

@@ -14,6 +14,8 @@ For a lighter parameter-tuning workflow, see [QS Calibration]({{ site.baseurl }}
 
 For cluster-oriented and multi-job distributed execution, see [Distributed QuickSampling]({{ site.baseurl }}/algorithms/DistributedQuickSampling.html).
 
+For the aligned-stack, location-anchored variant of this workflow, see [Anchor Sampling]({{ site.baseurl }}/algorithms/AnchorSampling.html).
+
 ## Parameters for QS
 
 Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
@@ -197,5 +199,4 @@ sim=g2s('-a','qs','-ti',ti2,'-di',sim,'-dt',dt,'-n',50,'-k',1.5,'-j',0.5,'-ki',k
 imshow(medfilt2(sim))
 pause(5)
 ```
-
 

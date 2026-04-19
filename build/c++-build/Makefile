@@ -21,7 +21,7 @@ export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py qs_decentralized_slur
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds-l snesim libg2s.a errorTest test auto_qs algoNames distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs as nds ds-l snesim libg2s.a errorTest test auto_qs algoNames distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -48,6 +48,9 @@ g2s_cuda.so:  NvidiaGPUAcceleratorDevice.o
 
 qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(QS_DISTRIBUTED_LIBS) $(OPENCL_LIB)
+
+as: as.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY)
 
 nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
@@ -99,6 +102,7 @@ install:create_install_path all
 	@cp -f ../g2s $(INSTALL_DIR)/bin
 	@cp -f ./g2s_server $(INSTALL_DIR)/libexec
 	@cp -f ./qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs' is missing !!\e[0m\n"
+	@cp -f ./as $(INSTALL_DIR)/libexec || printf "\e[31error: 'as' is missing !!\e[0m\n"
 	@cp -f ./nds $(INSTALL_DIR)/libexec || printf "\e[31error: 'nds' is missing !!\e[0m\n"
 	@cp -f ./ds-l $(INSTALL_DIR)/libexec || printf "\e[31error: 'ds-l' is missing !!\e[0m\n"
 	@cp -f ./auto_qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'auto_qs' is missing !!\e[0m\n"
@@ -114,7 +118,7 @@ install:create_install_path all
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf g2s_server echo test qs nds ds ds-l errorTest auto_qs snesim
+	rm -rf g2s_server echo test qs as nds ds ds-l errorTest auto_qs snesim
 	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend

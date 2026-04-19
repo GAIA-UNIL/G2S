@@ -20,6 +20,8 @@ Currently, the framework is provided with:
 
 - **QuickSampling (QS)** *(aka. Quantile Sampling)* is a general-purpose pixel-based MPS algorithm that is designed to be robust, efficient, and run in constant time. QS was designed to adapt to your problem; it can be used to do (un)conditional simulation, gap filling, or even downscaling, using continuous or categorical variables or a combination of both. The code was developed without restrictions regarding the dimensionality of the data *(e.g. 1D, 2D, 3D, nD)*.
   - A journal article published in Geoscientific Model Development describes the method [here](https://gmd.copernicus.org/articles/13/2611/2020/).
+- **Anchor Sampling (AS)** is a location-anchored variant of QS for aligned training-image stacks. Neighborhood matching still drives the selection, but when simulating a pixel at a given coordinate, the sampled center value can only come from that exact same coordinate across the TI stack. AS supports continuous, categorical, multivariate, kernel-based, path-based, and masked-prior workflows, while exporting the selected TI id as the index image.
+  - Pronunciation note: say **AS** like the French *as* (the ace of a deck) 🂡, or spell it **A, S**. Do not pronounce it like “ass”.
 - **Narrow Distribution Selection (NDS)** is an algorithm specifically targeted to simulate spectrally enhanced remote-sensed imagery. It requires an external variable *(for example, a grayscale image)* to control the simulation *(of colors)*.
   - A paper describing it is available here: [Analogue-based colorization of remote sensing images using textural information](https://doi.org/10.1016/j.isprsjprs.2018.11.003).
 
