@@ -16,10 +16,13 @@
   sublinks:
     - title: QuickSampling
       url: /algorithms/QuickSampling.html
+    - title: QS Calibration
+      url: /algorithms/QSCalibration.html
+    - title: Distributed QuickSampling
+      url: /algorithms/DistributedQuickSampling.html
     - title: Narrow Distribution Selection
       url: /algorithms/NarrowDistributionSelection.html
+    - title: SNESIM
+      url: /algorithms/SNESIM.html
     - title: AutoQS
       url: /algorithms/AutoQS.html
-
-
-

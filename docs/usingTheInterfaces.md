@@ -55,7 +55,7 @@ You can either write `'-flag',value` or `flag=value` or a mix of both.
 
 ## Use g2s in R {#R-lang}
 
-The R interface is not available at this moment. Please contact g2s@mgravey.com if you need it.
+An R interface is available in the repository. Please refer to the installation page for the current build instructions.
 
 </div>
 
@@ -68,20 +68,20 @@ The R interface is not available at this moment. Please contact g2s@mgravey.com 
 | `-sa`           | Server address (default: localhost (the server is local), otherwise provide IP address). Nice when we have a powerful machine dedicated for computation                     |
 | `-p`            | Port where to look for the server (default: 8128). Should be passed as an integer.                          |
 | `-silent`       | Don't display the progression, useful for scripts                                                          |
-| `-serverStatus` | Inform if the server is working properly <br><1 &#8594; error, such as comunication, server shutdown,...)<br>=0 &#8594; undefined <br>>1 &#8594; server is operational <br>1: standard server working normaly |
-| `-noTO`         | Deactivate TimeOut on ZMQ communication, useful for slow network (e.g., through internet)                   |
-| `-TO`           | Specify a custom TimeOut on ZMQ communication( uint32 in millisecond )                                      |
+| `-serverStatus` | Query the server status without submitting a job. Typical return values are negative for communication errors, `0` for an undefined status, and positive values when the server is operational. |
+| `-noTO`         | Deactivate the communication timeout on the client side. Useful for slow or unstable network connections. |
+| `-TO`           | Specify a custom communication timeout in milliseconds for the client side ZMQ socket. |
 | `-shutdown`     | Shutdown the server, useful at the end of scripts                                                          |
 
+For distributed QuickSampling, the Python and MATLAB interfaces also accept native `-jg` / `-job_grid` matrices. They automatically convert these matrices to the JSON payload expected by the distributed helpers, and the interface-side normalization prefers the short flag `-jg`.
 
 ### Asynchronous mode flags
 The following options represent the **Asynchronous mode**, which allows you to submit multiple jobs simultaneously and retrieve the results of each of them later on (as opposed to synchronous communication with the server, where you need to wait until a job is finished before you can submit a new one). You launch the async mode by simply adding the `-submitOnly` flag to your g2s call. This will give only the job ID as an output, so the g2s call becomes `jobid = g2s(flag1,value1, flag2,value2, ...)`. Don't forget to always include the server address if it's not local! See the example section for a demonstration in *MATLAB* and *Python*.
 
 | Flag             | Description                                                 |
 |------------------|-------------------------------------------------------------|
-| `-submitOnly`      | Submit a job                                                |
+| `-submitOnly`      | Submit a job and return only the job id. |
 | `-statusOnly`      | Check progression <br>Usage: `status = g2s('-statusOnly',jobid)` |
 | `-waitAndDownload` | Download the result <br>Usage: `sim,_ = g2s('-waitAndDownload',jobid)` |
 | `-kill`            | Kill a given task <br>Usage: `g2s('-kill',jobid)`               |
-| `-after`           | Execute the job after another one is finished (e.g. `-after,previousJobId` ) |
-
+| `-after`           | Add one or more job dependencies. The submitted job starts only after the specified job id(s) are finished. Use `'-after',0` to explicitly allow independent jobs to run in parallel through the G2S dependency manager. |

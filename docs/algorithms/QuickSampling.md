@@ -10,6 +10,10 @@ redirect_from:
 
 # QuickSampling QS
 
+For a lighter parameter-tuning workflow, see [QS Calibration]({{ site.baseurl }}/algorithms/QSCalibration.html).
+
+For cluster-oriented and multi-job distributed execution, see [Distributed QuickSampling]({{ site.baseurl }}/algorithms/DistributedQuickSampling.html).
+
 ## Parameters for QS
 
 Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
@@ -193,8 +197,5 @@ sim=g2s('-a','qs','-ti',ti2,'-di',sim,'-dt',dt,'-n',50,'-k',1.5,'-j',0.5,'-ki',k
 imshow(medfilt2(sim))
 pause(5)
 ```
-
-
-
 
 

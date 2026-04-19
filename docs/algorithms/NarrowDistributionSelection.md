@@ -1,5 +1,5 @@
 ---
-title: QuickSampling
+title: Narrow Distribution Selection
 author:
   - Mathieu Gravey
 date: 2023-03-13
@@ -13,27 +13,30 @@ redirect_from:
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
-| `-ti` | Training images (one or more images). If multivariate, the last dimension should be the same size as the number of variables, and should also match the size of the array given for the parameter dt. NaN values in the training image will be ignored. Unlike other MPS-algorithms, if there are multiple variables they will not be automatically normalized to be in the same range. | &#x2714; |
-| `-di` | Destination image (one image, aka simulation grid). The size of di will be the size of the simulation grid. di can be identical as ti for gap-filing. NaN values will be simulated. Non-NaN values will be considered as conditioning data. | &#x2714; |
-| `-dt` | Data type. 0 -> continuous and 1 -> categorical. This is where the number of variables is defined. If multiple variables, use a single N value if identical for all variables or use an array of N values if each variable has a different N. | &#x2714; |
-| `-k` | Number of best candidates to consider to compute the narrowness, range [5, inf]. | &#x2714; |
-| `-n` | N closest neighbors to consider. | &#x2714; |
-| `-ki` | Image of the weighting kernel. Can be used to normalize the variables. If multiple variables, use a single kernel value if identical for all variables. If each variable has a different kernel, stack all kernels along the last dimension. The number of kernels should then match the size of the array given for the parameter dt. |  |
-| `-nw` | Narrowness range: 0 -> max-min, 1 -> median, default IQR -> 0.5. |  |
-| `-nwv` | Number of variables to consider in the narrowness (start from the end), default: 1. |  |
-| `-cs` | Chunk size, the number of pixels to simulate at the same time, at each iteration, default: 1. |  |
-| `-uds` | Area to update around each simulated pixel, the M closest pixel default: 10. |  |
-| `-mp` | Partial simulation, 0 -> empty, 1 -> 100%. |  |
-| `-s` | Seed value. |  |
-| `-j` | To run in parallel (default is single core). To use as follows: `-j`, N1, N2, N3 (all three are optional but N3 needs N2, which in turn needs N1). Use integer values to specify a number of threads (or logical cores). Use decimal values ∈ ]0,1[ to indicate fraction of the maximum number of available logical cores (e.g., 0.5=50% of all available logical cores). N1 threads used to parallelize the path (path-level) Default: the maximum number of threads available. N2 threads used to parallelize over training images (if many TIs are available, each is scanned on a different core). Default: 1. N3 threads used to parallelize FFTs (node-level). Default: 1. N1 and N2 are recommended over N3. N1 is usually more efficient than N2, but requires more memory. |  |
-| `-W_GPU` | Use integrated GPU if available. |  |
-| `-nV` | No Verbatim (experimental). |  |
+| `-ti` | Training images (one or more images). If multivariate, the last dimension should match the number of variables and the size of `-dt`. NaN values in the training image are ignored. | &#x2714; |
+| `-di` | Destination image (simulation grid). NaN values are simulated and non-NaN values are treated as conditioning data. | &#x2714; |
+| `-dt` | Data type. `0` for continuous and `1` for categorical. This also defines the number of variables. | &#x2714; |
+| `-k` | Number of best candidates used to evaluate the narrowness. | &#x2714; |
+| `-ki` | Weighting kernel. This defines the search neighborhood and can also be used to normalize variables. If omitted, NDS generates a default kernel internally. |  |
+| `-nw` | Narrowness range. `0` corresponds to max-min, `1` approaches the median, default is `0.5` (interquartile range). |  |
+| `-nwv` | Number of variables used to compute the narrowness, counted from the end of the variable list. Default: `1`. |  |
+| `-cs` | Chunk size: number of pixels simulated together at each iteration. Default: `1`. |  |
+| `-uds` | Update radius: number of nearby pixels updated around each simulated pixel. Default: `10`. |  |
+| `-mp` | Partial simulation ratio. `0` means empty and `1` means a full simulation. Default: `1`. |  |
+| `-s` | Random seed. |  |
+| `-j` | Parallel execution settings. Use `-j`, `N1`, `N2`, `N3`, where all three values are optional but `N3` requires `N2`, and `N2` requires `N1`. Decimal values in `]0,1[` represent a fraction of the available logical cores. |  |
+| `-wd` | Use the kernel distance. |  |
+| `-ed` | Use the Euclidean distance. This is the default. |  |
+| `-md` | Use the Manhattan distance. |  |
+| `-W_GPU` | Use an integrated GPU if available. |  |
+| `-nV` | No Verbatim mode (experimental). |  |
 
 ## Examples
+
+NDS is primarily intended for spectrally guided simulation and colorization tasks. The active implementation is controlled by the narrowness parameters `-nw` and `-nwv`, together with the chunking and update controls `-cs`, `-uds`, and `-mp`.
 
 ## Publication
 
 *Gravey, M., Rasera, L. G., & Mariethoz, G. (2019). Analogue-based colorization of remote sensing images using textural information. ISPRS Journal of Photogrammetry and Remote Sensing, 147, 242–254. https://doi.org/10.1016/j.isprsjprs.2018.11.003*
-
 
 

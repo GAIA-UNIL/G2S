@@ -59,6 +59,16 @@ Probably ZMQ is not already installed, and don't expect that they will install i
 
 The previous script updates the Makefile automatically, so refer to the standard Linux installation. ⚠️ Be careful to compile in a computational node and not on the front node; otherwise, you can have lots of painful issues later.
 
+For distributed QuickSampling, the default cluster build should include distributed support:
+
+```bash
+make G2S_QS_DISTRIBUTED=1 -j
+```
+
+If you want this build to be the default one that users can copy-paste on a cluster, keep `G2S_QS_DISTRIBUTED=1` in the compilation command.
+
+If `-jg` is used with a build that does not include distributed support, QS fails early and asks for recompilation with `make G2S_QS_DISTRIBUTED=1`.
+
 ## Execute the G2S server
 
 Take a deep breath and don't give up; it's almost finished!
@@ -107,6 +117,8 @@ Once the server runs on the front node use '‑submitOnly','‑statusOnly' and '
 A standard job submission should look like id=g2s(... usualParameter,'‑statusOnly','‑after',0).
 and to get the final result sim=g2s('‑waitAndDownload',id)
 
+For the dedicated distributed QS workflow, launcher selection, build requirements, and JSON grid inputs, see [Distributed QuickSampling]({{ site.baseurl }}/algorithms/DistributedQuickSampling.html).
+
 ## Using nodeParallel
 NodeParallel (NP) allow to forward command from one node to another, in our context from the login node to some worker nodes (it require a shared file system). Therefore we can use NP to forward computation command to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue.
 
@@ -116,4 +128,3 @@ To use it simple download NP from its github page, follow the instruction to ins
 2. When running the G2S server, add the -maxCJ n flag, with n between the number and few(<4x) times the number of jobs you plan to run in parallel.
 3. Start (and you can even finish) to submit G2S tasks. (Refer to the previous sections to communicate with the login node, ssh tunneling, open ports on the login node ...). Don't forget the '-after',0 to allow parallel computations.
 4. Finally, run workers by submitting tasks to the normal submission queue(or directly to the computation nodes ) using the np_client -sa $HOSTNAME -sac -w in the folder that contain the G2S server. With $HOSTNAME the name or IP of the login node.
-
