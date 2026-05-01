@@ -19,6 +19,7 @@
 #define DATA_IMAGE_HPP
 
 #include <cmath>
+#include <cctype>
 #include <iostream>
 #include <cstring>
 #include <limits>
@@ -32,6 +33,16 @@ char* writeRawData(char* data, bool compresed=false);
 void createLink(char* outputFullFilename, char* fullFilename);
 
 namespace g2s{
+
+inline bool isSafeDataImageName(const std::string &filename){
+	if(filename.empty()) return false;
+	for (size_t i = 0; i < filename.size(); ++i)
+	{
+		const unsigned char c=static_cast<unsigned char>(filename[i]);
+		if(!(std::isalnum(c) || c=='_' || c=='.' || c=='-')) return false;
+	}
+	return true;
+}
 
 class DataImage{
 	public:
@@ -273,6 +284,11 @@ class DataImage{
 		if(!outputName) return;
 		//fprintf(stderr, "save as %s\n",outputName );
 		//fprintf(stderr, "save as %s\n",filename.c_str() );
+		if(!isSafeDataImageName(filename)){
+			fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filename.c_str());
+			free(outputName);
+			return;
+		}
 		char fullFilename[2048];
 		char outputFullFilename[2048];
 		char extra[16]={0};

@@ -18,6 +18,8 @@
 #ifndef QUANTILE_SAMPLING_MODULE_HPP
 #define QUANTILE_SAMPLING_MODULE_HPP
 
+#include <cmath>
+#include <limits>
 #include "samplingModule.hpp"
 #include "AcceleratorDevice.hpp"
 #include "fKst.hpp"
@@ -39,6 +41,12 @@ private:
 
 	std::vector<float*> _errors;
 	std::vector<unsigned*> _encodedPosition;
+
+	inline unsigned seedFromUnitFloat(float seed) const{
+		if(!std::isfinite(seed) || seed<=0.f) return 0;
+		if(seed>=1.f) return std::numeric_limits<unsigned>::max();
+		return static_cast<unsigned>(std::floor(static_cast<double>(seed)*static_cast<double>(std::numeric_limits<unsigned>::max())));
+	}
 public:
 	
 	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector,
@@ -453,7 +461,8 @@ private:
 
 		if(fullStationary){
 			std::mt19937 generator;
-			generator.seed(floor(UINT_MAX*seed)-1);
+			unsigned baseSeed=seedFromUnitFloat(seed);
+			generator.seed(baseSeed>0 ? baseSeed-1 : 0);
 			for (int i = 0; i < vectorSize-ceil(vectorSize/localk); ++i)
 			{
 				toUpdate[i]=false;
@@ -522,7 +531,7 @@ private:
 						k=omp_get_thread_num();
 						#endif
 						std::mt19937 generator;// can be inprouved by only resetting the seed each time
-						generator.seed(floor(UINT_MAX*seed)+k);
+						generator.seed(seedFromUnitFloat(seed)+k);
 						std::uniform_real_distribution<float> distribution(0.0,1.0);
 
 						auto rng = std::bind(distribution, std::ref(generator));

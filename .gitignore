@@ -44,6 +44,7 @@ CODE_REVIEW_REPORT*.tmp
 g2s_server*.log
 /tmp/G2S/
 
+# Generated local-only DataImage binary data files
 *.bgrid
 build/c++-build/*
 !build/c++-build/Makefile
@@ -69,8 +70,10 @@ build/python-build/dist
 __pycache__/
 .pytest_cache/
 
+# Local configuration/runtime files
 *.config
 *.Rhistory
+*.log
 
 *.depend
 .depend

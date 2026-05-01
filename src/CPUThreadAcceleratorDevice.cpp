@@ -17,7 +17,9 @@
 
 //To use only for debugging purpose
 
+#include <cmath>
 #include <cstring>
+#include <limits>
 #include "CPUThreadAcceleratorDevice.hpp"
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
@@ -26,6 +28,12 @@
 #include "fKst.hpp"
 
 #define PARTIAL_FFT
+
+static unsigned seedFromUnitFloat(float seed){
+	if(!std::isfinite(seed) || seed<=0.f) return 0;
+	if(seed>=1.f) return std::numeric_limits<unsigned>::max();
+	return static_cast<unsigned>(std::floor(static_cast<double>(seed)*static_cast<double>(std::numeric_limits<unsigned>::max())));
+}
 
 #ifndef FFTW_PLAN_OPTION
 	//FFTW_PATIENT
@@ -432,7 +440,7 @@ void CPUThreadAcceleratorDevice::searchKBigest(float* errors,unsigned *encodedPo
 		k=omp_get_thread_num();
 		#endif
 		std::mt19937 generator;// can be inprouved by only resetting the seed each time
-		generator.seed(floor(UINT_MAX*seed)+k);
+		generator.seed(seedFromUnitFloat(seed)+k);
 		std::uniform_real_distribution<float> distribution(0.0,1.0);
 
 		auto rng = std::bind(distribution, std::ref(generator));

@@ -171,7 +171,29 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
-		if(0==strcmp(argv[i], "-maxCJ") && !parseUnsignedOption("-maxCJ", i, 1, std::numeric_limits<unsigned>::max(), maxNumberOfConcurrentJob)) return EXIT_FAILURE;
+		if(0==strcmp(argv[i], "-maxCJ")) {
+			if(i+1 >= argc) {
+				fprintf(stderr, "Missing value for -maxCJ\n");
+				return EXIT_FAILURE;
+			}
+
+			const char* value=argv[i+1];
+			if(value[0] == '\0') {
+				fprintf(stderr, "Invalid value for -maxCJ: %s\n", value);
+				return EXIT_FAILURE;
+			}
+
+			char* end=nullptr;
+			errno=0;
+			long parsed=strtol(value, &end, 10);
+			if(errno == ERANGE || end == value || *end != '\0' || parsed > static_cast<long>(std::numeric_limits<unsigned>::max())) {
+				fprintf(stderr, "Invalid value for -maxCJ: %s\n", value);
+				return EXIT_FAILURE;
+			}
+
+			maxNumberOfConcurrentJob=parsed<1 ? 1 : static_cast<unsigned>(parsed);
+			++i;
+		}
 		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
 		{
 			maxFileAge=atof(argv[i+1]);
