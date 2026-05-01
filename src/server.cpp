@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cerrno>
+#include <limits>
 #include <unistd.h> /* for fork */
 #include <sys/types.h> /* for pid_t */
 #include <sys/wait.h> /* for wait */
@@ -101,10 +103,35 @@ int main(int argc, char const *argv[]) {
 	bool keepOldData=false;
 	float timeoutDuration=std::nanf("0");
 	double maxFileAge=24*3600.;
-	short port=8128;
+	unsigned port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
 	bool moveToServerFolder=true;
 	bool allowUnregisteredAlgorithm=false;
+
+	auto parseUnsignedOption = [&](const char* option, int &i, unsigned minimum, unsigned maximum, unsigned &destination) {
+		if(i+1 >= argc) {
+			fprintf(stderr, "Missing value for %s\n", option);
+			return false;
+		}
+
+		const char* value=argv[i+1];
+		if(value[0] == '\0' || value[0] == '-') {
+			fprintf(stderr, "Invalid value for %s: %s\n", option, value);
+			return false;
+		}
+
+		char* end=nullptr;
+		errno=0;
+		unsigned long parsed=strtoul(value, &end, 10);
+		if(errno == ERANGE || end == value || *end != '\0' || parsed < minimum || parsed > maximum) {
+			fprintf(stderr, "Invalid value for %s: %s (expected %u-%u)\n", option, value, minimum, maximum);
+			return false;
+		}
+
+		destination=static_cast<unsigned>(parsed);
+		++i;
+		return true;
+	};
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -117,12 +144,12 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
-		if(0==strcmp(argv[i], "-maxCJ")) maxNumberOfConcurrentJob=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-maxCJ") && !parseUnsignedOption("-maxCJ", i, 1, std::numeric_limits<unsigned>::max(), maxNumberOfConcurrentJob)) return EXIT_FAILURE;
 		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
 		{
 			maxFileAge=atof(argv[i+1]);
 		}
-		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-p") && !parseUnsignedOption("-p", i, 1, 65535, port)) return EXIT_FAILURE;
 		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
 		if((0==strcmp(argv[i], "--allow-unregistered-algorithms")) || (0==strcmp(argv[i], "-allowUnregisteredAlgorithm"))) allowUnregisteredAlgorithm=true;
 	}
@@ -370,7 +397,7 @@ int main(int argc, char const *argv[]) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, false);
+							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), false, false);
 							sendIntReply(error);
 							break;
 						}

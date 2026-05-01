@@ -147,7 +147,7 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 	char* rawData=image.serialize();
 	size_t fullsize=*((size_t*)rawData);
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize, hash.begin(), hash.end());
 
 	//check existance
 	infoContainer task;

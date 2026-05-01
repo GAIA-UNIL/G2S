@@ -722,6 +722,9 @@ int main(int argc, char const *argv[]) {
 			calibration(reportFile, meanErrorimage, devErrorimage, numberOFsampleimage, TIs, kernels, QSM, pathPosition, 
 					listNbNeihbours, densityArray, categoriesValues, metricPower, nbThreads,maxNumberOfIteration, minNumberOfIteration, maxt, levelOfNoise);
 			break;
+		case fullSim:
+		case augmentedDimSim:
+			break;
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
