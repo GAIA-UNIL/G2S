@@ -47,18 +47,18 @@ bool resolveRegisteredAlgorithm(const char* algo, std::string* exeName, std::vec
 		char* line=(char*)malloc(sizeBuffer);
 		ssize_t readedSize;
 		char sourceName[1024];
-		char tagetName[1024];
+		char targetName[1024];
 		char requested[2048];
 		char toAdd[2048];
 		char extra[2048];
 		char comment[2048];
 		while((readedSize=getline(&line, &sizeBuffer, fp))!=-1){
-			memset(sourceName,0,1024);memset(tagetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
+			memset(sourceName,0,1024);memset(targetName,0,1024);memset(requested,0,2048);memset(toAdd,0,2048);
 			memset(requested,0,2048);memset(toAdd,0,2048);memset(extra,0,2048);memset(comment,0,2048);
 			if((readedSize>1) && ((line[0]!='/') && (line[0]!='#'))){
-				if(sscanf(line, "%1023s\t%1023s\t%2047s\t%2047s\t%2047s\t%2047s",sourceName,tagetName,requested,toAdd,extra,comment)>=2){
+				if(sscanf(line, "%1023s\t%1023s\t%2047s\t%2047s\t%2047s\t%2047s",sourceName,targetName,requested,toAdd,extra,comment)>=2){
 					if (strcmp(sourceName,algo)==0){
-						if(exeName!=nullptr) *exeName=tagetName;
+						if(exeName!=nullptr) *exeName=targetName;
 						algorithmRegistered=true;
 						if(listOfMendatory!=nullptr){
 							char * pch;
@@ -397,7 +397,7 @@ jobIdType stackJob(Json::Value job,jobQueue &queue){
 	return uniqueId;	
 }
 
-jobIdType recieveJob(jobQueue &queue,void* data, size_t sizeBuffer, bool allowUnregisteredAlgorithm)
+jobIdType receiveJob(jobQueue &queue,void* data, size_t sizeBuffer, bool allowUnregisteredAlgorithm)
 {
 	jobIdType id=-1;
 	Json::CharReaderBuilder builder;

@@ -5,7 +5,7 @@
 typedef unsigned jobIdType;
 
 static char module_docstring[] =
-"This module provides an interface for computing geostatistical simulation remotly using G2S";
+"This module provides an interface for computing geostatistical simulation remotely using G2S";
 static char run_docstring[] = "Executing a simulation";
 static char load_docstring[] = "load a dataImage from G2S";
 static char write_docstring[] = "write a dataImage from G2S";
@@ -103,8 +103,8 @@ static PyObject *g2s_loadData(PyObject *self, PyObject *args, PyObject *keywds)
     for (size_t i = 0; i < loadedImage._types.size(); ++i)
     {
         switch(loadedImage._types[i]){
-            case g2s::DataImage::VaraibleType::Continuous:  typePtr[i]=0; break;
-            case g2s::DataImage::VaraibleType::Categorical: typePtr[i]=1; break;
+            case g2s::DataImage::VariableType::Continuous:  typePtr[i]=0; break;
+            case g2s::DataImage::VariableType::Categorical: typePtr[i]=1; break;
         }
     }
     PyObject* pyResult=PyTuple_New(2);

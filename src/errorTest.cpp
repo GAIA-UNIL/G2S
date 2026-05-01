@@ -35,7 +35,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
 	std::string kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;

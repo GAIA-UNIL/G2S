@@ -2,6 +2,8 @@
 
 ## 2026-05-01
 
+- Standardized typo-like internal names across C++ interfaces and examples, including conversion types, frequency memory-address types, cross-measurement helpers, and stale misspelled example filenames.
+- Fixed obvious spelling mistakes in comments, status messages, and build helper output.
 - Made the Python build preprocess step remove ignored generated source/header mirrors before copying fresh repository trees.
 - Documented `build/python-build` generated trees as ephemeral packaging inputs and added server protocol schema/validation notes.
 - Documented `.bgrid` / `DataImage` serialization as an internal local-only binary format, not a portable exchange or archival format.

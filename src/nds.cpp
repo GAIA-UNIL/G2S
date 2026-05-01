@@ -47,7 +47,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
 	std::string kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -421,7 +421,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	if(!run){
-		fprintf(reportFile, "simulation interupted !!\n");
+		fprintf(reportFile, "simulation interrupted !!\n");
 		return 0;
 	}
 	
@@ -527,37 +527,37 @@ int main(int argc, char const *argv[]) {
 
 	
 
-	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
+	g2s::DataImage weightKernel=kernel.emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 		{
-			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+			weightKernel._data[i]=-weightKernel.distance2ToCenter(i);
 		}
 	}
 	if(searchDistance==g2s::KERNEL){
 		unsigned nbV=kernel._nbVariable;
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 		{
 			for (unsigned int j = 0; j < nbV; ++j)
 			{
-				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
+				if(fabs(kernel._data[i*nbV+j])>weightKernel._data[i])weightKernel._data[i]=fabs(kernel._data[i*nbV+j]);
 			}
 		}
 		
 	}
 
 	unsigned center=0;
-	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
-	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+	g2s::DataImage* weightKernelPtr=weightKernel.ptr();
+	for (int i =  weightKernelPtr->_dims.size()-1; i>=0 ; i--)
 	{
-		center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
+		center=center*weightKernelPtr->_dims[i]+(weightKernelPtr->_dims[i]-1)/2;
 	}
 
-	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+	std::sort(pathPosition.begin(),pathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
+		weightKernelPtr->indexWithDelta(l1, center, a);
+		weightKernelPtr->indexWithDelta(l2, center, b);
+		return weightKernelPtr->_data[l1] > weightKernelPtr->_data[l2];
 	});
 
 	simulationPath=DI.emptyCopy(true);
@@ -581,53 +581,53 @@ int main(int argc, char const *argv[]) {
 	std::vector<SharedMemoryManager*> sharedMemoryManagerVector;// a new shared memory manager for each TI
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
-	bool needCrossMesurement=false;
+	bool needCrossMeasurement=false;
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
-		#pragma omp simd reduction(|:needCrossMesurement)
+		#pragma omp simd reduction(|:needCrossMeasurement)
 		for (unsigned int j = 0; j < TIs[i].dataSize(); ++j)
 		{
-			needCrossMesurement|=std::isnan(TIs[i]._data[j]);
+			needCrossMeasurement|=std::isnan(TIs[i]._data[j]);
 		}
 	}
 
-	bool varaibleTypeAreCompatible=true;
+	bool variableTypeAreCompatible=true;
 
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
+			variableTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
 	}
 
-	if(!varaibleTypeAreCompatible) {
+	if(!variableTypeAreCompatible) {
 
-		fprintf(reportFile, "TI(s) not compatible to gather or/and with the DI ==> simulation interupted !!\n");
+		fprintf(reportFile, "TI(s) not compatible with each other and/or the DI ==> simulation interrupted !!\n");
 		return 0;
 	}
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		if((TIs[i]._types.size())!=(DI._types.size())){
-			varaibleTypeAreCompatible=false;
+			variableTypeAreCompatible=false;
 			break;
 		}
 		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
+			variableTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
 	}
 
 	std::vector<std::vector<float> > categoriesValues;
-	std::vector<unsigned> numberDeComputedVariableProVariable;
+	std::vector<unsigned> numberOfComputedVariablesPerVariable;
 	for (size_t i = 0; i < DI._types.size(); ++i)
 	{
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
-			numberDeComputedVariableProVariable.push_back(1);
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+		if(DI._types[i]==g2s::DataImage::VariableType::Continuous)
+			numberOfComputedVariablesPerVariable.push_back(1);
+		if(DI._types[i]==g2s::DataImage::VariableType::Categorical){
 			std::vector<float> currentVariable;
 			for (size_t im = 0; im < TIs.size(); ++im)
 			{
@@ -644,18 +644,18 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			categoriesValues.push_back(currentVariable);
-			numberDeComputedVariableProVariable.push_back(currentVariable.size());
+			numberOfComputedVariablesPerVariable.push_back(currentVariable.size());
 		}
 	}
 
 	// correct the kernel to take in account categories
-	kernel=g2s::DataImage::offsetKernel4categories(kernel,numberDeComputedVariableProVariable);
+	kernel=g2s::DataImage::offsetKernel4categories(kernel,numberOfComputedVariablesPerVariable);
 
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
-	std::vector<g2s::OperationMatrix> coeficientMatrix;
-	std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector;
-	std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector;
-	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, needCrossMesurement, categoriesValues);
+	std::vector<std::vector<conversionType> > conversionTypeVectorMainVector;
+	std::vector<g2s::OperationMatrix> coefficientMatrix;
+	std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector;
+	TIs[0].generateCoefMatrix4Xcorr(coefficientMatrix, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, needCrossMeasurement, categoriesValues);
 
 
 
@@ -663,13 +663,13 @@ int main(int argc, char const *argv[]) {
 	{
 		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
 
-		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
+		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMeasurement, categoriesValues);
 
 		for (size_t j = 0; j < variablesImages.size(); ++j)
 		{
 			for (size_t k = 0; k < variablesImages[j].size(); ++k)
 			{
-				smm->addVaraible(variablesImages[j][k]._data);
+				smm->addVariable(variablesImages[j][k]._data);
 			}
 		}
 		// alloc module
@@ -678,7 +678,7 @@ int main(int argc, char const *argv[]) {
 
 		#endif
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(nbThreadsLastLevel,coefficientMatrix, smm, nbThreads, needCrossMeasurement)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -687,16 +687,16 @@ int main(int argc, char const *argv[]) {
 /*
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					OpenCLGPUDevice* singleThread=new OpenCLGPUDevice(smm, coefficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMeasurement);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 				#endif*/
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					CPUThreadDevice* singleThread=new CPUThreadDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 			}
@@ -706,7 +706,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, noVerbatim, !needCrossMeasurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel);
 	QSM.setNarrownessFunction([&TIs,narrownessRange, nbBandsForNarrowness](float* errors, unsigned int *tiId, unsigned int *indexId , unsigned int nb){
 		unsigned nbVariable=TIs[0]._nbVariable;
 		float values[nb*nbVariable];
@@ -721,12 +721,12 @@ int main(int argc, char const *argv[]) {
 		unsigned localPosition[nb];
 		std::iota(localPosition,localPosition+nb-1,0);
 		std::sort(localPosition,localPosition+nb-1,[values_ptr,nbVariable](unsigned a, unsigned b){
-			unsigned valide=0;
+			unsigned valid=0;
 			for (unsigned int j = 0; j < nbVariable; ++j)
 			{
-				valide+=(values_ptr[a*nbVariable+j]<values_ptr[b*nbVariable+j]);
+				valid+=(values_ptr[a*nbVariable+j]<values_ptr[b*nbVariable+j]);
 			}
-			return (valide<nbVariable/2);
+			return (valid<nbVariable/2);
 		});
 
 		float narrowness=0;

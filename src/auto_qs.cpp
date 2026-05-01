@@ -63,7 +63,7 @@ int main(int argc, char const *argv[]) {
 	char logFileName[2048]={0};
 	std::vector<std::string> sourceFileNameVector;
 	std::vector<std::string> kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 	std::string idImagePathFileName;
 	std::string listNumberNeigboursFilename;
 
@@ -123,7 +123,7 @@ int main(int argc, char const *argv[]) {
 	bool verbose=false;
 
 	bool fullSimulation=false;
-	bool conciderTiAsCircular=false;
+	bool considerTiAsCircular=false;
 	unsigned maxNbCandidate=1;
 	std::vector<unsigned> maxNbNeihbours;
 
@@ -346,7 +346,7 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-cti") == 1)
 	{
-		conciderTiAsCircular=true;
+		considerTiAsCircular=true;
 	}
 	arg.erase("-cti");
 
@@ -424,7 +424,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	if(!run){
-		fprintf(reportFile, "simulation interupted !!\n");
+		fprintf(reportFile, "simulation interrupted !!\n");
 		return 0;
 	}
 
@@ -482,26 +482,26 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	g2s::DataImage wieghtKernel=kernels[0].emptyCopy(true);
+	g2s::DataImage weightKernel=kernels[0].emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
-		for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 		{
-			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+			weightKernel._data[i]=-weightKernel.distance2ToCenter(i);
 		}
 	}
 
 	unsigned center=0;
-	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
-	for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+	g2s::DataImage* weightKernelPtr=weightKernel.ptr();
+	for (int i =  weightKernelPtr->_dims.size()-1; i>=0 ; i--)
 	{
-		center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
+		center=center*weightKernelPtr->_dims[i]+(weightKernelPtr->_dims[i]-1)/2;
 	}
 
-	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+	std::sort(pathPosition.begin(),pathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
+		weightKernelPtr->indexWithDelta(l1, center, a);
+		weightKernelPtr->indexWithDelta(l2, center, b);
+		return weightKernelPtr->_data[l1] > weightKernelPtr->_data[l2];
 	});
 
 	// init QS
@@ -509,18 +509,18 @@ int main(int argc, char const *argv[]) {
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
 
-	bool needCrossMesurement=false;
+	bool needCrossMeasurement=false;
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
-		#pragma omp simd reduction(|:needCrossMesurement)
+		#pragma omp simd reduction(|:needCrossMeasurement)
 		for (unsigned int j = 0; j < TIs[i].dataSize(); ++j)
 		{
-			needCrossMesurement|=std::isnan(TIs[i]._data[j]);
+			needCrossMeasurement|=std::isnan(TIs[i]._data[j]);
 		}
 	}
 
-	if(needCrossMesurement && !fullSimulation)
+	if(needCrossMeasurement && !fullSimulation)
 	{
 		for (size_t i = 0; i < TIs.size(); ++i)
 		{
@@ -544,12 +544,12 @@ int main(int argc, char const *argv[]) {
 
 
 	std::vector<std::vector<float> > categoriesValues;
-	std::vector<unsigned> numberDeComputedVariableProVariable;
+	std::vector<unsigned> numberOfComputedVariablesPerVariable;
 	for (size_t i = 0; i < TIs[0]._types.size(); ++i)
 	{
-		if(TIs[0]._types[i]==g2s::DataImage::VaraibleType::Continuous)
-			numberDeComputedVariableProVariable.push_back(1);
-		if(TIs[0]._types[i]==g2s::DataImage::VaraibleType::Categorical){
+		if(TIs[0]._types[i]==g2s::DataImage::VariableType::Continuous)
+			numberOfComputedVariablesPerVariable.push_back(1);
+		if(TIs[0]._types[i]==g2s::DataImage::VariableType::Categorical){
 			std::vector<float> currentVariable;
 			for (size_t im = 0; im < TIs.size(); ++im)
 			{
@@ -568,34 +568,34 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			categoriesValues.push_back(currentVariable);
-			numberDeComputedVariableProVariable.push_back(currentVariable.size());
+			numberOfComputedVariablesPerVariable.push_back(currentVariable.size());
 		}
 	}
 
 	// correct the kernel to take in account categories
 	for (int i = 0; i < kernels.size(); ++i)
 	{
-		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable);
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberOfComputedVariablesPerVariable);
 	}
 
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
-	std::vector<g2s::OperationMatrix> coeficientMatrix;
-	std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector;
-	std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector;
-	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, needCrossMesurement, categoriesValues);
+	std::vector<std::vector<conversionType> > conversionTypeVectorMainVector;
+	std::vector<g2s::OperationMatrix> coefficientMatrix;
+	std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector;
+	TIs[0].generateCoefMatrix4Xcorr(coefficientMatrix, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, needCrossMeasurement, categoriesValues);
 
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
 
-		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
+		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMeasurement, categoriesValues);
 
 		for (size_t j = 0; j < variablesImages.size(); ++j)
 		{
 			for (size_t k = 0; k < variablesImages[j].size(); ++k)
 			{
-				smm->addVaraible(variablesImages[j][k]._data);
+				smm->addVariable(variablesImages[j][k]._data);
 			}
 		}
 		// alloc module
@@ -608,7 +608,7 @@ int main(int argc, char const *argv[]) {
 		int cudaDeviceNumber=cudaDeviceList.size();
 		int cudaDeviceUsed=0;
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, considerTiAsCircular, nbThreadsLastLevel,coefficientMatrix, smm, nbThreads, needCrossMeasurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -616,9 +616,9 @@ int main(int argc, char const *argv[]) {
 				bool deviceCreated=false;
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement, conciderTiAsCircular);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					OpenCLGPUDevice* singleThread=new OpenCLGPUDevice(smm, coefficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMeasurement, considerTiAsCircular);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 				#endif
@@ -627,18 +627,18 @@ int main(int argc, char const *argv[]) {
 				#pragma omp atomic capture
 				localDeviceId = cudaDeviceUsed++;
 				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
-					AcceleratorDevice* signleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					signleCudaThread->setTrueMismatch(true);
-					computeDeviceModuleArray[i].push_back(signleCudaThread);
+					AcceleratorDevice* singleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					singleCudaThread->setTrueMismatch(true);
+					computeDeviceModuleArray[i].push_back(singleCudaThread);
 					deviceCreated=true;
 
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					//CPUThreadAcceleratorDevice* signleThread=new CPUThreadAcceleratorDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					CPUThreadDevice* singleThread=new CPUThreadDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					//CPUThreadAcceleratorDevice* singleThread=new CPUThreadAcceleratorDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 			}
@@ -647,7 +647,7 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,nullptr,maxNbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, true, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, false);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,nullptr,maxNbCandidate,conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, true, !needCrossMeasurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, false);
 
 	if(densityArray.size()<1){
 		densityArray.push_back(0.0078);

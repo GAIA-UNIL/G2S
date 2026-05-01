@@ -275,14 +275,14 @@ public:
             auto* ptr = (float*)PyArray_DATA_SAFE(variableTypeArray);
             for (int i = 0; i < nbVar; ++i)
                 image._types[i] = ptr[i] == 0.f
-                                      ? g2s::DataImage::VaraibleType::Continuous
-                                      : g2s::DataImage::VaraibleType::Categorical;
+                                      ? g2s::DataImage::VariableType::Continuous
+                                      : g2s::DataImage::VariableType::Categorical;
         } else if (variableTypeArray && PyArray_TYPE_SAFE(variableTypeArray) == NPY_DOUBLE) {
             auto* ptr = (double*)PyArray_DATA_SAFE(variableTypeArray);
             for (int i = 0; i < nbVar; ++i)
                 image._types[i] = ptr[i] == 0.
-                                      ? g2s::DataImage::VaraibleType::Continuous
-                                      : g2s::DataImage::VaraibleType::Categorical;
+                                      ? g2s::DataImage::VariableType::Continuous
+                                      : g2s::DataImage::VariableType::Categorical;
         }
 
 #define COPY_TYPED(TYPE, ENUM) \

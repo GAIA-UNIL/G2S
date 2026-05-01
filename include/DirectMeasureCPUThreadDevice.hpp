@@ -36,24 +36,24 @@
 class DirectMeasureCPUThreadDevice : public ComputeDeviceModule
 {
 public:
-	DirectMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio=1, bool withCrossMesurement=false);
+	DirectMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio=1, bool withCrossMeasurement=false);
 	~DirectMeasureCPUThreadDevice();
 
-	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0);
-	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
-	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
+	bool candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, float delta0);
+	std::vector<g2s::spaceFrequencyMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
+	std::vector<g2s::spaceFrequencyMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress);
 
 	dataType_g2s* getErrorsArray();
 	unsigned getErrorsArraySize();
-	dataType_g2s* getCossErrorArray();
+	dataType_g2s* getCrossErrorArray();
 	float getErrorAtPosition(unsigned);
-	float getCroossErrorAtPosition(unsigned);
+	float getCrossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	void setTrueMismatch(bool value);
 
 private:
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
+	std::vector<g2s::spaceFrequencyMemoryAddress> _srcCplx;
 
 	dataType_g2s* _realSpace=nullptr;
 	dataType_g2s* _realCrossSpace=nullptr;
@@ -78,7 +78,7 @@ private:
 	}
 
 	bool _trueMismatch=true;
-	bool _crossMesurement=false;
+	bool _crossMeasurement=false;
 };
 
 #endif

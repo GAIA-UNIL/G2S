@@ -95,7 +95,7 @@ create_install_path:
 	@printf "\e[32mCreation of $(INSTALL_DIR) if needed \e[0m\n"
 	@mkdir -p $(INSTALL_DIR)/bin
 	@mkdir -p $(INSTALL_DIR)/libexec
-	@echo ${PATH} | tr ":" "\n" | grep -x $(INSTALL_DIR)/bin > /dev/null || printf "\e[31mPlease add $(INSTALL_DIR)/bin to your PATH to propoerly use g2s !! \e[0m\n"
+	@echo ${PATH} | tr ":" "\n" | grep -x $(INSTALL_DIR)/bin > /dev/null || printf "\e[31mPlease add $(INSTALL_DIR)/bin to your PATH to properly use g2s !! \e[0m\n"
 
 install:create_install_path all
 	@chmod +x ../g2s
@@ -112,7 +112,7 @@ install:create_install_path all
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm_client.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm_client.py' is missing !!\e[0m\n"
 	@cp -f ../algosName.config $(INSTALL_DIR)/libexec
-	@cp -f ./g2s_cuda.so $(INSTALL_DIR)/libexec || printf "\e[33mwarning: 'g2s_cuda.so' is missing, this is probably due to the absance of CUDA compiler.\e[0m\n"
+	@cp -f ./g2s_cuda.so $(INSTALL_DIR)/libexec || printf "\e[33mwarning: 'g2s_cuda.so' is missing, this is probably due to the absence of CUDA compiler.\e[0m\n"
 	@printf "\e[32mInstallation c++ finished!\e[0m\n"
 
 

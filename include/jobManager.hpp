@@ -40,7 +40,7 @@ struct jobArray{
 typedef std::tuple<jobIdType, Json::Value, std::vector<jobIdType> > jobTask;
 typedef std::deque<jobTask > jobQueue;
 
-int recieveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId );
+int receiveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId );
 int statusJobs(jobArray &jobIds, jobQueue &queue, jobIdType jobId);
 bool cleanJobs(jobArray &jobIds);
 

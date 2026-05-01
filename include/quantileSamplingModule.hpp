@@ -34,9 +34,9 @@ private:
 	unsigned _nbThreadOverTI=1;
 	unsigned _threadRatio=1;
 	bool _noVerbatim=false;
-	std::vector<std::vector<convertionType> > _convertionTypeVector;
-	std::vector<std::vector<std::vector<convertionType> > > _convertionTypeVectorConstVector;
-	std::vector<std::vector<std::vector<float> > > _convertionCoefVectorConstVector;
+	std::vector<std::vector<conversionType> > _conversionTypeVector;
+	std::vector<std::vector<std::vector<conversionType> > > _conversionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > _conversionCoefVectorConstVector;
 	bool _useUniqueTI=false;
 
 	std::vector<float*> _errors;
@@ -49,12 +49,12 @@ private:
 	}
 public:
 	
-	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<convertionType> > convertionTypeVector,
-		std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector,
+	QuantileSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float k,  std::vector<std::vector<conversionType> > conversionTypeVector,
+		std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector,
 		bool noVerbatim, bool completeTIs, unsigned nbThread, unsigned nbThreadOverTI=1, unsigned threadRatio=1, bool useUniqueTI=false):SamplingModule(cdmV,kernel)
 	{
 		_k=k;
-		_convertionTypeVector=convertionTypeVector;
+		_conversionTypeVector=conversionTypeVector;
 		_errors.resize(nbThread,nullptr);
 		_encodedPosition.resize(nbThread,nullptr);
 		_completeTIs=completeTIs;
@@ -69,8 +69,8 @@ public:
 		_threadRatio=threadRatio;
 		_noVerbatim=noVerbatim;
 
-		_convertionTypeVectorConstVector=convertionTypeVectorConstVector;
-		_convertionCoefVectorConstVector=convertionCoefVectorConstVector;
+		_conversionTypeVectorConstVector=conversionTypeVectorConstVector;
+		_conversionCoefVectorConstVector=conversionCoefVectorConstVector;
 	}
 
 	~QuantileSamplingModule(){
@@ -110,13 +110,13 @@ public:
 		//fprintf(stderr, "%f\n", errors[0]);
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
-		unsigned slectedIndex=int(floor(seed*localk*(ceil(vectorSize/localk)/vectorSize)));
-		unsigned selectedTI=localPosition[slectedIndex]/extendK;
-		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCossErrorArray())[encodedPosition[localPosition[slectedIndex]]]);
-		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[slectedIndex]] );
-		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[slectedIndex]] );
-		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
-		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[slectedIndex],slectedIndex,extendK, errors[localPosition[slectedIndex]]);
+		unsigned selectedIndex=int(floor(seed*localk*(ceil(vectorSize/localk)/vectorSize)));
+		unsigned selectedTI=localPosition[selectedIndex]/extendK;
+		//fprintf(stderr, "mask : %f\n", (_cdmV[moduleID][selectedTI]->getCrossErrorArray())[encodedPosition[localPosition[selectedIndex]]]);
+		//fprintf(stderr, "position %d \n",encodedPosition[localPosition[selectedIndex]] );
+		//fprintf(stderr, "position %d \n",_cdmV[moduleID][selectedTI]->getErrorsArraySize() - encodedPosition[localPosition[selectedIndex]] );
+		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[selectedIndex]]);
+		//fprintf(stderr, "%d %d %d %d %d %f\n", selectedTI, indexInTI, localPosition[selectedIndex],selectedIndex,extendK, errors[localPosition[selectedIndex]]);
 
 		matchLocation result;
 		result.TI=selectedTI;
@@ -156,7 +156,7 @@ public:
 
 		for (int i = 0; i < extendK; ++i)
 		{
-			// unsigned slectedIndex=idTI4Sampling*extendK+i;//int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
+			// unsigned selectedIndex=idTI4Sampling*extendK+i;//int(floor(seed*_k*(ceil(vectorSize/_k)/vectorSize)));
 			unsigned selectedTI=localPosition[i]/extendK;
 			unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[i]]);
 			matchLocation result;
@@ -177,10 +177,10 @@ public:
 		memset(updated,false,vectorSize);
 
 		std::vector<std::vector<float> > convertedNeighborValueArrayVector(neighborArrayVector.size());
-		std::vector<float> cummulatedVariablesCoeficient;
+		std::vector<float> cumulatedVariablesCoefficient;
 
-		//if(_convertionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
-		//	fprintf(stderr, "%s %d vs %d\n", "failure",_convertionTypeVector[0].size(),neighborValueArrayVector[0].size());
+		//if(_conversionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
+		//	fprintf(stderr, "%s %d vs %d\n", "failure",_conversionTypeVector[0].size(),neighborValueArrayVector[0].size());
 
 		unsigned indexCenter=0;
 		for (int i =  int(_kernel->_dims.size()-1); i>=0 ; i--)
@@ -188,13 +188,13 @@ public:
 			indexCenter=indexCenter*_kernel->_dims[i]+_kernel->_dims[i]/2;
 		}
 
-		for (size_t i = 0; i < _convertionTypeVector.size(); ++i)
+		for (size_t i = 0; i < _conversionTypeVector.size(); ++i)
 		{
 
-			for (size_t j = 0; j < _convertionTypeVector[i].size(); ++j)
+			for (size_t j = 0; j < _conversionTypeVector[i].size(); ++j)
 			{
-				switch(_convertionTypeVector[i][j]){
-					case convertionType::P0:
+				switch(_conversionTypeVector[i][j]){
+					case conversionType::P0:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -204,7 +204,7 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}						
 					break;
-					case convertionType::P1:
+					case conversionType::P1:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -214,7 +214,7 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}						
 					break;
-					case convertionType::P2:
+					case conversionType::P2:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -224,8 +224,8 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}						
 					break;
-					case convertionType::MinMinus1:
-					case convertionType::MaxPlus1:
+					case conversionType::MinMinus1:
+					case conversionType::MaxPlus1:
 					break;
 				}	
 			}
@@ -234,41 +234,41 @@ public:
 		std::vector<float> delta;
 		//if(_completeTIs)
 		{
-			for (size_t p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
+			for (size_t p = 0; p < _conversionTypeVectorConstVector.size(); ++p)
 			{
 				float sum=0;
-				for (size_t i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
+				for (size_t i = 0; i < _conversionTypeVectorConstVector[p].size(); ++i)
 				{
-					for (size_t j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
+					for (size_t j = 0; j < _conversionTypeVectorConstVector[p][i].size(); ++j)
 					{
-						switch(_convertionTypeVectorConstVector[p][i][j]){
-							case convertionType::P0:
+						switch(_conversionTypeVectorConstVector[p][i][j]){
+							case conversionType::P0:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*1.f);
 								}
 							break;
-							case convertionType::P1:
+							case conversionType::P1:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									//fprintf(stderr, "%d ==> %f\n", _kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::P2:
+							case conversionType::P2:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(_kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(_kernel->_data[indexInKernel*_kernel->_nbVariable+(i%_kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::MinMinus1:
-							case convertionType::MaxPlus1:
+							case conversionType::MinMinus1:
+							case conversionType::MaxPlus1:
 							break;
 						}	
 					}
@@ -278,22 +278,22 @@ public:
 			}
 		}
 
-		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
-			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
+			updated[i]=_cdmV[moduleID][i]->candidateForPattern(neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient,delta);
 		}
 
 		int extendK=int(ceil(_k));
 		std::fill(errors,errors+vectorSize*extendK,-INFINITY);
 
-		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(extendK,errors,encodedPosition,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			if(updated[i])
 			{
-				float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
-				float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
+				float* errorsArray=_cdmV[moduleID][i]->getErrorsArray();
+				float* crossErrorsArray=_cdmV[moduleID][i]->getCrossErrorArray();
 
 				if(!_completeTIs)
 				{
@@ -301,11 +301,11 @@ public:
 					#pragma omp simd
 					for (unsigned int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
 					{
-						errosArray[j]=-std::fabs(errosArray[j]/(crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]));
-						if(crossErrosArray[j]==0.0f) errosArray[j]=-INFINITY;
+						errorsArray[j]=-std::fabs(errorsArray[j]/(crossErrorsArray[j]*crossErrorsArray[j]*crossErrorsArray[j]*crossErrorsArray[j]));
+						if(crossErrorsArray[j]==0.0f) errorsArray[j]=-INFINITY;
 					}
 				}
-				fKst::findKBigest(errosArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
+				fKst::findKBiggest(errorsArray,_cdmV[moduleID][i]->getErrorsArraySize(),extendK, errors+i*extendK, encodedPosition+i*extendK);
 			}
 		}
 
@@ -316,9 +316,9 @@ public:
 		});
 		//fKst::findKSmallest(_errors,3,extendK, localErrors, localPosition);
 
-		unsigned slectedIndex=int(floor(seed*_k));
-		unsigned selectedTI=localPosition[slectedIndex]/extendK;
-		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[slectedIndex]]);
+		unsigned selectedIndex=int(floor(seed*_k));
+		unsigned selectedTI=localPosition[selectedIndex]/extendK;
+		unsigned indexInTI=_cdmV[moduleID][selectedTI]->cvtIndexToPosition(encodedPosition[localPosition[selectedIndex]]);
 
 		float errorsForNS[extendK];
 		unsigned int index[extendK];
@@ -350,10 +350,10 @@ private:
 		memset(updated,false,vectorSize);
 
 		std::vector<std::vector<float> > convertedNeighborValueArrayVector(neighborArrayVector.size());
-		std::vector<float> cummulatedVariablesCoeficient;
+		std::vector<float> cumulatedVariablesCoefficient;
 
-		//if(_convertionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
-		//	fprintf(stderr, "%s %d vs %d\n", "failure",_convertionTypeVector[0].size(),neighborValueArrayVector[0].size());
+		//if(_conversionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
+		//	fprintf(stderr, "%s %d vs %d\n", "failure",_conversionTypeVector[0].size(),neighborValueArrayVector[0].size());
 
 		g2s::DataImage* kernel=_kernel;
 		if(localKernel!=nullptr)
@@ -365,13 +365,13 @@ private:
 			indexCenter=indexCenter*kernel->_dims[i]+kernel->_dims[i]/2;
 		}
 
-		for (size_t i = 0; i < _convertionTypeVector.size(); ++i)
+		for (size_t i = 0; i < _conversionTypeVector.size(); ++i)
 		{
 
-			for (size_t j = 0; j < _convertionTypeVector[i].size(); ++j)
+			for (size_t j = 0; j < _conversionTypeVector[i].size(); ++j)
 			{
-				switch(_convertionTypeVector[i][j]){
-					case convertionType::P0:
+				switch(_conversionTypeVector[i][j]){
+					case conversionType::P0:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -381,7 +381,7 @@ private:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::P1:
+					case conversionType::P1:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -392,7 +392,7 @@ private:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::P2:
+					case conversionType::P2:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -402,8 +402,8 @@ private:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::MinMinus1:
-					case convertionType::MaxPlus1:
+					case conversionType::MinMinus1:
+					case conversionType::MaxPlus1:
 					break;
 				}	
 			}
@@ -412,41 +412,41 @@ private:
 		std::vector<float> delta;
 		//if(_completeTIs)
 		{
-			for (size_t p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
+			for (size_t p = 0; p < _conversionTypeVectorConstVector.size(); ++p)
 			{
 				float sum=0;
-				for (size_t i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
+				for (size_t i = 0; i < _conversionTypeVectorConstVector[p].size(); ++i)
 				{
-					for (size_t j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
+					for (size_t j = 0; j < _conversionTypeVectorConstVector[p][i].size(); ++j)
 					{
-						switch(_convertionTypeVectorConstVector[p][i][j]){
-							case convertionType::P0:
+						switch(_conversionTypeVectorConstVector[p][i][j]){
+							case conversionType::P0:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
 								}
 							break;
-							case convertionType::P1:
+							case conversionType::P1:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									//fprintf(stderr, "%d ==> %f\n", kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::P2:
+							case conversionType::P2:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::MinMinus1:
-							case convertionType::MaxPlus1:
+							case conversionType::MinMinus1:
+							case conversionType::MaxPlus1:
 							break;
 						}	
 					}
@@ -475,17 +475,17 @@ private:
 			localNbThreadOverTI=1;
 		}
 
-		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) firstprivate(toUpdate,vectorSize,delta,moduleID) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			if(toUpdate[i]){
-				updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
+				updated[i]=_cdmV[moduleID][i]->candidateForPattern(neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient,delta);
 			}
 		}
 
 		int extendK=int(ceil(localk));
 		
-		//#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient) 
+		//#pragma omp parallel for default(none) num_threads(localNbThreadOverTI) /*proc_bind(close)*/ firstprivate(seed, extendK,errors,encodedPosition,vectorSize,delta,moduleID,verbatimRecord,variableOfInterest) shared(updated, neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient) 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
 			
@@ -500,8 +500,8 @@ private:
 
 				if(localCdmV==nullptr){ // is not AcceleratorDevice
 
-					float* errosArray=_cdmV[moduleID][i]->getErrorsArray();
-					float* crossErrosArray=_cdmV[moduleID][i]->getCossErrorArray();
+					float* errorsArray=_cdmV[moduleID][i]->getErrorsArray();
+					float* crossErrorsArray=_cdmV[moduleID][i]->getCrossErrorArray();
 					unsigned sizeArray=_cdmV[moduleID][i]->getErrorsArraySize();
 
 					if(!_completeTIs)
@@ -510,20 +510,20 @@ private:
 						#pragma omp simd
 						for (unsigned int j = 0; j < _cdmV[moduleID][i]->getErrorsArraySize(); ++j)
 						{
-							errosArray[j]=-std::fabs(errosArray[j]/(crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]*crossErrosArray[j]));
-							if(crossErrosArray[j]==0.0f) errosArray[j]=-INFINITY;
+							errorsArray[j]=-std::fabs(errorsArray[j]/(crossErrorsArray[j]*crossErrorsArray[j]*crossErrorsArray[j]*crossErrorsArray[j]));
+							if(crossErrorsArray[j]==0.0f) errorsArray[j]=-INFINITY;
 						}
 					}
 
 					if(_noVerbatim && (verbatimRecord.TI==i)){
 						if(verbatimRadius<1)
-							errosArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
+							errorsArray[_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index)]=-INFINITY;
 						else
 							_cdmV[moduleID][i]->setValueInErrorArrayWithRadius(_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index), -INFINITY, verbatimRadius);
 					}
 					
 			#if !defined( __GNUC__) || defined(__INTEL_COMPILER)  // remove OpenMP in this section for GCC compiler, some GCC compiler produce a code that crash without any reasons
-					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errosArray, extendK, localErrorPtr, localEncodedPositionPtr)
+					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errorsArray, extendK, localErrorPtr, localEncodedPositionPtr)
 			#endif
 					{
 						unsigned k=0;
@@ -536,7 +536,7 @@ private:
 
 						auto rng = std::bind(distribution, std::ref(generator));
 						unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
-						fKst::findKBigest(errosArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
+						fKst::findKBiggest(errorsArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
 						for (int j = 0; j < extendK; ++j)
 						{
 							localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
@@ -570,7 +570,7 @@ private:
 							localCdmV->setValueInErrorArrayWithRadius(localCdmV->cvtPositionToIndex(verbatimRecord.index), -INFINITY, verbatimRadius);
 					}
 
-					localCdmV->searchKBigest(errors+i*extendK,encodedPosition+i*extendK,extendK,seed);
+					localCdmV->searchKBiggest(errors+i*extendK,encodedPosition+i*extendK,extendK,seed);
 				}
 			}
 		}

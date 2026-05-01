@@ -40,7 +40,7 @@
 typedef unsigned jobIdType;
 
 static char module_docstring[] =
-"This module provides an interface for computing geostatistical simulation remotly using G2S";
+"This module provides an interface for computing geostatistical simulation remotely using G2S";
 static char run_docstring[] =
 "Executing a simulation";
 static PyObject *g2s_run(PyObject *self, PyObject *args);
@@ -119,7 +119,7 @@ inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
 	socket.send (request);
 	PyErr_Format(PyExc_ValueError,
-				"%s : %s", "gss:error", "Ctrl C, user interupted");
+				"%s : %s", "gss:error", "Ctrl C, user interrupted");
 }
 
 
@@ -151,8 +151,8 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 		float* ptrVarType=(float *)PyArray_DATA(variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 
@@ -161,8 +161,8 @@ inline std::string uploadData(zmq::socket_t &socket, PyObject* prh, PyObject* va
 		double* ptrVarType=(double *)PyArray_DATA(variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 	
@@ -544,10 +544,10 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 	serverRun=true;
 
 	if((saP1_Index!=-1)){
-		std::string adress=std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index)));
-		std::transform(adress.begin(), adress.end(), adress.begin(),::tolower);
+		std::string address=std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index)));
+		std::transform(address.begin(), address.end(), address.begin(),::tolower);
 		#ifdef WITH_WEB_SUPPORT
-		if(!adress.compare("web")||!adress.compare("browser")){
+		if(!address.compare("web")||!address.compare("browser")){
 			//printf("use browser server\n");
 			serverRun=false;
 			std::string from="tcp://*:8128";

@@ -80,7 +80,7 @@ inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	memcpy(request.data (), &task, sizeof(infoContainer));
 	memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
 	socket.send (request);
-	mexErrMsgIdAndTxt("gss:error", "Ctrl C, user interupted");
+	mexErrMsgIdAndTxt("gss:error", "Ctrl C, user interrupted");
 }
 
 std::string mxGetString(const mxArray *pm){
@@ -114,8 +114,8 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 		float* ptrVarType=(float *)mxGetPr(variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 
@@ -124,8 +124,8 @@ inline std::string uploadData(zmq::socket_t &socket, const mxArray* prh, const m
 		double* ptrVarType=(double *)mxGetPr(variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 	
@@ -525,10 +525,10 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 	serverRun=true;
 
 	if((saP1_Index!=-1)){
-		std::string adress=mxArrayToString(prhs[saP1_Index]);
-		std::transform(adress.begin(), adress.end(), adress.begin(),::tolower);
+		std::string address=mxArrayToString(prhs[saP1_Index]);
+		std::transform(address.begin(), address.end(), address.begin(),::tolower);
 		#ifdef WITH_WEB_SUPPORT
-		if(!adress.compare("web")||!adress.compare("browser")){
+		if(!address.compare("web")||!address.compare("browser")){
 			//printf("use browser server\n");
 			serverRun=false;
 			std::string from="tcp://*:8128";
@@ -839,7 +839,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(reply.size()!=0){
 			if(!silentMode)printf("progres %.3f%%\n",100.0f );
 			mexEvalString("drawnow");
-			//printf( "recive\n");
+			//printf( "receive\n");
 
 			g2s::DataImage image((char*)reply.data(), reply.size());
 			plhs[0]=convert2MxArray(image);

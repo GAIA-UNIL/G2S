@@ -336,7 +336,7 @@ public:
 		zmq::message_t reply;
 		socket.recv (reply);
 		
-		//if(!silent)sendError("Ctrl C, user interupted");
+		//if(!silent)sendError("Ctrl C, user interrupted");
 	}
 
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){

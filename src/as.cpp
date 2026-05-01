@@ -451,7 +451,7 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-W_CUDA");
 
 	if(nbNeighbors.empty() && numberOfNeighboursFileName.empty()){
-		fprintf(reportFile,"%s\n","number of neighbor parameter not valide");
+		fprintf(reportFile,"%s\n","number of neighbor parameter not valid");
 		run=false;
 	}
 	if(std::isnan(mer) && std::isnan(nbCandidate) && kValueImageFileName.empty()){
@@ -468,7 +468,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	if(!run){
-		fprintf(reportFile,"simulation interupted !!\n");
+		fprintf(reportFile,"simulation interrupted !!\n");
 		return 0;
 	}
 
@@ -508,7 +508,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<unsigned> continuousVariableIndexes;
 	for (unsigned variable = 0; variable < DI._nbVariable; ++variable)
 	{
-		if(DI._types[variable]==g2s::DataImage::VaraibleType::Continuous){
+		if(DI._types[variable]==g2s::DataImage::VariableType::Continuous){
 			continuousVariableIndexes.push_back(variable);
 		}
 	}
@@ -811,13 +811,13 @@ int main(int argc, char const *argv[]) {
 	}
 
 	std::vector<std::vector<float> > categoriesValues;
-	std::vector<unsigned> numberOfComputedVariableProVariable;
+	std::vector<unsigned> numberOfComputedVariablesPerVariable;
 	for (size_t i = 0; i < DI._types.size(); ++i)
 	{
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous){
-			numberOfComputedVariableProVariable.push_back(1);
+		if(DI._types[i]==g2s::DataImage::VariableType::Continuous){
+			numberOfComputedVariablesPerVariable.push_back(1);
 		}
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+		if(DI._types[i]==g2s::DataImage::VariableType::Categorical){
 			std::vector<float> currentVariable;
 			for (size_t im = 0; im < TIs.size(); ++im)
 			{
@@ -837,13 +837,13 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			categoriesValues.push_back(currentVariable);
-			numberOfComputedVariableProVariable.push_back(currentVariable.size());
+			numberOfComputedVariablesPerVariable.push_back(currentVariable.size());
 		}
 	}
 
 	for (size_t i = 0; i < kernels.size(); ++i)
 	{
-		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberOfComputedVariableProVariable,needCrossMeasurement);
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberOfComputedVariablesPerVariable,needCrossMeasurement);
 	}
 
 	outputDims=DI._dims;

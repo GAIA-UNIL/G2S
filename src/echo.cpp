@@ -91,19 +91,19 @@ int main(int argc, char const *argv[]) {
 
 	if(!run) return 0;
 
-	g2s::DataImage srcIput=g2s::DataImage::createFromFile(sourceFileName);
+	g2s::DataImage srcInput=g2s::DataImage::createFromFile(sourceFileName);
 
-	for (int i = 0; i < srcIput._types.size(); ++i)
+	for (int i = 0; i < srcInput._types.size(); ++i)
 	{
-		fprintf(reportFile, "Variable %d is: %s\n", i, (srcIput._types[i]==g2s::DataImage::VaraibleType::Categorical ? "Categorical" : "Continuous") );
+		fprintf(reportFile, "Variable %d is: %s\n", i, (srcInput._types[i]==g2s::DataImage::VariableType::Categorical ? "Categorical" : "Continuous") );
 	}
 
 	// to remove later
-	srcIput.write(outputFilename);
+	srcInput.write(outputFilename);
 	//end to remove
 
 	// new filename 
-	srcIput.write(std::string("im_1_")+std::to_string(uniqueID));
+	srcInput.write(std::string("im_1_")+std::to_string(uniqueID));
 
 
 	return 0;

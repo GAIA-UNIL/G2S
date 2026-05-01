@@ -37,23 +37,23 @@
 class AcceleratorDevice : public ComputeDeviceModule
 {
 public:
-	AcceleratorDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio=1, bool withCrossMesurement=false, bool circularTI=false);
+	AcceleratorDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coefficientMatrix, unsigned int threadRatio=1, bool withCrossMeasurement=false, bool circularTI=false);
 	~AcceleratorDevice();
 
 	void initDim();
 
-	virtual bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
-	virtual std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
-	virtual std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress)=0;
+	virtual bool candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, std::vector<float> delta0);
+	virtual std::vector<g2s::spaceFrequencyMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
+	virtual std::vector<g2s::spaceFrequencyMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress)=0;
 
 	virtual dataType_g2s* getErrorsArray();
 	virtual dataType_g2s* getArray(unsigned);
 	virtual unsigned getErrorsArraySize()=0;
 	virtual unsigned getArraySize()=0;
-	virtual dataType_g2s* getCossErrorArray();
+	virtual dataType_g2s* getCrossErrorArray();
 	virtual float getErrorAtPosition(unsigned)=0;
 	virtual float getValueAtPosition(unsigned, unsigned)=0;
-	virtual float getCroossErrorAtPosition(unsigned)=0;
+	virtual float getCrossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
 	virtual unsigned cvtPositionToIndex(unsigned)=0;
 	virtual void setTrueMismatch(bool value);
@@ -65,7 +65,7 @@ public:
 	virtual void setValueInErrorArray(unsigned position, float value)=0;
 	virtual void setValueInErrorArrayWithRadius(unsigned position, float value, float radius)=0;
 	virtual void compensateMissingData()=0;
-	virtual void searchKBigest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed)=0;
+	virtual void searchKBiggest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed)=0;
 
 	virtual void zerosFrenquencySpaceOutputArray(unsigned layer)=0;
 	virtual void computeFreqMismatchMap(std::vector<std::vector<int> > neighborArray, std::vector<std::vector<float> >  &neighborValueArrayVector)=0;
@@ -74,7 +74,7 @@ public:
 protected:
 	unsigned _threadRatio=1;
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
+	std::vector<g2s::spaceFrequencyMemoryAddress> _srcCplx;
 
 	std::vector<dataType_g2s*> _realSpaceArray;
 
@@ -85,7 +85,7 @@ protected:
 	unsigned _realSpaceSize;
 
 	bool _trueMismatch=true;
-	bool _crossMesurement=false;
+	bool _crossMeasurement=false;
 	bool _circularTI=false;
 };
 

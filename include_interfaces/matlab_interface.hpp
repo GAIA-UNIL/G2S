@@ -350,8 +350,8 @@ public:
 			float* ptrVarType=(float *)mxGetPr(variableTypeArray);
 			for (int i = 0; i < nbOfVariable; ++i)
 			{
-				if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-				if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+				if(ptrVarType[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+				if(ptrVarType[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 			}
 		}
 
@@ -360,8 +360,8 @@ public:
 			double* ptrVarType=(double *)mxGetPr(variableTypeArray);
 			for (int i = 0; i < nbOfVariable; ++i)
 			{
-				if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-				if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+				if(ptrVarType[i]==0.)image._types[i]=g2s::DataImage::VariableType::Continuous;
+				if(ptrVarType[i]==1.)image._types[i]=g2s::DataImage::VariableType::Categorical;
 			}
 		}
 		

@@ -27,6 +27,9 @@ Documentation and packaging notes should use concise, current wording because th
 A repository-wide review snapshot is available in `CODE_REVIEW_REPORT.md`.
 Maintenance notes for generated build trees and the server protocol schema are available in `DOCUMENTATION.md`.
 
+Internal C++ naming is kept in standard English spelling for shared types and virtual interfaces so generated package mirrors and downstream bindings stay easier to audit.
+User-facing messages and build helper output should follow the same spelling conventions.
+
 ## Local binary data files
 
 `DataImage` `.bgrid` files are an internal, local binary format. They are intended to be written and read by the same G2S build on the same machine/environment, for temporary or local reuse only. They are not a portable exchange format, not a long-term archival format, and are not expected to be transferred between machines, architectures, compiler configurations, or G2S versions.

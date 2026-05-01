@@ -18,7 +18,7 @@
 #ifndef TYPE_DEFINE_HPP
 #define TYPE_DEFINE_HPP
 
-enum convertionType{
+enum conversionType{
 	MinMinus1=-1,
 	P0,
 	P1,

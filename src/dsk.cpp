@@ -47,7 +47,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
 	std::string kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -169,7 +169,7 @@ int main(int argc, char const *argv[]) {
 	//look for -sp			: simulation path 
 	if (arg.count("-sp") ==1)
 	{
-		simuationPathFileName=arg.find("-sp")->second;
+		simulationPathFileName=arg.find("-sp")->second;
 	}else{	
 		fprintf(reportFile,"error simulation path\n");
 	}
@@ -316,7 +316,7 @@ int main(int argc, char const *argv[]) {
 
 	if(nbNeighbors<0){
 		run=false;
-		fprintf(reportFile, "%s\n", "number of neighbor not valide" );
+		fprintf(reportFile, "%s\n", "number of neighbor not valid" );
 	}
 	if(std::isnan(threshold)){
 		run=false;
@@ -340,7 +340,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	if(!run){
-		fprintf(reportFile, "simulation interupted !!\n");
+		fprintf(reportFile, "simulation interrupted !!\n");
 		return 0;
 	}
 
@@ -433,40 +433,40 @@ int main(int argc, char const *argv[]) {
 
 	
 
-	g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
+	g2s::DataImage weightKernel=kernel.emptyCopy(true);
 	if(searchDistance==g2s::EUCLIDIEN){
-		for (int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (int i = 0; i < weightKernel.dataSize(); ++i)
 		{
-			wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+			weightKernel._data[i]=-weightKernel.distance2ToCenter(i);
 		}
 	}
 	if(searchDistance==g2s::KERNEL){
 		unsigned nbV=kernel._nbVariable;
-		for (int i = 0; i < wieghtKernel.dataSize(); ++i)
+		for (int i = 0; i < weightKernel.dataSize(); ++i)
 		{
 			for (int j = 0; j < nbV; ++j)
 			{
-				if(fabs(kernel._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernel._data[i*nbV+j]);
+				if(fabs(kernel._data[i*nbV+j])>weightKernel._data[i])weightKernel._data[i]=fabs(kernel._data[i*nbV+j]);
 			}
 		}
 		
 	}
 
-	unsigned center=wieghtKernel.dataSize()/wieghtKernel._nbVariable/2;
-	g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
+	unsigned center=weightKernel.dataSize()/weightKernel._nbVariable/2;
+	g2s::DataImage* weightKernelPtr=weightKernel.ptr();
 
 	//TODO
-	/*std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+	/*std::sort(pathPosition.begin(),pathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
-		return wieghtKernelPtr->_data[l1] < wieghtKernelPtr->_data[l2];
+		weightKernelPtr->indexWithDelta(l1, center, a);
+		weightKernelPtr->indexWithDelta(l2, center, b);
+		return weightKernelPtr->_data[l1] < weightKernelPtr->_data[l2];
 	});*/
 
-	std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+	std::sort(pathPosition.begin(),pathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 		unsigned l1,l2;
-		wieghtKernelPtr->indexWithDelta(l1, center, a);
-		wieghtKernelPtr->indexWithDelta(l2, center, b);
+		weightKernelPtr->indexWithDelta(l1, center, a);
+		weightKernelPtr->indexWithDelta(l2, center, b);
 		return a[0]*a[0]+a[1]*a[1] < b[0]*b[0]+b[1]*b[1] ;
 	});
 
@@ -476,7 +476,7 @@ int main(int argc, char const *argv[]) {
 		fprintf(stderr, "%d %d\n", pathPosition[i][0], pathPosition[i][1]);
 	}*/
 
-	if(simuationPathFileName.empty()) {
+	if(simulationPathFileName.empty()) {
 		//fprintf(stderr, "generate simulation path\n");
 		simulationPath=DI.emptyCopy(true);
 		for (int i = 0; i < simulationPath.dataSize(); ++i)
@@ -497,7 +497,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	else {
-		simulationPath=g2s::DataImage(simuationPathFileName);
+		simulationPath=g2s::DataImage(simulationPathFileName);
 	}
 
 	bool dimAgree=true;
@@ -571,19 +571,19 @@ int main(int argc, char const *argv[]) {
 		if(smm->_fftSize.size()>2)fftSizeZ=smm->_fftSize[2];
 		unsigned srcVariable=TIs[i]._nbVariable;
 
-		float** varaibleBands=(float**)malloc( 2 * srcVariable * sizeof(float*));
+		float** variableBands=(float**)malloc( 2 * srcVariable * sizeof(float*));
 	
 		// init Data
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			varaibleBands[2*i+0]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			varaibleBands[2*i+1]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
-			memset(varaibleBands[2*i],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			variableBands[2*i+0]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			variableBands[2*i+1]=(float*)malloc(fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
+			memset(variableBands[2*i],0,fftSizeX * fftSizeY * fftSizeZ * sizeof(float));
 		}
 
 		for (int v = 0; v < srcVariable; ++v)
 		{
-			float* A=varaibleBands[2*v+1];
+			float* A=variableBands[2*v+1];
 			for (int l = 0; l < fftSizeZ; ++l)
 			{
 				if(l<(fftSizeZ-srcSizeZ))continue;
@@ -601,8 +601,8 @@ int main(int argc, char const *argv[]) {
 
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			float* A=varaibleBands[2*i+1];
-			float* A2=varaibleBands[2*i+0];
+			float* A=variableBands[2*i+1];
+			float* A2=variableBands[2*i+0];
 			for (unsigned index = 0; index < fftSizeZ*fftSizeY*fftSizeX; ++index)
 			{
 				A2[index]=A[index]*A[index];
@@ -612,8 +612,8 @@ int main(int argc, char const *argv[]) {
 		// add sources : inputData
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			smm->addVaraible(varaibleBands[2*i+0]);
-			smm->addVaraible(varaibleBands[2*i+1]);
+			smm->addVariable(variableBands[2*i+0]);
+			smm->addVariable(variableBands[2*i+1]);
 		}
 		// alloc module
 		#ifdef WITH_OPENCL
@@ -630,14 +630,14 @@ int main(int argc, char const *argv[]) {
 
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i]);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					OpenCLGPUDevice* singleThread=new OpenCLGPUDevice(smm,0,gpuHostUnifiedMemory[i]);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm,threadRatio);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					CPUThreadDevice* singleThread=new CPUThreadDevice(smm,threadRatio);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 			}
@@ -649,38 +649,38 @@ int main(int argc, char const *argv[]) {
 
 		for (int i = 0; i < srcVariable; ++i)
 		{
-			free(varaibleBands[2*i+0]);
-			varaibleBands[2*i+0]=nullptr;
-			free(varaibleBands[2*i+1]);
-			varaibleBands[2*i+1]=nullptr;
+			free(variableBands[2*i+0]);
+			variableBands[2*i+0]=nullptr;
+			free(variableBands[2*i+1]);
+			variableBands[2*i+1]=nullptr;
 		}
 
-		free(varaibleBands);
-		varaibleBands=nullptr;
+		free(variableBands);
+		variableBands=nullptr;
 	}
 
-	std::vector<std::vector<float> > variablesCoeficientMainVector;
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
+	std::vector<std::vector<float> > variablesCoefficientMainVector;
+	std::vector<std::vector<conversionType> > conversionTypeVectorMainVector;
 
 	for (int i = 0; i < TIs[0]._nbVariable; ++i)
 	{
 
-		std::vector<float> variablesCoeficient;
-		std::vector<convertionType> convertionTypeVector;
-		variablesCoeficient.push_back(1.0f);
-		convertionTypeVector.push_back(convertionType::P0);
-		variablesCoeficient.push_back(-2.0f);
-		convertionTypeVector.push_back(convertionType::P1);
+		std::vector<float> variablesCoefficient;
+		std::vector<conversionType> conversionTypeVector;
+		variablesCoefficient.push_back(1.0f);
+		conversionTypeVector.push_back(conversionType::P0);
+		variablesCoefficient.push_back(-2.0f);
+		conversionTypeVector.push_back(conversionType::P1);
 
 		// for delta
-		variablesCoeficient.push_back(1.0f);
+		variablesCoefficient.push_back(1.0f);
 
-		variablesCoeficientMainVector.push_back(variablesCoeficient);
-		convertionTypeVectorMainVector.push_back(convertionTypeVector);
+		variablesCoefficientMainVector.push_back(variablesCoefficient);
+		conversionTypeVectorMainVector.push_back(conversionTypeVector);
 	}
 
 
-	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold, mer,convertionTypeVectorMainVector,variablesCoeficientMainVector);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray,&kernel, threshold, mer,conversionTypeVectorMainVector,variablesCoefficientMainVector);
 
 	// run QS
 

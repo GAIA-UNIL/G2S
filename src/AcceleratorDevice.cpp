@@ -30,11 +30,11 @@
 
 
 
-AcceleratorDevice::AcceleratorDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio, bool withCrossMesurement, bool circularTI){
-	_coeficientMatrix=coeficientMatrix;
+AcceleratorDevice::AcceleratorDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coefficientMatrix, unsigned int threadRatio, bool withCrossMeasurement, bool circularTI){
+	_coefficientMatrix=coefficientMatrix;
 	_threadRatio=threadRatio;
 
-	_crossMesurement=withCrossMesurement;
+	_crossMeasurement=withCrossMeasurement;
 	_circularTI=circularTI;
 	
 	_sharedMemoryManager=sharedMemoryManager;
@@ -48,7 +48,7 @@ void AcceleratorDevice::initDim(){
 	_fftSize=_sharedMemoryManager->_fftSize;
 	_srcSize=_sharedMemoryManager->_srcSize;
 
-	_srcCplx=_sharedMemoryManager->adressSharedMemory(_memoryID);
+	_srcCplx=_sharedMemoryManager->addressSharedMemory(_memoryID);
 
 	// alloc memory
 
@@ -80,7 +80,7 @@ dataType_g2s* AcceleratorDevice::getErrorsArray(){
 	return nullptr;
 }
 
-dataType_g2s* AcceleratorDevice::getCossErrorArray(){
+dataType_g2s* AcceleratorDevice::getCrossErrorArray(){
 	return nullptr;
 }
 
@@ -89,7 +89,7 @@ void AcceleratorDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }
 
-bool  AcceleratorDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0){
+bool  AcceleratorDevice::candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, std::vector<float> delta0){
 	if(neighborValueArrayVector.size()==0)return false;
 
 	for (size_t i = 0; i < _min.size(); ++i)
@@ -109,7 +109,7 @@ bool  AcceleratorDevice::candidateForPatern(std::vector<std::vector<int> > &neig
 	
 	{
 		
-		for (size_t dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+		for (size_t dataArrayIndex = 0; dataArrayIndex < _coefficientMatrix.size(); ++dataArrayIndex)
 		{
 			zerosFrenquencySpaceOutputArray(dataArrayIndex);
 		}

@@ -5,13 +5,13 @@ Repository: `/Users/mathieugravey/githubProject/G2S`
 
 ## Executive Summary
 
-G2S is a C++ server plus command-line algorithms with Python, R, MATLAB, packaging, cluster, and documentation layers. The highest-risk issues are in the unauthenticated ZeroMQ server protocol, the job execution path, temporary-file/data handling under `/tmp/G2S`, and unchecked binary payload parsing. There are also correctness bugs in calibration noise injection, typed output conversion for Python/MATLAB, and several untested or partially wired code paths.
+G2S is a C++ server plus command-line algorithms with Python, R, MATLAB, packaging, cluster, and documentation layers. The highest-risk issues are in the unauthenticated ZeroMQ server protocol, the job execution path, temporary-file/data handling under `/tmp/G2S`, and unchecked binary payload parsing. There are also correctness bugs in calibration noise injection, typed outputconversion for Python/MATLAB, and several untested or partially wired code paths.
 
 Verification performed:
 
 - `make c++ -j2` from `build/` completed successfully on macOS.
 - `./c++-build/test -sampling 1D 2D 3D` from `build/` completed successfully.
-- Build emitted warnings in `include/quantileSamplingModule.hpp` for `UINT_MAX` to `float` conversion, and an incomplete `switch` in `src/auto_qs.cpp`.
+- Build emitted warnings in `include/quantileSamplingModule.hpp` for `UINT_MAX` to `float`conversion, and an incomplete `switch` in `src/auto_qs.cpp`.
 - No SQL, database migrations, or database schema files were found.
 
 Highest-priority work:
@@ -29,7 +29,7 @@ Highest-priority work:
 - Severity: Critical
 - File/location: `src/server.cpp:226-230`, `src/server.cpp:285-290`, `src/jobTasking.cpp:93-103`, `src/jobTasking.cpp:242-257`
 - Description: The server binds a REP socket to `tcp://*:<port>` and accepts `JOB` messages that choose an algorithm name and parameters. The job runner maps the request to an executable and calls `execvp`/`execv` without authentication, authorization, transport security, or a strict server-side allowlist independent of request data.
-- Evidence: `server.cpp` builds `tcp://*:%d` and calls `receiver.bind(address)`. `JOB` requests are passed into `recieveJob`. `jobTasking.cpp` reads `job["Algorithm"]`, builds `./%s`, and executes it.
+- Evidence: `server.cpp` builds `tcp://*:%d` and calls `receiver.bind(address)`. `JOB` requests are passed into `receiveJob`. `jobTasking.cpp` reads `job["Algorithm"]`, builds `./%s`, and executes it.
 - Impact: Any client that can reach the port can start compute jobs, pass arbitrary arguments to installed algorithms/scripts, consume CPU/memory/disk, trigger file operations under `/tmp/G2S`, and potentially execute scripts present in the server working directory.
 - Suggested fix: Bind to `127.0.0.1` by default, require an explicit `--listen 0.0.0.0` style option for remote use, add authentication or mTLS/CurveZMQ, enforce a hardcoded allowlist of runnable algorithms, reject path separators and unknown names, and run jobs under a least-privilege service account with resource limits.
 - Removal risk: Low for adding auth and local-only default; medium if existing cluster workflows depend on unauthenticated remote access.
@@ -39,7 +39,7 @@ Highest-priority work:
 
 - Severity: Critical
 - File/location: `src/jobManager.cpp:22-31`, `src/server.cpp:320-325`
-- Description: `recieveKill` dereferences `queue.end()` when the requested job is not queued. If that does not crash, `jobIds.look4pid[jobId]` inserts a missing key with PID `0`, then `kill(0, SIGTERM)` signals the server process group.
+- Description: `receiveKill` dereferences `queue.end()` when the requested job is not queued. If that does not crash, `jobIds.look4pid[jobId]` inserts a missing key with PID `0`, then `kill(0, SIGTERM)` signals the server process group.
 - Evidence: `std::get<0>(*it)` is called without checking `it != queue.end()`. `operator[]` is used on `look4pid` for an untrusted job ID.
 - Impact: A malformed or stale `KILL` request can terminate unrelated jobs and possibly the server itself. It is also reachable through the network protocol.
 - Suggested fix: Check the queue iterator before dereference; use `find` instead of `operator[]`; reject unknown job IDs; only signal positive PIDs that are currently tracked; return a nonzero status for missing jobs.
@@ -75,7 +75,7 @@ Highest-priority work:
 - Severity: High
 - File/location: `src/server.cpp:263-325`, `src/dataManagement.cpp:68-71`, `src/dataManagement.cpp:203-206`
 - Description: Several request handlers read fixed-size payloads after only checking that the frame contains `infoContainer`. `EXIST`, `DOWNLOAD`, `KILL`, `JOB_STATUS`, `PROGESSION`, and `DURATION` need additional length checks.
-- Evidence: `memcpy(&jobId, request.data()+sizeof(infoContainer), sizeof(jobId))` is performed without `requesSize >= sizeof(infoContainer)+sizeof(jobId)`. Data operations copy 64 bytes of name/hash from `dataName` without checking the incoming frame.
+- Evidence: `memcpy(&jobId, request.data()+sizeof(infoContainer), sizeof(jobId))` is performed without `requestSize >= sizeof(infoContainer)+sizeof(jobId)`. Data operations copy 64 bytes of name/hash from `dataName` without checking the incoming frame.
 - Impact: Short frames can cause out-of-bounds reads, incorrect job IDs, crashes, or stale memory being interpreted as a path/hash.
 - Suggested fix: Add per-task minimum and maximum frame-size validation before dispatch. Return protocol errors for invalid lengths.
 - Removal risk: Low.
@@ -129,7 +129,7 @@ Highest-priority work:
 
 - Severity: Medium
 - File/location: `src/DirectMeasureCPUThreadDevice.cpp:221-228`, `include/DirectMeasureCPUThreadDevice.hpp:67-78`
-- Description: `candidateForPatern` encodes neighbor deltas with `encoded += encoded * _fftSize[j] + delta`, which double-counts the previous encoded value. It also stores signed deltas and later indexes `_srcCplx` with `index + _encodedDeltaPosition[i]`.
+- Description: `candidateForPattern` encodes neighbor deltas with `encoded += encoded * _fftSize[j] + delta`, which double-counts the previous encoded value. It also stores signed deltas and later indexes `_srcCplx` with `index + _encodedDeltaPosition[i]`.
 - Evidence: The helper `index(...)` uses `finalValue *= _fftSize[i]; finalValue += deltaVect[i]`, but the implementation uses `encoded += encoded * _fftSize[j] + ...`.
 - Impact: If this device is wired in, it can compare the wrong positions or read outside valid memory for negative offsets.
 - Suggested fix: Replace with a single tested coordinate-to-linear-offset helper and validate bounds before indexing.
@@ -254,7 +254,7 @@ No database models, SQL files, or migrations were found. The main data-integrity
 - Removal risk: Medium; protocol changes need client updates.
 - Confidence: High.
 
-### P-3: Random seed conversion loses entropy and emits warnings
+### P-3: Random seedconversion loses entropy and emits warnings
 
 - Severity: Low
 - File/location: `include/quantileSamplingModule.hpp:455-456`, `include/quantileSamplingModule.hpp:524-525`
@@ -274,7 +274,7 @@ No database models, SQL files, or migrations were found. The main data-integrity
 - Description: CI runs only `./build/c++-build/test -sampling 1D 2D 3D`. The test checks one sampling property and prints comparisons, but does not cover the server protocol, malformed inputs, CLI parsing, bindings, packaging, distributed launchers, SNESIM, AutoQS edge cases, or security-sensitive paths.
 - Evidence: `src/test.cpp` implements the `-sampling` flow and returns `allRight`; CI invokes only that command.
 - Impact: Critical server and interface regressions can ship while CI stays green.
-- Suggested fix: Add unit tests for serialization validation, job manager state transitions, protocol framing, typed outputs, Python wheel import plus real calls, R/MATLAB conversion where feasible, distributed launcher dry-runs, and negative security tests.
+- Suggested fix: Add unit tests for serialization validation, job manager state transitions, protocol framing, typed outputs, Python wheel import plus real calls, R/MATLABconversion where feasible, distributed launcher dry-runs, and negative security tests.
 - Removal risk: Low.
 - Confidence: High.
 
@@ -284,7 +284,7 @@ No database models, SQL files, or migrations were found. The main data-integrity
 - File/location: `.github/workflows/pythonPublish.yml:60-71`, `.github/workflows/pythonPublishTest.yml:68-77`
 - Description: Wheel jobs install the built wheel and run only `import g2s`.
 - Evidence: `python -c "import g2s; print('g2s import OK')"`.
-- Impact: Broken runtime calls, typed output conversion, missing DLLs, or server communication failures can pass release CI.
+- Impact: Broken runtime calls, typed outputconversion, missing DLLs, or server communication failures can pass release CI.
 - Suggested fix: Add a minimal server-backed or mocked protocol test for `g2s.run('--version')`, matrix upload/download conversion, and UInteger outputs.
 - Removal risk: Low.
 - Confidence: High.
@@ -305,9 +305,9 @@ No database models, SQL files, or migrations were found. The main data-integrity
 ### U-1: DirectMeasure and FullMeasure devices appear unused
 
 - Severity: Medium
-- File/location: `src/DirectMeasureCPUThreadDevice.cpp`, `include/DirectMeasureCPUThreadDevice.hpp`, `src/FullMesaureCPUThreadDevice.cpp`, `include/FullMeasureCPUThreadDevice.hpp`, `build/c++-build/Makefile:24-68`
+- File/location: `src/DirectMeasureCPUThreadDevice.cpp`, `include/DirectMeasureCPUThreadDevice.hpp`, `src/FullMeasureCPUThreadDevice.cpp`, `include/FullMeasureCPUThreadDevice.hpp`, `build/c++-build/Makefile:24-68`
 - Description: These device classes are compiled into dependency files but not linked into default targets, and `rg` found no constructor use outside their own definitions.
-- Evidence: Default targets link `CPUThreadDevice`, `OpenCLGPUDevice`, and `AcceleratorDevice`; no target includes `DirectMeasureCPUThreadDevice.o` or `FullMesaureCPUThreadDevice.o`.
+- Evidence: Default targets link `CPUThreadDevice`, `OpenCLGPUDevice`, and `AcceleratorDevice`; no target includes `DirectMeasureCPUThreadDevice.o` or `FullMeasureCPUThreadDevice.o`.
 - Impact: Maintenance burden remains for code that is not exercised. DirectMeasure also contains correctness risks if later re-enabled.
 - Suggested fix: Confirm whether these are planned features. If not, remove source/header files and references. If yes, wire them behind tests and build targets.
 - Removal risk: Needs verification. External consumers may include these headers even if this repository does not.

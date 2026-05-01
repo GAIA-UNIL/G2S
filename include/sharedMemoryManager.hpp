@@ -29,7 +29,7 @@ class SharedMemoryManager
 {
 public:
 	SharedMemoryManager(std::vector<unsigned> size);
-	void addVaraible(void* memoryAdress);
+	void addVariable(void* memoryAddress);
 
 	void addDevice(ComputeDeviceModule *device);
 	void removeDevice(ComputeDeviceModule *device);
@@ -38,7 +38,7 @@ public:
 
 	std::vector<unsigned> _srcSize;
 	std::vector<unsigned> _fftSize;
-	std::vector<g2s::spaceFrequenceMemoryAddress> adressSharedMemory(int memID);
+	std::vector<g2s::spaceFrequencyMemoryAddress> addressSharedMemory(int memID);
 	void allowNewModule(bool);
 
 
@@ -48,10 +48,10 @@ private:
 	void createSharedMemoryForDevice(ComputeDeviceModule *device);
 	void removeSharedMemoryForDevice(ComputeDeviceModule *device);
 
-	std::vector<void* > _srcMemoryAdress;
+	std::vector<void* > _srcMemoryAddress;
 
 	std::set<ComputeDeviceModule*> _devices;
-	std::vector<std::vector<g2s::spaceFrequenceMemoryAddress > > _memoryAddress;	
+	std::vector<std::vector<g2s::spaceFrequencyMemoryAddress > > _memoryAddress;	
 	
 	bool _allowNewModule=true;	
 };

@@ -93,7 +93,7 @@ template<typename T, typename urgT>
 
 
 template<typename T>
-	inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
+	inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
 
 		for (unsigned int i = 0; i < N; ++i)
 		{
@@ -106,7 +106,7 @@ template<typename T>
 }
 
 template<typename T>
-inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
 
 	for (unsigned int i = 0; i < N; ++i)
 	{
@@ -119,7 +119,7 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 }
 
 template<typename T,typename urgT>
-inline void findKbigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	for (unsigned int i = 0; i < N; ++i)
 	{
@@ -133,7 +133,7 @@ inline void findKbigest(const T* data,const unsigned int N,const unsigned short 
 
 
 #if __arm64__
-inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+inline void findKbiggestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
@@ -165,7 +165,7 @@ inline void findKbigestARM(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
@@ -197,7 +197,7 @@ inline void findKbigestARM(const float* data,const unsigned int N,const unsigned
 	}
 }
 template <typename urgT>
-inline void findKbigestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
@@ -231,7 +231,7 @@ inline void findKbigestARM(const float* data,const unsigned int N,const unsigned
 #endif
 
 #if __SSE4_1__
-inline void findKbigest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+inline void findKbiggest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
@@ -263,7 +263,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
@@ -295,7 +295,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	}
 }
 template<typename urgT>
-inline void findKbigest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
@@ -327,7 +327,7 @@ inline void findKbigest128(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
+inline void findKbiggest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
 
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
@@ -359,7 +359,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 	}
 }
 
-inline void findKbigest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
@@ -391,7 +391,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 	}
 }
 template<typename urgT>
-inline void findKbigest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest128(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
@@ -427,7 +427,7 @@ inline void findKbigest128(const double* data,const unsigned int N,const unsigne
 
 #if __AVX__
 
-inline void findKbigest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+inline void findKbiggest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
@@ -458,7 +458,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
@@ -489,7 +489,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	}
 }
 template<typename urgT>
-inline void findKbigest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest256(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
@@ -520,7 +520,7 @@ inline void findKbigest256(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
+inline void findKbiggest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
 
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
@@ -551,7 +551,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 	}
 }
 
-inline void findKbigest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
@@ -582,7 +582,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 	}
 }
 template<typename urgT>
-inline void findKbigest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest256(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
@@ -618,7 +618,7 @@ inline void findKbigest256(const double* data,const unsigned int N,const unsigne
 
 #if __AVX512F__
 
-inline void findKbigest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+inline void findKbiggest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
@@ -649,7 +649,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
@@ -680,7 +680,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	}
 }
 template<typename urgT>
-inline void findKbigest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest512(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
@@ -711,7 +711,7 @@ inline void findKbigest512(const float* data,const unsigned int N,const unsigned
 	}
 }
 
-inline void findKbigest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
+inline void findKbiggest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output){
 
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
@@ -742,7 +742,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 	}
 }
 
-inline void findKbigest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
+inline void findKbiggest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue){
 
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
@@ -773,7 +773,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 	}
 }
 template<typename urgT>
-inline void findKbigest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKbiggest512(const double* data,const unsigned int N,const unsigned short k, double* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
@@ -808,7 +808,7 @@ inline void findKbigest512(const double* data,const unsigned int N,const unsigne
 
 
 template<typename T>
-inline void findKBigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
+inline void findKBiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
 	std::fill(output,output+k,-INFINITY);
 
 #if __AVX512F__
@@ -816,7 +816,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKBigest512(data, N, k, output);
+		findKbiggest512(data, N, k, output);
 		return;
 	}
 #endif
@@ -826,7 +826,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX))
 	#endif
 	{
-		findKbigest256(data, N, k, output);
+		findKbiggest256(data, N, k, output);
 		return;
 	}
 #endif
@@ -836,7 +836,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_SSE4_1))
 	#endif
 	{
-		findKbigest128(data, N, k, output);
+		findKbiggest128(data, N, k, output);
 		return;
 	}
 #endif
@@ -844,19 +844,19 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 // #if __arm64__
 // 	{
 // 		if(std::is_same<T, float>::value){
-// 			findKbigestARM(data, N, k, output);
+// 			findKbiggestARM(data, N, k, output);
 // 			return;
 // 		}
 // 	}
 // #endif
 
-	findKbigest<T>(data, N, k, output);
+	findKbiggest<T>(data, N, k, output);
 	return;
 
 }
 
 template<typename T>
-inline void findKBigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
+inline void findKBiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
 
 	std::fill(output,output+k,-INFINITY);
 	std::fill(positionValue,positionValue+k,UINT_MAX);
@@ -865,7 +865,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKbigest512(data, N, k, output, positionValue);
+		findKbiggest512(data, N, k, output, positionValue);
 		return;
 	}
 #endif
@@ -875,7 +875,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX))
 	#endif
 	{
-		findKbigest256(data, N, k, output, positionValue);
+		findKbiggest256(data, N, k, output, positionValue);
 		return;
 	}
 #endif
@@ -885,7 +885,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_SSE4_1))
 	#endif
 	{
-		findKbigest128(data, N, k, output, positionValue);
+		findKbiggest128(data, N, k, output, positionValue);
 		return;
 	}
 #endif
@@ -893,19 +893,19 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 // #if __arm64__
 // 	{
 // 		if(std::is_same<T, float>::value){
-// 			findKbigestARM(data, N, k, output, positionValue);
+// 			findKbiggestARM(data, N, k, output, positionValue);
 // 			return;
 // 		}
 // 	}
 // #endif
 
-	findKbigest<T>(data, N, k, output, positionValue);
+	findKbiggest<T>(data, N, k, output, positionValue);
 	return;
 
 }
 
 template<typename T, typename urgT>
-inline void findKBigest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
+inline void findKBiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
 
 	std::fill(output,output+k,-INFINITY);
 	std::fill(positionValue,positionValue+k,UINT_MAX);
@@ -914,7 +914,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX512F))
 	#endif
 	{
-		findKbigest512(data, N, k, output, positionValue, generator);
+		findKbiggest512(data, N, k, output, positionValue, generator);
 		return;
 	}
 #endif
@@ -924,7 +924,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_AVX))
 	#endif
 	{
-		findKbigest256(data, N, k, output, positionValue, generator);
+		findKbiggest256(data, N, k, output, positionValue, generator);
 		return;
 	}
 #endif
@@ -934,7 +934,7 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 	if(_may_i_use_cpu_feature(_FEATURE_SSE4_1))
 	#endif
 	{
-		findKbigest128(data, N, k, output, positionValue, generator);
+		findKbiggest128(data, N, k, output, positionValue, generator);
 		return;
 	}
 #endif
@@ -942,13 +942,13 @@ inline void findKBigest(const T* data,const unsigned int N,const unsigned short 
 // #if __arm64__
 // 	{
 // 		if(std::is_same<T, float>::value){
-// 			findKbigestARM(data, N, k, output, positionValue, generator);
+// 			findKbiggestARM(data, N, k, output, positionValue, generator);
 // 			return;
 // 		}
 // 	}
 // #endif
 
-	findKbigest<T>(data, N, k, output, positionValue, generator);
+	findKbiggest<T>(data, N, k, output, positionValue, generator);
 	return;
 
 }

@@ -19,7 +19,7 @@
 #include "jobManager.hpp"
 
 
-int recieveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId ){
+int receiveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId ){
 	
 	auto it = std::find_if (queue.begin(), queue.end(),[=](jobTask task){return std::get<0>(task)==jobId;});
 	if(it!=queue.end()){

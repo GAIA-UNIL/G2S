@@ -36,7 +36,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
 	std::string kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -159,7 +159,7 @@ int main(int argc, char const *argv[]) {
 	//look for -sp			: simulation path 
 	if (arg.count("-sp") ==1)
 	{
-		simuationPathFileName=arg.find("-sp")->second;
+		simulationPathFileName=arg.find("-sp")->second;
 	}else{	
 		fprintf(reportFile,"error target\n");
 	}
@@ -265,7 +265,7 @@ int main(int argc, char const *argv[]) {
 
 	if(nbNeighbors<0){
 		run=false;
-		fprintf(reportFile, "%s\n", "number of neighbor not valide" );
+		fprintf(reportFile, "%s\n", "number of neighbor not valid" );
 	}
 	if(std::isnan(threshold)){
 		run=false;

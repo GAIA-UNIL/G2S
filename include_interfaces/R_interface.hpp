@@ -177,8 +177,8 @@ unsigned anyNativeToUnsigned(std::any val){
 			Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(std::any_cast<Rcpp::RObject>(dataTypeVariable));
 			for (int i = 0; i < nbOfVariable; ++i)
 			{
-				if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-				if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+				if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+				if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 			}
 		}
 		

@@ -26,7 +26,7 @@
 #include <iostream>
 #include "jobManager.hpp"
 
-jobIdType recieveJob(jobQueue &queue,void* data, size_t sizeBuffer, bool allowUnregisteredAlgorithm=false);
+jobIdType receiveJob(jobQueue &queue,void* data, size_t sizeBuffer, bool allowUnregisteredAlgorithm=false);
 bool runJobInQueue(jobQueue &queue, jobArray &jobIds, bool singleTask, bool functionMode, unsigned maxNumberOfJob=500, bool allowUnregisteredAlgorithm=false);
 
 #endif // JOB_TASKING_HPP

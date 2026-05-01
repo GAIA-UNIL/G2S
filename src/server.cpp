@@ -217,13 +217,13 @@ int main(int argc, char const *argv[]) {
 
 #ifdef WITH_VERSION_CONTROL
 	
-	std::string gitAdress=GIT_URL;
-	gitAdress=gitAdress.substr(0, gitAdress.size()-4);
+	std::string gitAddress=GIT_URL;
+	gitAddress=gitAddress.substr(0, gitAddress.size()-4);
 
 	CURL *curl;
 	CURLcode res;
 	char url[2048];
-	snprintf(url,2048,"%s/raw/master/version",gitAdress.c_str());
+	snprintf(url,2048,"%s/raw/master/version",gitAddress.c_str());
 	curl = curl_easy_init();                                                                                                                                                                                                                                                           
 	if (curl)
 	{
@@ -240,7 +240,7 @@ int main(int argc, char const *argv[]) {
 		if(res == CURLE_OK)
 		{
 			if(resultBody.size()<20 && currentVersion.compare(resultBody)<0){
-				fprintf(stdout, "The new version %s is avialable on GitHub: %s \n",resultBody.c_str(), gitAdress.c_str() );
+				fprintf(stdout, "The new version %s is available on GitHub: %s \n",resultBody.c_str(), gitAddress.c_str() );
 				fprintf(stdout, "The version %s is currently installed\n",currentVersion.c_str() );
 			}
 		}
@@ -344,12 +344,12 @@ int main(int argc, char const *argv[]) {
 		zmq::message_t request;
 		bool newRequest=false;
 		//  Wait for next request from client
-		auto reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
-		if( reciveMessage )
+		auto receiveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
+		if( receiveMessage )
 		{
 			newRequest=true;
-			size_t requesSize=request.size();
-			if(requesSize>=sizeof(infoContainer)){
+			size_t requestSize=request.size();
+			if(requestSize>=sizeof(infoContainer)){
 				infoContainer infoRequest;
 				memcpy(&infoRequest,request.data(),sizeof(infoContainer));
 				if(infoRequest.version<=0) {
@@ -360,7 +360,7 @@ int main(int argc, char const *argv[]) {
 				{
 					case EXIST :
 						{
-							if(!payloadSizeIs(requesSize, 64)) {
+							if(!payloadSizeIs(requestSize, 64)) {
 								sendIntReply(-1);
 								break;
 							}
@@ -370,17 +370,17 @@ int main(int argc, char const *argv[]) {
 						}
 					case UPLOAD :
 						{
-							if(!payloadSizeBetween(requesSize, 64+sizeof(size_t)+sizeof(unsigned)*3, 64+g2s::DataImage::MaxSerializedBytes)) {
+							if(!payloadSizeBetween(requestSize, 64+sizeof(size_t)+sizeof(unsigned)*3, 64+g2s::DataImage::MaxSerializedBytes)) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+							int error=storeData((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
 							sendIntReply(error);
 							break;
 						}
 					case DOWNLOAD :
 						{
-							if(!payloadSizeIs(requesSize, 64)) {
+							if(!payloadSizeIs(requestSize, 64)) {
 								receiver.send(zmq::message_t(0),zmq::send_flags::none);
 								break;
 							}
@@ -390,7 +390,7 @@ int main(int argc, char const *argv[]) {
 						}
 					case JOB :
 						{
-							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), allowUnregisteredAlgorithm);
+							int id=receiveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), allowUnregisteredAlgorithm);
 							zmq::message_t reply(sizeof(id));
 							memcpy (reply.data (), &id, sizeof(id));
 							receiver.send(reply,zmq::send_flags::none);
@@ -398,17 +398,17 @@ int main(int argc, char const *argv[]) {
 						}
 					case PROGESSION :
 						{
-							if(!payloadSizeIs(requesSize, sizeof(jobIdType))) {
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
 								sendIntReply(-1);
 								break;
 							}
-							int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-							sendIntReply(progess);
+							int progress=lookForStatus((char*)request.data()+sizeof(infoContainer),requestSize-sizeof(infoContainer));
+							sendIntReply(progress);
 							break;
 						}
 					case JOB_STATUS :
 						{
-							if(!payloadSizeIs(requesSize, sizeof(jobIdType))) {
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
 								sendIntReply(-1);
 								break;
 							}
@@ -421,39 +421,39 @@ int main(int argc, char const *argv[]) {
 						}
 					case DURATION :
 						{
-							if(!payloadSizeIs(requesSize, sizeof(jobIdType))) {
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
 								sendIntReply(-1);
 								break;
 							}
-							int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-							sendIntReply(progess);
+							int progress=lookForDuration((char*)request.data()+sizeof(infoContainer),requestSize-sizeof(infoContainer));
+							sendIntReply(progress);
 							break;
 						}
 					case KILL :
 						{
-							fprintf(stderr, "%s\n", "recieve KILL");
+							fprintf(stderr, "%s\n", "receive KILL");
 							int error=-1;
-							if(payloadSizeIs(requesSize, sizeof(jobIdType))){
+							if(payloadSizeIs(requestSize, sizeof(jobIdType))){
 								jobIdType jobId;
 								memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-								error=recieveKill(jobIds,jobQueue,jobId);
+								error=receiveKill(jobIds,jobQueue,jobId);
 							}
 							sendIntReply(error);
 							break;
 						}
 					case UPLOAD_JSON :
 						{
-							if(!payloadSizeBetween(requesSize, 65, 64+g2s::DataImage::MaxSerializedBytes)) {
+							if(!payloadSizeBetween(requestSize, 65, 64+g2s::DataImage::MaxSerializedBytes)) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), false, false);
+							int error=storeJson((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), false, false);
 							sendIntReply(error);
 							break;
 						}
 					case DOWNLOAD_JSON :
 						{
-							if(!payloadSizeIs(requesSize, 64)) {
+							if(!payloadSizeIs(requestSize, 64)) {
 								receiver.send(zmq::message_t(0),zmq::send_flags::none);
 								break;
 							}
@@ -463,7 +463,7 @@ int main(int argc, char const *argv[]) {
 						}
 					case DOWNLOAD_TEXT :
 						{
-							if(!payloadSizeIs(requesSize, 64)) {
+							if(!payloadSizeIs(requestSize, 64)) {
 								receiver.send(zmq::message_t(0),zmq::send_flags::none);
 								break;
 							}
