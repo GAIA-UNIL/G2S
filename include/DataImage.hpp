@@ -21,12 +21,13 @@
 #include <cmath>
 #include <iostream>
 #include <cstring>
+#include <limits>
 #include <vector>
 #include "utils.hpp"
 #include "typeDefine.hpp"
 #include "OperationMatrix.hpp"
 
-char* loadRawData(const char * hash);
+char* loadRawData(const char * hash, size_t* outSize=nullptr);
 char* writeRawData(char* data, bool compresed=false);
 void createLink(char* outputFullFilename, char* fullFilename);
 
@@ -51,6 +52,10 @@ class DataImage{
 	unsigned _nbVariable;
 	std::vector<VaraibleType> _types;
 	EncodingType _encodingType=EncodingType::Float;
+
+	static const size_t MaxSerializedBytes = size_t(1) << 30;
+	static const unsigned MaxDimensions = 16;
+	static const unsigned MaxVariables = 4096;
 
 	inline DataImage()
 	{
@@ -78,9 +83,10 @@ class DataImage{
 
 	static DataImage createFromFile(std::string filename)
 	{
-		char *raw=loadRawData((const char *) filename.c_str());
+		size_t rawSize=0;
+		char *raw=loadRawData((const char *) filename.c_str(), &rawSize);
 		if(!raw) return DataImage();
-		DataImage toReturn(raw);
+		DataImage toReturn(raw, rawSize);
 		free(raw);
 		return toReturn; 
 	}
@@ -151,7 +157,66 @@ class DataImage{
 
 	}
 
-	inline DataImage(char* raw){
+	static inline bool validateSerializedData(const char* raw, size_t rawSize){
+		if(!raw || rawSize < sizeof(size_t)+sizeof(unsigned)*3 || rawSize > MaxSerializedBytes) return false;
+
+		size_t index=0;
+		size_t fullSize=0;
+		memcpy(&fullSize, raw+4*index, sizeof(fullSize));
+		if(fullSize != rawSize || fullSize < sizeof(size_t)+sizeof(unsigned)*3 || fullSize > MaxSerializedBytes) return false;
+		index+=sizeof(fullSize)/4;
+
+		if(4*index+sizeof(unsigned) > rawSize) return false;
+		unsigned nbDim=0;
+		memcpy(&nbDim, raw+4*index, sizeof(nbDim));
+		if(nbDim == 0 || nbDim > MaxDimensions) return false;
+		index++;
+
+		size_t cellCount=1;
+		for (unsigned i = 0; i < nbDim; ++i)
+		{
+			if(4*index+sizeof(unsigned) > rawSize) return false;
+			unsigned dim=0;
+			memcpy(&dim, raw+4*index, sizeof(dim));
+			if(dim == 0 || cellCount > std::numeric_limits<size_t>::max() / dim) return false;
+			cellCount*=dim;
+			index++;
+		}
+
+		if(4*index+sizeof(unsigned) > rawSize) return false;
+		unsigned nbVariable=0;
+		memcpy(&nbVariable, raw+4*index, sizeof(nbVariable));
+		if(nbVariable == 0 || nbVariable > MaxVariables) return false;
+		if(cellCount > std::numeric_limits<size_t>::max() / nbVariable) return false;
+		cellCount*=nbVariable;
+		index++;
+
+		for (unsigned i = 0; i < nbVariable; ++i)
+		{
+			if(4*index+sizeof(VaraibleType) > rawSize) return false;
+			VaraibleType type;
+			memcpy(&type, raw+4*index, sizeof(type));
+			if(type != Continuous && type != Categorical) return false;
+			index++;
+		}
+
+		if(4*index+sizeof(EncodingType) > rawSize) return false;
+		EncodingType encodingType;
+		memcpy(&encodingType, raw+4*index, sizeof(encodingType));
+		if(encodingType != Float && encodingType != Integer && encodingType != UInteger) return false;
+		index++;
+
+		if(cellCount > MaxSerializedBytes / sizeof(float)) return false;
+		size_t expectedDataBytes=cellCount*sizeof(float);
+		return 4*index <= rawSize && expectedDataBytes == rawSize-4*index;
+	}
+
+	inline DataImage(char* raw, size_t rawSize){
+		if(!validateSerializedData(raw, rawSize)){
+			_nbVariable=0;
+			_data=nullptr;
+			return;
+		}
 		size_t index=0;
 		size_t fullSize=*((size_t*)(raw+4*index));
 		index+=sizeof(fullSize)/4;
@@ -176,6 +241,8 @@ class DataImage{
 		memcpy(_data,raw+4*index,fullSize-4*index);
 		
 	}
+
+	inline DataImage(char* raw) : DataImage(raw, raw ? *((size_t*)raw) : 0) {}
 
 	inline DataImage& operator=(DataImage&& o)
 	{
@@ -203,6 +270,7 @@ class DataImage{
 		char* raw=serialize();
 		char* outputName=writeRawData(raw,compresed);
 		free(raw);
+		if(!outputName) return;
 		//fprintf(stderr, "save as %s\n",outputName );
 		//fprintf(stderr, "save as %s\n",filename.c_str() );
 		char fullFilename[2048];

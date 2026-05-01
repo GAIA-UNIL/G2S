@@ -864,7 +864,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 				printf("\rprogres %.3f%%\n",100.0f );
 				Py_UNBLOCK_THREADS
 			}
-			g2s::DataImage image((char*)reply.data());
+			g2s::DataImage image((char*)reply.data(), reply.size());
 			Py_BLOCK_THREADS
 			plhs.push_back(convert2NDArray(image));
 			Py_UNBLOCK_THREADS
@@ -940,7 +940,7 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			}
 			
 			if(reply.size()!=0){
-				g2s::DataImage image((char*)reply.data());
+				g2s::DataImage image((char*)reply.data(), reply.size());
 				Py_BLOCK_THREADS
 				plhs.push_back(convert2NDArray(image));
 				Py_UNBLOCK_THREADS

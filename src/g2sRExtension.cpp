@@ -739,7 +739,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			if(!silentMode){
 				printf("\rprogres %.3f%%\n",100.0f );
 			}
-			g2s::DataImage image((char*)reply.data());
+			g2s::DataImage image((char*)reply.data(), reply.size());
 			plhs.push_back(convert2NDArray(image));
 			stop=true;
 		}
@@ -813,7 +813,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			}
 			
 			if(reply.size()!=0){
-				g2s::DataImage image((char*)reply.data());
+				g2s::DataImage image((char*)reply.data(), reply.size());
 				plhs.push_back(convert2NDArray(image));
 				stop=true;
 				downloadInformation++;

@@ -201,8 +201,8 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 					{
 						if(uniformDistributionOverSource(randomGenerator)<fraction)
 						{
-							iter_swap(neighborArrayVector.begin() + floor(uniformDistributionOverSource(randomGenerator)/neighborValueArrayVector.size()) ,
-									  neighborArrayVector.begin() + + floor(uniformDistributionOverSource(randomGenerator)/neighborValueArrayVector.size()));
+							iter_swap(neighborArrayVector.begin() + floor(uniformDistributionOverSource(randomGenerator)*neighborValueArrayVector.size()) ,
+									  neighborArrayVector.begin() + floor(uniformDistributionOverSource(randomGenerator)*neighborValueArrayVector.size()));
 
 						}
 					}

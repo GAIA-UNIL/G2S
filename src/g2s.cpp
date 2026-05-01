@@ -841,7 +841,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			mexEvalString("drawnow");
 			//printf( "recive\n");
 
-			g2s::DataImage image((char*)reply.data());
+			g2s::DataImage image((char*)reply.data(), reply.size());
 			plhs[0]=convert2MxArray(image);
 			stop=true;
 		}
@@ -910,7 +910,7 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 			}
 			
 			if(reply.size()!=0){
-				g2s::DataImage image((char*)reply.data());
+				g2s::DataImage image((char*)reply.data(), reply.size());
 				plhs[downloadInformation]=convert2MxArray(image);
 				stop=true;
 				downloadInformation++;

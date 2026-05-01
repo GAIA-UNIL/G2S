@@ -42,6 +42,16 @@ Remote job requests are bounded before launch: job JSON is limited to 1 MiB, alg
 
 `KILL` requests now fail with a nonzero reply when the requested job id is unknown, malformed, or no longer tracked by the server.
 
+## Server data protocol hardening
+
+Data request frames are validated before dispatch. Uploads require exactly 64 hex hash characters, download/existence names are limited to safe 64-byte identifiers, job-id operations require exactly one `jobIdType`, and upload/download payloads are bounded.
+
+Stored `.bgrid` payloads are read using the actual file or decompressed byte count. The embedded serialized size must match the bytes read, dimensions and variable counts are bounded, and malformed files are rejected instead of being allocated, sent back to clients, or deserialized from a short reply frame.
+
+## AutoQS calibration noise
+
+AutoQS calibration noise (`-ln`) randomizes neighbor-offset swaps using indexes drawn across the full neighbor vector.
+
 ## AS mask order (`-mi`)
 
 In Anchor Sampling, candidate mismatch is computed first, `-mi` invalid entries (`NaN`, `inf`, and non-positive values) are excluded before top-`k` ranking, and `-mi` weights are then used for weighted draw within the retained candidates.

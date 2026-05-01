@@ -827,7 +827,7 @@ public:
 				}
 				
 				if(reply.size()!=0){
-					g2s::DataImage image((char*)reply.data());
+					g2s::DataImage image((char*)reply.data(), reply.size());
 					outputs.insert({std::to_string(dataIndex),convert2NativeMatrix(image)});
 				}
 				dataIndex++;
