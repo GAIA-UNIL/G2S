@@ -2,11 +2,14 @@
 
 ## 2026-05-01
 
+- Hardened server startup parsing for `-p` and `-maxCJ` so missing, malformed, or out-of-range values fail cleanly.
+- Made unsupported AutoQS full and augmented-dimensional simulation enum cases explicit no-ops during calibration to avoid compiler switch warnings.
 - Restricted server job execution to algorithm names registered in `algosName.config` by default.
 - Added the `--allow-unregistered-algorithms` server flag for deployments that intentionally need the legacy `./<Algorithm>` fallback.
 - Hardened server `KILL` handling so unknown or malformed job ids are rejected instead of risking invalid queue access or process-group signalling.
 - Replaced fixed-size stack buffers in remote job argv construction with owned strings and explicit request, algorithm, argument, and argv-count limits.
 - Hardened data upload/download handling: request frames now validate hash and job-id lengths, `.bgrid` files must match their actual payload size, serialized dimensions/data sizes are bounded, and truncated or malformed files are rejected before server send or client deserialization.
+- Changed server-created `/tmp/G2S` runtime directories from world-writable `0777` to shared service owner/group `0770` permissions.
 - Fixed AutoQS calibration noise so random neighbor-offset swaps can select indexes across the full neighbor vector.
 
 ## 2026-04-30

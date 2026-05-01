@@ -173,15 +173,15 @@ No database models, SQL files, or migrations were found. The main data-integrity
 - Removal risk: Medium; legacy clients may rely on precomputed names, but the server can still verify and return the canonical hash.
 - Confidence: High.
 
-### D-2: Shared `/tmp/G2S` storage is world-writable and cross-user
+### D-2: Shared `/tmp/G2S` storage should be restricted to the server group
 
-- Severity: High
+- Severity: Medium
 - File/location: `src/server.cpp:195-198`, `src/DataImage.cpp:45-67`, `include/DataImage.hpp:202-214`
-- Description: The server creates `/tmp/G2S`, `/tmp/G2S/data`, and `/tmp/G2S/logs` with mode `0777` and all clients/jobs read/write predictable names there.
-- Evidence: `mkdir("/tmp/G2S", 0777)`, `mkdir("/tmp/G2S/data", 0777)`, and hardcoded `/tmp/G2S/data/...` paths throughout the code.
-- Impact: Local users can tamper with data/logs, delete or replace files, cause wrong simulation inputs/outputs, or stage malformed files for server/client crashes.
-- Suggested fix: Use `$XDG_RUNTIME_DIR`, `$TMPDIR`, or `/tmp/G2S-$UID` with `0700`; support `G2S_DATA_DIR` consistently in the server as the Python distributed scripts already do; use `open(..., O_NOFOLLOW|O_CREAT|O_EXCL)` or equivalent safe writes.
-- Removal risk: Medium for existing cluster workflows; provide a migration/compatibility option.
+- Description: The server intentionally shares `/tmp/G2S`, `/tmp/G2S/data`, and `/tmp/G2S/logs` across jobs triggered by the server, but the directories should be writable only by the server owner/trusted group instead of every local user.
+- Evidence: Runtime directories are created and chmodded with `0770`; hardcoded `/tmp/G2S/data/...` paths remain throughout the code.
+- Impact: Deployments that intentionally put untrusted users in the server's runtime group may still allow those users to tamper with data/logs, delete or replace files, cause wrong simulation inputs/outputs, or stage malformed files for server/client crashes.
+- Suggested fix: Ensure deployment creates or owns `/tmp/G2S` with the server service user and trusted group using `0770`; support `G2S_DATA_DIR` consistently in the server for deployments that need a different shared storage root; use `open(..., O_NOFOLLOW|O_CREAT|O_EXCL)` or equivalent safe writes.
+- Removal risk: Low to medium for existing cluster workflows; existing directories may need one-time ownership or permission migration.
 - Confidence: High.
 
 ### D-3: Serialized `DataImage` format is architecture-dependent and unversioned

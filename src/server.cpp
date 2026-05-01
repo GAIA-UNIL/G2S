@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cerrno>
+#include <limits>
 #include <unistd.h> /* for fork */
 #include <sys/types.h> /* for pid_t */
 #include <sys/wait.h> /* for wait */
@@ -57,6 +59,33 @@
 #ifndef SERVER_TYPE
 #define SERVER_TYPE 0
 #endif
+
+bool ensureRuntimeDirectory(const char* path)
+{
+	const mode_t runtimeMode=0770;
+	if(mkdir(path, runtimeMode) != 0 && errno != EEXIST) {
+		fprintf(stderr, "Could not create runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	struct stat info;
+	if(lstat(path, &info) != 0) {
+		fprintf(stderr, "Could not inspect runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	if(!S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode)) {
+		fprintf(stderr, "Runtime path %s exists but is not a directory\n", path);
+		return false;
+	}
+
+	if(chmod(path, runtimeMode) != 0) {
+		fprintf(stderr, "Could not set permissions on runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	return true;
+}
 
  
 void removeAllFile(char* dir, double olderThan)
@@ -101,10 +130,35 @@ int main(int argc, char const *argv[]) {
 	bool keepOldData=false;
 	float timeoutDuration=std::nanf("0");
 	double maxFileAge=24*3600.;
-	short port=8128;
+	unsigned port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
 	bool moveToServerFolder=true;
 	bool allowUnregisteredAlgorithm=false;
+
+	auto parseUnsignedOption = [&](const char* option, int &i, unsigned minimum, unsigned maximum, unsigned &destination) {
+		if(i+1 >= argc) {
+			fprintf(stderr, "Missing value for %s\n", option);
+			return false;
+		}
+
+		const char* value=argv[i+1];
+		if(value[0] == '\0' || value[0] == '-') {
+			fprintf(stderr, "Invalid value for %s: %s\n", option, value);
+			return false;
+		}
+
+		char* end=nullptr;
+		errno=0;
+		unsigned long parsed=strtoul(value, &end, 10);
+		if(errno == ERANGE || end == value || *end != '\0' || parsed < minimum || parsed > maximum) {
+			fprintf(stderr, "Invalid value for %s: %s (expected %u-%u)\n", option, value, minimum, maximum);
+			return false;
+		}
+
+		destination=static_cast<unsigned>(parsed);
+		++i;
+		return true;
+	};
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -117,12 +171,12 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
-		if(0==strcmp(argv[i], "-maxCJ")) maxNumberOfConcurrentJob=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-maxCJ") && !parseUnsignedOption("-maxCJ", i, 1, std::numeric_limits<unsigned>::max(), maxNumberOfConcurrentJob)) return EXIT_FAILURE;
 		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
 		{
 			maxFileAge=atof(argv[i+1]);
 		}
-		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-p") && !parseUnsignedOption("-p", i, 1, 65535, port)) return EXIT_FAILURE;
 		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
 		if((0==strcmp(argv[i], "--allow-unregistered-algorithms")) || (0==strcmp(argv[i], "-allowUnregisteredAlgorithm"))) allowUnregisteredAlgorithm=true;
 	}
@@ -194,10 +248,11 @@ int main(int argc, char const *argv[]) {
 		jobIds.errorsByPid.push_back({0,0});
 	}
 
-	mkdir("/tmp/G2S", 0777);
-
-	mkdir("/tmp/G2S/data", 0777);
-	mkdir("/tmp/G2S/logs", 0777);
+	if(!ensureRuntimeDirectory("/tmp/G2S") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/data") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/logs")) {
+		return 1;
+	}
 
 	std::thread fileCleaningThread([&] {
 		time_t last;

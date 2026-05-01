@@ -40,7 +40,13 @@ Remote job requests are bounded before launch: job JSON is limited to 1 MiB, alg
 
 ## Server job control
 
+Server startup validates numeric values for `-p` and `-maxCJ`; missing, malformed, or out-of-range values are rejected before binding the socket.
+
 `KILL` requests now fail with a nonzero reply when the requested job id is unknown, malformed, or no longer tracked by the server.
+
+## Server runtime storage
+
+The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs` by default. These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
 
 ## Server data protocol hardening
 
@@ -51,6 +57,7 @@ Stored `.bgrid` payloads are read using the actual file or decompressed byte cou
 ## AutoQS calibration noise
 
 AutoQS calibration noise (`-ln`) randomizes neighbor-offset swaps using indexes drawn across the full neighbor vector.
+AutoQS calibration intentionally only runs the vector calibration path; full and augmented-dimensional simulation modes are ignored by calibration.
 
 ## AS mask order (`-mi`)
 
