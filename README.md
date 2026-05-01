@@ -25,6 +25,7 @@ The `docs/algorithms/example/` folder is a generated docs mirror (from `docs/syn
 Documentation and packaging notes should use concise, current wording because they are reused across generated artifacts.
 
 A repository-wide review snapshot is available in `CODE_REVIEW_REPORT.md`.
+Maintenance notes for generated build trees and the server protocol schema are available in `DOCUMENTATION.md`.
 
 ## Local binary data files
 
@@ -39,6 +40,12 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
 
 Some build and packaging helpers fetch third-party source files from upstream default branches, including `cppzmq`'s `zmq.hpp` and JsonCpp for Python packaging. This is an accepted project tradeoff: if an upstream change breaks the build, the local build scripts or package inputs must be updated at that time. For fully reproducible or audited release builds, use pinned package-manager dependencies or a reviewed local dependency snapshot.
+
+The Python packaging preprocess step creates ignored local copies of repository source and header trees under `build/python-build/`. These generated copies are removed before each preprocess run and should be treated as ephemeral build inputs, not source of truth.
+
+## Server protocol schema
+
+The ZeroMQ server protocol starts each request with `infoContainer` from `include/protocol.hpp`, then appends a task-specific payload. The current schema and validation expectations are documented in `DOCUMENTATION.md`.
 
 ## Startup version check
 

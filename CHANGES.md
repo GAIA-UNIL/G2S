@@ -2,6 +2,8 @@
 
 ## 2026-05-01
 
+- Made the Python build preprocess step remove ignored generated source/header mirrors before copying fresh repository trees.
+- Documented `build/python-build` generated trees as ephemeral packaging inputs and added server protocol schema/validation notes.
 - Documented `.bgrid` / `DataImage` serialization as an internal local-only binary format, not a portable exchange or archival format.
 - Clarified the `.gitignore` `*.bgrid` rule to reflect that generated local binary data files should not be tracked.
 - Documented the `WITH_VERSION_CONTROL` startup version check as a trusted-network convenience feature and noted that untrusted deployments should build without it or harden it first.

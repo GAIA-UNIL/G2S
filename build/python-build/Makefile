@@ -4,6 +4,7 @@
 
 PYTHON ?= $(shell command -v python 2>/dev/null || command -v python3)
 VERSION_FILE := ../../version
+GENERATED_TREE_DIRS := src include src_interfaces include_interfaces
 
 # Default target
 all: build
@@ -22,10 +23,14 @@ include/zmq.h:
 
 
 jsoncpp:
-	git clone https://github.com/open-source-parsers/jsoncpp.git
-	cd jsoncpp && python3 amalgamate.py
+	@if [ ! -f jsoncpp/dist/jsoncpp.cpp ] || [ ! -d jsoncpp/dist/json ]; then \
+		rm -rf jsoncpp; \
+		git clone https://github.com/open-source-parsers/jsoncpp.git; \
+		cd jsoncpp && python3 amalgamate.py; \
+	fi
 
 preprocess: jsoncpp
+	rm -rf $(GENERATED_TREE_DIRS)
 	cp -r ../../src .
 	cp -r ../../include .
 	cp -r ../../src_interfaces .
@@ -54,4 +59,4 @@ clean:
 	rm -rf build dist *.egg-info src include src_interfaces include_interfaces jsoncpp g2s/_version.py
 	@echo "🧹 Cleaned all generated files."
 
-.PHONY: all preprocess build wheel sdist clean version dirs
+.PHONY: all preprocess build wheel sdist clean version dirs jsoncpp
