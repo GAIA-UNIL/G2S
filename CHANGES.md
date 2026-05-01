@@ -2,6 +2,7 @@
 
 ## 2026-05-01
 
+- Recomputed server-side hashes for `.bgrid` and JSON uploads, moved `.bgrid` hashes to the full serialized payload, rejected mismatches, and switched data writes to temporary-file publication so ordinary uploads cannot overwrite existing content-addressed payloads.
 - Hardened server startup parsing for `-p` and `-maxCJ` so missing, malformed, or out-of-range values fail cleanly.
 - Made unsupported AutoQS full and augmented-dimensional simulation enum cases explicit no-ops during calibration to avoid compiler switch warnings.
 - Restricted server job execution to algorithm names registered in `algosName.config` by default.

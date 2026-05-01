@@ -17,6 +17,9 @@
 
 #include "dataManagement.hpp"
 #include <cctype>
+#include <cerrno>
+#include <cstdio>
+#include <unistd.h>
 #include <vector>
 
 inline bool fileExist (char* name);
@@ -50,6 +53,81 @@ bool copySafeDataName(char* output, const char* data, size_t size){
 	memcpy(output, data, nameSize);
 	output[nameSize]='\0';
 	return true;
+}
+
+void hashToHex(const std::vector<unsigned char>& hash, char* output){
+	for (int i = 0; i < 32; ++i)
+	{
+		snprintf(output+2*i,65-2*i,"%02x",hash.data()[i]);
+	}
+	output[64]='\0';
+}
+
+bool computePayloadHash(const char* data, size_t size, char* output){
+	if(!data || !output || size == 0) return false;
+	std::vector<unsigned char> hash(32);
+	picosha2::hash256((const unsigned char*)data, ((const unsigned char*)data)+size, hash.begin(), hash.end());
+	hashToHex(hash, output);
+	return true;
+}
+
+bool computeSerializedDataHash(const char* data, size_t size, char* output){
+	if(!data || !output || size == 0) return false;
+
+	std::vector<unsigned char> hash(32);
+	picosha2::hash256((const unsigned char*)data, ((const unsigned char*)data)+size, hash.begin(), hash.end());
+	hashToHex(hash, output);
+	return true;
+}
+
+int publishTempFile(const char* tmpFilename, const char* filename, bool force){
+	if(force){
+		if(rename(tmpFilename, filename) == 0) return 0;
+		remove(tmpFilename);
+		return -1;
+	}
+	if(link(tmpFilename, filename) == 0){
+		remove(tmpFilename);
+		return 0;
+	}
+	const int publishError=errno;
+	remove(tmpFilename);
+	return publishError == EEXIST ? 1 : -1;
+}
+
+int writePayloadFile(const char* filename, const char* data, size_t size, bool force, bool compressed){
+	static unsigned tempCounter=0;
+	char tmpFilename[4096];
+	snprintf(tmpFilename,4096,"%s.tmp.%ld.%u",filename,(long)getpid(),tempCounter++);
+
+	if(compressed)
+	{
+		gzFile dataFile=gzopen(tmpFilename,"wb");
+		if(!dataFile) return -1;
+		if(gzwrite(dataFile, data, size) != int(size)){
+			gzclose(dataFile);
+			remove(tmpFilename);
+			return -1;
+		}
+		if(gzclose(dataFile) != Z_OK){
+			remove(tmpFilename);
+			return -1;
+		}
+	}else{
+		FILE* dataFile=fopen(tmpFilename,"wb");
+		if(!dataFile) return -1;
+		if(fwrite (data , sizeof(char), size, dataFile) != size){
+			fclose(dataFile);
+			remove(tmpFilename);
+			return -1;
+		}
+		if(fclose(dataFile) != 0){
+			remove(tmpFilename);
+			return -1;
+		}
+	}
+
+	return publishTempFile(tmpFilename, filename, force);
 }
 
 bool readCompressedFile(const char* filename, std::vector<char>& output, size_t maxSize){
@@ -133,6 +211,9 @@ int storeData(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 		data+=HashSize;
 		inSize-=HashSize;
 		if(!g2s::DataImage::validateSerializedData(data, inSize)) return -1;
+		char computedHash[65]={0};
+		if(!computeSerializedDataHash(data, inSize, computedHash)) return -1;
+		if(memcmp(hash, computedHash, HashSize) != 0) return -1;
 		//int dim=((int*)data)[0];
 		//int nbVariable=((int*)data)[1];
 		//fprintf(stderr, "dim:%d nV:%d \n",dim, nbVariable  );
@@ -143,27 +224,10 @@ int storeData(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 			if(compressed)
 			{
 				snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hash);
-				if(!force && fileExist(filename))return 1;
-				gzFile dataFile=gzopen(filename,"wb");
-				if(dataFile) {
-					if(gzwrite(dataFile, data, inSize) != int(inSize)){
-						gzclose(dataFile);
-						return -1;
-					}
-					gzclose(dataFile);
-				}else return -1;
 			}else{
 				snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hash);
-				if(!force && fileExist(filename))return 1;
-				FILE* dataFile=fopen(filename,"wb");
-				if(dataFile) {
-					if(fwrite (data , sizeof(char), inSize, dataFile) != inSize){
-						fclose(dataFile);
-						return -1;
-					}
-					fclose(dataFile);
-				}else return -1;
 			}
+			return writePayloadFile(filename, data, inSize, force, compressed);
 		}
 		return 0;
 	}
@@ -199,6 +263,9 @@ int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 		//fprintf(stderr, "add file %s\n", hash);
 		data+=HashSize;
 		inSize-=HashSize;
+		char computedHash[65]={0};
+		if(!computePayloadHash(data, inSize, computedHash)) return -1;
+		if(memcmp(hash, computedHash, HashSize) != 0) return -1;
 		//int dim=((int*)data)[0];
 		//int nbVariable=((int*)data)[1];
 		//fprintf(stderr, "dim:%d nV:%d \n",dim, nbVariable  );
@@ -209,27 +276,10 @@ int storeJson(char* data, size_t sizeBuffer,bool force, bool compressed=true){
 			if(compressed)
 			{
 				snprintf(filename,4096,"/tmp/G2S/data/%s.json.gz",hash);
-				if(!force && fileExist(filename))return 1;
-				gzFile dataFile=gzopen(filename,"wb");
-				if(dataFile) {
-					if(gzwrite(dataFile, data, inSize) != int(inSize)){
-						gzclose(dataFile);
-						return -1;
-					}
-					gzclose(dataFile);
-				}else return -1;
 			}else{
 				snprintf(filename,4096,"/tmp/G2S/data/%s.json",hash);
-				if(!force && fileExist(filename))return 1;
-				FILE* dataFile=fopen(filename,"wb");
-				if(dataFile) {
-					if(fwrite (data , sizeof(char), inSize, dataFile) != inSize){
-						fclose(dataFile);
-						return -1;
-					}
-					fclose(dataFile);
-				}else return -1;
 			}
+			return writePayloadFile(filename, data, inSize, force, compressed);
 		}
 		return 0;
 	}

@@ -52,6 +52,8 @@ The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs
 
 Data request frames are validated before dispatch. Uploads require exactly 64 hex hash characters, download/existence names are limited to safe 64-byte identifiers, job-id operations require exactly one `jobIdType`, and upload/download payloads are bounded.
 
+The server recomputes upload hashes before storing `.bgrid` and JSON payloads. Mismatched names are rejected, `.bgrid` hashes cover the full serialized frame payload, serialized sizes must match the frame payload, and files are published through temporary files so normal uploads do not overwrite existing content-addressed objects.
+
 Stored `.bgrid` payloads are read using the actual file or decompressed byte count. The embedded serialized size must match the bytes read, dimensions and variable counts are bounded, and malformed files are rejected instead of being allocated, sent back to clients, or deserialized from a short reply frame.
 
 ## AutoQS calibration noise

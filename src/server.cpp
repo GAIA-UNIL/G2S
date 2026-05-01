@@ -425,7 +425,7 @@ int main(int argc, char const *argv[]) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, false);
+							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), false, false);
 							sendIntReply(error);
 							break;
 						}

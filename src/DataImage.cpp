@@ -126,7 +126,7 @@ char* writeRawData(char* data, bool compresed){
 	size_t fullSize=*((size_t*)data);
 	if(!g2s::DataImage::validateSerializedData(data, fullSize)) return nullptr;
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+fullSize-1, hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+fullSize, hash.begin(), hash.end());
 
 	char* hashInHexa=(char*)malloc(65);
 	memset(hashInHexa,0,65);
