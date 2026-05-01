@@ -44,6 +44,10 @@ Server startup validates numeric values for `-p` and `-maxCJ`; missing, malforme
 
 `KILL` requests now fail with a nonzero reply when the requested job id is unknown, malformed, or no longer tracked by the server.
 
+## Server runtime storage
+
+The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs` by default. These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
+
 ## Server data protocol hardening
 
 Data request frames are validated before dispatch. Uploads require exactly 64 hex hash characters, download/existence names are limited to safe 64-byte identifiers, job-id operations require exactly one `jobIdType`, and upload/download payloads are bounded.

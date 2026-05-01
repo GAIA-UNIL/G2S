@@ -41,6 +41,7 @@ CODE_REVIEW_REPORT*.tmp
 .g2s-cli-repro/
 .g2s-security-repro/
 g2s_server*.log
+/tmp/G2S/
 
 *.bgrid
 build/c++-build/*

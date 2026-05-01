@@ -60,6 +60,33 @@
 #define SERVER_TYPE 0
 #endif
 
+bool ensureRuntimeDirectory(const char* path)
+{
+	const mode_t runtimeMode=0770;
+	if(mkdir(path, runtimeMode) != 0 && errno != EEXIST) {
+		fprintf(stderr, "Could not create runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	struct stat info;
+	if(lstat(path, &info) != 0) {
+		fprintf(stderr, "Could not inspect runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	if(!S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode)) {
+		fprintf(stderr, "Runtime path %s exists but is not a directory\n", path);
+		return false;
+	}
+
+	if(chmod(path, runtimeMode) != 0) {
+		fprintf(stderr, "Could not set permissions on runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	return true;
+}
+
  
 void removeAllFile(char* dir, double olderThan)
 {
@@ -221,10 +248,11 @@ int main(int argc, char const *argv[]) {
 		jobIds.errorsByPid.push_back({0,0});
 	}
 
-	mkdir("/tmp/G2S", 0777);
-
-	mkdir("/tmp/G2S/data", 0777);
-	mkdir("/tmp/G2S/logs", 0777);
+	if(!ensureRuntimeDirectory("/tmp/G2S") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/data") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/logs")) {
+		return 1;
+	}
 
 	std::thread fileCleaningThread([&] {
 		time_t last;
