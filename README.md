@@ -22,11 +22,25 @@ Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** 
 An interactive and complete documentation is available [here](https://gaia-unil.github.io/G2S/).
 The `docs/algorithms/example/` folder is a generated docs mirror (from `docs/sync_examples.sh`) and is intentionally gitignored.
 
+Documentation and packaging notes should use concise, current wording because they are reused across generated artifacts.
+
+A repository-wide review snapshot is available in `CODE_REVIEW_REPORT.md`.
+
 ## Build note
 
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
 For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
+
+## Server job launch policy
+
+By default, the server only launches algorithms whose requested `Algorithm` name resolves through `algosName.config`. Unknown names are rejected instead of falling back to `./<Algorithm>`. Use `--allow-unregistered-algorithms` when starting `g2s_server` to explicitly restore the legacy fallback behavior for local development or custom deployments.
+
+Remote job requests are bounded before launch: job JSON is limited to 1 MiB, algorithm names to 2048 bytes, individual argv entries to 64 KiB, and total argv entries to 4096. Requests exceeding those limits are rejected instead of being truncated.
+
+## Server job control
+
+`KILL` requests now fail with a nonzero reply when the requested job id is unknown, malformed, or no longer tracked by the server.
 
 ## AS mask order (`-mi`)
 

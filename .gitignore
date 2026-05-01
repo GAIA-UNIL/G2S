@@ -34,6 +34,9 @@
 *.bk
 *.auto_bk
 as_norm_debug.log
+CODE_REVIEW_REPORT*.tmp
+.g2s-server/
+g2s_server*.log
 
 *.bgrid
 build/c++-build/*
@@ -64,6 +67,8 @@ __pycache__/
 *.Rhistory
 
 *.depend
+.depend
+compile_commands.json
 build/PyDevAlgo
 build/algosName.config
 *.asv

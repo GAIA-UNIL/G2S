@@ -104,6 +104,7 @@ int main(int argc, char const *argv[]) {
 	short port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
 	bool moveToServerFolder=true;
+	bool allowUnregisteredAlgorithm=false;
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -123,6 +124,7 @@ int main(int argc, char const *argv[]) {
 		}
 		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
 		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
+		if((0==strcmp(argv[i], "--allow-unregistered-algorithms")) || (0==strcmp(argv[i], "-allowUnregisteredAlgorithm"))) allowUnregisteredAlgorithm=true;
 	}
 	#ifdef WITH_FILESYSTEM_INCLUDE
 	if (moveToServerFolder)
@@ -284,7 +286,7 @@ int main(int argc, char const *argv[]) {
 						}
 					case JOB :
 						{
-							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer));
+							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), allowUnregisteredAlgorithm);
 							zmq::message_t reply(sizeof(id));
 							memcpy (reply.data (), &id, sizeof(id));
 							receiver.send(reply,zmq::send_flags::none);
@@ -320,10 +322,12 @@ int main(int argc, char const *argv[]) {
 					case KILL :
 						{
 							fprintf(stderr, "%s\n", "recieve KILL");
-							jobIdType jobId;
-							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-							recieveKill(jobIds,jobQueue,jobId);
-							int error=0;
+							int error=-1;
+							if(requesSize>=sizeof(infoContainer)+sizeof(jobIdType)){
+								jobIdType jobId;
+								memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
+								error=recieveKill(jobIds,jobQueue,jobId);
+							}
 							zmq::message_t reply(sizeof(error));
 							memcpy (reply.data (), &error, sizeof(error));
 							receiver.send(reply,zmq::send_flags::none);
@@ -370,7 +374,7 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 		if(cleanJobs(jobIds) || newRequest){
-			runJobInQueue(jobQueue, jobIds, singleTask, functionMode, maxNumberOfConcurrentJob);
+			runJobInQueue(jobQueue, jobIds, singleTask, functionMode, maxNumberOfConcurrentJob, allowUnregisteredAlgorithm);
 		}else{
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}

@@ -16,6 +16,7 @@
 */
 
 #include <cstring>
+#include <limits>
 #include "DirectMeasureCPUThreadDevice.hpp"
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
@@ -116,23 +117,23 @@ float DirectMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 		val/=_fftSize[i];
 	}
 
-	bool isOkForMesure=true
+	bool isOkForMesure=true;
 
 	for (int i = 0; i < _fftSize.size(); ++i)
 	{
 		isOkForMesure &= (position[i]>=_min[i]);
 		isOkForMesure &= (position[i]<_fftSize[i]-_max[i]);
 	}
-	if(!isOkForMesure) return std::inf("0");
+	if(!isOkForMesure) return std::numeric_limits<float>::infinity();
 
-	float error;
+	float error=0.f;
 
 	for (int i = 0; i < _encodedDeltaPosition.size(); ++i)
 	{
 		for (int j = 0; j < _srcCplx.size()/2; ++j)
 		{
-			float missmatch=_srcCplx[j].space[index+_encodedDeltaPosition[i]]-_valueForPositions[2*j+1]/_valueForPositions[2*j+0];
-			error+=missmatch*missmatch*_valueForPositions[2*j+0];
+			float missmatch=((dataType_g2s*)_srcCplx[j].space)[index+_encodedDeltaPosition[i]]-_valueForPositions[i][2*j+1]/_valueForPositions[i][2*j+0];
+			error+=missmatch*missmatch*_valueForPositions[i][2*j+0];
 		}
 	}
 
@@ -152,7 +153,7 @@ float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 		val/=_fftSize[i];
 	}
 
-	bool isOkForMesure=true
+	bool isOkForMesure=true;
 
 	for (int i = 0; i < _fftSize.size(); ++i)
 	{
@@ -161,13 +162,13 @@ float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 	}
 	if(!isOkForMesure) return 0.f;
 
-	float error;
+	float error=0.f;
 
 	for (int i = 0; i < _encodedDeltaPosition.size(); ++i)
 	{
 		for (int j = 0; j < _srcCplx.size()/2; ++j)
 		{
-			error+=_valueForPositions[2*j+0];
+			error+=_valueForPositions[i][2*j+0];
 		}
 	}
 
@@ -220,18 +221,12 @@ bool  DirectMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<i
 		for (int i = 0; i < neighborArrayVector.size(); ++i)
 		{
 			int encoded=0;
-			for (int j = neighborArrayVector[i].size()-1; j >=0; ++j)
+			for (int j = neighborArrayVector[i].size()-1; j >=0; --j)
 			{
 				encoded+=encoded*_fftSize[j]+neighborArrayVector[i][j];
 			}
 			_encodedDeltaPosition.push_back(encoded);
 		}
-
-		bool lines[_fftSize.back()];
-		memset(_frenquencySpaceOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
-		std::vector<std::vector<int> > neighborArray=neighborArrayVector;
-
 	}
 	return true;
 }
-
