@@ -41,6 +41,7 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
 For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
+Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
 
 Some build and packaging helpers fetch third-party source files from upstream default branches, including `cppzmq`'s `zmq.hpp` and JsonCpp for Python packaging. This is an accepted project tradeoff: if an upstream change breaks the build, the local build scripts or package inputs must be updated at that time. For fully reproducible or audited release builds, use pinned package-manager dependencies or a reviewed local dependency snapshot.
 

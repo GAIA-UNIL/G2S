@@ -31,6 +31,7 @@
 namespace {
 const size_t MaxRawPayloadSize = g2s::DataImage::MaxSerializedBytes;
 
+#ifndef _WIN32
 bool readCompressedFile(const char* filename, std::vector<char>& output){
 	gzFile dataFile=gzopen(filename,"rb");
 	if(!dataFile) return false;
@@ -55,6 +56,7 @@ bool readCompressedFile(const char* filename, std::vector<char>& output){
 	gzclose(dataFile);
 	return ok;
 }
+#endif
 
 bool readPlainFile(const char* filename, std::vector<char>& output){
 	FILE* dataFile=fopen(filename,"rb");
