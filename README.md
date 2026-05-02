@@ -94,6 +94,8 @@ AutoQS calibration intentionally only runs the vector calibration path; full and
 
 Random seeds are intended to make runs reproducible within the same machine, build configuration, G2S version, compiler/runtime environment, thread configuration, and input data. Reproducibility is not guaranteed across different machines, architectures, compiler versions, library versions, G2S versions, or concurrency settings.
 
+The internal `fKst` top-k helpers used by QS/NDS maintain sorted candidate buffers and use randomized tie handling when equal threshold values are sampled. Scalar and SIMD paths are expected to apply the same threshold inclusivity for those ties.
+
 ## AS mask order (`-mi`)
 
 In Anchor Sampling, candidate mismatch is computed first, `-mi` invalid entries (`NaN`, `inf`, and non-positive values) are excluded before top-`k` ranking, and `-mi` weights are then used for weighted draw within the retained candidates.

@@ -2,6 +2,7 @@
 
 ## 2026-05-01
 
+- Hardened `fKst` top-k helpers (`fKb.hpp` / `fKs.hpp`) against `k == 1` boundary reads and kept randomized SIMD tie handling consistent with scalar threshold comparisons.
 - Standardized typo-like internal names across C++ interfaces and examples, including conversion types, frequency memory-address types, cross-measurement helpers, and stale misspelled example filenames.
 - Fixed obvious spelling mistakes in comments, status messages, and build helper output.
 - Kept gzip-only `DataImage` helpers out of Windows Python extension builds, matching the existing no-zlib wheel configuration.

@@ -36,7 +36,7 @@ namespace fKst {
 template<typename T>
 	inline /*__attribute__((always_inline))*/ void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
 		short position=k-2;
-		while ((data[i]>output[position]) && (position>-1) ){
+		while ((position>-1) && (data[i]>output[position]) ){
 			output[position+1]=output[position];
 			position--;
 		}
@@ -46,7 +46,7 @@ template<typename T>
 template<typename T>
 	inline /*__attribute__((always_inline))*/ void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
 		short position=k-2;
-		while ((data[i]>output[position]) && (position>-1) ){
+		while ((position>-1) && (data[i]>output[position]) ){
 			output[position+1]=output[position]; 
 			positionValue[position+1]=positionValue[position]; 
 			position--;
@@ -59,7 +59,7 @@ template<typename T, typename urgT>
 	inline /*__attribute__((always_inline))*/ void addValueB(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
 		short position=k-2;
 		short positionLikeLast=k-2;
-		while ((output[k-1]==output[positionLikeLast]) && (position>-1) ){
+		while ((positionLikeLast>-1) && (output[k-1]==output[positionLikeLast]) ){
 			positionLikeLast--;
 		}
 		int xes=(k-positionLikeLast-1);
@@ -74,7 +74,7 @@ template<typename T, typename urgT>
 			else
 				cpt++;
 
-			while ((data[i]>output[position]) && (position>-1) ){
+			while ((position>-1) && (data[i]>output[position]) ){
 				output[position+1]=output[position]; 
 				positionValue[position+1]=positionValue[position]; 
 				position--;
@@ -146,8 +146,8 @@ inline void findKbiggestARM(const float* data,const unsigned int N,const unsigne
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+					if(data[j]>output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, j);
 				}
 			}
@@ -179,7 +179,7 @@ inline void findKbiggestARM(const float* data,const unsigned int N,const unsigne
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, positionValue, j);
 				}
 			}
@@ -210,8 +210,8 @@ inline void findKbiggestARM(const float* data,const unsigned int N,const unsigne
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -221,7 +221,7 @@ inline void findKbiggestARM(const float* data,const unsigned int N,const unsigne
 
     for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
     {
-        if(data[i]>output[k-1]) //then change
+        if(data[i]>=output[k-1]) //then change
         {
         	addValueB(data, N, k, output, positionValue, generator, cpt, i);
         }
@@ -241,14 +241,14 @@ inline void findKbiggest128(const float* data,const unsigned int N,const unsigne
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmpgt_ps(dataVector,smallest))))
-		{
-			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
-					addValueB(data, N, k, output, j);
+				for (unsigned int j = i; j < i+ratio; ++j)
+			{
+					if(data[j]>output[k-1]) //then change
+					{
+						addValueB(data, N, k, output, j);
+					}
 				}
-			}
 			smallest=_mm_set1_ps(output[k-1]);
 		}
 		
@@ -273,14 +273,14 @@ inline void findKbiggest128(const float* data,const unsigned int N,const unsigne
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmpgt_ps(dataVector,smallest))))
-		{
-			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
-					addValueB(data, N, k, output, positionValue, j);
+				for (unsigned int j = i; j < i+ratio; ++j)
+			{
+					if(data[j]>output[k-1]) //then change
+					{
+						addValueB(data, N, k, output, positionValue, j);
+					}
 				}
-			}
 			smallest=_mm_set1_ps(output[k-1]);
 		}
 		
@@ -308,8 +308,8 @@ inline void findKbiggest128(const float* data,const unsigned int N,const unsigne
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -320,7 +320,7 @@ inline void findKbiggest128(const float* data,const unsigned int N,const unsigne
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
@@ -337,14 +337,14 @@ inline void findKbiggest128(const double* data,const unsigned int N,const unsign
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmpgt_pd(dataVector,smallest))))
-		{
-			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
-					addValueB(data, N, k, output, j);
+				for (unsigned int j = i; j < i+ratio; ++j)
+			{
+					if(data[j]>output[k-1]) //then change
+					{
+						addValueB(data, N, k, output, j);
+					}
 				}
-			}
 			smallest=_mm_set1_pd(output[k-1]);
 		}
 		
@@ -369,14 +369,14 @@ inline void findKbiggest128(const double* data,const unsigned int N,const unsign
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
 		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmpgt_pd(dataVector,smallest))))
-		{
-			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
-					addValueB(data, N, k, output, positionValue, j);
+				for (unsigned int j = i; j < i+ratio; ++j)
+			{
+					if(data[j]>output[k-1]) //then change
+					{
+						addValueB(data, N, k, output, positionValue, j);
+					}
 				}
-			}
 			smallest=_mm_set1_pd(output[k-1]);
 		}
 		
@@ -404,8 +404,8 @@ inline void findKbiggest128(const double* data,const unsigned int N,const unsign
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -416,7 +416,7 @@ inline void findKbiggest128(const double* data,const unsigned int N,const unsign
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
@@ -440,7 +440,7 @@ inline void findKbiggest256(const float* data,const unsigned int N,const unsigne
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, j);
 				}
 			}
@@ -471,7 +471,7 @@ inline void findKbiggest256(const float* data,const unsigned int N,const unsigne
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, positionValue, j);
 				}
 			}
@@ -501,8 +501,8 @@ inline void findKbiggest256(const float* data,const unsigned int N,const unsigne
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -513,7 +513,7 @@ inline void findKbiggest256(const float* data,const unsigned int N,const unsigne
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
@@ -533,7 +533,7 @@ inline void findKbiggest256(const double* data,const unsigned int N,const unsign
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, j);
 				}
 			}
@@ -564,7 +564,7 @@ inline void findKbiggest256(const double* data,const unsigned int N,const unsign
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, positionValue, j);
 				}
 			}
@@ -594,8 +594,8 @@ inline void findKbiggest256(const double* data,const unsigned int N,const unsign
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -606,7 +606,7 @@ inline void findKbiggest256(const double* data,const unsigned int N,const unsign
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
@@ -631,7 +631,7 @@ inline void findKbiggest512(const float* data,const unsigned int N,const unsigne
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, j);
 				}
 			}
@@ -662,7 +662,7 @@ inline void findKbiggest512(const float* data,const unsigned int N,const unsigne
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, positionValue, j);
 				}
 			}
@@ -692,8 +692,8 @@ inline void findKbiggest512(const float* data,const unsigned int N,const unsigne
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -704,7 +704,7 @@ inline void findKbiggest512(const float* data,const unsigned int N,const unsigne
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
@@ -724,7 +724,7 @@ inline void findKbiggest512(const double* data,const unsigned int N,const unsign
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, j);
 				}
 			}
@@ -755,7 +755,7 @@ inline void findKbiggest512(const double* data,const unsigned int N,const unsign
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
 				if(data[j]>output[k-1]) //then change
-				{
+			{
 					addValueB(data, N, k, output, positionValue, j);
 				}
 			}
@@ -785,8 +785,8 @@ inline void findKbiggest512(const double* data,const unsigned int N,const unsign
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
-				if(data[j]>output[k-1]) //then change
-				{
+				if(data[j]>=output[k-1]) //then change
+			{
 					addValueB(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
@@ -797,7 +797,7 @@ inline void findKbiggest512(const double* data,const unsigned int N,const unsign
 
 	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
 	{
-		if(data[i]>output[k-1]) //then change
+		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
