@@ -38,6 +38,7 @@ calibration_noise_debug.log
 auto_qs_debug.log
 CODE_REVIEW_REPORT*.tmp
 fKst_regression*
+fKst_neon_regression*
 .g2s-server/
 .g2s-cli-repro/
 .g2s-data-repro/

@@ -131,6 +131,107 @@ inline void findKsmallest(const T* data,const unsigned int N,const unsigned shor
 
 }
 
+#if __arm64__
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector=vld1q_f32(data+i);
+
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, j);
+				}
+			}
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, i);
+		}
+	}
+}
+
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector=vld1q_f32(data+i);
+
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, positionValue, j);
+				}
+			}
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, positionValue, i);
+		}
+	}
+}
+
+template<typename urgT>
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+
+	unsigned cpt=0;
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector=vld1q_f32(data+i);
+
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<=output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, positionValue, generator, cpt, j);
+				}
+			}
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<=output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, positionValue, generator, cpt, i);
+		}
+	}
+}
+
+#endif
+
 #if __SSE4_1__
 inline void findKsmallest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
@@ -721,6 +822,29 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 
 #endif
 
+
+#if __arm64__
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+	std::fill(output,output+k,INFINITY);
+	findKsmallestARM(data, N, k, output);
+	return;
+}
+
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+	std::fill(output,output+k,INFINITY);
+	std::fill(positionValue,positionValue+k,UINT_MAX);
+	findKsmallestARM(data, N, k, output, positionValue);
+	return;
+}
+
+template<typename urgT>
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+	std::fill(output,output+k,INFINITY);
+	std::fill(positionValue,positionValue+k,UINT_MAX);
+	findKsmallestARM(data, N, k, output, positionValue, generator);
+	return;
+}
+#endif
 
 template<typename T>
 inline void findKSmallest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){

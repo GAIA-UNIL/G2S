@@ -2,6 +2,7 @@
 
 ## 2026-05-01
 
+- Added ARM NEON `float` fast paths for `fKst::findKSmallest` so Apple Silicon has smallest-side SIMD parity with `findKBiggest`.
 - Hardened `fKst` top-k helpers (`fKb.hpp` / `fKs.hpp`) against `k == 1` boundary reads, fixed SIMD scans so every array value is visited exactly once, and kept randomized SIMD tie handling consistent with scalar threshold comparisons.
 - Standardized typo-like internal names across C++ interfaces and examples, including conversion types, frequency memory-address types, cross-measurement helpers, and stale misspelled example filenames.
 - Fixed obvious spelling mistakes in comments, status messages, and build helper output.
