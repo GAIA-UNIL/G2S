@@ -87,6 +87,27 @@ bool ensureRuntimeDirectory(const char* path)
 	return true;
 }
 
+bool ensureRuntimeDirectoryWritable(const char* path)
+{
+	char probePath[4096];
+	snprintf(probePath, sizeof(probePath), "%s/.write_probe.%ld", path, (long)getpid());
+	FILE* probe=fopen(probePath, "wb");
+	if(!probe) {
+		fprintf(stderr, "Runtime directory %s is not writable: %s\n", path, strerror(errno));
+		return false;
+	}
+	if(fclose(probe) != 0) {
+		fprintf(stderr, "Could not close probe file in runtime directory %s: %s\n", path, strerror(errno));
+		unlink(probePath);
+		return false;
+	}
+	if(unlink(probePath) != 0) {
+		fprintf(stderr, "Could not remove probe file %s: %s\n", probePath, strerror(errno));
+		return false;
+	}
+	return true;
+}
+
  
 void removeAllFile(char* dir, double olderThan)
 {
@@ -272,7 +293,9 @@ int main(int argc, char const *argv[]) {
 
 	if(!ensureRuntimeDirectory("/tmp/G2S") ||
 	   !ensureRuntimeDirectory("/tmp/G2S/data") ||
-	   !ensureRuntimeDirectory("/tmp/G2S/logs")) {
+	   !ensureRuntimeDirectory("/tmp/G2S/logs") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/data") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/logs")) {
 		return 1;
 	}
 
@@ -374,10 +397,13 @@ int main(int argc, char const *argv[]) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeData((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
-							sendIntReply(error);
-							break;
+						int error=storeData((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+						if(error < 0) {
+							fprintf(stderr, "Failed to store uploaded binary payload in /tmp/G2S/data\n");
 						}
+						sendIntReply(error);
+						break;
+					}
 					case DOWNLOAD :
 						{
 							if(!payloadSizeIs(requestSize, 64)) {
@@ -447,10 +473,13 @@ int main(int argc, char const *argv[]) {
 								sendIntReply(-1);
 								break;
 							}
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), false, false);
-							sendIntReply(error);
-							break;
+						int error=storeJson((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), false, false);
+						if(error < 0) {
+							fprintf(stderr, "Failed to store uploaded JSON payload in /tmp/G2S/data\n");
 						}
+						sendIntReply(error);
+						break;
+					}
 					case DOWNLOAD_JSON :
 						{
 							if(!payloadSizeIs(requestSize, 64)) {

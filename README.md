@@ -75,6 +75,8 @@ Server startup validates numeric values for `-p` and `-maxCJ`; missing, malforme
 
 The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs` by default. These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
 
+At startup, the server now also probes these runtime directories with a create/remove write test. If `/tmp/G2S/data` or `/tmp/G2S/logs` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload silently fails. Upload-time write, publish, and close failures now also print the failing path and operation to `stderr`.
+
 ## Server data protocol hardening
 
 Data request frames are validated before dispatch. Uploads require exactly 64 hex hash characters, download/existence names are limited to safe 64-byte identifiers, job-id operations require exactly one `jobIdType`, and upload/download payloads are bounded.

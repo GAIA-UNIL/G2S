@@ -83,6 +83,7 @@ bool computeSerializedDataHash(const char* data, size_t size, char* output){
 int publishTempFile(const char* tmpFilename, const char* filename, bool force){
 	if(force){
 		if(rename(tmpFilename, filename) == 0) return 0;
+		fprintf(stderr, "Could not move temporary payload %s to %s: %s\n", tmpFilename, filename, strerror(errno));
 		remove(tmpFilename);
 		return -1;
 	}
@@ -91,6 +92,7 @@ int publishTempFile(const char* tmpFilename, const char* filename, bool force){
 		return 0;
 	}
 	const int publishError=errno;
+	fprintf(stderr, "Could not publish payload %s to %s: %s\n", tmpFilename, filename, strerror(publishError));
 	remove(tmpFilename);
 	return publishError == EEXIST ? 1 : -1;
 }
@@ -103,25 +105,37 @@ int writePayloadFile(const char* filename, const char* data, size_t size, bool f
 	if(compressed)
 	{
 		gzFile dataFile=gzopen(tmpFilename,"wb");
-		if(!dataFile) return -1;
+		if(!dataFile) {
+			fprintf(stderr, "Could not open temporary payload %s for writing\n", tmpFilename);
+			return -1;
+		}
 		if(gzwrite(dataFile, data, size) != int(size)){
+			int gzipError=Z_OK;
+			const char* gzipMessage=gzerror(dataFile, &gzipError);
+			fprintf(stderr, "Could not write compressed payload %s: %s\n", tmpFilename, gzipMessage ? gzipMessage : "unknown zlib error");
 			gzclose(dataFile);
 			remove(tmpFilename);
 			return -1;
 		}
 		if(gzclose(dataFile) != Z_OK){
+			fprintf(stderr, "Could not finalize compressed payload %s\n", tmpFilename);
 			remove(tmpFilename);
 			return -1;
 		}
 	}else{
 		FILE* dataFile=fopen(tmpFilename,"wb");
-		if(!dataFile) return -1;
+		if(!dataFile) {
+			fprintf(stderr, "Could not open temporary payload %s for writing: %s\n", tmpFilename, strerror(errno));
+			return -1;
+		}
 		if(fwrite (data , sizeof(char), size, dataFile) != size){
+			fprintf(stderr, "Could not write payload %s: %s\n", tmpFilename, strerror(errno));
 			fclose(dataFile);
 			remove(tmpFilename);
 			return -1;
 		}
 		if(fclose(dataFile) != 0){
+			fprintf(stderr, "Could not close payload %s after writing: %s\n", tmpFilename, strerror(errno));
 			remove(tmpFilename);
 			return -1;
 		}
