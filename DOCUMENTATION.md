@@ -101,6 +101,23 @@ This keeps the server stateless:
 
 Interfaces should prefer the structured `progress` and `meta` files for progress and duration. Plain logs should be treated as human-facing traces, not as the canonical machine-readable status source.
 
+## Stateless interface polling
+
+The reporting path is designed to keep the server stateless. The server does not remember what was already sent to any client or interface. Instead:
+
+- the server exposes the current contents of `log_<job>`, `warning_<job>`, `error_<job>`, `progress_<job>`, and `meta_<job>`
+- the interface keeps local per-job cursors for append-only streams such as `log_offset` and `warning_offset`
+- each poll requests the current progress snapshot plus any newly appended log/warning bytes
+- final metadata is read from `meta_<job>` once the run finishes
+
+This split matters operationally:
+
+- `progress_<job>` is current state, so interfaces overwrite their previous view on each poll
+- `log_<job>` and `warning_<job>` are append-only streams, so interfaces display only the new suffix they have not shown yet
+- `error_<job>` is a terminal payload, so interfaces can fetch it when job status changes to failure
+
+This keeps delivery-side state out of the server while still allowing live `-showLogs` output in MATLAB, Python, and other bindings.
+
 The human log should still be structured enough to follow setup and outputs without reading raw source. The current convention is:
 
 - `INPUT`: successful data/image loads with resolved shape and encoding
@@ -108,3 +125,25 @@ The human log should still be structured enough to follow setup and outputs with
 - `OUTPUT`: emitted result artifacts with resolved shape and encoding
 
 These log lines are for operators and debugging only. They should not be parsed as the authoritative machine-readable state channel.
+
+## Interface display behavior
+
+Bindings now separate transport/state from display:
+
+- `-showLogs` enables live display of newly appended `log_<job>` and `warning_<job>` text while the job runs
+- `-returnMeta` returns the final parsed `meta_<job>` key/value payload to the caller
+- Python displays warnings in orange/yellow-ish ANSI text and errors in red before warning/exception propagation
+- MATLAB warnings are non-fatal again, while fatal errors still abort the call
+
+## Algorithm logging conventions
+
+The human-readable log is now expected to show both setup and effective behavior, not just raw argv. In practice this means:
+
+- successful image/grid loads should produce `INPUT` lines with the resolved source name, shape, variable count, encoding, and variable-type summary
+- resolved execution settings should produce `PARAM` lines after argument parsing and defaulting
+- emitted outputs should produce `OUTPUT` lines with the resolved artifact id and resulting shape
+
+For `-wPO`, the current conventions are:
+
+- `qs`: logs `path_optimization=true|false` because the flag is effective in QS simulation
+- `snesim`: logs `path_optimization_requested=true|false` so the request is visible in the operator log, even though the current scaffold does not expose the same effective mode as QS

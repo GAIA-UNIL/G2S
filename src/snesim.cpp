@@ -62,6 +62,7 @@ struct CliOptions {
 
 	bool verbose = false;
 	bool forceTreeRebuild = false;
+	bool pathOptimizationRequested = false;
 
 	std::vector<std::string> trainingImageNames;
 	std::string destinationImageName;
@@ -403,6 +404,11 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	args.erase("-force-tree");
 	args.erase("--force-tree");
 	args.erase("-ft");
+
+	if (args.count("-wPO") == 1) {
+		outOptions.pathOptimizationRequested = true;
+	}
+	args.erase("-wPO");
 
 	if (args.count("-s") == 1) {
 		unsigned seedValue;
@@ -975,6 +981,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::logParameter(reportFile, "tree_strategy", treeStrategyName(options.treeStrategy));
 	g2s::reporting::logParameter(reportFile, "tree_root", options.treeRoot);
 	g2s::reporting::logParameter(reportFile, "force_tree_rebuild", g2s::reporting::boolString(options.forceTreeRebuild));
+	g2s::reporting::logParameter(reportFile, "path_optimization_requested", g2s::reporting::boolString(options.pathOptimizationRequested));
 	g2s::reporting::logParameter(reportFile, "output_image", options.outputName.empty() ? std::string("im_1_")+std::to_string((options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID) : options.outputName);
 
 	std::vector<g2s::DataImage> trainingImages;

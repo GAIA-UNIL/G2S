@@ -9,6 +9,8 @@
 - Updated the MATLAB interface so warnings are non-fatal again, warnings use MATLAB's warning channel, fatal errors still abort the call, and `-returnMeta` can return the final key/value summary as a struct.
 - Added the same metadata-return and live-log plumbing in the shared interface template and the R binding so the C++ interface layer stays consistent across bindings.
 - Updated the main algorithm entrypoints to emit explicit `INPUT`, `PARAM`, and `OUTPUT` log lines so successful image loads, effective parameter values, resumed backups, and written result artifacts are visible in the chronological log instead of only appearing implicitly in raw argv or failure messages.
+- Updated `qs` and `snesim` logging for `-wPO`: QS now reports the effective `path_optimization` value in its `PARAM` block, and SNESIM records when `-wPO` was requested instead of letting the flag fall through as an ignored argument.
+- Expanded `README.md` and `DOCUMENTATION.md` to describe the stateless cursor-based polling model, `-showLogs` / `-returnMeta`, and the operator-facing meaning of `-wPO` log entries in QS and SNESIM.
 
 ## 2026-05-01
 

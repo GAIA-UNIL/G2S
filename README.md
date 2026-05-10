@@ -87,13 +87,20 @@ At startup, the server probes these runtime directories with a create/remove wri
 
 Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
 
+The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
+
 Human-readable algorithm logs are also being standardized around explicit sections:
 
 - `INPUT`: each successfully loaded image/grid and its resolved dimensions, variable count, encoding, and variable-type summary
-- `PARAM`: effective parameter values actually used after parsing and defaulting
+- `PARAM`: effective parameter values actually used after parsing and defaulting, including path-optimization flags when the algorithm accepts them
 - `OUTPUT`: each written result artifact and its final dimensions/encoding
 
 That keeps the chronological log useful for operators while the structured sidecars remain the source of truth for progress and final metadata.
+
+The current `-wPO` logging convention is intentionally explicit:
+
+- `qs` logs `path_optimization=true|false` because the flag is parsed and used by the simulation path logic
+- `snesim` logs `path_optimization_requested=true|false` so operators can see the requested CLI flag even though the current scaffold does not expose an effective path-optimization mode in the same way as QS
 
 ## Server data protocol hardening
 

@@ -1275,6 +1275,7 @@ int main(int argc, char const *argv[]) {
 	g2s::reporting::logParameter(reportFile, "full_stationary", g2s::reporting::boolString(fullStationary));
 	g2s::reporting::logParameter(reportFile, "circular_simulation", g2s::reporting::boolString(circularSimulation));
 	g2s::reporting::logParameter(reportFile, "force_simulation", g2s::reporting::boolString(forceSimulation));
+	g2s::reporting::logParameter(reportFile, "path_optimization", g2s::reporting::boolString(withPathOptim));
 	g2s::reporting::logParameter(reportFile, "use_padded_domain", g2s::reporting::boolString(usePaddedDomain));
 	g2s::reporting::logParameter(reportFile, "halo_dims", g2s::reporting::joinUnsignedVector(spatialPadding, ","));
 	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
