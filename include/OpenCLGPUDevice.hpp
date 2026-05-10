@@ -42,21 +42,21 @@ public:
 	static std::vector<unsigned> DeviceWithHostUnifiedMemory(unsigned platform_id);
 
 
-	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platform, unsigned int device, bool withCrossMesurement=false, bool circularTI=false);
+	OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager, std::vector<g2s::OperationMatrix> coefficientMatrix, unsigned int platform, unsigned int device, bool withCrossMeasurement=false, bool circularTI=false);
 	~OpenCLGPUDevice();
 
-	bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0);
-	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
-	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
+	bool candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, std::vector<float> delta0);
+	std::vector<g2s::spaceFrequencyMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
+	std::vector<g2s::spaceFrequencyMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress);
 
 	dataType_g2s* getErrorsArray();
 	dataType_g2s* getArray(unsigned);
 	unsigned getErrorsArraySize();
 	unsigned getArraySize();
-	dataType_g2s* getCossErrorArray();
+	dataType_g2s* getCrossErrorArray();
 	float getErrorAtPosition(unsigned);
 	float getValueAtPosition(unsigned, unsigned);
-	float getCroossErrorAtPosition(unsigned);
+	float getCrossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	void setTrueMismatch(bool value);
 	unsigned cvtPositionToIndex(unsigned position);
@@ -68,7 +68,7 @@ public:
 
 private:
 	void recursiveSetValueInRadius (unsigned position, float value, float radius2, unsigned level, unsigned distance2);
-	std::vector<g2s::spaceFrequenceMemoryAddress> _srcCplx;
+	std::vector<g2s::spaceFrequencyMemoryAddress> _srcCplx;
 
 	FFTW_PRECISION(complex)* _frenquencySpaceInput=nullptr;
 	std::vector<FFTW_PRECISION(complex)*> _frenquencySpaceOutputArray;
@@ -112,7 +112,7 @@ private:
 	}
 
 	bool _trueMismatch=true;
-	bool _crossMesurement=false;
+	bool _crossMeasurement=false;
 	bool _circularTI=false;
 
 	std::vector<cl_mem> frenquencySpaceOutputArray_d;

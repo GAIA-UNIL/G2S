@@ -32,11 +32,11 @@
 #endif
 
 
-FullMeasureCPUThreadDevice::FullMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
+FullMeasureCPUThreadDevice::FullMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMeasurement){
 	_deviceType=DT_cpuThreads;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
-	_crossMesurement=withCrossMesurement;
+	_crossMeasurement=withCrossMeasurement;
 	//printf("core %d, chip %d\n",core, chip );
 	_deviceID=chip;
 	_sharedMemoryManager=sharedMemoryManager;
@@ -45,7 +45,7 @@ FullMeasureCPUThreadDevice::FullMeasureCPUThreadDevice(SharedMemoryManager* shar
 	_fftSize=_sharedMemoryManager->_fftSize;
 	_srcSize=sharedMemoryManager->_srcSize;
 
-	_srcCplx=_sharedMemoryManager->adressSharedMemory(_memoryID);
+	_srcCplx=_sharedMemoryManager->addressSharedMemory(_memoryID);
 
 	// alloc memory
 	_realSpaceSize=1;
@@ -61,7 +61,7 @@ FullMeasureCPUThreadDevice::FullMeasureCPUThreadDevice(SharedMemoryManager* shar
 	_realSpaceSize*=_fftSize.back();
 
 	_realSpace=(dataType_g2s*)malloc(_realSpaceSize* sizeof(dataType_g2s));
-	if(_crossMesurement){
+	if(_crossMeasurement){
 		_realCrossSpace=(dataType_g2s*)malloc(_realSpaceSize* sizeof(dataType_g2s));
 	}
 }
@@ -69,12 +69,12 @@ FullMeasureCPUThreadDevice::FullMeasureCPUThreadDevice(SharedMemoryManager* shar
 FullMeasureCPUThreadDevice::~FullMeasureCPUThreadDevice(){
 	_sharedMemoryManager->removeDevice(this);
 	free(_realSpace);
-	if(_crossMesurement){
+	if(_crossMeasurement){
 		free(_realCrossSpace);
 	}
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> FullMeasureCPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
+std::vector<g2s::spaceFrequencyMemoryAddress> FullMeasureCPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
 	
 	unsigned realSpaceSize=1;
 
@@ -85,27 +85,27 @@ std::vector<g2s::spaceFrequenceMemoryAddress> FullMeasureCPUThreadDevice::allocA
 
 	realSpaceSize*=fftSize.back();
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemory;
-	for (int i = 0; i < srcMemoryAdress.size(); ++i)
+	std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemory;
+	for (int i = 0; i < srcMemoryAddress.size(); ++i)
 	{
-		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
-		sharedMemoryAdress.fft=nullptr;
+		g2s::spaceFrequencyMemoryAddress sharedMemoryAddress;
+		sharedMemoryAddress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAddress.space,srcMemoryAddress[i], realSpaceSize * sizeof(dataType_g2s));
+		sharedMemoryAddress.fft=nullptr;
 	
-		sharedMemory.push_back(sharedMemoryAdress);
+		sharedMemory.push_back(sharedMemoryAddress);
 	}
 	return sharedMemory;
 
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> FullMeasureCPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
-	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
+std::vector<g2s::spaceFrequencyMemoryAddress> FullMeasureCPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress){
+	for (int i = 0; i < sharedMemoryAddress.size(); ++i)
 	{
-		free(sharedMemoryAdress[i].space);
+		free(sharedMemoryAddress[i].space);
 	}
-	sharedMemoryAdress.clear();
-	return sharedMemoryAdress;
+	sharedMemoryAddress.clear();
+	return sharedMemoryAddress;
 }
 
 //compute function
@@ -118,10 +118,10 @@ float FullMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 	return _realSpace[index];
 }
 
-dataType_g2s* FullMeasureCPUThreadDevice::getCossErrorArray(){
+dataType_g2s* FullMeasureCPUThreadDevice::getCrossErrorArray(){
 	return _realCrossSpace;
 }
-float FullMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
+float FullMeasureCPUThreadDevice::getCrossErrorAtPosition(unsigned index){
 	if(_realCrossSpace==nullptr) return std::nanf("0");
 	return _realCrossSpace[index];
 }
@@ -147,7 +147,7 @@ void FullMeasureCPUThreadDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }
 
-bool  FullMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
+bool  FullMeasureCPUThreadDevice::candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, float delta0){
 	
 	for (int i = 0; i < _min.size(); ++i)
 	{
@@ -164,13 +164,13 @@ bool  FullMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<int
 		}
 	}
 
-	bool valideData=false;
+	bool validData=false;
 	for (int i = 0; i < _min.size(); ++i)
 	{
-		if(_min[i]!=0) valideData=true;
-		if(_max[i]!=0) valideData=true;
+		if(_min[i]!=0) validData=true;
+		if(_max[i]!=0) validData=true;
 	}
-	if(!valideData){
+	if(!validData){
 		return false;
 	}
 	else
@@ -220,7 +220,7 @@ bool  FullMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<int
 		}
 
 
-		//Remove fobidden/wrong value
+		//Remove forbidden/wrong value
 		for (int i = 0; i < _fftSize.size(); ++i)
 		{
 			unsigned blockSize=1;
@@ -257,11 +257,11 @@ bool  FullMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<int
 		}
 
 
-		// cross Mesuremnt 
+		// cross Measurement 
 
-		if(_crossMesurement){
+		if(_crossMeasurement){
 			FFTW_PRECISION(execute)(_pInvCross);
-			//Remove fobidden/wrong value
+			//Remove forbidden/wrong value
 			for (int i = _fftSize.size()-1; i>=0; --i)
 			{
 				unsigned blockSize=1;

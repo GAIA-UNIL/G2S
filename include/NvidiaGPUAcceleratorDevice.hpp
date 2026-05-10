@@ -36,17 +36,17 @@
 class NvidiaGPUAcceleratorDevice : public AcceleratorDevice
 {
 public:
-	NvidiaGPUAcceleratorDevice(int deviceId, SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int threadRatio=1, bool withCrossMesurement=false, bool circularTI=false);
+	NvidiaGPUAcceleratorDevice(int deviceId, SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coefficientMatrix, unsigned int threadRatio=1, bool withCrossMeasurement=false, bool circularTI=false);
 	~NvidiaGPUAcceleratorDevice();
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
-	std::vector<g2s::spaceFrequenceMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress);
+	std::vector<g2s::spaceFrequencyMemoryAddress> allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize);
+	std::vector<g2s::spaceFrequencyMemoryAddress> freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress);
 
 	unsigned getErrorsArraySize();
 	unsigned getArraySize();
 	float getErrorAtPosition(unsigned);
 	float getValueAtPosition(unsigned, unsigned);
-	float getCroossErrorAtPosition(unsigned);
+	float getCrossErrorAtPosition(unsigned);
 	unsigned cvtIndexToPosition(unsigned);
 	unsigned cvtPositionToIndex(unsigned);
 
@@ -55,7 +55,7 @@ public:
 	void setValueInErrorArray(unsigned position, float value);
 	void setValueInErrorArrayWithRadius(unsigned position, float value, float radius);
 	void compensateMissingData();
-	void searchKBigest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed);
+	void searchKBiggest(float* errors,unsigned *encodedPosition, unsigned extendK, float seed);
 
 	void zerosFrenquencySpaceOutputArray(unsigned layer);
 	void computeFreqMismatchMap(std::vector<std::vector<int> > neighborArray, std::vector<std::vector<float> >  &neighborValueArrayVector);

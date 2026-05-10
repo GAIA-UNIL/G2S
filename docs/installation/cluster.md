@@ -104,15 +104,15 @@ The goal here is to create a task for each simulation and to add it to the queue
 
 If you are lucky you may be able to keep the server running all the time on the front node. Then ....
 
-You can try to run server in demons -d, if it's authorized. So you can always cut the connection even if you submit one million tasks at the same time.
+You can try to run the server in daemon mode with `-d`, if it is authorized. So you can always cut the connection even if you submit one million tasks at the same time.
 
 Then... if you’re even luckier you can open a port on the front node (here 8128). Don't hesitate to ask the support if they can do this favor for you. If you can, 1) invest in a good bottle of wine for the support department, 2) If you are that lucky you should play lottery!
 
-So, once the port is open and the server are executed as a deamon, you can close all connections, and simply put the address of the front node in each call to g2s '-sa',clusterAddress
+So, once the port is open and the server is executed as a daemon, you can close all connections, and simply put the address of the front node in each call to g2s '-sa',clusterAddress
 
 ## How to efficiently use it
 
-Once the server runs on the front node use '‑submitOnly','‑statusOnly' and '‑waitAndDownload' to manage your computations. The G2S server is coming with its own submission queue and dependency manager. Because the dependencies are unknown, each job runs sequentially by default. To over pass this limitation we can simply specify dependency as :'‑after',0, so each job can start in parallel.
+Once the server runs on the front node use '‑submitOnly','‑statusOnly' and '‑waitAndDownload' to manage your computations. The G2S server comes with its own submission queue and dependency manager. Because the dependencies are unknown, each job runs sequentially by default. To bypass this limitation we can simply specify dependency as :'‑after',0, so each job can start in parallel.
 
 A standard job submission should look like id=g2s(... usualParameter,'‑statusOnly','‑after',0).
 and to get the final result sim=g2s('‑waitAndDownload',id)
@@ -120,11 +120,11 @@ and to get the final result sim=g2s('‑waitAndDownload',id)
 For the dedicated distributed QS workflow, launcher selection, build requirements, and JSON grid inputs, see [Distributed QuickSampling]({{ site.baseurl }}/algorithms/DistributedQuickSampling.html).
 
 ## Using nodeParallel
-NodeParallel (NP) allow to forward command from one node to another, in our context from the login node to some worker nodes (it require a shared file system). Therefore we can use NP to forward computation command to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue.
+NodeParallel (NP) allows forwarding commands from one node to another, in our context from the login node to some worker nodes (it requires a shared file system). Therefore we can use NP to forward computation commands to computation nodes without making a new task in the submission queue. This is particularly interesting when we have lots of short jobs (it allows removing the initialization for each task), or when we have significantly more jobs than the number of tasks that we are allowed to submit to the queue.
 
-To use it simple download NP from its github page, follow the instruction to install and add it to the PATH (at least each time you want to use it :) ). Then adapt the compilation for use on cluster using ./configureCluster.sh NP available in the forClusters folder. This configuration is not compatible with a queue submission one, so if you plan to use both strategies in parallel you need to duplicate the G2S installation. Run the NP and G2S servers, both on the login node.
+To use it, simply download NP from its GitHub page, follow the instructions to install it and add it to the PATH (at least each time you want to use it :) ). Then adapt the compilation for use on cluster using ./configureCluster.sh NP available in the forClusters folder. This configuration is not compatible with a queue submission one, so if you plan to use both strategies in parallel you need to duplicate the G2S installation. Run the NP and G2S servers, both on the login node.
 
 1. You can run NP in demon mode ./server -d
 2. When running the G2S server, add the -maxCJ n flag, with n between the number and few(<4x) times the number of jobs you plan to run in parallel.
 3. Start (and you can even finish) to submit G2S tasks. (Refer to the previous sections to communicate with the login node, ssh tunneling, open ports on the login node ...). Don't forget the '-after',0 to allow parallel computations.
-4. Finally, run workers by submitting tasks to the normal submission queue(or directly to the computation nodes ) using the np_client -sa $HOSTNAME -sac -w in the folder that contain the G2S server. With $HOSTNAME the name or IP of the login node.
+4. Finally, run workers by submitting tasks to the normal submission queue (or directly to the computation nodes) using the np_client -sa $HOSTNAME -sac -w in the folder that contains the G2S server. With $HOSTNAME the name or IP of the login node.

@@ -60,7 +60,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 
 	unsigned seed=std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	std::mt19937 randomGenerator(seed);
-	std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
+	std::uniform_real_distribution<float> uniformDistributionOverSource(0.f,1.f);
 
 	auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -82,7 +82,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 		// fp=fopen(fileName, "w");
 		
 		std::mt19937 randomGenerator(seed+moduleID);
-		std::uniform_real_distribution<float> uniformDitributionOverSource(0.f,1.f);
+		std::uniform_real_distribution<float> uniformDistributionOverSource(0.f,1.f);
 
 		unsigned iteration=0;
 		while (!stop && (iteration< maxNumberOfIteration)){
@@ -119,9 +119,9 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 				float density=densityArray[densityIndex];
 				std::vector<unsigned> numberNeighbor=listNbNeihbours[numberOfneihbours];
 
-				int tiIndex=int(floor(uniformDitributionOverSource(randomGenerator)*TIs.size()));
+				int tiIndex=int(floor(uniformDistributionOverSource(randomGenerator)*TIs.size()));
 				auto ti=&TIs[tiIndex];
-				unsigned currentCell=unsigned(floor( uniformDitributionOverSource(randomGenerator) * ti->dataSize() / ti->_nbVariable ));
+				unsigned currentCell=unsigned(floor( uniformDistributionOverSource(randomGenerator) * ti->dataSize() / ti->_nbVariable ));
 
 				std::vector<unsigned> numberOfNeighborsProVariable(TIs[0]._nbVariable);
 				std::vector<std::vector<int> > neighborArrayVector;
@@ -134,7 +134,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						unsigned dataIndex;
 						std::vector<int> vectorInDi=pathPosition[positionSearch];
 						vectorInDi.resize(ti->_dims.size(),0);
-						if(uniformDitributionOverSource(randomGenerator)<density && (ti->indexWithDelta(dataIndex, currentCell, vectorInDi) || circularSim))
+						if(uniformDistributionOverSource(randomGenerator)<density && (ti->indexWithDelta(dataIndex, currentCell, vectorInDi) || circularSim))
 						{
 							std::vector<float> data(ti->_nbVariable);
 							unsigned cpt=0;
@@ -199,10 +199,10 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 
 					for (int j = 0; j < neighborValueArrayVector.size(); ++j)
 					{
-						if(uniformDitributionOverSource(randomGenerator)<fraction)
+						if(uniformDistributionOverSource(randomGenerator)<fraction)
 						{
-							iter_swap(neighborArrayVector.begin() + floor(uniformDitributionOverSource(randomGenerator)/neighborValueArrayVector.size()) ,
-									  neighborArrayVector.begin() + + floor(uniformDitributionOverSource(randomGenerator)/neighborValueArrayVector.size()));
+							iter_swap(neighborArrayVector.begin() + floor(uniformDistributionOverSource(randomGenerator)*neighborValueArrayVector.size()) ,
+									  neighborArrayVector.begin() + floor(uniformDistributionOverSource(randomGenerator)*neighborValueArrayVector.size()));
 
 						}
 					}
@@ -215,7 +215,7 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 					SamplingModule::matchLocation origin;
 					origin.TI=tiIndex;
 					origin.index=currentCell;
-					importIndex= samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,uniformDitributionOverSource(randomGenerator),
+					importIndex= samplingModule.distribution(neighborArrayVector,neighborValueArrayVector,uniformDistributionOverSource(randomGenerator),
 						 origin, radius, moduleID, false, 0, 0.f, -1,&(kernels[kernelIndex]));
 					
 					//fprintf(stderr, "local %d, best %d \n",currentCell ,importIndex[0].index);
@@ -285,8 +285,8 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
  std::vector<std::vector<int> > &pathPosition, std::vector<unsigned> numberNeighbor, std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1 ){
 
 	// int displayRatio=std::max(numberOfPointToSimulate/100,1u);
-	// unsigned* posterioryPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
-	// memset(posterioryPath,255,sizeof(unsigned) * di.dataSize());
+	// unsigned* posteriorPath=(unsigned*)malloc( sizeof(unsigned) * di.dataSize());
+	// memset(posteriorPath,255,sizeof(unsigned) * di.dataSize());
 	// for (unsigned int i = 0; i < di.dataSize(); ++i)
 	// {
 	// 	bool withNan=false;
@@ -295,11 +295,11 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 		withNan|=std::isnan(di._data[i]);
 	// 	}
 	// 	if(!withNan)
-	// 		posterioryPath[i]=0;
+	// 		posteriorPath[i]=0;
 	// }
 	// for (unsigned int i = 0; i < numberOfPointToSimulate; ++i)
 	// {
-	// 	posterioryPath[solvingPath[i]]=i;
+	// 	posteriorPath[solvingPath[i]]=i;
 	// }
 	
 	// unsigned numberOfVariable=di._nbVariable;
@@ -308,7 +308,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 	numberOfVariable+=categoriesValues[i].size()-1;
 	// }
 	// #pragma omp parallel for num_threads(nbThreads) schedule(dynamic,1) default(none) firstprivate(displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-	// 	posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
+	// 	posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii) shared( pathPosition, di, samplingModule, TIs)
 	// for (unsigned int indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -318,7 +318,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 	#endif
 	// 	unsigned currentCell=solvingPath[indexPath];
 	// 	if(!std::isnan(di._data[currentCell])) continue;
-	// 	float localSeed=seedAray[indexPath];
+	// 	float localSeed=seedArray[indexPath];
 
 	// 	unsigned currentVariable=currentCell%di._nbVariable;
 	// 	unsigned currentPosition=currentCell/di._nbVariable;
@@ -337,7 +337,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 				bool needToBeadd=false;
 	// 				for (unsigned int i = 0; i < di._nbVariable; ++i)
 	// 				{
-	// 					needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) ;
+	// 					needToBeadd|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<indexPath) ;
 	// 				}
 	// 				//add for
 	// 				if(needToBeadd){
@@ -349,7 +349,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 						{
 	// 							#pragma omp atomic read
 	// 							val=di._data[dataIndex*di._nbVariable+i];
-	// 							numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath) && std::isnan(val);
+	// 							numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<indexPath) && std::isnan(val);
 	// 						}
 	// 						if(numberOfNaN==0)break;
 	// 						std::this_thread::sleep_for(std::chrono::microseconds(250));
@@ -359,7 +359,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 					unsigned cpt=0;
 	// 					for (unsigned int i = 0; i < di._nbVariable; ++i)
 	// 					{
-	// 						if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posterioryPath[dataIndex*di._nbVariable+i]<indexPath))
+	// 						if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<indexPath))
 	// 						{
 	// 							#pragma omp atomic read
 	// 							val=di._data[dataIndex*di._nbVariable+i];
@@ -488,7 +488,7 @@ void calibrationFull(FILE *logFile, std::vector<g2s::DataImage> &TIs, std::vecto
 	// 	}
 	// 	if(indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
 	// }
-	// free(posterioryPath);
+	// free(posteriorPath);
 }
 
-#endif // CALIBARTION_HPP
+#endif // CALIBRATION_HPP

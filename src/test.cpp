@@ -231,12 +231,12 @@ int main(int argc, char const *argv[]) {
 			
 				std::vector<std::vector<float> > categoriesValues;
 
-				bool needCrossMesurement=false;
+				bool needCrossMeasurement=false;
 
 				bool withGPU=false;
-				bool conciderTiAsCircular=false;
+				bool considerTiAsCircular=false;
 				
-				float nbCantidate=2.f;
+				float nbCandidate=2.f;
 				bool noVerbatim=false;
 				bool useUniqueTI4Sampling=false;
 
@@ -276,47 +276,47 @@ int main(int argc, char const *argv[]) {
 					}
 				}
 
-				g2s::DataImage wieghtKernel=kernel.emptyCopy(true);
-				for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+				g2s::DataImage weightKernel=kernel.emptyCopy(true);
+				for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 				{
-					wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+					weightKernel._data[i]=-weightKernel.distance2ToCenter(i);
 				}
 
 				unsigned center=0;
-				g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
-				for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+				g2s::DataImage* weightKernelPtr=weightKernel.ptr();
+				for (int i =  weightKernelPtr->_dims.size()-1; i>=0 ; i--)
 				{
-					center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
+					center=center*weightKernelPtr->_dims[i]+(weightKernelPtr->_dims[i]-1)/2;
 				}
 
 
 
 
-				std::sort(pathPosition.begin(),pathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+				std::sort(pathPosition.begin(),pathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 					unsigned l1,l2;
-					wieghtKernelPtr->indexWithDelta(l1, center, a);
-					wieghtKernelPtr->indexWithDelta(l2, center, b);
-					return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
+					weightKernelPtr->indexWithDelta(l1, center, a);
+					weightKernelPtr->indexWithDelta(l2, center, b);
+					return weightKernelPtr->_data[l1] > weightKernelPtr->_data[l2];
 				});
 				
 
-				std::vector<unsigned> numberDeComputedVariableProVariable(nbVariable,1);
+				std::vector<unsigned> numberOfComputedVariablesPerVariable(nbVariable,1);
 
-				std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
-				std::vector<g2s::OperationMatrix> coeficientMatrix;
-				std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector;
-				std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector;
-				ti.generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, needCrossMesurement, categoriesValues);
+				std::vector<std::vector<conversionType> > conversionTypeVectorMainVector;
+				std::vector<g2s::OperationMatrix> coefficientMatrix;
+				std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector;
+				std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector;
+				ti.generateCoefMatrix4Xcorr(coefficientMatrix, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, needCrossMeasurement, categoriesValues);
 
 				SharedMemoryManager* smm=new SharedMemoryManager(ti._dims);
 
-				std::vector<std::vector<g2s::DataImage> > variablesImages=ti.convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
+				std::vector<std::vector<g2s::DataImage> > variablesImages=ti.convertInput4Xcorr(smm->_fftSize, needCrossMeasurement, categoriesValues);
 
 				for (size_t j = 0; j < variablesImages.size(); ++j)
 				{
 					for (size_t k = 0; k < variablesImages[j].size(); ++k)
 					{
-						smm->addVaraible(variablesImages[j][k]._data);
+						smm->addVariable(variablesImages[j][k]._data);
 					}
 				}
 				// alloc module
@@ -325,9 +325,9 @@ int main(int argc, char const *argv[]) {
 
 				#endif
 				#ifdef WITH_OPENCL
-				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, gpuHostUnifiedMemory, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, gpuHostUnifiedMemory, considerTiAsCircular, nbThreadsLastLevel,coefficientMatrix, smm, nbThreads, needCrossMeasurement)
 				#else
-				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement)
+				#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(computeDeviceModuleArray) firstprivate(withGPU, considerTiAsCircular, nbThreadsLastLevel,coefficientMatrix, smm, nbThreads, needCrossMeasurement)
 				#endif
 				for (unsigned int i = 0; i < nbThreads; ++i)
 				{
@@ -336,16 +336,16 @@ int main(int argc, char const *argv[]) {
 						bool deviceCreated=false;
 						#ifdef WITH_OPENCL
 						if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-							OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement, conciderTiAsCircular);
-							signleThread->setTrueMismatch(false);
-							computeDeviceModuleArray[i].push_back(signleThread);
+							OpenCLGPUDevice* singleThread=new OpenCLGPUDevice(smm, coefficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMeasurement, considerTiAsCircular);
+							singleThread->setTrueMismatch(false);
+							computeDeviceModuleArray[i].push_back(singleThread);
 							deviceCreated=true;
 						}
 						#endif
 						if(!deviceCreated){
-							CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-							signleThread->setTrueMismatch(false);
-							computeDeviceModuleArray[i].push_back(signleThread);
+							CPUThreadDevice* singleThread=new CPUThreadDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+							singleThread->setTrueMismatch(false);
+							computeDeviceModuleArray[i].push_back(singleThread);
 							deviceCreated=true;
 						}
 					}
@@ -353,7 +353,7 @@ int main(int argc, char const *argv[]) {
 				smm->allowNewModule(false);
 				sharedMemoryManagerVector.push_back(smm);
 				
-				QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCantidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
+				QuantileSamplingModule QSM(computeDeviceModuleArray,&kernel,nbCandidate,conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, noVerbatim, !needCrossMeasurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
 				bool circularSim=false;
 				for (int ljhvhkj = 0; ljhvhkj < 30; ++ljhvhkj)

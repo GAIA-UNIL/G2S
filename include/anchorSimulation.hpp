@@ -62,17 +62,17 @@ inline unsigned anchorSimulationOriginalIndex(
 }
 
 inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, AnchorSamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, std::vector<unsigned> outputDims, std::vector<unsigned> spatialPadding, bool usePaddedDomain, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false, g2s_path_index_t* inputPosterioryPath=nullptr,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+  std::vector<std::vector<float> > categoriesValues, std::vector<unsigned> outputDims, std::vector<unsigned> spatialPadding, bool usePaddedDomain, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false, g2s_path_index_t* inputPosteriorPath=nullptr,
   g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr){
 
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
-	bool localPosterioryPathAllocated=false;
-	g2s_path_index_t* posterioryPath=inputPosterioryPath;
-	if(posterioryPath==nullptr){
-		localPosterioryPathAllocated=true;
-		posterioryPath=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*di.dataSize()/di._nbVariable);
-		memset(posterioryPath,255,sizeof(g2s_path_index_t)*di.dataSize()/di._nbVariable);
+	bool localPosteriorPathAllocated=false;
+	g2s_path_index_t* posteriorPath=inputPosteriorPath;
+	if(posteriorPath==nullptr){
+		localPosteriorPathAllocated=true;
+		posteriorPath=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*di.dataSize()/di._nbVariable);
+		memset(posteriorPath,255,sizeof(g2s_path_index_t)*di.dataSize()/di._nbVariable);
 		for (unsigned int i = 0; i < di.dataSize()/di._nbVariable; ++i)
 		{
 			bool withNan=false;
@@ -81,15 +81,15 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 				withNan|=std::isnan(di._data[i*di._nbVariable+j]);
 			}
 			if(!withNan){
-				posterioryPath[i]=0;
+				posteriorPath[i]=0;
 			}
 		}
 		for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
 		{
-			posterioryPath[solvingPath[i]]=i;
+			posteriorPath[solvingPath[i]]=i;
 		}
 	}
-	const bool useExternalPosteriorPath=!localPosterioryPathAllocated;
+	const bool useExternalPosteriorPath=!localPosteriorPathAllocated;
 	const unsigned numberOfVariable=anchorSimulationExpandedVariableCount(di,categoriesValues);
 
 	int* externalMemory4IndexComputation[nbThreads];
@@ -98,7 +98,7 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, outputDims, spatialPadding, usePaddedDomain) shared(pathPositionArray, di, samplingModule, TIs, kernels)
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, outputDims, spatialPadding, usePaddedDomain) shared(pathPositionArray, di, samplingModule, TIs, kernels)
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath)
 	{
 		unsigned moduleID=0;
@@ -108,8 +108,8 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 
 		int* localExternalMemory4IndexComputation=externalMemory4IndexComputation[moduleID];
 		const unsigned currentCell=solvingPath[indexPath];
-		const float localSeed=seedAray[indexPath];
-		const g2s_path_index_t currentPathOrder=useExternalPosteriorPath ? posterioryPath[currentCell] : indexPath;
+		const float localSeed=seedArray[indexPath];
+		const g2s_path_index_t currentPathOrder=useExternalPosteriorPath ? posteriorPath[currentCell] : indexPath;
 
 		bool withOnlyData=true;
 		for (unsigned int i = 0; i < di._nbVariable; ++i)
@@ -173,7 +173,7 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 					vectorInDi->resize(di._dims.size(),0);
 					if(di.indexWithDelta(dataIndex,currentCell,*vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 					{
-						if(posterioryPath[dataIndex]<=currentPathOrder){
+						if(posteriorPath[dataIndex]<=currentPathOrder){
 							numberOfNeighboursForThisKernel++;
 							unsigned cpt=0;
 							for (unsigned i = 0; i < di._nbVariable; ++i)
@@ -228,7 +228,7 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 			vectorInDi->resize(di._dims.size(),0);
 			if(di.indexWithDelta(dataIndex,currentCell,*vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 			{
-				if(posterioryPath[dataIndex]<=currentPathOrder){
+				if(posteriorPath[dataIndex]<=currentPathOrder){
 					unsigned numberOfNaN=0;
 					float val=std::nanf("0");
 					while(true){
@@ -239,7 +239,7 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 							val=di._data[dataIndex*di._nbVariable+i];
 							numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
 						}
-						if(numberOfNaN==0 || posterioryPath[dataIndex]==currentPathOrder){
+						if(numberOfNaN==0 || posteriorPath[dataIndex]==currentPathOrder){
 							break;
 						}
 						std::this_thread::sleep_for(std::chrono::microseconds(250));
@@ -301,35 +301,35 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 	{
 		delete externalMemory4IndexComputation[i];
 	}
-	if(localPosterioryPathAllocated){
-		free(posterioryPath);
+	if(localPosteriorPathAllocated){
+		free(posteriorPath);
 	}
 }
 
 inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, AnchorSamplingModule &samplingModule,
- std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *kii, float* seedAray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
-  std::vector<std::vector<float> > categoriesValues, std::vector<unsigned> outputDims, std::vector<unsigned> spatialPadding, bool usePaddedDomain, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosterioryPath=nullptr,
+ std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
+  std::vector<std::vector<float> > categoriesValues, std::vector<unsigned> outputDims, std::vector<unsigned> spatialPadding, bool usePaddedDomain, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosteriorPath=nullptr,
   g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr){
 
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
-	bool localPosterioryPathAllocated=false;
-	g2s_path_index_t* posterioryPath=inputPosterioryPath;
-	if(posterioryPath==nullptr){
-		localPosterioryPathAllocated=true;
-		posterioryPath=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*di.dataSize());
-		memset(posterioryPath,255,sizeof(g2s_path_index_t)*di.dataSize());
+	bool localPosteriorPathAllocated=false;
+	g2s_path_index_t* posteriorPath=inputPosteriorPath;
+	if(posteriorPath==nullptr){
+		localPosteriorPathAllocated=true;
+		posteriorPath=(g2s_path_index_t*)malloc(sizeof(g2s_path_index_t)*di.dataSize());
+		memset(posteriorPath,255,sizeof(g2s_path_index_t)*di.dataSize());
 		for (unsigned int i = 0; i < di.dataSize(); ++i)
 		{
 			if(!std::isnan(di._data[i])){
-				posterioryPath[i]=0;
+				posteriorPath[i]=0;
 			}
 		}
 		for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
 		{
-			posterioryPath[solvingPath[i]]=i;
+			posteriorPath[solvingPath[i]]=i;
 		}
 	}
-	const bool useExternalPosteriorPath=!localPosterioryPathAllocated;
+	const bool useExternalPosteriorPath=!localPosteriorPathAllocated;
 	const unsigned numberOfVariable=anchorSimulationExpandedVariableCount(di,categoriesValues);
 
 	int* externalMemory4IndexComputation[nbThreads];
@@ -338,7 +338,7 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 
-	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, posterioryPath, solvingPath, seedAray, numberNeighbor, importDataIndex, logFile, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, outputDims, spatialPadding, usePaddedDomain) shared(pathPositionArray, di, samplingModule, TIs, kernels)
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, outputDims, spatialPadding, usePaddedDomain) shared(pathPositionArray, di, samplingModule, TIs, kernels)
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath)
 	{
 		unsigned moduleID=0;
@@ -351,8 +351,8 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 		if(!std::isnan(di._data[currentCell]) && !forceSimulation){
 			continue;
 		}
-		const float localSeed=seedAray[indexPath];
-		const g2s_path_index_t currentPathOrder=useExternalPosteriorPath ? posterioryPath[currentCell] : indexPath;
+		const float localSeed=seedArray[indexPath];
+		const g2s_path_index_t currentPathOrder=useExternalPosteriorPath ? posteriorPath[currentCell] : indexPath;
 		const unsigned currentVariable=currentCell%di._nbVariable;
 		const unsigned currentPosition=currentCell/di._nbVariable;
 
@@ -398,7 +398,7 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 				bool needToBeAdded=false;
 				for (unsigned i = 0; i < di._nbVariable; ++i)
 				{
-					needToBeAdded|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posterioryPath[dataIndex*di._nbVariable+i]<currentPathOrder);
+					needToBeAdded|=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder);
 				}
 				if(needToBeAdded){
 					unsigned numberOfNaN=0;
@@ -409,7 +409,7 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 						{
 							#pragma omp atomic read
 							val=di._data[dataIndex*di._nbVariable+i];
-							numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posterioryPath[dataIndex*di._nbVariable+i]<currentPathOrder) && std::isnan(val);
+							numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder) && std::isnan(val);
 						}
 						if(numberOfNaN==0){
 							break;
@@ -421,7 +421,7 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 					unsigned cpt=0;
 					for (unsigned i = 0; i < di._nbVariable; ++i)
 					{
-						if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posterioryPath[dataIndex*di._nbVariable+i]<currentPathOrder)){
+						if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && (posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder)){
 							#pragma omp atomic read
 							val=di._data[dataIndex*di._nbVariable+i];
 							data[i]=val;
@@ -470,8 +470,8 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 	{
 		delete externalMemory4IndexComputation[i];
 	}
-	if(localPosterioryPathAllocated){
-		free(posterioryPath);
+	if(localPosteriorPathAllocated){
+		free(posteriorPath);
 	}
 }
 

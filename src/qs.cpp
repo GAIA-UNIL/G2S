@@ -67,8 +67,8 @@ enum simType
 #ifdef G2S_QS_DISTRIBUTED
 struct QsDistributedSendContext{
 	g2s::DataImage* di=nullptr;
-	g2s_path_index_t* posterioryPath=nullptr;
-	size_t posterioryPathSize=0;
+	g2s_path_index_t* posteriorPath=nullptr;
+	size_t posteriorPathSize=0;
 	jobIdType jobId=jobIdType(-1);
 	FILE* reportFile=nullptr;
 	unsigned long long progressTotal=0ULL;
@@ -184,7 +184,7 @@ inline bool isPaddedCellIndex(unsigned cellIndex,
 }
 
 inline void buildDistributedLookupTables(g2s::DataImage& di,
-	const std::vector<g2s_path_index_t>& posterioryPath,
+	const std::vector<g2s_path_index_t>& posteriorPath,
 	bool fullSimulation,
 	bool usePaddedDomain,
 	const std::vector<unsigned>& spatialPadding,
@@ -210,7 +210,7 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 	const unsigned cellCount=di.dataSize()/di._nbVariable;
 
 	if(fullSimulation){
-		if(posterioryPath.size()!=di.dataSize()){
+		if(posteriorPath.size()!=di.dataSize()){
 			return;
 		}
 		for (unsigned cell = 0; cell < cellCount; ++cell)
@@ -227,7 +227,7 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 				if(!forceSimulation && !std::isnan(di._data[scalarIndex])){
 					continue;
 				}
-				const g2s_path_index_t globalPathIndex=posterioryPath[scalarIndex];
+				const g2s_path_index_t globalPathIndex=posteriorPath[scalarIndex];
 				if(globalPathIndex==maxPosteriorValue){
 					continue;
 				}
@@ -236,7 +236,7 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 			}
 		}
 	}else{
-		if(posterioryPath.size()!=cellCount){
+		if(posteriorPath.size()!=cellCount){
 			return;
 		}
 		for (unsigned cell = 0; cell < cellCount; ++cell)
@@ -256,7 +256,7 @@ inline void buildDistributedLookupTables(g2s::DataImage& di,
 					continue;
 				}
 			}
-			const g2s_path_index_t globalPathIndex=posterioryPath[cell];
+			const g2s_path_index_t globalPathIndex=posteriorPath[cell];
 			if(globalPathIndex==maxPosteriorValue){
 				continue;
 			}
@@ -290,14 +290,14 @@ static void enqueueDistributedSimulationUpdate(g2s_simulation_update_kind kind,
 	g2s_path_index_t localIndex, unsigned variableIndex, void* userData){
 	(void)variableIndex;
 	QsDistributedSendContext* sendContext=static_cast<QsDistributedSendContext*>(userData);
-	if(sendContext==nullptr || sendContext->di==nullptr || sendContext->posterioryPath==nullptr){
+	if(sendContext==nullptr || sendContext->di==nullptr || sendContext->posteriorPath==nullptr){
 		return;
 	}
-	if(static_cast<size_t>(localIndex)>=sendContext->posterioryPathSize){
+	if(static_cast<size_t>(localIndex)>=sendContext->posteriorPathSize){
 		return;
 	}
 
-	const g2s_path_index_t globalPathIndex=sendContext->posterioryPath[localIndex];
+	const g2s_path_index_t globalPathIndex=sendContext->posteriorPath[localIndex];
 	if(globalPathIndex==std::numeric_limits<g2s_path_index_t>::max()){
 		return;
 	}
@@ -355,7 +355,7 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::string> sourceFileNameVector;
 	std::string targetFileName;
 	std::vector<std::string> kernelFileName;
-	std::string simuationPathFileName;
+	std::string simulationPathFileName;
 	std::string idImagePathFileName;
 
 	std::string numberOfNeigboursFileName;
@@ -574,7 +574,7 @@ int main(int argc, char const *argv[]) {
 	//look for -sp			: simulation path 
 	if (arg.count("-sp") ==1)
 	{
-		simuationPathFileName=arg.find("-sp")->second;
+		simulationPathFileName=arg.find("-sp")->second;
 	}else{	
 		fprintf(reportFile,"non critical error : no simulation path\n");
 	}
@@ -661,9 +661,9 @@ int main(int argc, char const *argv[]) {
 	unsigned baseSeed=seed;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 	bool requestFullSimulation=false;
-	bool conciderTiAsCircular=false;
+	bool considerTiAsCircular=false;
 	bool circularSimulation=false;
-	bool augmentedDimentionSimulation=false;
+	bool augmentedDimensionSimulation=false;
 	bool forceSimulation=false;
 	bool maxNK=false;
 
@@ -749,7 +749,7 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-cti") == 1)
 	{
-		conciderTiAsCircular=true;
+		considerTiAsCircular=true;
 	}
 	arg.erase("-cti");
 
@@ -761,7 +761,7 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-adsim") == 1)
 	{
-		augmentedDimentionSimulation=true;
+		augmentedDimensionSimulation=true;
 	}
 	arg.erase("-adsim");
 
@@ -867,7 +867,7 @@ int main(int argc, char const *argv[]) {
 
 	if(nbNeighbors.size()<=0 && numberOfNeigboursFileName.empty()){
 		run=false;
-		fprintf(reportFile, "%s\n", "number of neighbor parameter not valide" );
+		fprintf(reportFile, "%s\n", "number of neighbor parameter not valid" );
 	}
 	/*if(std::isnan(threshold)){
 		run=false;
@@ -908,7 +908,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	if(!run){
-		fprintf(reportFile, "simulation interupted !!\n");
+		fprintf(reportFile, "simulation interrupted !!\n");
 		return 0;
 	}
 
@@ -933,8 +933,8 @@ int main(int argc, char const *argv[]) {
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
 
-	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimention augmentation, if the dimention is not good
-		augmentedDimentionSimulation=false;
+	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimension augmentation, if the dimension is not good
+		augmentedDimensionSimulation=false;
 	
 	g2s::DataImage simulationPath;
 	g2s::DataImage idImage;
@@ -1000,61 +1000,61 @@ int main(int argc, char const *argv[]) {
 	std::vector<std::vector<std::vector<int> > > pathPositionArray;
 	for (int kernelIndex = 0; kernelIndex < kernels.size(); ++kernelIndex)
 	{
-		std::vector<std::vector<int> > loaclPathPosition;
-		loaclPathPosition.push_back(std::vector<int>(0));
+		std::vector<std::vector<int> > localPathPosition;
+		localPathPosition.push_back(std::vector<int>(0));
 		for (size_t i = 0; i < kernels[kernelIndex]._dims.size(); ++i)
 		{
-			unsigned originalSize=loaclPathPosition.size();
+			unsigned originalSize=localPathPosition.size();
 			int sizeInThisDim=(kernels[kernelIndex]._dims[i]+1)/2;
-			loaclPathPosition.resize(originalSize*(2*sizeInThisDim-1));
+			localPathPosition.resize(originalSize*(2*sizeInThisDim-1));
 			for (unsigned int k = 0; k < originalSize; ++k)
 			{
-				loaclPathPosition[k].push_back(0);
+				localPathPosition[k].push_back(0);
 			}
 			for (int j = 1; j < sizeInThisDim; ++j)
 			{
-				std::copy ( loaclPathPosition.begin(), loaclPathPosition.begin()+originalSize, loaclPathPosition.begin()+originalSize*(-1+2*j+0) );
-				std::copy ( loaclPathPosition.begin(), loaclPathPosition.begin()+originalSize, loaclPathPosition.begin()+originalSize*(-1+2*j+1) );
+				std::copy ( localPathPosition.begin(), localPathPosition.begin()+originalSize, localPathPosition.begin()+originalSize*(-1+2*j+0) );
+				std::copy ( localPathPosition.begin(), localPathPosition.begin()+originalSize, localPathPosition.begin()+originalSize*(-1+2*j+1) );
 				for (unsigned int k = originalSize*(-1+2*j+0); k < originalSize*(-1+2*j+1); ++k)
 				{
-					loaclPathPosition[k][i]=j;
+					localPathPosition[k][i]=j;
 				}
 				for (unsigned int k = originalSize*(-1+2*j+1); k < originalSize*(-1+2*j+2); ++k)
 				{
-					loaclPathPosition[k][i]=-j;
+					localPathPosition[k][i]=-j;
 				}
 			}
 		}
 
-		g2s::DataImage wieghtKernel=kernels[kernelIndex].emptyCopy(true);
+		g2s::DataImage weightKernel=kernels[kernelIndex].emptyCopy(true);
 		if(searchDistance==g2s::EUCLIDIEN){
-			for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+			for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 			{
-				wieghtKernel._data[i]=-wieghtKernel.distance2ToCenter(i);
+				weightKernel._data[i]=-weightKernel.distance2ToCenter(i);
 			}
 		}
 		if(searchDistance==g2s::KERNEL){
 			unsigned nbV=kernels[kernelIndex]._nbVariable;
-			for (unsigned int i = 0; i < wieghtKernel.dataSize(); ++i)
+			for (unsigned int i = 0; i < weightKernel.dataSize(); ++i)
 			{
 				for (unsigned int j = 0; j < nbV; ++j)
 				{
-					if(fabs(kernels[kernelIndex]._data[i*nbV+j])>wieghtKernel._data[i])wieghtKernel._data[i]=fabs(kernels[kernelIndex]._data[i*nbV+j]);
+					if(fabs(kernels[kernelIndex]._data[i*nbV+j])>weightKernel._data[i])weightKernel._data[i]=fabs(kernels[kernelIndex]._data[i*nbV+j]);
 				}
 			}
 		}
 
 		unsigned center=0;
-		g2s::DataImage* wieghtKernelPtr=wieghtKernel.ptr();
-		for (int i =  wieghtKernelPtr->_dims.size()-1; i>=0 ; i--)
+		g2s::DataImage* weightKernelPtr=weightKernel.ptr();
+		for (int i =  weightKernelPtr->_dims.size()-1; i>=0 ; i--)
 		{
-			center=center*wieghtKernelPtr->_dims[i]+(wieghtKernelPtr->_dims[i]-1)/2;
+			center=center*weightKernelPtr->_dims[i]+(weightKernelPtr->_dims[i]-1)/2;
 		}
 
 		// kernel NaN cleaning, remove all non from neighours to explore.
 		auto localKernel=&kernels[kernelIndex];
 		#if __cplusplus >= 202002L
-		std::erase_if(loaclPathPosition, [center, localKernel](std::vector<int> &v) {
+		std::erase_if(localPathPosition, [center, localKernel](std::vector<int> &v) {
 			unsigned l1;
 			unsigned nbV=localKernel->_nbVariable;
 			localKernel->indexWithDelta(l1, center, v);
@@ -1062,23 +1062,23 @@ int main(int argc, char const *argv[]) {
 		});
 		#else
 
-		auto it = std::remove_if(loaclPathPosition.begin(), loaclPathPosition.end(), [center, localKernel](std::vector<int> &v) {
+		auto it = std::remove_if(localPathPosition.begin(), localPathPosition.end(), [center, localKernel](std::vector<int> &v) {
 			unsigned l1;
 			unsigned nbV=localKernel->_nbVariable;
 			localKernel->indexWithDelta(l1, center, v);
 			return std::isnan(localKernel->_data[l1*nbV+0]);
 		});
-		loaclPathPosition.erase(it, loaclPathPosition.end());
+		localPathPosition.erase(it, localPathPosition.end());
 
 		#endif
 
-		std::sort(loaclPathPosition.begin(),loaclPathPosition.end(),[wieghtKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
+		std::sort(localPathPosition.begin(),localPathPosition.end(),[weightKernelPtr, center](std::vector<int> &a, std::vector<int> &b){
 			unsigned l1,l2;
-			wieghtKernelPtr->indexWithDelta(l1, center, a);
-			wieghtKernelPtr->indexWithDelta(l2, center, b);
-			return wieghtKernelPtr->_data[l1] > wieghtKernelPtr->_data[l2];
+			weightKernelPtr->indexWithDelta(l1, center, a);
+			weightKernelPtr->indexWithDelta(l2, center, b);
+			return weightKernelPtr->_data[l1] > weightKernelPtr->_data[l2];
 		});
-		pathPositionArray.push_back(loaclPathPosition);
+		pathPositionArray.push_back(localPathPosition);
 	}
 
 	
@@ -1091,8 +1091,8 @@ int main(int argc, char const *argv[]) {
 			fprintf(stderr, "%d ", pathPosition[i][k]);
 		}
 		unsigned position;
-		wieghtKernelPtr->indexWithDelta(position, center, pathPosition[i]);
-		fprintf(stderr, " ==> %f\n",wieghtKernelPtr->_data[position]);
+		weightKernelPtr->indexWithDelta(position, center, pathPosition[i]);
+		fprintf(stderr, " ==> %f\n",weightKernelPtr->_data[position]);
 	}
 	fprintf(stderr, "\n\n" );*/
 
@@ -1101,7 +1101,7 @@ int main(int argc, char const *argv[]) {
 	g2s_path_index_t beginPath=0;
 	bool fullSimulation=false;
 
-	if(simuationPathFileName.empty()) {  //todo, need to be redsign to handle augmentedDimentionSimulation
+	if(simulationPathFileName.empty()) {  //todo, need to be redesigned to handle augmentedDimensionSimulation
 		//fprintf(stderr, "generate simulation path\n");
 		if (requestFullSimulation)
 		{
@@ -1145,7 +1145,7 @@ int main(int argc, char const *argv[]) {
 		std::shuffle(simulationPathIndex+beginPath, simulationPathIndex + simulationPathSize, randomGenerator );
 	}
 	else {
-		simulationPath=g2s::DataImage::createFromFile(simuationPathFileName);
+		simulationPath=g2s::DataImage::createFromFile(simulationPathFileName);
 		simulationPathSize=simulationPath.dataSize();
 		bool dimAgree=true;
 		fullSimulation=false;
@@ -1271,18 +1271,18 @@ int main(int argc, char const *argv[]) {
 	std::vector<ComputeDeviceModule*> *computeDeviceModuleArray=new std::vector<ComputeDeviceModule*> [nbThreads];
 
 
-	bool needCrossMesurement=false;
+	bool needCrossMeasurement=false;
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
-		#pragma omp simd reduction(|:needCrossMesurement)
+		#pragma omp simd reduction(|:needCrossMeasurement)
 		for (unsigned int j = 0; j < TIs[i].dataSize(); ++j)
 		{
-			needCrossMesurement|=std::isnan(TIs[i]._data[j]);
+			needCrossMeasurement|=std::isnan(TIs[i]._data[j]);
 		}
 	}
 
-	if(needCrossMesurement && !fullSimulation)
+	if(needCrossMeasurement && !fullSimulation)
 	{
 		for (size_t i = 0; i < TIs.size(); ++i)
 		{
@@ -1304,42 +1304,42 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	bool varaibleTypeAreCompatible=true;
+	bool variableTypeAreCompatible=true;
 
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
+			variableTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
 	}
 
-	if(!varaibleTypeAreCompatible) {
+	if(!variableTypeAreCompatible) {
 
-		fprintf(reportFile, "TI(s) not compatible to gather or/and with the DI ==> simulation interupted !!\n");
+		fprintf(reportFile, "TI(s) not compatible with each other and/or the DI ==> simulation interrupted !!\n");
 		return 0;
 	}
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		if((TIs[i]._types.size())!=(DI._types.size())){
-			varaibleTypeAreCompatible=false;
+			variableTypeAreCompatible=false;
 			break;
 		}
 		for (size_t j = 0; j < TIs[i]._types.size(); ++j)
 		{
-			varaibleTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
+			variableTypeAreCompatible&=((TIs[i]._types[j])==(DI._types[j]));
 		}
 	}
 
 	std::vector<std::vector<float> > categoriesValues;
-	std::vector<unsigned> numberDeComputedVariableProVariable;
+	std::vector<unsigned> numberOfComputedVariablesPerVariable;
 	for (size_t i = 0; i < DI._types.size(); ++i)
 	{
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Continuous)
-			numberDeComputedVariableProVariable.push_back(1);
-		if(DI._types[i]==g2s::DataImage::VaraibleType::Categorical){
+		if(DI._types[i]==g2s::DataImage::VariableType::Continuous)
+			numberOfComputedVariablesPerVariable.push_back(1);
+		if(DI._types[i]==g2s::DataImage::VariableType::Categorical){
 			std::vector<float> currentVariable;
 			for (size_t im = 0; im < TIs.size(); ++im)
 			{
@@ -1358,34 +1358,34 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			categoriesValues.push_back(currentVariable);
-			numberDeComputedVariableProVariable.push_back(currentVariable.size());
+			numberOfComputedVariablesPerVariable.push_back(currentVariable.size());
 		}
 	}
 
 	// correct the kernel to take in account categories
 	for (int i = 0; i < kernels.size(); ++i)
 	{
-		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberDeComputedVariableProVariable,needCrossMesurement);
+		kernels[i]=g2s::DataImage::offsetKernel4categories(kernels[i],numberOfComputedVariablesPerVariable,needCrossMeasurement);
 	}
 
-	std::vector<std::vector<convertionType> > convertionTypeVectorMainVector;
-	std::vector<g2s::OperationMatrix> coeficientMatrix;
-	std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector;
-	std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector;
-	TIs[0].generateCoefMatrix4Xcorr(coeficientMatrix, convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, needCrossMesurement, categoriesValues);
+	std::vector<std::vector<conversionType> > conversionTypeVectorMainVector;
+	std::vector<g2s::OperationMatrix> coefficientMatrix;
+	std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector;
+	TIs[0].generateCoefMatrix4Xcorr(coefficientMatrix, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, needCrossMeasurement, categoriesValues);
 
 
 	for (size_t i = 0; i < TIs.size(); ++i)
 	{
 		SharedMemoryManager* smm=new SharedMemoryManager(TIs[i]._dims);
 
-		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMesurement, categoriesValues);
+		std::vector<std::vector<g2s::DataImage> > variablesImages=TIs[i].convertInput4Xcorr(smm->_fftSize, needCrossMeasurement, categoriesValues);
 
 		for (size_t j = 0; j < variablesImages.size(); ++j)
 		{
 			for (size_t k = 0; k < variablesImages[j].size(); ++k)
 			{
-				smm->addVaraible(variablesImages[j][k]._data);
+				smm->addVariable(variablesImages[j][k]._data);
 			}
 		}
 		// alloc module
@@ -1398,7 +1398,7 @@ int main(int argc, char const *argv[]) {
 		int cudaDeviceNumber=cudaDeviceList.size();
 		int cudaDeviceUsed=0;
 
-		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, conciderTiAsCircular, nbThreadsLastLevel,coeficientMatrix, smm, nbThreads, needCrossMesurement, cudaDeviceNumber)
+		#pragma omp parallel for proc_bind(spread) num_threads(nbThreads) default(none) shared(NvidiaGPUAcceleratorDevice,cudaDeviceList, cudaDeviceUsed, computeDeviceModuleArray) firstprivate(gpuHostUnifiedMemory, withGPU, considerTiAsCircular, nbThreadsLastLevel,coefficientMatrix, smm, nbThreads, needCrossMeasurement, cudaDeviceNumber)
 		for (unsigned int i = 0; i < nbThreads; ++i)
 		{
 			//#pragma omp critical (createDevices)
@@ -1406,9 +1406,9 @@ int main(int argc, char const *argv[]) {
 				bool deviceCreated=false;
 				#ifdef WITH_OPENCL
 				if((!deviceCreated) && (i<gpuHostUnifiedMemory.size()) && withGPU){
-					OpenCLGPUDevice* signleThread=new OpenCLGPUDevice(smm, coeficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMesurement, conciderTiAsCircular);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					OpenCLGPUDevice* singleThread=new OpenCLGPUDevice(smm, coefficientMatrix, 0,gpuHostUnifiedMemory[i], needCrossMeasurement, considerTiAsCircular);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 				#endif
@@ -1417,18 +1417,18 @@ int main(int argc, char const *argv[]) {
 				#pragma omp atomic capture
 				localDeviceId = cudaDeviceUsed++;
 				if(!deviceCreated && localDeviceId<cudaDeviceNumber){
-					AcceleratorDevice* signleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					signleCudaThread->setTrueMismatch(true);
-					computeDeviceModuleArray[i].push_back(signleCudaThread);
+					AcceleratorDevice* singleCudaThread=NvidiaGPUAcceleratorDevice(cudaDeviceList[localDeviceId], smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					singleCudaThread->setTrueMismatch(true);
+					computeDeviceModuleArray[i].push_back(singleCudaThread);
 					deviceCreated=true;
 
 				}
 				#endif
 				if(!deviceCreated){
-					CPUThreadDevice* signleThread=new CPUThreadDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					//CPUThreadAcceleratorDevice* signleThread=new CPUThreadAcceleratorDevice(smm, coeficientMatrix, nbThreadsLastLevel, needCrossMesurement, conciderTiAsCircular);
-					signleThread->setTrueMismatch(false);
-					computeDeviceModuleArray[i].push_back(signleThread);
+					CPUThreadDevice* singleThread=new CPUThreadDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					//CPUThreadAcceleratorDevice* singleThread=new CPUThreadAcceleratorDevice(smm, coefficientMatrix, nbThreadsLastLevel, needCrossMeasurement, considerTiAsCircular);
+					singleThread->setTrueMismatch(false);
+					computeDeviceModuleArray[i].push_back(singleThread);
 					deviceCreated=true;
 				}
 			}
@@ -1437,9 +1437,9 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 
-	QuantileSamplingModule QSM(computeDeviceModuleArray,(kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,convertionTypeVectorMainVector, convertionTypeVectorConstVector, convertionCoefVectorConstVector, noVerbatim, !needCrossMesurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
+	QuantileSamplingModule QSM(computeDeviceModuleArray,(kernels.size()==1 ? &kernels[0]:nullptr),nbCandidate,conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, noVerbatim, !needCrossMeasurement, nbThreads, nbThreadsOverTi, nbThreadsLastLevel, useUniqueTI4Sampling);
 
-	std::vector<g2s_path_index_t> posterioryPath;
+	std::vector<g2s_path_index_t> posteriorPath;
 	const g2s_path_index_t maxPosteriorValue=std::numeric_limits<g2s_path_index_t>::max();
 	const g2s_path_index_t numberOfPointToSimulate=simulationPathSize-beginPath;
 	g2s_path_index_t posteriorPathStride=g2s_path_index_t(1);
@@ -1451,16 +1451,16 @@ int main(int argc, char const *argv[]) {
 	}
 #endif
 	if(fullSimulation){
-		posterioryPath.assign(DI.dataSize(),maxPosteriorValue);
+		posteriorPath.assign(DI.dataSize(),maxPosteriorValue);
 		for (unsigned i = 0; i < DI.dataSize(); ++i)
 		{
 			if(!std::isnan(DI._data[i])){
-				posterioryPath[i]=0;
+				posteriorPath[i]=0;
 			}
 		}
 	}else{
 		const unsigned cellCount=DI.dataSize()/DI._nbVariable;
-		posterioryPath.assign(cellCount,maxPosteriorValue);
+		posteriorPath.assign(cellCount,maxPosteriorValue);
 		for (unsigned i = 0; i < cellCount; ++i)
 		{
 			bool withNan=false;
@@ -1469,27 +1469,27 @@ int main(int argc, char const *argv[]) {
 				withNan|=std::isnan(DI._data[i*DI._nbVariable+j]);
 			}
 			if(!withNan){
-				posterioryPath[i]=0;
+				posteriorPath[i]=0;
 			}
 		}
 	}
 	for (g2s_path_index_t i = 0; i < numberOfPointToSimulate; ++i)
 	{
-		posterioryPath[simulationPathIndex[beginPath+i]]=i*posteriorPathStride+posteriorPathOffset;
+		posteriorPath[simulationPathIndex[beginPath+i]]=i*posteriorPathStride+posteriorPathOffset;
 	}
 
 #ifdef G2S_QS_DISTRIBUTED
 	if(!distributedOptions.jobGridPayload.empty()){
 		distributedSendContext.di=&DI;
-		distributedSendContext.posterioryPath=posterioryPath.data();
-		distributedSendContext.posterioryPathSize=posterioryPath.size();
+		distributedSendContext.posteriorPath=posteriorPath.data();
+		distributedSendContext.posteriorPathSize=posteriorPath.size();
 		distributedSendContext.jobId=uniqueID;
 	}
 #endif
 
 #ifdef G2S_QS_DISTRIBUTED
 	if(usePaddedDomain && !distributedOptions.jobGridPayload.empty()){
-		if(!simuationPathFileName.empty()){
+		if(!simulationPathFileName.empty()){
 			fprintf(reportFile, "distributed mode warning: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors\n");
 		}else if(distributedOptions.gridDims.empty() ||
 			distributedOptions.localJobGridCoordinate.size()!=distributedOptions.gridDims.size()){
@@ -1499,17 +1499,17 @@ int main(int argc, char const *argv[]) {
 				distributedOptions.gridDims.size(),outputDims.size());
 		}else{
 			auto buildPosteriorPathFromSeed=[&](g2s::DataImage& localDi, unsigned localSeed, g2s_path_index_t localOffset){
-				std::vector<g2s_path_index_t> localPosterioryPath;
+				std::vector<g2s_path_index_t> localPosteriorPath;
 				if(fullSimulation){
 					const size_t localPathSize=localDi.dataSize();
-					localPosterioryPath.assign(localPathSize,maxPosteriorValue);
+					localPosteriorPath.assign(localPathSize,maxPosteriorValue);
 					std::vector<g2s_path_index_t> localSimulationPath(localPathSize,0);
 					size_t localBeginPath=0;
 					for (size_t i = 0; i < localPathSize; ++i)
 					{
 						localSimulationPath[i]=static_cast<g2s_path_index_t>(i);
 						if(!std::isnan(localDi._data[i])){
-							localPosterioryPath[i]=0;
+							localPosteriorPath[i]=0;
 							std::swap(localSimulationPath[localBeginPath],localSimulationPath[i]);
 							localBeginPath++;
 						}
@@ -1518,12 +1518,12 @@ int main(int argc, char const *argv[]) {
 					std::shuffle(localSimulationPath.begin()+localBeginPath, localSimulationPath.end(), localGenerator);
 					for (size_t i = localBeginPath; i < localPathSize; ++i)
 					{
-						localPosterioryPath[localSimulationPath[i]]=
+						localPosteriorPath[localSimulationPath[i]]=
 							static_cast<g2s_path_index_t>(i-localBeginPath)*posteriorPathStride+localOffset;
 					}
 				}else{
 					const size_t localCellCount=localDi.dataSize()/localDi._nbVariable;
-					localPosterioryPath.assign(localCellCount,maxPosteriorValue);
+					localPosteriorPath.assign(localCellCount,maxPosteriorValue);
 					std::vector<g2s_path_index_t> localSimulationPath(localCellCount,0);
 					size_t localBeginPath=0;
 					for (size_t i = 0; i < localCellCount; ++i)
@@ -1535,7 +1535,7 @@ int main(int argc, char const *argv[]) {
 							withNan|=std::isnan(localDi._data[i*localDi._nbVariable+j]);
 						}
 						if(!withNan){
-							localPosterioryPath[i]=0;
+							localPosteriorPath[i]=0;
 							std::swap(localSimulationPath[localBeginPath],localSimulationPath[i]);
 							localBeginPath++;
 						}
@@ -1544,15 +1544,15 @@ int main(int argc, char const *argv[]) {
 					std::shuffle(localSimulationPath.begin()+localBeginPath, localSimulationPath.end(), localGenerator);
 					for (size_t i = localBeginPath; i < localCellCount; ++i)
 					{
-						localPosterioryPath[localSimulationPath[i]]=
+						localPosteriorPath[localSimulationPath[i]]=
 							static_cast<g2s_path_index_t>(i-localBeginPath)*posteriorPathStride+localOffset;
 					}
 				}
-				return localPosterioryPath;
+				return localPosteriorPath;
 			};
 
 			auto copyNeighborHalo=[&](const g2s::DataImage& neighborDi,
-				const std::vector<g2s_path_index_t>& neighborPosterioryPath,
+				const std::vector<g2s_path_index_t>& neighborPosteriorPath,
 				const std::vector<int>& neighborOffset)->bool{
 				const size_t rank=outputDims.size();
 				if(rank==0){
@@ -1607,10 +1607,10 @@ int main(int argc, char const *argv[]) {
 					if(fullSimulation){
 						for (unsigned int variable = 0; variable < DI._nbVariable; ++variable)
 						{
-							posterioryPath[localCell*DI._nbVariable+variable]=neighborPosterioryPath[neighborCell*DI._nbVariable+variable];
+							posteriorPath[localCell*DI._nbVariable+variable]=neighborPosteriorPath[neighborCell*DI._nbVariable+variable];
 						}
 					}else{
-						posterioryPath[localCell]=neighborPosterioryPath[neighborCell];
+						posteriorPath[localCell]=neighborPosteriorPath[neighborCell];
 					}
 					copied=true;
 
@@ -1694,9 +1694,9 @@ int main(int argc, char const *argv[]) {
 
 				const unsigned neighborSeed=baseSeed+static_cast<unsigned>(neighborRowMajorPosition);
 				const g2s_path_index_t neighborPosteriorOffset=static_cast<g2s_path_index_t>(neighborRowMajorPosition);
-				std::vector<g2s_path_index_t> neighborPosterioryPath=
+				std::vector<g2s_path_index_t> neighborPosteriorPath=
 					buildPosteriorPathFromSeed(neighborDi,neighborSeed,neighborPosteriorOffset);
-				if(copyNeighborHalo(neighborDi,neighborPosterioryPath,neighborOffset)){
+				if(copyNeighborHalo(neighborDi,neighborPosteriorPath,neighborOffset)){
 					mergedNeighborCount++;
 				}
 			}
@@ -1708,7 +1708,7 @@ int main(int argc, char const *argv[]) {
 #ifdef G2S_QS_DISTRIBUTED
 	if(!distributedOptions.jobGridPayload.empty()){
 		buildDistributedLookupTables(DI,
-			posterioryPath,
+			posteriorPath,
 			fullSimulation,
 			usePaddedDomain,
 			spatialPadding,
@@ -1973,7 +1973,7 @@ int main(int argc, char const *argv[]) {
 	#endif
 
 	if(!run){
-		fprintf(reportFile, "simulation interupted !!\n");
+		fprintf(reportFile, "simulation interrupted !!\n");
 		return 0;
 	}
 
@@ -1983,7 +1983,7 @@ int main(int argc, char const *argv[]) {
 
 	simType st=vectorSim;
 	if(fullSimulation) st=fullSim;
-	if(augmentedDimentionSimulation) st=augmentedDimSim;
+	if(augmentedDimensionSimulation) st=augmentedDimSim;
 	#ifdef G2S_QS_DISTRIBUTED
 	if(simulationUpdateCallback!=nullptr){
 		distributedSendContext.reportFile=reportFile;
@@ -2026,17 +2026,17 @@ int main(int argc, char const *argv[]) {
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	case augmentedDimSim:
-		fprintf(reportFile, "%s\n", "augmented dimention sim");
+		fprintf(reportFile, "%s\n", "augmented dimension sim");
 		simulationAD(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posterioryPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, nbThreadsOverTi, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	}
 	#ifdef G2S_QS_DISTRIBUTED

@@ -91,7 +91,7 @@ inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
 	socket.send (request);
 	Rcpp::stop(
-				"%s : %s", "gss:error", "Ctrl C, user interupted");
+				"%s : %s", "gss:error", "Ctrl C, user interrupted");
 }
 
 
@@ -127,8 +127,8 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 		Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(*variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 	
@@ -147,7 +147,7 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 	char* rawData=image.serialize();
 	size_t fullsize=*((size_t*)rawData);
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize, hash.begin(), hash.end());
 
 	//check existance
 	infoContainer task;
@@ -433,10 +433,10 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 	serverRun=true;
 
 	if((saP1_Index!=-1)){
-		std::string adress=Rcpp::as<std::string>(args[saP1_Index]);
-		std::transform(adress.begin(), adress.end(), adress.begin(),::tolower);
+		std::string address=Rcpp::as<std::string>(args[saP1_Index]);
+		std::transform(address.begin(), address.end(), address.begin(),::tolower);
 		#ifdef WITH_WEB_SUPPORT
-		if(!adress.compare("web")||!adress.compare("browser")){
+		if(!address.compare("web")||!address.compare("browser")){
 			//printf("use browser server\n");
 			serverRun=false;
 			std::string from="tcp://*:8128";
@@ -739,7 +739,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			if(!silentMode){
 				printf("\rprogres %.3f%%\n",100.0f );
 			}
-			g2s::DataImage image((char*)reply.data());
+			g2s::DataImage image((char*)reply.data(), reply.size());
 			plhs.push_back(convert2NDArray(image));
 			stop=true;
 		}
@@ -813,7 +813,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			}
 			
 			if(reply.size()!=0){
-				g2s::DataImage image((char*)reply.data());
+				g2s::DataImage image((char*)reply.data(), reply.size());
 				plhs.push_back(convert2NDArray(image));
 				stop=true;
 				downloadInformation++;

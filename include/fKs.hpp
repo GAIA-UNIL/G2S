@@ -37,7 +37,7 @@ namespace fKst {
 template<typename T>
 inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int i){
 	short position=k-2;
-	while ((data[i]<output[position]) && (position>-1) ){
+	while ((position>-1) && (data[i]<output[position]) ){
 		output[position+1]=output[position];
 		position--;
 	}
@@ -47,7 +47,7 @@ inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const uns
 template<typename T>
 inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, unsigned int i){
 	short position=k-2;
-	while ((data[i]<output[position]) && (position>-1) ){
+	while ((position>-1) && (data[i]<output[position]) ){
 		output[position+1]=output[position]; 
 		positionValue[position+1]=positionValue[position]; 
 		position--;
@@ -60,7 +60,7 @@ template<typename T, typename urgT>
 inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator, unsigned &cpt, unsigned int i){
 	short position=k-2;
 	short positionLikeLast=k-2;
-	while ((output[k-1]==output[positionLikeLast]) && (position>-1) ){
+	while ((positionLikeLast>-1) && (output[k-1]==output[positionLikeLast]) ){
 		positionLikeLast--;
 	}
 	int xes=(k-positionLikeLast-1);
@@ -75,7 +75,7 @@ inline /*__attribute__((always_inline))*/ void addValueS(const T* data,const uns
 		else
 			cpt++;
 
-		while ((data[i]<output[position]) && (position>-1) ){
+		while ((position>-1) && (data[i]<output[position]) ){
 			output[position+1]=output[position]; 
 			positionValue[position+1]=positionValue[position]; 
 			position--;
@@ -131,17 +131,17 @@ inline void findKsmallest(const T* data,const unsigned int N,const unsigned shor
 
 }
 
-#if __SSE4_1__
-inline void findKsmallest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+#if __arm64__
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
-	unsigned char ratio=sizeof(__m128)/sizeof(float);
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
 
-	__m128 bigest=_mm_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
-		__m128 dataVector=_mm_loadu_ps(data+i);
+		float32x4_t dataVector=vld1q_f32(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmplt_ps(dataVector,bigest))))
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -150,7 +150,108 @@ inline void findKsmallest128(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm_set1_ps(output[k-1]);
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, i);
+		}
+	}
+}
+
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector=vld1q_f32(data+i);
+
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, positionValue, j);
+				}
+			}
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, positionValue, i);
+		}
+	}
+}
+
+template<typename urgT>
+inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+
+	unsigned cpt=0;
+	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
+
+	float32x4_t biggest=vld1q_dup_f32(output+k-1);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		float32x4_t dataVector=vld1q_f32(data+i);
+
+		if(vmaxvq_u32(vcleq_f32(dataVector,biggest)))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<=output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, positionValue, generator, cpt, j);
+				}
+			}
+			biggest=vld1q_dup_f32(output+k-1);
+		}
+
+	}
+
+	for (unsigned int i = ( N/ratio)*ratio; i < N; ++i)
+	{
+		if(data[i]<=output[k-1]) //then change
+		{
+			addValueS(data, N, k, output, positionValue, generator, cpt, i);
+		}
+	}
+}
+
+#endif
+
+#if __SSE4_1__
+inline void findKsmallest128(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+
+	unsigned char ratio=sizeof(__m128)/sizeof(float);
+
+	__m128 biggest=_mm_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
+	{
+		__m128 dataVector=_mm_loadu_ps(data+i);
+
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmplt_ps(dataVector,biggest))))
+		{
+			for (unsigned int j = i; j < i+ratio; ++j)
+			{
+				if(data[j]<output[k-1]) //then change
+				{
+					addValueS(data, N, k, output, j);
+				}
+			}
+			biggest=_mm_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -168,12 +269,12 @@ inline void findKsmallest128(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
-	__m128 bigest=_mm_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m128 biggest=_mm_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmplt_ps(dataVector,bigest))))
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmplt_ps(dataVector,biggest))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -182,7 +283,7 @@ inline void findKsmallest128(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm_set1_ps(output[k-1]);
+			biggest=_mm_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -202,12 +303,12 @@ inline void findKsmallest128(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m128)/sizeof(float);
 
-	__m128 bigest=_mm_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m128 biggest=_mm_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m128 dataVector=_mm_loadu_ps(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmple_ps(dataVector,bigest))))
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castps_si128(_mm_cmple_ps(dataVector,biggest))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -216,7 +317,7 @@ inline void findKsmallest128(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm_set1_ps(output[k-1]);
+			biggest=_mm_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -235,12 +336,12 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
-	__m128d bigest=_mm_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m128d biggest=_mm_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmplt_pd(dataVector,bigest))))
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmplt_pd(dataVector,biggest))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -249,7 +350,7 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm_set1_pd(output[k-1]);
+			biggest=_mm_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -267,12 +368,12 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
-	__m128d bigest=_mm_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m128d biggest=_mm_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmplt_pd(dataVector,bigest))))
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmplt_pd(dataVector,biggest))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -281,7 +382,7 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm_set1_pd(output[k-1]);
+			biggest=_mm_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -301,12 +402,12 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m128)/sizeof(double);
 
-	__m128d bigest=_mm_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m128d biggest=_mm_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m128d dataVector=_mm_loadu_pd(data+i);
 
-		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmple_pd(dataVector,bigest))))
+		if(!_mm_testc_si128(_mm_set1_epi8(0),_mm_castpd_si128(_mm_cmple_pd(dataVector,biggest))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -315,7 +416,7 @@ inline void findKsmallest128(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm_set1_pd(output[k-1]);
+			biggest=_mm_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -338,11 +439,11 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
-	__m256 bigest=_mm256_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256 biggest=_mm256_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,bigest,_CMP_LT_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,biggest,_CMP_LT_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -351,7 +452,7 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm256_set1_ps(output[k-1]);
+			biggest=_mm256_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -369,11 +470,11 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
-	__m256 bigest=_mm256_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256 biggest=_mm256_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,bigest,_CMP_LT_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,biggest,_CMP_LT_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -382,7 +483,7 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm256_set1_ps(output[k-1]);
+			biggest=_mm256_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -402,11 +503,11 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m256)/sizeof(float);
 
-	__m256 bigest=_mm256_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256 biggest=_mm256_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256 dataVector=_mm256_loadu_ps(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,bigest,_CMP_LE_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castps_si256(_mm256_cmp_ps(dataVector,biggest,_CMP_LE_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -415,7 +516,7 @@ inline void findKsmallest256(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm256_set1_ps(output[k-1]);
+			biggest=_mm256_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -434,11 +535,11 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
-	__m256d bigest=_mm256_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256d biggest=_mm256_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,bigest,_CMP_LT_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,biggest,_CMP_LT_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -447,7 +548,7 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm256_set1_pd(output[k-1]);
+			biggest=_mm256_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -465,11 +566,11 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
-	__m256d bigest=_mm256_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256d biggest=_mm256_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,bigest,_CMP_LT_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,biggest,_CMP_LT_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -478,7 +579,7 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm256_set1_pd(output[k-1]);
+			biggest=_mm256_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -499,11 +600,11 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m256)/sizeof(double);
 
-	__m256d bigest=_mm256_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m256d biggest=_mm256_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m256d dataVector=_mm256_loadu_pd(data+i);
-		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,bigest,_CMP_LE_OQ))))
+		if(!_mm256_testc_si256(_mm256_set1_epi8(0),_mm256_castpd_si256(_mm256_cmp_pd(dataVector,biggest,_CMP_LE_OQ))))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -512,7 +613,7 @@ inline void findKsmallest256(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm256_set1_pd(output[k-1]);
+			biggest=_mm256_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -536,11 +637,11 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
-	__m512 bigest=_mm512_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512 biggest=_mm512_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,bigest,_CMP_LT_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,biggest,_CMP_LT_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -549,7 +650,7 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm512_set1_ps(output[k-1]);
+			biggest=_mm512_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -567,11 +668,11 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
-	__m512 bigest=_mm512_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512 biggest=_mm512_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,bigest,_CMP_LT_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,biggest,_CMP_LT_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -580,7 +681,7 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm512_set1_ps(output[k-1]);
+			biggest=_mm512_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -598,11 +699,11 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m512)/sizeof(float);
 
-	__m512 bigest=_mm512_set1_ps(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512 biggest=_mm512_set1_ps(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512 dataVector=_mm512_loadu_ps(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,bigest,_CMP_LE_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_ps_mask(dataVector,biggest,_CMP_LE_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -611,7 +712,7 @@ inline void findKsmallest512(const float* data,const unsigned int N,const unsign
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm512_set1_ps(output[k-1]);
+			biggest=_mm512_set1_ps(output[k-1]);
 		}
 		
 	}
@@ -629,11 +730,11 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
-	__m512d bigest=_mm512_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512d biggest=_mm512_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,bigest,_CMP_LT_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,biggest,_CMP_LT_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -642,7 +743,7 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, j);
 				}
 			}
-			bigest=_mm512_set1_pd(output[k-1]);
+			biggest=_mm512_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -660,11 +761,11 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
-	__m512d bigest=_mm512_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512d biggest=_mm512_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,bigest,_CMP_LT_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,biggest,_CMP_LT_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -673,7 +774,7 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, j);
 				}
 			}
-			bigest=_mm512_set1_pd(output[k-1]);
+			biggest=_mm512_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -691,11 +792,11 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 	unsigned cpt=0;
 	unsigned char ratio=sizeof(__m512)/sizeof(double);
 
-	__m512d bigest=_mm512_set1_pd(output[k-1]);
-	for (unsigned int i = 0; i < ( (N-1)/ratio)*ratio; i+=ratio)
+	__m512d biggest=_mm512_set1_pd(output[k-1]);
+	for (unsigned int i = 0; i < ( N/ratio)*ratio; i+=ratio)
 	{
 		__m512d dataVector=_mm512_loadu_pd(data+i);	
-		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,bigest,_CMP_LE_OQ)))
+		if(!_mm512_kortestz(_mm512_int2mask(0),_mm512_cmp_pd_mask(dataVector,biggest,_CMP_LE_OQ)))
 		{
 			for (unsigned int j = i; j < i+ratio; ++j)
 			{
@@ -704,7 +805,7 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 					addValueS(data, N, k, output, positionValue, generator, cpt, j);
 				}
 			}
-			bigest=_mm512_set1_pd(output[k-1]);
+			biggest=_mm512_set1_pd(output[k-1]);
 		}
 		
 	}
@@ -721,6 +822,29 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 
 #endif
 
+
+#if __arm64__
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
+	std::fill(output,output+k,INFINITY);
+	findKsmallestARM(data, N, k, output);
+	return;
+}
+
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue){
+	std::fill(output,output+k,INFINITY);
+	std::fill(positionValue,positionValue+k,UINT_MAX);
+	findKsmallestARM(data, N, k, output, positionValue);
+	return;
+}
+
+template<typename urgT>
+inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output, unsigned int* restrict positionValue, urgT generator){
+	std::fill(output,output+k,INFINITY);
+	std::fill(positionValue,positionValue+k,UINT_MAX);
+	findKsmallestARM(data, N, k, output, positionValue, generator);
+	return;
+}
+#endif
 
 template<typename T>
 inline void findKSmallest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){

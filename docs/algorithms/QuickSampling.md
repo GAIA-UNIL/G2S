@@ -46,7 +46,7 @@ Outputs: sim = simulation, index = index of the simulated values in the flattene
 | `-far` | Fast and risky &#x1f604;, like -ii but with a random input (experimental). | |
 | `-cti` | With this flag QS will treat the training image(s) as periodic (aka circular or cyclic) over each dimension. | |
 | `-csim` | With this flag QS will make sure to create a periodic (aka circular or cyclic) simulation over each dimension. | |
-| `-adsim` | Augmented dimentionality simulation: allows for 3D simulation using 2D training image, only for categories (Coming maybe some day!). | |
+| `-adsim` | Augmented dimensionality simulation: allows for 3D simulation using 2D training image, only for categories (Coming maybe some day!). | |
 | `-fs` | Full simulation: follows a different simulation path for each variable (as opposed to vector simulation, where the same simulation path is used for all variables). | |
 | `-f` | f=1/k equivalent to f of DS with a threshold to 0. | |
 | `-nV` | No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental). | |

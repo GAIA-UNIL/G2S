@@ -130,7 +130,7 @@ public:
 		char* rawData=convertNativeMatrix2DataImage(matrix, dataTypeVariable).serialize();
 		size_t fullsize=*((size_t*)rawData);
 		std::vector<unsigned char> hash(32);
-		picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
+		picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize, hash.begin(), hash.end());
 
 		//check existance
 		infoContainer task;
@@ -336,7 +336,7 @@ public:
 		zmq::message_t reply;
 		socket.recv (reply);
 		
-		//if(!silent)sendError("Ctrl C, user interupted");
+		//if(!silent)sendError("Ctrl C, user interrupted");
 	}
 
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
@@ -827,7 +827,7 @@ public:
 				}
 				
 				if(reply.size()!=0){
-					g2s::DataImage image((char*)reply.data());
+					g2s::DataImage image((char*)reply.data(), reply.size());
 					outputs.insert({std::to_string(dataIndex),convert2NativeMatrix(image)});
 				}
 				dataIndex++;

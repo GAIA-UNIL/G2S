@@ -35,12 +35,12 @@ public:
 	}
 
 	float getVariableCumulatedAlongA(int variableA){
-		float cummulated=0;
+		float cumulated=0;
 		for (int i = 0; i < _numberOfVariable; ++i)
 		{
-			cummulated+=_matrixData[variableA+i*_numberOfVariable];
+			cumulated+=_matrixData[variableA+i*_numberOfVariable];
 		}
-		return cummulated;
+		return cumulated;
 	}
 
 	bool needVariableAlongA(int variableA){
@@ -53,12 +53,12 @@ public:
 	}
 
 	float getVariableCumulatedAlongB(int variableB){
-		float cummulated=0;
+		float cumulated=0;
 		for (int i = 0; i < _numberOfVariable; ++i)
 		{
-			cummulated+=_matrixData[i+variableB*_numberOfVariable];
+			cumulated+=_matrixData[i+variableB*_numberOfVariable];
 		}
-		return cummulated;
+		return cumulated;
 	}
 
 	bool needVariableAlongB(int variableB){
