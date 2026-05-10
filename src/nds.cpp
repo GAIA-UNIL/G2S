@@ -25,6 +25,7 @@
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
 
 #include "sharedMemoryManager.hpp"
 #include "CPUThreadDevice.hpp"
@@ -63,28 +64,12 @@ int main(int argc, char const *argv[]) {
 	FILE *reportFile=NULL;
 	if (arg.count("-r") > 1)
 	{
-		fprintf(reportFile,"only one rapport file is possible\n");
+		fprintf(stderr,"only one rapport file is possible\n");
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					std::to_string(logId);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -92,6 +77,9 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile!=nullptr){
+		g2s::reporting::markStarted(reportFile, "nds");
+	}
 	for (int i = 0; i < argc; ++i)
 	{
 		fprintf(reportFile,"%s ",argv[i]);
@@ -748,6 +736,8 @@ int main(int argc, char const *argv[]) {
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	// free memory
 

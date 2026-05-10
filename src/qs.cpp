@@ -51,6 +51,7 @@
 #include "simulation.hpp"
 #include "simulationAugmentedDim.hpp"
 #include "quantileSamplingModule.hpp"
+#include "jobReporting.hpp"
 #include "qsDistributedUtils.hpp"
 #include "qsPaddingUtils.hpp"
 #ifdef G2S_QS_DISTRIBUTED
@@ -389,28 +390,12 @@ int main(int argc, char const *argv[]) {
 	FILE *reportFile=NULL;
 	if (arg.count("-r") > 1)
 	{
-		fprintf(reportFile,"only one rapport file is possible\n");
+		fprintf(stderr,"only one rapport file is possible\n");
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					std::to_string(logId);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -427,6 +412,9 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-id");
+	if(reportFile!=nullptr){
+		g2s::reporting::markStarted(reportFile, "qs");
+	}
 
 	for (int i = 0; i < argc; ++i)
 	{
@@ -1490,13 +1478,14 @@ int main(int argc, char const *argv[]) {
 #ifdef G2S_QS_DISTRIBUTED
 	if(usePaddedDomain && !distributedOptions.jobGridPayload.empty()){
 		if(!simulationPathFileName.empty()){
-			fprintf(reportFile, "distributed mode warning: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors\n");
+			g2s::reporting::recordWarning(reportFile, "distributed mode: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors");
 		}else if(distributedOptions.gridDims.empty() ||
 			distributedOptions.localJobGridCoordinate.size()!=distributedOptions.gridDims.size()){
-			fprintf(reportFile, "distributed mode warning: missing decoded -jg grid metadata, neighbor halos are skipped\n");
+			g2s::reporting::recordWarning(reportFile, "distributed mode: missing decoded -jg grid metadata, neighbor halos are skipped");
 		}else if(distributedOptions.gridDims.size()>outputDims.size()){
-			fprintf(reportFile, "distributed mode warning: -jg rank (%zu) is larger than DI rank (%zu), neighbor halos are skipped\n",
-				distributedOptions.gridDims.size(),outputDims.size());
+			g2s::reporting::recordWarning(reportFile,
+				"distributed mode: -jg rank ("+std::to_string(distributedOptions.gridDims.size())+
+				") is larger than DI rank ("+std::to_string(outputDims.size())+"), neighbor halos are skipped");
 		}else{
 			auto buildPosteriorPathFromSeed=[&](g2s::DataImage& localDi, unsigned localSeed, g2s_path_index_t localOffset){
 				std::vector<g2s_path_index_t> localPosteriorPath;
@@ -1675,20 +1664,23 @@ int main(int argc, char const *argv[]) {
 				}else if(neighborRowMajorPosition<distributedOptions.flattenedJobIds.size()){
 					neighborDiName=std::string("input_di_")+std::to_string(distributedOptions.flattenedJobIds[neighborRowMajorPosition]);
 				}else{
-					fprintf(reportFile, "distributed mode warning: missing neighbor metadata for row-major position %zu\n",
-						neighborRowMajorPosition);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: missing neighbor metadata for row-major position "+std::to_string(neighborRowMajorPosition));
 					continue;
 				}
 
 				g2s::DataImage neighborDi=g2s::DataImage::createFromFile(neighborDiName);
 				if(neighborDi.isEmpty()){
-					fprintf(reportFile, "distributed mode warning: cannot load neighbor DI '%s' for row-major position %zu\n",
-						neighborDiName.c_str(),neighborRowMajorPosition);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: cannot load neighbor DI '"+neighborDiName+
+						"' for row-major position "+std::to_string(neighborRowMajorPosition));
 					continue;
 				}
 				if(neighborDi._dims!=outputDims || neighborDi._nbVariable!=DI._nbVariable){
-					fprintf(reportFile, "distributed mode warning: neighbor DI '%s' shape mismatch, expected rank=%zu variables=%u\n",
-						neighborDiName.c_str(),outputDims.size(),DI._nbVariable);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: neighbor DI '"+neighborDiName+
+						"' shape mismatch, expected rank="+std::to_string(outputDims.size())+
+						" variables="+std::to_string(DI._nbVariable));
 					continue;
 				}
 
@@ -2045,9 +2037,13 @@ int main(int argc, char const *argv[]) {
 		distributedSendContext.progressTotal>0ULL &&
 		distributedSendContext.progressLastPrintedPercent.load(std::memory_order_relaxed)<100){
 		const unsigned long long completed=distributedSendContext.progressCompleted.load(std::memory_order_relaxed);
-		fprintf(distributedSendContext.reportFile, "progress : %.2f%%\n",
+		g2s::reporting::setProgress(distributedSendContext.reportFile,
 			100.0*static_cast<double>(std::min(completed,distributedSendContext.progressTotal))
-			/static_cast<double>(distributedSendContext.progressTotal));
+			/static_cast<double>(distributedSendContext.progressTotal),
+			"distributed_publish",
+			"published "+std::to_string(completed)+" of "+std::to_string(distributedSendContext.progressTotal),
+			static_cast<long long>(completed),
+			static_cast<long long>(distributedSendContext.progressTotal));
 	}
 	#endif
 
@@ -2056,6 +2052,8 @@ int main(int argc, char const *argv[]) {
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	// free memory
 

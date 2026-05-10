@@ -105,6 +105,23 @@ unsigned anyNativeToUnsigned(std::any val){
 		printf("\r%s\n",val.c_str());
 	}
 
+	void printMessage(std::string val) override{
+		printf("%s\n",val.c_str());
+	}
+
+	std::any keyValueMapToNative(const std::map<std::string,std::string>& values) override{
+		Rcpp::List result(values.size());
+		Rcpp::CharacterVector names(values.size());
+		int index=0;
+		for (auto it=values.begin(); it!=values.end(); ++it, ++index)
+		{
+			result[index]=it->second;
+			names[index]=it->first;
+		}
+		result.attr("names")=names;
+		return std::any(Rcpp::RObject(result));
+	}
+
 	std::any convert2NativeMatrix(g2s::DataImage &image){
 		std::vector<int> dimsArray(image._dims.size()+1);
 		for (int i = 0; i < image._dims.size(); ++i)
@@ -287,6 +304,15 @@ unsigned anyNativeToUnsigned(std::any val){
 
 		if(position<nlhs){
 			auto iter=outputs.find("t");
+			if(iter!=outputs.end())
+			{
+				result.push_back(std::any_cast<Rcpp::RObject>(iter->second));
+				position++;
+			}
+		}
+
+		if(position<nlhs){
+			auto iter=outputs.find("meta");
 			if(iter!=outputs.end())
 			{
 				result.push_back(std::any_cast<Rcpp::RObject>(iter->second));

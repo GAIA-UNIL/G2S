@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-05-10
+
+- Split server-side reporting into `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, and `/tmp/G2S/meta`, while keeping the server stateless and reusing the existing text-download protocol through conventional artifact names such as `progress_<job>` and `meta_<job>`.
+- Added a shared reporting helper for server-launched jobs so the main algorithms can publish structured progress, final timings, warnings, and generic failure metadata alongside the human-readable log.
+- Changed status polling to prefer structured progress and metadata files over regex scraping from the plain log, with log parsing kept only as a backward-compatible fallback.
+- Updated the Python interface to print warnings in orange and errors in red, keep fatal errors as exceptions, support live log/warning streaming with `-showLogs`, and optionally return final key/value metadata with `-returnMeta`.
+- Updated the MATLAB interface so warnings are non-fatal again, warnings use MATLAB's warning channel, fatal errors still abort the call, and `-returnMeta` can return the final key/value summary as a struct.
+- Added the same metadata-return and live-log plumbing in the shared interface template and the R binding so the C++ interface layer stays consistent across bindings.
+
 ## 2026-05-01
 
 - Added explicit `/tmp/G2S/data` and `/tmp/G2S/logs` writability diagnostics: server startup now probes both runtime directories, upload failures log the failing operation, and payload publication errors print the target path instead of failing silently.

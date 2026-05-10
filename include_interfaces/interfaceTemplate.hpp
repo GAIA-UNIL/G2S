@@ -24,6 +24,7 @@
 #include <set>
 #include <thread>
 #include <cctype>
+#include <sstream>
 #include "DataImage.hpp"
 
 #ifdef WITH_WEB_SUPPORT
@@ -77,6 +78,8 @@ public:
 	virtual void sendError(std::string val)=0;
 	virtual void sendWarning(std::string val)=0;
 	virtual void eraseAndPrint(std::string val)=0;
+	virtual void printMessage(std::string val){ printf("%s\n", val.c_str()); }
+	virtual std::any keyValueMapToNative(const std::map<std::string,std::string>& values)=0;
 	virtual bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue){return false;}
 
 	std::string toString(std::any val){
@@ -339,6 +342,79 @@ public:
 		//if(!silent)sendError("Ctrl C, user interrupted");
 	}
 
+	std::string downloadTextArtifact(zmq::socket_t &socket, const std::string& artifactName, bool withTimeout){
+		infoContainer task;
+		task.version=1;
+		task.task=DOWNLOAD_TEXT;
+		zmq::message_t request(sizeof(infoContainer)+64);
+		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
+		memcpy(request.data(), &task, sizeof(infoContainer));
+		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout asking for text artifact");
+		}
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving text artifact");
+		}
+		if(reply.size()==0) return "";
+		return std::string((char*)reply.data(), reply.size());
+	}
+
+	bool textArtifactExists(zmq::socket_t &socket, const std::string& artifactName, bool withTimeout){
+		infoContainer task;
+		task.version=1;
+		task.task=EXIST;
+		zmq::message_t request(sizeof(infoContainer)+64);
+		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
+		memcpy(request.data(), &task, sizeof(infoContainer));
+		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout checking text artifact");
+		}
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving text artifact status");
+		}
+		return reply.size()==sizeof(int) && *((int*)reply.data())==3;
+	}
+
+	static std::map<std::string,std::string> parseKeyValueText(const std::string& text){
+		std::map<std::string,std::string> values;
+		std::istringstream stream(text);
+		std::string line;
+		while(std::getline(stream, line)){
+			if(line.empty()) continue;
+			const size_t pos=line.find('=');
+			if(pos==std::string::npos) continue;
+			values[line.substr(0,pos)]=line.substr(pos+1);
+		}
+		return values;
+	}
+
+	void printNewTextChunk(const std::string& content, size_t& offset, bool warningChannel){
+		if(content.size()<offset){
+			offset=0;
+		}
+		if(content.size()==offset) return;
+		std::string delta=content.substr(offset);
+		offset=content.size();
+		std::istringstream stream(delta);
+		std::string line;
+		while(std::getline(stream, line)){
+			if(line.empty()) continue;
+			if(warningChannel){
+				const size_t messagePos=line.find("message=");
+				if(messagePos!=std::string::npos){
+					line=line.substr(messagePos+8);
+				}
+				sendWarning(line);
+			}else{
+				printMessage(line);
+			}
+		}
+	}
+
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
 
 		std::atomic<bool> done(false);
@@ -358,6 +434,8 @@ public:
 		bool serverShutdown=false;
 		bool silentMode=false;
 		bool requestServerStatus=false; // to check programmatically if the server is running
+		bool showLogs=false;
+		bool returnMeta=false;
 
 		if(input.count("-noTO")>0)
 		{
@@ -382,6 +460,16 @@ public:
 		{
 			silentMode=true;
 		}
+		if(input.count("-showLogs")>0)
+		{
+			showLogs=true;
+		}
+		if(input.count("-returnMeta")>0)
+		{
+			returnMeta=true;
+		}
+		input.erase("-showLogs");
+		input.erase("-returnMeta");
 
 		if(input.count("-statusOnly")>0){
 			statusOnly=true;
@@ -619,6 +707,14 @@ public:
 
 		char nameFile[65]={0};
 		snprintf(nameFile,65,"%u",id);
+		const std::string progressArtifactName=std::string("progress_")+std::to_string(id);
+		const std::string warningArtifactName=std::string("warning_")+std::to_string(id);
+		const std::string errorArtifactName=std::string("error_")+std::to_string(id);
+		const std::string metaArtifactName=std::string("meta_")+std::to_string(id);
+		const std::string logArtifactName=std::string("log_")+std::to_string(id);
+		size_t logOffset=0;
+		size_t warningOffset=0;
+		std::map<std::string,std::string> finalMeta;
 
 		if(kill){
 			sendKill(socket, id, true);
@@ -649,6 +745,13 @@ public:
 				if(reply.size()!=sizeof(int)) sendWarning( "wrong answer !");
 				else{
 					int progress=*((int*)reply.data());
+					if(textArtifactExists(socket, progressArtifactName, withTimeout)){
+						std::map<std::string,std::string> progressValues=parseKeyValueText(downloadTextArtifact(socket, progressArtifactName, withTimeout));
+						auto progressIter=progressValues.find("progress_percent");
+						if(progressIter!=progressValues.end()){
+							progress=int(1000.0*atof(progressIter->second.c_str()));
+						}
+					}
 					if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
 						char buff[100];
 						snprintf(buff, sizeof(buff), "progress %.3f%%",progress/1000.);
@@ -658,6 +761,12 @@ public:
 						if(!silentMode)updateDisplay();
 					}
 					outputs.find("progression")->second=lastProgression;
+				}
+				if(showLogs && !statusOnly){
+					printNewTextChunk(downloadTextArtifact(socket, logArtifactName, withTimeout), logOffset, false);
+					if(textArtifactExists(socket, warningArtifactName, withTimeout)){
+						printNewTextChunk(downloadTextArtifact(socket, warningArtifactName, withTimeout), warningOffset, true);
+					}
 				}
 				if(statusOnly) break;
 			}
@@ -749,6 +858,10 @@ public:
 							
 							if(reply.size()!=0){
 								std::string errorText=std::string((char*)reply.data());
+								std::map<std::string,std::string> errorValues=parseKeyValueText(errorText);
+								if(errorValues.count("error_message")>0){
+									errorText=errorValues["error_message"];
+								}
 								sendError(errorText);
 							}
 						}
@@ -839,27 +952,40 @@ public:
 		
 		if(waitAndDownload)
 		{
-			infoContainer task;
-			task.version=1;
-			task.task=DURATION;
-			
-			zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
-			memcpy(request.data (), &task, sizeof(infoContainer));
-			memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-			if(!socket.send (request,zmq::send_flags::none)){
-				sendError("timeout asking for data");
+			if(textArtifactExists(socket, metaArtifactName, withTimeout)){
+				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
 			}
-			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
-				sendError("timeout : get data dont answer");
-			}
+			auto durationIter=finalMeta.find("duration_ms");
+			if(durationIter!=finalMeta.end()){
+				outputs.insert({"t",ScalarToNative(atof(durationIter->second.c_str())/1000.0)});
+			}else{
+				infoContainer task;
+				task.version=1;
+				task.task=DURATION;
+				
+				zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
+				memcpy(request.data (), &task, sizeof(infoContainer));
+				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
+				if(!socket.send (request,zmq::send_flags::none)){
+					sendError("timeout asking for data");
+				}
+				zmq::message_t reply;
+				if(!socket.recv (reply) && withTimeout){
+					sendError("timeout : get data dont answer");
+				}
 
-			if(reply.size()!=sizeof(int))
-				printf( "%s\n", "wrong answer !");
-			else{
-				outputs.insert({"t",ScalarToNative(double(*((int*)reply.data()))/1000.)});				
-			}	
-			
+				if(reply.size()!=sizeof(int))
+					printf( "%s\n", "wrong answer !");
+				else{
+					outputs.insert({"t",ScalarToNative(double(*((int*)reply.data()))/1000.)});				
+				}
+			}
+		}
+		if(returnMeta){
+			if(finalMeta.empty() && textArtifactExists(socket, metaArtifactName, withTimeout)){
+				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
+			}
+			outputs.insert({"meta", keyValueMapToNative(finalMeta)});
 		}
 		done=true;
 		

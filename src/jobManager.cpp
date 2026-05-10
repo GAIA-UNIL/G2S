@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
 
 
 int receiveKill(jobArray &jobIds, jobQueue &queue, jobIdType jobId ){
@@ -72,6 +73,7 @@ bool cleanJobs(jobArray &jobIds){
 			int exitCode=WEXITSTATUS(status);
 			if(exitCode!=0)
 			{	//store bad Pid
+				g2s::reporting::recordExitCode(localJobId, exitCode);
 				jobIds.errorsByPid.push_back ( std::pair<pid_t, int >(pid, exitCode) );
 				jobIds.errorsByJobId.push_back ( std::pair<jobIdType, int >(localJobId, exitCode) );
 				jobIds.errorsByJobId.pop_front();
@@ -80,6 +82,7 @@ bool cleanJobs(jobArray &jobIds){
 		}else{
 			if(WIFSIGNALED(status)){ // "prematurated exit"
 				int exitCode=256+WTERMSIG(status);
+				g2s::reporting::recordExitCode(localJobId, exitCode);
 				jobIds.errorsByPid.push_back ( std::pair<pid_t, int >(pid, exitCode) );
 				jobIds.errorsByJobId.push_back ( std::pair<jobIdType, int >(localJobId, exitCode) );
 				jobIds.errorsByJobId.pop_front();

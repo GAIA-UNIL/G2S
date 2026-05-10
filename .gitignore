@@ -46,6 +46,7 @@ fKst_neon_regression*
 g2s_server*.log
 /tmp/G2S/
 # Local shared runtime root used by the default server storage path
+# Includes structured runtime sidecars under /tmp/G2S/{logs,warnings,errors,progress,meta}
 
 # Generated local-only DataImage binary data files
 *.bgrid

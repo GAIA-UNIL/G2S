@@ -51,3 +51,52 @@ Validation must happen before a request payload is cast, copied, deserialized, u
 The server currently performs part of this validation in `src/server.cpp` before dispatch and in data storage helpers. Future protocol changes should move toward one parser/serializer layer that returns typed validated requests, so new task cases do not repeat manual size checks and byte casts.
 
 New or changed task types should include parser tests, including malformed and boundary-size frames. Fuzzing the request parser is the preferred way to cover truncated frames, oversized frames, unknown task ids, invalid content identifiers, and mismatched serialized payload sizes.
+
+## Structured reporting artifacts
+
+The server remains stateless with respect to client delivery state. Interfaces are responsible for remembering what they have already displayed.
+
+Structured per-job reporting now uses sidecar files under `/tmp/G2S/`:
+
+- `/tmp/G2S/logs/<job>.log`: chronological human-readable log
+- `/tmp/G2S/warnings/<job>.txt`: warning event stream
+- `/tmp/G2S/errors/<job>.txt`: fatal error payload
+- `/tmp/G2S/progress/<job>.kv`: current machine-readable progress snapshot
+- `/tmp/G2S/meta/<job>.kv`: final key/value summary
+
+The existing `DOWNLOAD_TEXT` task is reused for these artifacts through conventional names:
+
+- `log_<job>`
+- `warning_<job>`
+- `error_<job>`
+- `progress_<job>`
+- `meta_<job>`
+
+This keeps the server stateless:
+
+- the server only returns the current contents of the requested artifact;
+- the interface keeps local cursors such as `log_offset` and `warning_offset`;
+- structured progress is polled as current state, not tailed as an append-only stream.
+
+`progress_<job>` is a line-based key/value file. Typical keys include:
+
+- `status`
+- `progress_percent`
+- `stage`
+- `stage_detail`
+- `current_step`
+- `total_steps`
+- `last_update_unix_ms`
+
+`meta_<job>` is also a line-based key/value file and is intended to be read at the end of the run. Typical keys include:
+
+- `job_id`
+- `algorithm`
+- `status`
+- `start_time_unix_ms`
+- `end_time_unix_ms`
+- `duration_ms`
+- `warning_count`
+- algorithm-specific timing keys such as `tree_creation_ms` or `simulation_ms`
+
+Interfaces should prefer the structured `progress` and `meta` files for progress and duration. Plain logs should be treated as human-facing traces, not as the canonical machine-readable status source.

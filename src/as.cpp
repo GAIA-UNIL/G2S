@@ -33,6 +33,7 @@
 #include "jobManager.hpp"
 #include "anchorSamplingModule.hpp"
 #include "anchorSimulation.hpp"
+#include "jobReporting.hpp"
 #include "qsPaddingUtils.hpp"
 
 enum simType
@@ -69,23 +70,8 @@ int main(int argc, char const *argv[]) {
 		fprintf(stderr,"only one rapport file is possible\n");
 		run=false;
 	}else if(arg.count("-r")==1){
-		if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-			reportFile=stderr;
-		}
-		if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-			reportFile=stdout;
-		}
-		if(reportFile==nullptr){
-			strcpy(logFileName,(arg.find("-r")->second).c_str());
-			reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-			if(reportFile){
-				setvbuf(reportFile,nullptr,_IOLBF,0);
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					uniqueID=logId;
-				}
-			}
-		}
+		strcpy(logFileName,(arg.find("-r")->second).c_str());
+		reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 		if(reportFile==nullptr){
 			fprintf(stderr,"Impossible to open the rapport file\n");
 			run=false;
@@ -104,6 +90,9 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-id");
+	if(reportFile!=nullptr){
+		g2s::reporting::markStarted(reportFile, "as");
+	}
 
 	for (int i = 0; i < argc; ++i)
 	{
@@ -280,7 +269,7 @@ int main(int argc, char const *argv[]) {
 	if (arg.count("-nV") == 1)
 	{
 		noVerbatim=true;
-		fprintf(reportFile,"warning: -nV is currently ignored by Anchor Sampling\n");
+		g2s::reporting::recordWarning(reportFile, "-nV is currently ignored by Anchor Sampling");
 	}
 	arg.erase("-nV");
 
@@ -440,13 +429,13 @@ int main(int argc, char const *argv[]) {
 
 	if (arg.count("-W_GPU") == 1)
 	{
-		fprintf(reportFile,"warning: Anchor Sampling currently runs on CPU, ignoring -W_GPU\n");
+		g2s::reporting::recordWarning(reportFile, "Anchor Sampling currently runs on CPU, ignoring -W_GPU");
 	}
 	arg.erase("-W_GPU");
 
 	if (arg.count("-W_CUDA") >= 1)
 	{
-		fprintf(reportFile,"warning: Anchor Sampling currently runs on CPU, ignoring -W_CUDA\n");
+		g2s::reporting::recordWarning(reportFile, "Anchor Sampling currently runs on CPU, ignoring -W_CUDA");
 	}
 	arg.erase("-W_CUDA");
 
@@ -515,7 +504,7 @@ int main(int argc, char const *argv[]) {
 
 	std::vector<float> continuousNormPowerByVariable(DI._nbVariable,2.f);
 	if(continuousVariableIndexes.empty() && !continuousNormPInput.empty()){
-		fprintf(reportFile,"warning: -cnorm/-cn provided but no continuous variable is defined in -dt, option ignored\n");
+		g2s::reporting::recordWarning(reportFile, "-cnorm/-cn provided but no continuous variable is defined in -dt, option ignored");
 	}
 	if(!continuousVariableIndexes.empty()){
 		std::vector<float> resolvedContinuousNormP;
@@ -958,6 +947,8 @@ int main(int argc, char const *argv[]) {
 	double time=1.0e-6*std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n",time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n",time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	if(saveThread.joinable()){
 		saveThread.join();

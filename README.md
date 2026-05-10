@@ -73,9 +73,19 @@ Server startup validates numeric values for `-p` and `-maxCJ`; missing, malforme
 
 ## Server runtime storage
 
-The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs` by default. These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
+The server stores runtime data under `/tmp/G2S/` by default. Binary payloads stay in `/tmp/G2S/data`, while per-job reporting is now split into:
 
-At startup, the server now also probes these runtime directories with a create/remove write test. If `/tmp/G2S/data` or `/tmp/G2S/logs` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload silently fails. Upload-time write, publish, and close failures now also print the failing path and operation to `stderr`.
+- `/tmp/G2S/logs`: chronological human-readable job logs
+- `/tmp/G2S/warnings`: warning event streams
+- `/tmp/G2S/errors`: fatal error payloads
+- `/tmp/G2S/progress`: machine-readable in-progress status snapshots
+- `/tmp/G2S/meta`: final key/value summaries read at job completion
+
+These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
+
+At startup, the server probes these runtime directories with a create/remove write test. If any of `/tmp/G2S/data`, `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, or `/tmp/G2S/meta` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload or report update silently fails.
+
+Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
 
 ## Server data protocol hardening
 

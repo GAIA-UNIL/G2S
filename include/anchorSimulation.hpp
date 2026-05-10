@@ -4,6 +4,7 @@
 #include <thread>
 
 #include "anchorSamplingModule.hpp"
+#include "jobReporting.hpp"
 #include "pathIndexType.hpp"
 #include "qsPaddingUtils.hpp"
 #include "simulationUpdateCallback.hpp"
@@ -293,7 +294,12 @@ inline void simulationAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::Data
 			updateCallback(g2s_simulation_update_kind::Vector, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);
 		}
 		if(indexPath%displayRatio==0){
-			fprintf(logFile,"progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+			g2s::reporting::setProgress(logFile,
+				float(indexPath)/numberOfPointToSimulate*100.f,
+				"anchor_sampling_vector",
+				"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+				static_cast<long long>(indexPath),
+				static_cast<long long>(numberOfPointToSimulate));
 		}
 	}
 
@@ -462,7 +468,12 @@ inline void simulationFullAS(FILE *logFile,g2s::DataImage &di, std::vector<g2s::
 		}
 
 		if(indexPath%displayRatio==0){
-			fprintf(logFile,"progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+			g2s::reporting::setProgress(logFile,
+				float(indexPath)/numberOfPointToSimulate*100.f,
+				"anchor_sampling_full",
+				"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+				static_cast<long long>(indexPath),
+				static_cast<long long>(numberOfPointToSimulate));
 		}
 	}
 

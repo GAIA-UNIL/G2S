@@ -21,6 +21,7 @@
 #include "computeDeviceModule.hpp"
 #include "samplingModule.hpp"
 #include "quantileSamplingModule.hpp"
+#include "jobReporting.hpp"
 #include "fKst.hpp"
 #include <thread>
 #include <random>
@@ -252,7 +253,12 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 			#pragma omp single
 			{
 				if(iteration%(maxNumberOfIteration/100)==0)
-					fprintf(logFile, "progress : %.2f%%\n",float(iteration)/maxNumberOfIteration*100);
+					g2s::reporting::setProgress(logFile,
+						float(iteration)/maxNumberOfIteration*100.f,
+						"calibration",
+						"iteration "+std::to_string((unsigned long long)iteration)+" of "+std::to_string((unsigned long long)maxNumberOfIteration),
+						static_cast<long long>(iteration),
+						static_cast<long long>(maxNumberOfIteration));
 			
 				if(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - startTime).count()>maxT)
 				{

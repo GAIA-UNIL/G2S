@@ -212,12 +212,16 @@ public:
     /* ------------ interface-required overrides ------------ */
     void sendError(std::string val) override {
         if (_save) lockThread();
+        fprintf(stderr, "\033[31m%s\033[0m\n", val.c_str());
+        fflush(stderr);
         PyErr_Format(PyExc_Exception, "g2s:error ==> %s", val.c_str());
         throw std::runtime_error("G2S interrupt");
     }
 
     void sendWarning(std::string val) override {
         if (_save) lockThread();
+        fprintf(stderr, "\033[38;5;208m%s\033[0m\n", val.c_str());
+        fflush(stderr);
         PyErr_WarnFormat(PyExc_Warning, 2, "g2s:warning ==> %s", val.c_str());
         if (_save) unlockThread();
     }
@@ -225,6 +229,24 @@ public:
     void eraseAndPrint(std::string val) override {
         printf("\r%s        ", val.c_str());
         fflush(stdout);
+    }
+
+    void printMessage(std::string val) override {
+        printf("%s\n", val.c_str());
+        fflush(stdout);
+    }
+
+    std::any keyValueMapToNative(const std::map<std::string,std::string>& values) override {
+        PyObject* dict=PyDict_New();
+        for (auto it=values.begin(); it!=values.end(); ++it)
+        {
+            PyObject* key=PyUnicode_FromString(it->first.c_str());
+            PyObject* value=PyUnicode_FromString(it->second.c_str());
+            PyDict_SetItem(dict, key, value);
+            Py_DECREF(key);
+            Py_DECREF(value);
+        }
+        return std::any(dict);
     }
 
     /* ------------ numpy conversion helpers ------------ */
@@ -492,6 +514,16 @@ public:
 
         if(position<nlhs){
             auto iter=outputs.find("t");
+            if(iter!=outputs.end())
+            {
+                PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));
+                Py_INCREF(PyTuple_GetItem(pyResult,position));
+                position++;
+            }
+        }
+
+        if(position<nlhs){
+            auto iter=outputs.find("meta");
             if(iter!=outputs.end())
             {
                 PyTuple_SetItem(pyResult,position,std::any_cast<PyObject*>(iter->second));

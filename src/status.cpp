@@ -16,43 +16,124 @@
 */
 
 #include "status.hpp"
-#include <regex>
-#include <iostream>
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <regex>
+#include <string>
+
+namespace {
+
+bool readKeyValueMetric(const std::string& filename, const char* key, double& valueOut){
+	FILE* fd=fopen(filename.c_str(), "r");
+	if(!fd) return false;
+	char line[2048];
+	const std::string prefix=std::string(key)+"=";
+	bool found=false;
+	while(fgets(line, sizeof(line), fd)!=NULL){
+		if(strncmp(line, prefix.c_str(), prefix.size())==0){
+			char* end=nullptr;
+			double parsed=strtod(line+prefix.size(), &end);
+			if(end!=line+prefix.size()){
+				valueOut=parsed;
+				found=true;
+			}
+		}
+	}
+	fclose(fd);
+	return found;
+}
+
+int readProgressFromLog(jobIdType id){
+	char filename[4096];
+	sprintf(filename,"/tmp/G2S/logs/%u.log",id);
+	FILE *fd=fopen(filename, "r");
+	if(!fd){
+		fprintf(stderr, "can not open file : %s\n",filename );
+		return -1;
+	}
+
+	char lineHeader[2048];
+	float truePourcentage=0.f;
+	std::regex base_regex("(([0-9]|\\.)+%)");
+	std::regex base_regex2("(([0-9]|\\.)+\\s%)");
+	std::cmatch base_search;
+	while(fgets(lineHeader,2048,fd)!= NULL){
+		std::regex_search(lineHeader, base_search, base_regex);
+		if (base_search.size() >= 1) {
+			sscanf(base_search[0].str().c_str(),"%f%%",&truePourcentage);
+		}else{
+			std::regex_search(lineHeader, base_search, base_regex2);
+			if (base_search.size() >= 1) {
+				sscanf(base_search[0].str().c_str(),"%f %%",&truePourcentage);
+			}
+		}
+	}
+	fclose(fd);
+	return int(truePourcentage*1000.);
+}
+
+int readDurationFromLog(jobIdType id){
+	char filename[4096];
+	sprintf(filename,"/tmp/G2S/logs/%u.log",id);
+	FILE *fd=fopen(filename, "r");
+	if(!fd){
+		fprintf(stderr, "can not open file : %s\n",filename );
+		return -1;
+	}
+
+	char lineHeader[2048];
+	float duration=0.f;
+	std::regex base_regex1("(([0-9]|\\.)+ms)");
+	std::regex base_regex2("(([0-9]|\\.)+s)");
+	std::regex base_regex3("(([0-9]|\\.)+\\sms)");
+	std::regex base_regex4("(([0-9]|\\.)+\\ss)");
+	std::cmatch base_search1;
+	std::cmatch base_search2;
+	std::cmatch base_search3;
+	std::cmatch base_search4;
+	while(fgets(lineHeader,2048,fd)!= NULL){
+		std::regex_search(lineHeader, base_search1, base_regex1);
+		std::regex_search(lineHeader, base_search2, base_regex2);
+		std::regex_search(lineHeader, base_search3, base_regex3);
+		std::regex_search(lineHeader, base_search4, base_regex4);
+		bool done=false;
+		if (!done && (base_search1.size() >= 1)){
+			done=true;
+			sscanf(base_search1[0].str().c_str(),"%fms",&duration);
+		}
+		if (!done && (base_search3.size() >= 1)){
+			done=true;
+			sscanf(base_search3[0].str().c_str(),"%f ms",&duration);
+		}
+		if (!done && (base_search2.size() >= 1)){
+			done=true;
+			sscanf(base_search2[0].str().c_str(),"%fs",&duration);
+			duration*=1000;
+		}
+		if (!done && (base_search4.size() >= 1)){
+			done=true;
+			sscanf(base_search4[0].str().c_str(),"%f s",&duration);
+			duration*=1000;
+		}
+	}
+	fclose(fd);
+	return int(duration);
+}
+
+}
 
 int lookForStatus(void* data, size_t dataSize){
 	if(dataSize==sizeof(jobIdType)){
 		jobIdType id=*((jobIdType*)data);
-		char filename[4096];
-		sprintf(filename,"/tmp/G2S/logs/%u.log",id);
-
-		FILE *fd;
-
-		if ((fd = fopen(filename, "r")) != NULL) // open file
-		{
-			char lineHeader[2048];
-			float truePourcentage=0.f;
-
-			std::regex base_regex("(([0-9]|\\.)+%)");
-			std::regex base_regex2("(([0-9]|\\.)+\\s%)");
-			std::cmatch base_search;
-			while(fgets(lineHeader,2048,fd)!= NULL){
-
-				std::regex_search(lineHeader, base_search, base_regex);
-				if (base_search.size() >= 1) {
-					sscanf(base_search[0].str().c_str(),"%f%%",&truePourcentage);
-				}else{
-					std::regex_search(lineHeader, base_search, base_regex2);
-					if (base_search.size() >= 1) {
-						sscanf(base_search[0].str().c_str(),"%f %%",&truePourcentage);
-					}
-				}
-			}
-			fclose(fd);
-			return int(truePourcentage*1000.);
-		}else{
-			fprintf(stderr, "can not open file : %s\n",filename );
+		double progressValue=0.0;
+		if(readKeyValueMetric(g2s::reporting::progressPath(id), "progress_percent", progressValue)){
+			return int(progressValue*1000.);
 		}
+		return readProgressFromLog(id);
 	}
 	return -1;
 }
@@ -61,54 +142,11 @@ int lookForStatus(void* data, size_t dataSize){
 int lookForDuration(void* data, size_t dataSize){
 	if(dataSize==sizeof(jobIdType)){
 		jobIdType id=*((jobIdType*)data);
-		char filename[4096];
-		sprintf(filename,"/tmp/G2S/logs/%u.log",id);
-
-		FILE *fd;
-
-		if ((fd = fopen(filename, "r")) != NULL) // open file
-		{
-			char lineHeader[2048];
-			float duration;
-
-			std::regex base_regex1("(([0-9]|\\.)+ms)");
-			std::regex base_regex2("(([0-9]|\\.)+s)");
-			std::regex base_regex3("(([0-9]|\\.)+\\sms)");
-			std::regex base_regex4("(([0-9]|\\.)+\\ss)");
-			std::cmatch base_search1;
-			std::cmatch base_search2;
-			std::cmatch base_search3;
-			std::cmatch base_search4;
-			while(fgets(lineHeader,2048,fd)!= NULL){
-				std::regex_search(lineHeader, base_search1, base_regex1);
-				std::regex_search(lineHeader, base_search2, base_regex2);
-				std::regex_search(lineHeader, base_search3, base_regex3);
-				std::regex_search(lineHeader, base_search4, base_regex4);
-				bool done=false;
-				if (!done && (base_search1.size() >= 1)){
-					done=true;
-					sscanf(base_search1[0].str().c_str(),"%fms",&duration);
-				}
-				if (!done && (base_search3.size() >= 1)){
-					done=true;
-					sscanf(base_search3[0].str().c_str(),"%f ms",&duration);
-				}
-				if (!done && (base_search2.size() >= 1)){
-					done=true;
-					sscanf(base_search2[0].str().c_str(),"%fs",&duration);
-					duration*=1000; //---> convert in milisecond
-				}
-				if (!done && (base_search4.size() >= 1)){
-					done=true;
-					sscanf(base_search4[0].str().c_str(),"%f s",&duration);
-					duration*=1000; //---> convert in milisecond
-				}
-			}
-			fclose(fd);
-			return int(duration);
-		}else{
-			fprintf(stderr, "can not open file : %s\n",filename );
+		double durationMs=0.0;
+		if(readKeyValueMetric(g2s::reporting::metaPath(id), "duration_ms", durationMs)){
+			return int(durationMs);
 		}
+		return readDurationFromLog(id);
 	}
 	return -1;
 }

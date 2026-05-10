@@ -23,6 +23,7 @@
 #include "fKst.hpp"
 #include "pathIndexType.hpp"
 #include "simulationUpdateCallback.hpp"
+#include "jobReporting.hpp"
 #include <thread>
 
 
@@ -406,7 +407,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			updateCallback(g2s_simulation_update_kind::Vector, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);
 		}
 		if(updateCallback==nullptr && indexPath%(displayRatio)==0)
-			fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+			g2s::reporting::setProgress(logFile,
+				float(indexPath)/numberOfPointToSimulate*100.f,
+				"simulation_vector",
+				"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+				static_cast<long long>(indexPath),
+				static_cast<long long>(numberOfPointToSimulate));
 	}
 
 	for (int i = 0; i < nbThreads; ++i)
@@ -682,7 +688,12 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), currentVariable, updateCallbackUserData);
 			}
 		}
-		if(updateCallback==nullptr && indexPath%(displayRatio)==0)fprintf(logFile, "progress : %.2f%%\n",float(indexPath)/numberOfPointToSimulate*100);
+		if(updateCallback==nullptr && indexPath%(displayRatio)==0)g2s::reporting::setProgress(logFile,
+			float(indexPath)/numberOfPointToSimulate*100.f,
+			"simulation_full",
+			"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+			static_cast<long long>(indexPath),
+			static_cast<long long>(numberOfPointToSimulate));
 	}
 
 	for (int i = 0; i < nbThreads; ++i)
@@ -822,7 +833,12 @@ void narrowPathSimulation(FILE *logFile,g2s::DataImage &di, g2s::DataImage &ni, 
 		std::sort(placeToUpdate.begin(), placeToUpdate.end());
 		auto last = std::unique(placeToUpdate.begin(), placeToUpdate.end());
 		placeToUpdate.erase(last, placeToUpdate.end()); 
-		if((sizeSimulation)%(fullSize/100)==0)fprintf(logFile, "progress : %.2f%%\n",float(fullSize-sizeSimulation)/fullSize*100);
+		if((sizeSimulation)%(fullSize/100)==0)g2s::reporting::setProgress(logFile,
+			float(fullSize-sizeSimulation)/fullSize*100.f,
+			"simulation_narrow_path",
+			"updated "+std::to_string((unsigned long long)(fullSize-sizeSimulation))+" of "+std::to_string((unsigned long long)fullSize),
+			static_cast<long long>(fullSize-sizeSimulation),
+			static_cast<long long>(fullSize));
 
 	}
 

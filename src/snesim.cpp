@@ -35,6 +35,7 @@
 #include "DataImage.hpp"
 #include "samplingModule.hpp"
 #include "simulation.hpp"
+#include "jobReporting.hpp"
 #include "snesimCPUThreadDevice.hpp"
 #include "snesimTree.hpp"
 #include "utils.hpp"
@@ -108,9 +109,12 @@ void snesimOverallProgressCallback(g2s_simulation_update_kind /*kind*/,
 	}
 
 	if (progressPercent > previousPercent) {
-		fprintf(context->reportFile,
-			"[SNESIM] progress overall: %.2f%%\n",
-			100.0 * static_cast<double>(completed) / static_cast<double>(context->total));
+		g2s::reporting::setProgress(context->reportFile,
+			100.0 * static_cast<double>(completed) / static_cast<double>(context->total),
+			"snesim_overall",
+			"node "+std::to_string(completed)+" of "+std::to_string(context->total),
+			static_cast<long long>(completed),
+			static_cast<long long>(context->total));
 	}
 }
 
@@ -206,18 +210,12 @@ bool setupReportFile(std::multimap<std::string, std::string>& args,
 		} else if (reportName == "stderr") {
 			options.reportFile = stderr;
 		} else {
-			options.reportFile = fopen(reportName.c_str(), "a");
+			options.reportFile = g2s::reporting::openReportFile(reportName.c_str(), options.uniqueID);
 			if (!options.reportFile) {
 				errorMessage = "cannot open report file: " + reportName;
 				return false;
 			}
 			options.closeReportFile = true;
-			setvbuf(options.reportFile, nullptr, _IOLBF, 0);
-
-			unsigned logId;
-			if (sscanf(reportName.c_str(), "/tmp/G2S/logs/%u.log", &logId) == 1) {
-				options.uniqueID = logId;
-			}
 		}
 	}
 
@@ -970,6 +968,7 @@ int main(int argc, char const* argv[]) {
 	if (options.verbose) {
 		fprintf(reportFile, "[SNESIM] verbose mode enabled\n");
 	}
+	g2s::reporting::markStarted(reportFile, "snesim");
 
 	std::vector<g2s::DataImage> trainingImages;
 	std::vector<snesim::TrainingImageSummary> trainingSummaries;
@@ -1095,6 +1094,7 @@ int main(int argc, char const* argv[]) {
 	fprintf(reportFile, "[SNESIM_TIMING] tree_creation_ms=%.0f tree_creation_s=%.6f\n",
 		treeCreationTime,
 		treeCreationTime / 1000.0);
+	g2s::reporting::recordMetric(reportFile, "tree_creation_ms", std::to_string((long long)treeCreationTime));
 
 	snesim::SNESIMCPUThreadDevice::clearSharedTrees();
 	snesim::SNESIMCPUThreadDevice::setSharedTrees(treesByLevel);
@@ -1195,15 +1195,21 @@ int main(int argc, char const* argv[]) {
 	if (overallSimulationPointCount > 0ULL
 		&& overallProgressContext.lastPrintedPercent.load(std::memory_order_relaxed) < 100) {
 		const unsigned long long completed = overallProgressContext.completed.load(std::memory_order_relaxed);
-		fprintf(reportFile,
-			"[SNESIM] progress overall: %.2f%%\n",
+		g2s::reporting::setProgress(reportFile,
 			100.0 * static_cast<double>(std::min(completed, overallSimulationPointCount))
-				/ static_cast<double>(overallSimulationPointCount));
+				/ static_cast<double>(overallSimulationPointCount),
+			"snesim_overall",
+			"node "+std::to_string(completed)+" of "+std::to_string(overallSimulationPointCount),
+			static_cast<long long>(completed),
+			static_cast<long long>(overallSimulationPointCount));
 	}
 	auto simulationLoopEnd = std::chrono::high_resolution_clock::now();
 	double simulationLoopTime = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(simulationLoopEnd - simulationLoopBegin).count();
 	fprintf(reportFile, "compuattion time: %7.2f s\n", simulationLoopTime / 1000);
 	fprintf(reportFile, "compuattion time: %.0f ms\n", simulationLoopTime);
+	g2s::reporting::recordMetric(reportFile, "simulation_ms", std::to_string((long long)simulationLoopTime));
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)simulationLoopTime));
+	g2s::reporting::markFinished(reportFile, simulationLoopTime);
 
 	if (options.outputName.empty()) {
 		const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
