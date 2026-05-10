@@ -54,11 +54,11 @@
 		}
 		_fftSize[j]=currentSize;
 	}
-	_memoryAddress.push_back(std::vector<g2s::spaceFrequenceMemoryAddress >());
+	_memoryAddress.push_back(std::vector<g2s::spaceFrequencyMemoryAddress >());
 }
 
-void SharedMemoryManager::addVaraible(void* memoryAdress){
-	_srcMemoryAdress.push_back(memoryAdress);	
+void SharedMemoryManager::addVariable(void* memoryAddress){
+	_srcMemoryAddress.push_back(memoryAddress);	
 }
 
 void SharedMemoryManager::allowNewModule(bool value){
@@ -110,7 +110,7 @@ ComputeDeviceModule* SharedMemoryManager::findSameHostDevice(ComputeDeviceModule
 void SharedMemoryManager::createSharedMemoryForDevice(ComputeDeviceModule *device){
 	assert(_allowNewModule);
 	device->_memoryID=_memoryAddress.size();
-	_memoryAddress.push_back(device->allocAndInitSharedMemory( _srcMemoryAdress, _srcSize, _fftSize));
+	_memoryAddress.push_back(device->allocAndInitSharedMemory( _srcMemoryAddress, _srcSize, _fftSize));
 	
 }
 
@@ -124,6 +124,6 @@ void SharedMemoryManager::removeSharedMemoryForDevice(ComputeDeviceModule *devic
 	device->_memoryID=0;
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> SharedMemoryManager::adressSharedMemory(int memID){
+std::vector<g2s::spaceFrequencyMemoryAddress> SharedMemoryManager::addressSharedMemory(int memID){
 	return _memoryAddress[memID];
 }

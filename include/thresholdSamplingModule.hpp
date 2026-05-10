@@ -31,24 +31,24 @@ private:
 	float _f;
 	bool _completeTIs;
 	bool _noVerbatim=false;
-	std::vector<std::vector<convertionType> > _convertionTypeVector;
-	std::vector<std::vector<std::vector<convertionType> > > _convertionTypeVectorConstVector;
-	std::vector<std::vector<std::vector<float> > > _convertionCoefVectorConstVector;
+	std::vector<std::vector<conversionType> > _conversionTypeVector;
+	std::vector<std::vector<std::vector<conversionType> > > _conversionTypeVectorConstVector;
+	std::vector<std::vector<std::vector<float> > > _conversionCoefVectorConstVector;
 
 	std::mt19937 _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
-	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<convertionType> > convertionTypeVector,
-		std::vector<std::vector<std::vector<convertionType> > > convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > convertionCoefVectorConstVector,
+	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<conversionType> > conversionTypeVector,
+		std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector,
 		bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
 	{
 		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
-		_convertionTypeVector=convertionTypeVector;
+		_conversionTypeVector=conversionTypeVector;
 		_noVerbatim=noVerbatim;
-		_convertionTypeVectorConstVector=convertionTypeVectorConstVector;
-		_convertionCoefVectorConstVector=convertionCoefVectorConstVector;
+		_conversionTypeVectorConstVector=conversionTypeVectorConstVector;
+		_conversionCoefVectorConstVector=conversionCoefVectorConstVector;
 	}
 	~ThresholdSamplingModule(){
 
@@ -83,10 +83,10 @@ public:
 		memset(updated,false,vectorSize);
 
 		std::vector<std::vector<float> > convertedNeighborValueArrayVector(neighborArrayVector.size());
-		std::vector<float> cummulatedVariablesCoeficient;
+		std::vector<float> cumulatedVariablesCoefficient;
 
-		//if(_convertionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
-		//	fprintf(stderr, "%s %d vs %d\n", "failure",_convertionTypeVector[0].size(),neighborValueArrayVector[0].size());
+		//if(_conversionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
+		//	fprintf(stderr, "%s %d vs %d\n", "failure",_conversionTypeVector[0].size(),neighborValueArrayVector[0].size());
 
 		unsigned indexCenter=0;
 		for (int i =  kernel->_dims.size()-1; i>=0 ; i--)
@@ -94,13 +94,13 @@ public:
 			indexCenter=indexCenter*kernel->_dims[i]+kernel->_dims[i]/2;
 		}
 
-		for (size_t i = 0; i < _convertionTypeVector.size(); ++i)
+		for (size_t i = 0; i < _conversionTypeVector.size(); ++i)
 		{
 
-			for (size_t j = 0; j < _convertionTypeVector[i].size(); ++j)
+			for (size_t j = 0; j < _conversionTypeVector[i].size(); ++j)
 			{
-				switch(_convertionTypeVector[i][j]){
-					case convertionType::P0:
+				switch(_conversionTypeVector[i][j]){
+					case conversionType::P0:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -110,7 +110,7 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::P1:
+					case conversionType::P1:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -121,7 +121,7 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::P2:
+					case conversionType::P2:
 						for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 						{
 							unsigned indexInKernel=indexCenter;
@@ -131,8 +131,8 @@ public:
 								convertedNeighborValueArrayVector[k].push_back(0.f);
 						}
 					break;
-					case convertionType::MinMinus1:
-					case convertionType::MaxPlus1:
+					case conversionType::MinMinus1:
+					case conversionType::MaxPlus1:
 					break;
 				}	
 			}
@@ -142,41 +142,41 @@ public:
 		std::vector<float> delta;
 		//if(_completeTIs)
 		{
-			for (size_t p = 0; p < _convertionTypeVectorConstVector.size(); ++p)
+			for (size_t p = 0; p < _conversionTypeVectorConstVector.size(); ++p)
 			{
 				float sum=0;
-				for (size_t i = 0; i < _convertionTypeVectorConstVector[p].size(); ++i)
+				for (size_t i = 0; i < _conversionTypeVectorConstVector[p].size(); ++i)
 				{
-					for (size_t j = 0; j < _convertionTypeVectorConstVector[p][i].size(); ++j)
+					for (size_t j = 0; j < _conversionTypeVectorConstVector[p][i].size(); ++j)
 					{
-						switch(_convertionTypeVectorConstVector[p][i][j]){
-							case convertionType::P0:
+						switch(_conversionTypeVectorConstVector[p][i][j]){
+							case conversionType::P0:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*1.f);
 								}
 							break;
-							case convertionType::P1:
+							case conversionType::P1:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									//fprintf(stderr, "%d ==> %f\n", kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]),neighborValueArrayVector[k][i]);
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::P2:
+							case conversionType::P2:
 								for (size_t k = 0; k < neighborArrayVector.size(); ++k)
 								{
 									unsigned indexInKernel=indexCenter;
 									if(kernel->indexWithDelta(indexInKernel, indexCenter, neighborArrayVector[k]) && !std::isnan(neighborValueArrayVector[k][i]))
-										sum+=_convertionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
+										sum+=_conversionCoefVectorConstVector[p][i][j]*(kernel->_data[indexInKernel*kernel->_nbVariable+(i%kernel->_nbVariable)]*neighborValueArrayVector[k][i]*neighborValueArrayVector[k][i]);
 								}
 							break;
-							case convertionType::MinMinus1:
-							case convertionType::MaxPlus1:
+							case conversionType::MinMinus1:
+							case conversionType::MaxPlus1:
 							break;
 						}	
 					}
@@ -192,7 +192,7 @@ public:
 
 		for (unsigned int i = 0; i < vectorSize; ++i)
 		{
-			updated[i]=_cdmV[moduleID][i]->candidateForPatern(neighborArrayVector, convertedNeighborValueArrayVector, cummulatedVariablesCoeficient,delta);
+			updated[i]=_cdmV[moduleID][i]->candidateForPattern(neighborArrayVector, convertedNeighborValueArrayVector, cumulatedVariablesCoefficient,delta);
 		}
 
 		unsigned numberElement=0;
@@ -226,10 +226,10 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
+				float localError=_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage)/deltaKernel;
 
-				if(loaclError<bestValue){
-					bestValue=loaclError;
+				if(localError<bestValue){
+					bestValue=localError;
 					bestPosition=positionInImage;
 					bestImage=imageID;
 				}
@@ -247,12 +247,12 @@ public:
 				}
 
 				unsigned positionInImage=index-(numberElementCumul-_cdmV[moduleID][imageID]->getErrorsArraySize());
-				float loaclError=(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCroossErrorAtPosition(positionInImage));
+				float localError=(_cdmV[moduleID][imageID]->getErrorAtPosition(positionInImage))/(_cdmV[moduleID][imageID]->getCrossErrorAtPosition(positionInImage));
 
-				if(std::isnan(loaclError))continue;
+				if(std::isnan(localError))continue;
 
-				if(loaclError<bestValue){
-					bestValue=loaclError;
+				if(localError<bestValue){
+					bestValue=localError;
 					bestPosition=positionInImage;
 					bestImage=imageID;
 				}

@@ -59,6 +59,24 @@ imshow(data);
 data=g2s('-sa',serverAddress,'-a','qs','-ti',single(source(:,1:150)),single(rot90(source,1)),single(rot90(source(:,1:175),2)),single(rot90(source(:,1:150),3)),'-di',destination,'-dt',zeros(1,1),'-k',1.5,'-n',50,'-s',100);
 imshow(data);
 
+%% Anchor Sampling with aligned TI stack and mask weights
+as_ti1=ones(21,21,'single');
+as_ti2=2*ones(21,21,'single');
+as_ti1(11,11)=5;
+as_ti2(11,11)=9;
+as_destination=nan(21,21,'single');
+as_destination(10,11)=1;
+as_destination(11,10)=1;
+as_destination(11,12)=1;
+as_destination(12,11)=1;
+as_path=single(100+reshape(0:numel(as_destination)-1,21,21));
+as_path(11,11)=0;
+as_mask=zeros(21,21,2,'single');
+as_mask(:,:,1)=1;
+as_mask(:,:,2)=0.2;
+data=g2s('-sa',serverAddress,'-a','as','-ti',as_ti1,as_ti2,'-di',as_destination,'-sp',as_path,'-mi',as_mask,'-dt',zeros(1,1),'-k',2,'-n',8,'-s',100);
+imshow(data);
+
 %% simulation with a fixed path, row path
 path=zeros(200);
 path(:)=(1:200*200);
@@ -198,5 +216,4 @@ g2s('-sa',serverAddress,'-shutdown');
 %     '-di',destination,'-dt',zeros(1,1),'-k',4,'-n',50,'-s',100,'-far');
 % imshow(data);
 % disp(t)
-
 

@@ -70,7 +70,7 @@ namespace g2s {
 	  //unsigned int sourceIndex;
 	};
 
-	struct spaceFrequenceMemoryAddress{
+	struct spaceFrequencyMemoryAddress{
 		void* space,*fft;
 	};
 

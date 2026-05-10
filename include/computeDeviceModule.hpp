@@ -52,18 +52,18 @@ public:
 	ComputeDeviceModule(){}
 	virtual ~ComputeDeviceModule(){}
 
-	virtual bool candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0)=0;
-	virtual std::vector<g2s::spaceFrequenceMemoryAddress > allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
-	virtual std::vector<g2s::spaceFrequenceMemoryAddress > freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress > sharedMemoryAdress)=0;
+	virtual bool candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, std::vector<float> delta0)=0;
+	virtual std::vector<g2s::spaceFrequencyMemoryAddress > allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize)=0;
+	virtual std::vector<g2s::spaceFrequencyMemoryAddress > freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress > sharedMemoryAddress)=0;
 
 	virtual dataType_g2s* getErrorsArray()=0;
 	virtual dataType_g2s* getArray(unsigned)=0;
 	virtual unsigned getErrorsArraySize()=0;
 	virtual unsigned getArraySize()=0;
-	virtual dataType_g2s* getCossErrorArray()=0;
+	virtual dataType_g2s* getCrossErrorArray()=0;
 	virtual float getErrorAtPosition(unsigned)=0;
 	virtual float getValueAtPosition(unsigned, unsigned)=0;
-	virtual float getCroossErrorAtPosition(unsigned)=0;
+	virtual float getCrossErrorAtPosition(unsigned)=0;
 	virtual unsigned cvtIndexToPosition(unsigned)=0;
 	virtual unsigned cvtPositionToIndex(unsigned)=0;
 	virtual void setValueInErrorArrayWithRadius(unsigned, float, float)=0;
@@ -77,7 +77,7 @@ public:
 	unsigned _deviceID;
 
 	SharedMemoryManager* _sharedMemoryManager=nullptr;
-	std::vector<g2s::OperationMatrix> _coeficientMatrix;
+	std::vector<g2s::OperationMatrix> _coefficientMatrix;
 	
 };
 

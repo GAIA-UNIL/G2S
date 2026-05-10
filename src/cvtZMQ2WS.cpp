@@ -133,10 +133,10 @@ void cvtServer(char* from, char* to, std::atomic<bool> &serverRun, std::atomic<b
 	fprintf(stderr,"%s ==> %s\n", from, to);
 
 	int port=0;
-	char conncetionType[128];
+	char connectionType[128];
 	char address[128];
-	sscanf(to,"%[^:]://%[^:]:%d",conncetionType,address,&port);
-	fprintf(stderr, "%s\n", conncetionType);
+	sscanf(to,"%[^:]://%[^:]:%d",connectionType,address,&port);
+	fprintf(stderr, "%s\n", connectionType);
 	fprintf(stderr, "%s\n", address);
 	fprintf(stderr, "%d\n", port);
 

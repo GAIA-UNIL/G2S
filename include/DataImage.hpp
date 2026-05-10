@@ -19,22 +19,34 @@
 #define DATA_IMAGE_HPP
 
 #include <cmath>
+#include <cctype>
 #include <iostream>
 #include <cstring>
+#include <limits>
 #include <vector>
 #include "utils.hpp"
 #include "typeDefine.hpp"
 #include "OperationMatrix.hpp"
 
-char* loadRawData(const char * hash);
+char* loadRawData(const char * hash, size_t* outSize=nullptr);
 char* writeRawData(char* data, bool compresed=false);
 void createLink(char* outputFullFilename, char* fullFilename);
 
 namespace g2s{
 
+inline bool isSafeDataImageName(const std::string &filename){
+	if(filename.empty()) return false;
+	for (size_t i = 0; i < filename.size(); ++i)
+	{
+		const unsigned char c=static_cast<unsigned char>(filename[i]);
+		if(!(std::isalnum(c) || c=='_' || c=='.' || c=='-')) return false;
+	}
+	return true;
+}
+
 class DataImage{
 	public:
-	enum VaraibleType{
+	enum VariableType{
 		Continuous,
 		Categorical
 	};
@@ -49,8 +61,12 @@ class DataImage{
 	float* _data=nullptr;
 	std::vector<unsigned> _dims;
 	unsigned _nbVariable;
-	std::vector<VaraibleType> _types;
+	std::vector<VariableType> _types;
 	EncodingType _encodingType=EncodingType::Float;
+
+	static const size_t MaxSerializedBytes = size_t(1) << 30;
+	static const unsigned MaxDimensions = 16;
+	static const unsigned MaxVariables = 4096;
 
 	inline DataImage()
 	{
@@ -73,14 +89,15 @@ class DataImage{
 		}
 		_data=(float*)malloc(sizeof(float)*arraySize);
 		memset(_data,0,sizeof(float)*arraySize);
-		_types.resize(nbVariable,VaraibleType::Continuous);
+		_types.resize(nbVariable,VariableType::Continuous);
 	}
 
 	static DataImage createFromFile(std::string filename)
 	{
-		char *raw=loadRawData((const char *) filename.c_str());
+		size_t rawSize=0;
+		char *raw=loadRawData((const char *) filename.c_str(), &rawSize);
 		if(!raw) return DataImage();
-		DataImage toReturn(raw);
+		DataImage toReturn(raw, rawSize);
 		free(raw);
 		return toReturn; 
 	}
@@ -140,7 +157,7 @@ class DataImage{
 		index++;
 		for (size_t i = 0; i < _types.size(); ++i)
 		{
-			*((VaraibleType*)(raw+4*index))=_types[i];
+			*((VariableType*)(raw+4*index))=_types[i];
 			index++;
 		}
 		*((EncodingType*)(raw+4*index))=_encodingType;
@@ -151,7 +168,66 @@ class DataImage{
 
 	}
 
-	inline DataImage(char* raw){
+	static inline bool validateSerializedData(const char* raw, size_t rawSize){
+		if(!raw || rawSize < sizeof(size_t)+sizeof(unsigned)*3 || rawSize > MaxSerializedBytes) return false;
+
+		size_t index=0;
+		size_t fullSize=0;
+		memcpy(&fullSize, raw+4*index, sizeof(fullSize));
+		if(fullSize != rawSize || fullSize < sizeof(size_t)+sizeof(unsigned)*3 || fullSize > MaxSerializedBytes) return false;
+		index+=sizeof(fullSize)/4;
+
+		if(4*index+sizeof(unsigned) > rawSize) return false;
+		unsigned nbDim=0;
+		memcpy(&nbDim, raw+4*index, sizeof(nbDim));
+		if(nbDim == 0 || nbDim > MaxDimensions) return false;
+		index++;
+
+		size_t cellCount=1;
+		for (unsigned i = 0; i < nbDim; ++i)
+		{
+			if(4*index+sizeof(unsigned) > rawSize) return false;
+			unsigned dim=0;
+			memcpy(&dim, raw+4*index, sizeof(dim));
+			if(dim == 0 || cellCount > std::numeric_limits<size_t>::max() / dim) return false;
+			cellCount*=dim;
+			index++;
+		}
+
+		if(4*index+sizeof(unsigned) > rawSize) return false;
+		unsigned nbVariable=0;
+		memcpy(&nbVariable, raw+4*index, sizeof(nbVariable));
+		if(nbVariable == 0 || nbVariable > MaxVariables) return false;
+		if(cellCount > std::numeric_limits<size_t>::max() / nbVariable) return false;
+		cellCount*=nbVariable;
+		index++;
+
+		for (unsigned i = 0; i < nbVariable; ++i)
+		{
+			if(4*index+sizeof(VariableType) > rawSize) return false;
+			VariableType type;
+			memcpy(&type, raw+4*index, sizeof(type));
+			if(type != Continuous && type != Categorical) return false;
+			index++;
+		}
+
+		if(4*index+sizeof(EncodingType) > rawSize) return false;
+		EncodingType encodingType;
+		memcpy(&encodingType, raw+4*index, sizeof(encodingType));
+		if(encodingType != Float && encodingType != Integer && encodingType != UInteger) return false;
+		index++;
+
+		if(cellCount > MaxSerializedBytes / sizeof(float)) return false;
+		size_t expectedDataBytes=cellCount*sizeof(float);
+		return 4*index <= rawSize && expectedDataBytes == rawSize-4*index;
+	}
+
+	inline DataImage(char* raw, size_t rawSize){
+		if(!validateSerializedData(raw, rawSize)){
+			_nbVariable=0;
+			_data=nullptr;
+			return;
+		}
 		size_t index=0;
 		size_t fullSize=*((size_t*)(raw+4*index));
 		index+=sizeof(fullSize)/4;
@@ -166,7 +242,7 @@ class DataImage{
 		index++;
 		for (size_t i = 0; i < _types.size(); ++i)
 		{
-			_types[i]=*((VaraibleType*)(raw+4*index));
+			_types[i]=*((VariableType*)(raw+4*index));
 			index++;
 		}
 		_nbVariable=_types.size();
@@ -176,6 +252,8 @@ class DataImage{
 		memcpy(_data,raw+4*index,fullSize-4*index);
 		
 	}
+
+	inline DataImage(char* raw) : DataImage(raw, raw ? *((size_t*)raw) : 0) {}
 
 	inline DataImage& operator=(DataImage&& o)
 	{
@@ -203,8 +281,14 @@ class DataImage{
 		char* raw=serialize();
 		char* outputName=writeRawData(raw,compresed);
 		free(raw);
+		if(!outputName) return;
 		//fprintf(stderr, "save as %s\n",outputName );
 		//fprintf(stderr, "save as %s\n",filename.c_str() );
+		if(!isSafeDataImageName(filename)){
+			fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filename.c_str());
+			free(outputName);
+			return;
+		}
 		char fullFilename[2048];
 		char outputFullFilename[2048];
 		char extra[16]={0};
@@ -309,7 +393,7 @@ class DataImage{
 	inline void convertFirstDimInVariable(){
 		_nbVariable=_dims.front();
 		_dims.erase(_dims.begin());
-		_types=std::vector<VaraibleType>(_nbVariable, _types[0]);
+		_types=std::vector<VariableType>(_nbVariable, _types[0]);
 	}
 
 
@@ -381,12 +465,12 @@ class DataImage{
 		return kernel;
 	};
 
-	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor, bool needXMesurement=false){
+	static inline DataImage offsetKernel4categories(DataImage &currentKernel, std::vector<unsigned> factor, bool needXMeasurement=false){
 
 		unsigned cumulated=0;
 		for (size_t i = 0; i < factor.size(); ++i)
 		{
-			cumulated+=factor[i]+( (factor[i]>1) && needXMesurement );
+			cumulated+=factor[i]+( (factor[i]>1) && needXMeasurement );
 		}
 
 
@@ -395,7 +479,7 @@ class DataImage{
 		unsigned currentPosition=0;
 		for (size_t i = 0; i < factor.size(); ++i)
 		{
-			for (unsigned int j = 0; j < factor[i]+((factor[i]>1) && needXMesurement); ++j)
+			for (unsigned int j = 0; j < factor[i]+((factor[i]>1) && needXMeasurement); ++j)
 			{
 				for (unsigned int k = 0; k < currentKernel.dataSize()/currentKernel._nbVariable; ++k)
 				{
@@ -427,7 +511,7 @@ class DataImage{
 			return value;
 		}
 
-		std::vector<std::vector<g2s::DataImage> > convertInput4Xcorr( std::vector<unsigned> fftSize, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
+		std::vector<std::vector<g2s::DataImage> > convertInput4Xcorr( std::vector<unsigned> fftSize, bool needCrossMeasurement, std::vector<std::vector<float> > categoriesValues){
 			std::vector<std::vector<g2s::DataImage> > output;
 			unsigned categoriesValuesIndex=0;
 			for (unsigned int i = 0; i < _nbVariable; ++i)
@@ -471,7 +555,7 @@ class DataImage{
 						}
 					}
 				}
-				if(needCrossMesurement){
+				if(needCrossMeasurement){
 					output[i].push_back(g2s::DataImage(fftSize.size(),fftSize.data(),1));
 					int lastPosition=output[i].size()-1;
 					//std::fill(output[i][lastPosition]._data, output[i][lastPosition]._data+output[i][lastPosition].dataSize(),1.f);
@@ -515,9 +599,9 @@ class DataImage{
 			return marginal;
 		}
 
-		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coeficientMatrix, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector,
-				 std::vector<std::vector<std::vector<convertionType> > > &convertionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > &convertionCoefVectorConstVector,
-				  bool forXMesurement, std::vector<std::vector<float> > categoriesValues){
+		void generateCoefMatrix4Xcorr(std::vector<g2s::OperationMatrix> &coefficientMatrix, std::vector<std::vector<conversionType> > &conversionTypeVectorMainVector,
+				 std::vector<std::vector<std::vector<conversionType> > > &conversionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > &conversionCoefVectorConstVector,
+				  bool forXMeasurement, std::vector<std::vector<float> > categoriesValues){
 			unsigned categoriesValuesIndex=0;
 			int numberOfSubVariable=0;
 
@@ -531,77 +615,77 @@ class DataImage{
 					numberOfSubVariable+=categoriesValues[categoriesValuesIndex].size();
 					categoriesValuesIndex++;
 				}
-				numberOfSubVariable+=forXMesurement;
+				numberOfSubVariable+=forXMeasurement;
 			}
 
 			g2s::OperationMatrix regular(numberOfSubVariable);
-			g2s::OperationMatrix Xmeassurement(numberOfSubVariable);
+			g2s::OperationMatrix XMeasurement(numberOfSubVariable);
 
-			std::vector<std::vector<convertionType> > convertionTypeVectorConstRegular(_nbVariable);
-			std::vector<std::vector<float> > convertionCoefVectorConstRegular(_nbVariable);
-			std::vector<std::vector<convertionType> > convertionTypeVectorConstXmeassurement(_nbVariable);
-			std::vector<std::vector<float> > convertionCoefVectorConstXmeassurement(_nbVariable);
+			std::vector<std::vector<conversionType> > conversionTypeVectorConstRegular(_nbVariable);
+			std::vector<std::vector<float> > conversionCoefVectorConstRegular(_nbVariable);
+			std::vector<std::vector<conversionType> > conversionTypeVectorConstXMeasurement(_nbVariable);
+			std::vector<std::vector<float> > conversionCoefVectorConstXMeasurement(_nbVariable);
 
 			categoriesValuesIndex=0;
 			int subVariablePosition=0;
 			for (unsigned int i = 0; i < _nbVariable; ++i)
 			{
-				//convertionTypeVectorConstXmeassurement[i].push_back(P0);
-				//convertionCoefVectorConstXmeassurement[i].push_back(1.f);
+				//conversionTypeVectorConstXMeasurement[i].push_back(P0);
+				//conversionCoefVectorConstXMeasurement[i].push_back(1.f);
 
 				if(_types[i]==Continuous){
-					std::vector<convertionType> convType;
+					std::vector<conversionType> convType;
 					convType.push_back(P0);
 					regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
 					subVariablePosition+=1;
 					convType.push_back(P1);
 					regular.setVariableAt(subVariablePosition,subVariablePosition,2.f);
 					subVariablePosition+=1;
-					if(forXMesurement){
+					if(forXMeasurement){
 						convType.push_back(P2);
 						regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
-						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition-2,1.f);
+						XMeasurement.setVariableAt(subVariablePosition,subVariablePosition-2,1.f);
 						subVariablePosition+=1;
 					}else{
-						convertionTypeVectorConstRegular[i].push_back(P2);
-						convertionCoefVectorConstRegular[i].push_back(-1.f);
+						conversionTypeVectorConstRegular[i].push_back(P2);
+						conversionCoefVectorConstRegular[i].push_back(-1.f);
 					}
-					convertionTypeVectorMainVector.push_back(convType);
+					conversionTypeVectorMainVector.push_back(convType);
 				}
 
 				if(_types[i]==Categorical){
 					unsigned numberOfCategorie=categoriesValues[categoriesValuesIndex].size();
 					for (unsigned int k = 0; k < numberOfCategorie; ++k)
 					{
-						std::vector<convertionType> convType;
+						std::vector<conversionType> convType;
 						convType.push_back(P1);
 						regular.setVariableAt(subVariablePosition,subVariablePosition,1.f);
 						subVariablePosition+=1;
-						convertionTypeVectorMainVector.push_back(convType);
+						conversionTypeVectorMainVector.push_back(convType);
 					}
-					if(forXMesurement){
-						std::vector<convertionType> convType;
+					if(forXMeasurement){
+						std::vector<conversionType> convType;
 						convType.push_back(P0);
 						regular.setVariableAt(subVariablePosition,subVariablePosition,-1.f);
-						Xmeassurement.setVariableAt(subVariablePosition,subVariablePosition,1.f);
+						XMeasurement.setVariableAt(subVariablePosition,subVariablePosition,1.f);
 						subVariablePosition+=1;
-						convertionTypeVectorMainVector.push_back(convType);
+						conversionTypeVectorMainVector.push_back(convType);
 					}
 					categoriesValuesIndex++;
 				}
 			}
-			coeficientMatrix.push_back(regular);
-			if(forXMesurement)coeficientMatrix.push_back(Xmeassurement);
+			coefficientMatrix.push_back(regular);
+			if(forXMeasurement)coefficientMatrix.push_back(XMeasurement);
 
-			convertionTypeVectorConstVector.push_back(convertionTypeVectorConstRegular);
-			//convertionTypeVectorConstVector.push_back(std::vector<std::vector<convertionType> >(_nbVariable));
-			//convertionTypeVectorConstVector.push_back(convertionTypeVectorConstXmeassurement);
-			convertionCoefVectorConstVector.push_back(convertionCoefVectorConstRegular);
-			//convertionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
-			//convertionCoefVectorConstVector.push_back(convertionCoefVectorConstXmeassurement);
+			conversionTypeVectorConstVector.push_back(conversionTypeVectorConstRegular);
+			//conversionTypeVectorConstVector.push_back(std::vector<std::vector<conversionType> >(_nbVariable));
+			//conversionTypeVectorConstVector.push_back(conversionTypeVectorConstXMeasurement);
+			conversionCoefVectorConstVector.push_back(conversionCoefVectorConstRegular);
+			//conversionCoefVectorConstVector.push_back(std::vector<std::vector<float> >(_nbVariable));
+			//conversionCoefVectorConstVector.push_back(conversionCoefVectorConstXMeasurement);
 		}
 
-		/*void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoeficientMainVector, std::vector<std::vector<convertionType> > &convertionTypeVectorMainVector, bool needCrossMesurement, std::vector<std::vector<float> > categoriesValues){
+		/*void generateCoef4Xcorr(std::vector<std::vector<float> > &variablesCoefficientMainVector, std::vector<std::vector<conversionType> > &conversionTypeVectorMainVector, bool needCrossMeasurement, std::vector<std::vector<float> > categoriesValues){
 			unsigned categoriesValuesIndex=0;
 
 			for (int i = 0; i < _nbVariable; ++i)
@@ -609,15 +693,15 @@ class DataImage{
 
 				if(_types[i]==Continuous){
 					std::vector<float> coef;
-					std::vector<convertionType> convType;
+					std::vector<conversionType> convType;
 					coef.push_back(-1.f);
 					convType.push_back(P0);
 					coef.push_back(2.f);
 					convType.push_back(P1);
 					coef.push_back(-1.f);
-					if(needCrossMesurement)convType.push_back(P2);
-					variablesCoeficientMainVector.push_back(coef);
-					convertionTypeVectorMainVector.push_back(convType);
+					if(needCrossMeasurement)convType.push_back(P2);
+					variablesCoefficientMainVector.push_back(coef);
+					conversionTypeVectorMainVector.push_back(convType);
 				}
 
 				if(_types[i]==Categorical){
@@ -625,11 +709,11 @@ class DataImage{
 					for (int k = 0; k < numberOfCategorie; ++k)
 					{
 						std::vector<float> coef;
-						std::vector<convertionType> convType;
+						std::vector<conversionType> convType;
 						coef.push_back(1);
 						convType.push_back(P1);
-						variablesCoeficientMainVector.push_back(coef);
-						convertionTypeVectorMainVector.push_back(convType);
+						variablesCoefficientMainVector.push_back(coef);
+						conversionTypeVectorMainVector.push_back(convType);
 					}
 					categoriesValuesIndex++;
 				}

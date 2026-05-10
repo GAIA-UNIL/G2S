@@ -60,6 +60,41 @@ sources = [
 
 print("sources (relative):", sources)
 
+
+def _collect_pyzmq_paths():
+    include_dirs = []
+    library_dirs = []
+    try:
+        import zmq
+    except Exception as exc:
+        print(f"pyzmq import unavailable during build: {exc}")
+        return include_dirs, library_dirs
+
+    try:
+        get_includes = getattr(zmq, "get_includes", None)
+        if callable(get_includes):
+            include_dirs.extend([str(Path(p)) for p in get_includes() if p])
+    except Exception as exc:
+        print(f"pyzmq include path detection failed: {exc}")
+
+    try:
+        get_library_dirs = getattr(zmq, "get_library_dirs", None)
+        if callable(get_library_dirs):
+            library_dirs.extend([str(Path(p)) for p in get_library_dirs() if p])
+    except Exception as exc:
+        print(f"pyzmq library path detection failed: {exc}")
+
+    # Fallback probes used by some pyzmq wheel layouts.
+    zmq_pkg_dir = Path(zmq.__file__).resolve().parent
+    for candidate in (zmq_pkg_dir / "include", zmq_pkg_dir.parent / "include"):
+        if candidate.is_dir():
+            include_dirs.append(str(candidate))
+
+    # Preserve order and drop duplicates.
+    include_dirs = list(dict.fromkeys(include_dirs))
+    library_dirs = list(dict.fromkeys(library_dirs))
+    return include_dirs, library_dirs
+
 # -----------------------------------------------------------------------------
 # Custom build_ext (adds NumPy includes and platform flags)
 # -----------------------------------------------------------------------------
@@ -79,9 +114,13 @@ class build_ext(_build_ext):
     def build_extensions(self):
         import numpy as np
 
+        pyzmq_include_dirs, pyzmq_library_dirs = _collect_pyzmq_paths()
+
         for ext in self.extensions:
             ext.include_dirs.append(np.get_include())
 
+            # Prefer pyzmq-provided headers first (contains zmq.h in isolated builds).
+            ext.include_dirs += pyzmq_include_dirs
             ext.include_dirs += [
                 str(REPO / "include"),
                 str(REPO / "include_interfaces"),
@@ -91,6 +130,7 @@ class build_ext(_build_ext):
                 "/opt/homebrew/include",
             ]
 
+            ext.library_dirs += pyzmq_library_dirs
             ext.library_dirs += [
                 "/usr/lib",
                 "/opt/local/lib",
@@ -155,6 +195,12 @@ class build_ext(_build_ext):
                         print(f"Bundling {len(self.copy_dlls)} ZeroMQ DLL(s) into wheel.")
                 else:
                     print("No bin/Release folder found — DLL will not be packaged.")
+
+            if not any((Path(include_dir) / "zmq.h").is_file() for include_dir in ext.include_dirs):
+                raise RuntimeError(
+                    "Unable to locate zmq.h. Install libzmq headers (e.g. libzmq3-dev/zeromq-devel) "
+                    "or ensure pyzmq headers are available in the build environment."
+                )
 
         super().build_extensions()
 

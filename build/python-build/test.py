@@ -66,6 +66,28 @@ if verbose:
 plt.show(block=False)
 plt.pause(0.1)
 
+# Anchor Sampling with aligned TI stack and optional TI-selection weights
+as_ti1 = numpy.ones((21,21),dtype=float)
+as_ti2 = 2*numpy.ones((21,21),dtype=float)
+as_ti1[10,10]=5
+as_ti2[10,10]=9
+as_destination = numpy.nan*numpy.ones((21,21),dtype=float)
+as_destination[9,10]=1
+as_destination[10,9]=1
+as_destination[10,11]=1
+as_destination[11,10]=1
+as_path = 100 + numpy.arange(as_destination.size,dtype=float).reshape(as_destination.shape)
+as_path[10,10]=0
+as_mask = numpy.zeros(as_destination.shape + (2,),dtype=float)
+as_mask[...,0]=1.0
+as_mask[...,1]=0.2
+data=g2s('-sa',serverAddress,'-a','as','-ti',as_ti1,as_ti2,'-di',as_destination,'-sp',as_path,'-mi',as_mask,'-dt',numpy.zeros(shape=(1,1)),'-k',2,'-n',8,'-s',100);
+plt.imshow(data[0])
+if verbose:
+	print(data)
+plt.show(block=False)
+plt.pause(0.1)
+
 # simulation with a fixed path, row path
 path= numpy.arange(0,sizeDest).reshape((200,200));
 data=g2s('-sa',serverAddress,'-a','qs','-ti',source,'-di',destination,'-dt',numpy.zeros(shape=(1,1)),'-k',1.5,'-n',50,'-s',100,'-sp',path);

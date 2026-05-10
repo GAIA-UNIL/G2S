@@ -16,6 +16,7 @@
 */
 
 #include <cstring>
+#include <limits>
 #include "DirectMeasureCPUThreadDevice.hpp"
 #include "sharedMemoryManager.hpp"
 #include "utils.hpp"
@@ -32,11 +33,11 @@
 #endif
 
 
-DirectMeasureCPUThreadDevice::DirectMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMesurement){
+DirectMeasureCPUThreadDevice::DirectMeasureCPUThreadDevice(SharedMemoryManager* sharedMemoryManager, unsigned int threadRatio, bool withCrossMeasurement){
 	_deviceType=DT_cpuThreads;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
-	_crossMesurement=withCrossMesurement;
+	_crossMeasurement=withCrossMeasurement;
 	//printf("core %d, chip %d\n",core, chip );
 	_deviceID=chip;
 	_sharedMemoryManager=sharedMemoryManager;
@@ -45,7 +46,7 @@ DirectMeasureCPUThreadDevice::DirectMeasureCPUThreadDevice(SharedMemoryManager* 
 	_fftSize=_sharedMemoryManager->_fftSize;
 	_srcSize=sharedMemoryManager->_srcSize;
 
-	_srcCplx=_sharedMemoryManager->adressSharedMemory(_memoryID);
+	_srcCplx=_sharedMemoryManager->addressSharedMemory(_memoryID);
 
 	// alloc memory
 	_realSpaceSize=1;
@@ -65,7 +66,7 @@ DirectMeasureCPUThreadDevice::~DirectMeasureCPUThreadDevice(){
 	_sharedMemoryManager->removeDevice(this);
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> DirectMeasureCPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
+std::vector<g2s::spaceFrequencyMemoryAddress> DirectMeasureCPUThreadDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
 	
 	unsigned realSpaceSize=1;
 
@@ -76,27 +77,27 @@ std::vector<g2s::spaceFrequenceMemoryAddress> DirectMeasureCPUThreadDevice::allo
 
 	realSpaceSize*=fftSize.back();
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemory;
-	for (int i = 0; i < srcMemoryAdress.size(); ++i)
+	std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemory;
+	for (int i = 0; i < srcMemoryAddress.size(); ++i)
 	{
-		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
-		sharedMemoryAdress.fft=nullptr;
+		g2s::spaceFrequencyMemoryAddress sharedMemoryAddress;
+		sharedMemoryAddress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAddress.space,srcMemoryAddress[i], realSpaceSize * sizeof(dataType_g2s));
+		sharedMemoryAddress.fft=nullptr;
 	
-		sharedMemory.push_back(sharedMemoryAdress);
+		sharedMemory.push_back(sharedMemoryAddress);
 	}
 	return sharedMemory;
 
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> DirectMeasureCPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
-	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
+std::vector<g2s::spaceFrequencyMemoryAddress> DirectMeasureCPUThreadDevice::freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress){
+	for (int i = 0; i < sharedMemoryAddress.size(); ++i)
 	{
-		free(sharedMemoryAdress[i].space);
+		free(sharedMemoryAddress[i].space);
 	}
-	sharedMemoryAdress.clear();
-	return sharedMemoryAdress;
+	sharedMemoryAddress.clear();
+	return sharedMemoryAddress;
 }
 
 //compute function
@@ -116,33 +117,33 @@ float DirectMeasureCPUThreadDevice::getErrorAtPosition(unsigned index){
 		val/=_fftSize[i];
 	}
 
-	bool isOkForMesure=true
+	bool isOkForMesure=true;
 
 	for (int i = 0; i < _fftSize.size(); ++i)
 	{
 		isOkForMesure &= (position[i]>=_min[i]);
 		isOkForMesure &= (position[i]<_fftSize[i]-_max[i]);
 	}
-	if(!isOkForMesure) return std::inf("0");
+	if(!isOkForMesure) return std::numeric_limits<float>::infinity();
 
-	float error;
+	float error=0.f;
 
 	for (int i = 0; i < _encodedDeltaPosition.size(); ++i)
 	{
 		for (int j = 0; j < _srcCplx.size()/2; ++j)
 		{
-			float missmatch=_srcCplx[j].space[index+_encodedDeltaPosition[i]]-_valueForPositions[2*j+1]/_valueForPositions[2*j+0];
-			error+=missmatch*missmatch*_valueForPositions[2*j+0];
+			float missmatch=((dataType_g2s*)_srcCplx[j].space)[index+_encodedDeltaPosition[i]]-_valueForPositions[i][2*j+1]/_valueForPositions[i][2*j+0];
+			error+=missmatch*missmatch*_valueForPositions[i][2*j+0];
 		}
 	}
 
 	return error;
 }
 
-dataType_g2s* DirectMeasureCPUThreadDevice::getCossErrorArray(){
+dataType_g2s* DirectMeasureCPUThreadDevice::getCrossErrorArray(){
 	return nullptr;
 }
-float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
+float DirectMeasureCPUThreadDevice::getCrossErrorAtPosition(unsigned index){
 	std::vector<unsigned> position(_fftSize.size(),0);
 
 	unsigned val=index;
@@ -152,7 +153,7 @@ float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 		val/=_fftSize[i];
 	}
 
-	bool isOkForMesure=true
+	bool isOkForMesure=true;
 
 	for (int i = 0; i < _fftSize.size(); ++i)
 	{
@@ -161,13 +162,13 @@ float DirectMeasureCPUThreadDevice::getCroossErrorAtPosition(unsigned index){
 	}
 	if(!isOkForMesure) return 0.f;
 
-	float error;
+	float error=0.f;
 
 	for (int i = 0; i < _encodedDeltaPosition.size(); ++i)
 	{
 		for (int j = 0; j < _srcCplx.size()/2; ++j)
 		{
-			error+=_valueForPositions[2*j+0];
+			error+=_valueForPositions[i][2*j+0];
 		}
 	}
 
@@ -187,7 +188,7 @@ void DirectMeasureCPUThreadDevice::setTrueMismatch(bool value){
 	_trueMismatch=value;
 }
 
-bool  DirectMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, float delta0){
+bool  DirectMeasureCPUThreadDevice::candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, float delta0){
 	for (int i = 0; i < _min.size(); ++i)
 	{
 		_min[i]=0;
@@ -203,13 +204,13 @@ bool  DirectMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<i
 		}
 	}
 
-	bool valideData=false;
+	bool validData=false;
 	for (int i = 0; i < _min.size(); ++i)
 	{
-		if(_min[i]!=0) valideData=true;
-		if(_max[i]!=0) valideData=true;
+		if(_min[i]!=0) validData=true;
+		if(_max[i]!=0) validData=true;
 	}
-	if(!valideData){
+	if(!validData){
 		return false;
 	}
 	else
@@ -220,18 +221,12 @@ bool  DirectMeasureCPUThreadDevice::candidateForPatern(std::vector<std::vector<i
 		for (int i = 0; i < neighborArrayVector.size(); ++i)
 		{
 			int encoded=0;
-			for (int j = neighborArrayVector[i].size()-1; j >=0; ++j)
+			for (int j = neighborArrayVector[i].size()-1; j >=0; --j)
 			{
 				encoded+=encoded*_fftSize[j]+neighborArrayVector[i][j];
 			}
 			_encodedDeltaPosition.push_back(encoded);
 		}
-
-		bool lines[_fftSize.back()];
-		memset(_frenquencySpaceOutput, 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
-		std::vector<std::vector<int> > neighborArray=neighborArrayVector;
-
 	}
 	return true;
 }
-

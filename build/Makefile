@@ -3,8 +3,11 @@ BUILD_DIR=../.
 export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https://github.com/GAIA-UNIL/G2S.git"')
 
 export SRCS=$(BUILD_DIR)/../src
-export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations
-export CXXFLAGS= -Wno-vla-extension #-flto
+G2S_PATH_INDEX_TYPE ?= unsigned
+G2S_QS_DISTRIBUTED ?= 0
+export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE)
+export CXXFLAGS= -Wno-vla-extension -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE) #-flto
+export QS_DISTRIBUTED_LIBS=
 export INC=-I$(BUILD_DIR)/../include
 ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
@@ -15,6 +18,12 @@ export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
 export ExtraDevice=AcceleratorDevice.o
+
+ifeq ($(G2S_QS_DISTRIBUTED),1)
+	export CFLAGS += -DG2S_QS_DISTRIBUTED
+	export CXXFLAGS += -DG2S_QS_DISTRIBUTED
+	export QS_DISTRIBUTED_LIBS += -lzmq -ljsoncpp
+endif
 
 export brewIsAvailable := $(shell brew -v > /dev/null 2>&1 && echo 1 || echo 0)
 
@@ -56,6 +65,31 @@ ifeq ($(dosentSupportOpenCL),1)
 	export OPENCL_LIB
 else
 	export OPENCL_LIB=
+endif
+
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+ZMQ_HPP_PATH := $(abspath $(MAKEFILE_DIR)/../include/zmq.hpp)
+ZMQ_HPP_URL := https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
+ZMQ_HPP_AVAILABLE := $(shell [ -f "$(ZMQ_HPP_PATH)" ] && echo 1 || echo 0)
+ifeq ($(ZMQ_HPP_AVAILABLE),0)
+ZMQ_HPP_DOWNLOADED := $(shell \
+	mkdir -p "$(dir $(ZMQ_HPP_PATH))" >/dev/null 2>&1; \
+	if command -v curl >/dev/null 2>&1; then \
+		curl -fsSL "$(ZMQ_HPP_URL)" -o "$(ZMQ_HPP_PATH).tmp" && mv "$(ZMQ_HPP_PATH).tmp" "$(ZMQ_HPP_PATH)" && echo 1 || echo 0; \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget -q "$(ZMQ_HPP_URL)" -O "$(ZMQ_HPP_PATH).tmp" && mv "$(ZMQ_HPP_PATH).tmp" "$(ZMQ_HPP_PATH)" && echo 1 || echo 0; \
+	elif command -v python3 >/dev/null 2>&1; then \
+		python3 -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$(ZMQ_HPP_URL)" "$(ZMQ_HPP_PATH).tmp" && mv "$(ZMQ_HPP_PATH).tmp" "$(ZMQ_HPP_PATH)" && echo 1 || echo 0; \
+	elif command -v python >/dev/null 2>&1; then \
+		python -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$(ZMQ_HPP_URL)" "$(ZMQ_HPP_PATH).tmp" && mv "$(ZMQ_HPP_PATH).tmp" "$(ZMQ_HPP_PATH)" && echo 1 || echo 0; \
+	else \
+		echo 0; \
+	fi)
+ifeq ($(ZMQ_HPP_DOWNLOADED),1)
+$(info Downloaded missing zmq.hpp to $(ZMQ_HPP_PATH))
+else
+$(error zmq.hpp is missing and automatic download failed. Install curl/wget/python or place include/zmq.hpp manually)
+endif
 endif
 
 dosentSupportOMP:= $(shell echo "int main(){}" | c++ -xc - -o /dev/null -fopenmp 2>/dev/null && echo 1 || echo 0)
@@ -100,7 +134,7 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module
+.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
@@ -129,6 +163,17 @@ intel-extension:
 	$(MAKE) -C intel-build extension
 
 extension: c++-extension intel-extension
+
+
+R-%:
+	@echo "📦 [R build] $* ..."
+	@$(MAKE) -C rpkg-build $*
+
+R: r-build
+
+R-test:
+	@$(MAKE) -C R-build build
+	Rscript -e "install.packages('R-build/G2S_0.1.0.tar.gz', repos=NULL, type='source'); library(G2S); source('R-build/test.R')"
 
 python-%:
 	@echo "🐍 [Python build] $* ..."

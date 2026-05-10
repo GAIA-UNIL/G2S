@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cerrno>
+#include <limits>
 #include <unistd.h> /* for fork */
 #include <sys/types.h> /* for pid_t */
 #include <sys/wait.h> /* for wait */
@@ -57,6 +59,54 @@
 #ifndef SERVER_TYPE
 #define SERVER_TYPE 0
 #endif
+
+bool ensureRuntimeDirectory(const char* path)
+{
+	const mode_t runtimeMode=0770;
+	if(mkdir(path, runtimeMode) != 0 && errno != EEXIST) {
+		fprintf(stderr, "Could not create runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	struct stat info;
+	if(lstat(path, &info) != 0) {
+		fprintf(stderr, "Could not inspect runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	if(!S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode)) {
+		fprintf(stderr, "Runtime path %s exists but is not a directory\n", path);
+		return false;
+	}
+
+	if(chmod(path, runtimeMode) != 0) {
+		fprintf(stderr, "Could not set permissions on runtime directory %s: %s\n", path, strerror(errno));
+		return false;
+	}
+
+	return true;
+}
+
+bool ensureRuntimeDirectoryWritable(const char* path)
+{
+	char probePath[4096];
+	snprintf(probePath, sizeof(probePath), "%s/.write_probe.%ld", path, (long)getpid());
+	FILE* probe=fopen(probePath, "wb");
+	if(!probe) {
+		fprintf(stderr, "Runtime directory %s is not writable: %s\n", path, strerror(errno));
+		return false;
+	}
+	if(fclose(probe) != 0) {
+		fprintf(stderr, "Could not close probe file in runtime directory %s: %s\n", path, strerror(errno));
+		unlink(probePath);
+		return false;
+	}
+	if(unlink(probePath) != 0) {
+		fprintf(stderr, "Could not remove probe file %s: %s\n", probePath, strerror(errno));
+		return false;
+	}
+	return true;
+}
 
  
 void removeAllFile(char* dir, double olderThan)
@@ -101,9 +151,35 @@ int main(int argc, char const *argv[]) {
 	bool keepOldData=false;
 	float timeoutDuration=std::nanf("0");
 	double maxFileAge=24*3600.;
-	short port=8128;
+	unsigned port=8128;
 	unsigned maxNumberOfConcurrentJob=500;
 	bool moveToServerFolder=true;
+	bool allowUnregisteredAlgorithm=false;
+
+	auto parseUnsignedOption = [&](const char* option, int &i, unsigned minimum, unsigned maximum, unsigned &destination) {
+		if(i+1 >= argc) {
+			fprintf(stderr, "Missing value for %s\n", option);
+			return false;
+		}
+
+		const char* value=argv[i+1];
+		if(value[0] == '\0' || value[0] == '-') {
+			fprintf(stderr, "Invalid value for %s: %s\n", option, value);
+			return false;
+		}
+
+		char* end=nullptr;
+		errno=0;
+		unsigned long parsed=strtoul(value, &end, 10);
+		if(errno == ERANGE || end == value || *end != '\0' || parsed < minimum || parsed > maximum) {
+			fprintf(stderr, "Invalid value for %s: %s (expected %u-%u)\n", option, value, minimum, maximum);
+			return false;
+		}
+
+		destination=static_cast<unsigned>(parsed);
+		++i;
+		return true;
+	};
 
 	
 	for (int i = 1; i < argc; ++i)
@@ -116,13 +192,36 @@ int main(int argc, char const *argv[]) {
 		if(0==strcmp(argv[i], "-mT")) singleTask=true;
 		if(0==strcmp(argv[i], "-fM")) functionMode=true;
 		if(0==strcmp(argv[i], "-kod")) keepOldData=true;
-		if(0==strcmp(argv[i], "-maxCJ")) maxNumberOfConcurrentJob=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-maxCJ")) {
+			if(i+1 >= argc) {
+				fprintf(stderr, "Missing value for -maxCJ\n");
+				return EXIT_FAILURE;
+			}
+
+			const char* value=argv[i+1];
+			if(value[0] == '\0') {
+				fprintf(stderr, "Invalid value for -maxCJ: %s\n", value);
+				return EXIT_FAILURE;
+			}
+
+			char* end=nullptr;
+			errno=0;
+			long parsed=strtol(value, &end, 10);
+			if(errno == ERANGE || end == value || *end != '\0' || parsed > static_cast<long>(std::numeric_limits<unsigned>::max())) {
+				fprintf(stderr, "Invalid value for -maxCJ: %s\n", value);
+				return EXIT_FAILURE;
+			}
+
+			maxNumberOfConcurrentJob=parsed<1 ? 1 : static_cast<unsigned>(parsed);
+			++i;
+		}
 		if((0==strcmp(argv[i], "-age")) && (i+1 < argc))
 		{
 			maxFileAge=atof(argv[i+1]);
 		}
-		if(0==strcmp(argv[i], "-p")) port=atoi(argv[i+1]);
+		if(0==strcmp(argv[i], "-p") && !parseUnsignedOption("-p", i, 1, 65535, port)) return EXIT_FAILURE;
 		if(0==strcmp(argv[i], "-kcwd")) moveToServerFolder=false;
+		if((0==strcmp(argv[i], "--allow-unregistered-algorithms")) || (0==strcmp(argv[i], "-allowUnregisteredAlgorithm"))) allowUnregisteredAlgorithm=true;
 	}
 	#ifdef WITH_FILESYSTEM_INCLUDE
 	if (moveToServerFolder)
@@ -139,13 +238,13 @@ int main(int argc, char const *argv[]) {
 
 #ifdef WITH_VERSION_CONTROL
 	
-	std::string gitAdress=GIT_URL;
-	gitAdress=gitAdress.substr(0, gitAdress.size()-4);
+	std::string gitAddress=GIT_URL;
+	gitAddress=gitAddress.substr(0, gitAddress.size()-4);
 
 	CURL *curl;
 	CURLcode res;
 	char url[2048];
-	snprintf(url,2048,"%s/raw/master/version",gitAdress.c_str());
+	snprintf(url,2048,"%s/raw/master/version",gitAddress.c_str());
 	curl = curl_easy_init();                                                                                                                                                                                                                                                           
 	if (curl)
 	{
@@ -162,7 +261,7 @@ int main(int argc, char const *argv[]) {
 		if(res == CURLE_OK)
 		{
 			if(resultBody.size()<20 && currentVersion.compare(resultBody)<0){
-				fprintf(stdout, "The new version %s is avialable on GitHub: %s \n",resultBody.c_str(), gitAdress.c_str() );
+				fprintf(stdout, "The new version %s is available on GitHub: %s \n",resultBody.c_str(), gitAddress.c_str() );
 				fprintf(stdout, "The version %s is currently installed\n",currentVersion.c_str() );
 			}
 		}
@@ -192,10 +291,13 @@ int main(int argc, char const *argv[]) {
 		jobIds.errorsByPid.push_back({0,0});
 	}
 
-	mkdir("/tmp/G2S", 0777);
-
-	mkdir("/tmp/G2S/data", 0777);
-	mkdir("/tmp/G2S/logs", 0777);
+	if(!ensureRuntimeDirectory("/tmp/G2S") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/data") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/logs") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/data") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/logs")) {
+		return 1;
+	}
 
 	std::thread fileCleaningThread([&] {
 		time_t last;
@@ -245,46 +347,76 @@ int main(int argc, char const *argv[]) {
 
 	jobQueue jobQueue;
 
+	auto sendIntReply = [&](int value) {
+		zmq::message_t reply(sizeof(value));
+		memcpy(reply.data(), &value, sizeof(value));
+		receiver.send(reply,zmq::send_flags::none);
+	};
+
+	auto payloadSizeIs = [&](size_t requestSize, size_t expected) {
+		return requestSize == sizeof(infoContainer)+expected;
+	};
+
+	auto payloadSizeBetween = [&](size_t requestSize, size_t minimum, size_t maximum) {
+		if(requestSize < sizeof(infoContainer)) return false;
+		size_t payloadSize=requestSize-sizeof(infoContainer);
+		return payloadSize >= minimum && payloadSize <= maximum;
+	};
+
 	while (!needToStop) {
 		zmq::message_t request;
 		bool newRequest=false;
 		//  Wait for next request from client
-		auto reciveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
-		if( reciveMessage )
+		auto receiveMessage=receiver.recv(request,zmq::recv_flags::dontwait);
+		if( receiveMessage )
 		{
 			newRequest=true;
-			size_t requesSize=request.size();
-			if(requesSize>=sizeof(infoContainer)){
+			size_t requestSize=request.size();
+			if(requestSize>=sizeof(infoContainer)){
 				infoContainer infoRequest;
 				memcpy(&infoRequest,request.data(),sizeof(infoContainer));
-				if(infoRequest.version<=0) continue;
+				if(infoRequest.version<=0) {
+					sendIntReply(-1);
+					continue;
+				}
 				switch(infoRequest.task)
 				{
 					case EXIST :
 						{
+							if(!payloadSizeIs(requestSize, 64)) {
+								sendIntReply(-1);
+								break;
+							}
 							int type=dataIsPresent((char*)request.data()+sizeof(infoContainer));
-							zmq::message_t reply(sizeof(type));
-							memcpy (reply.data (), &type, sizeof(type));
-							receiver.send(reply,zmq::send_flags::none);
+							sendIntReply(type);
 							break;
 						}
 					case UPLOAD :
 						{
-							int error=storeData((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
-							zmq::message_t reply(sizeof(error));
-							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply,zmq::send_flags::none);
-							break;
+							if(!payloadSizeBetween(requestSize, 64+sizeof(size_t)+sizeof(unsigned)*3, 64+g2s::DataImage::MaxSerializedBytes)) {
+								sendIntReply(-1);
+								break;
+							}
+						int error=storeData((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
+						if(error < 0) {
+							fprintf(stderr, "Failed to store uploaded binary payload in /tmp/G2S/data\n");
 						}
+						sendIntReply(error);
+						break;
+					}
 					case DOWNLOAD :
 						{
+							if(!payloadSizeIs(requestSize, 64)) {
+								receiver.send(zmq::message_t(0),zmq::send_flags::none);
+								break;
+							}
 							zmq::message_t answer=sendData((char*)request.data()+sizeof(infoContainer));
 							receiver.send(answer,zmq::send_flags::none);
 							break;
 						}
 					case JOB :
 						{
-							int id=recieveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer));
+							int id=receiveJob(jobQueue,(char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), allowUnregisteredAlgorithm);
 							zmq::message_t reply(sizeof(id));
 							memcpy (reply.data (), &id, sizeof(id));
 							receiver.send(reply,zmq::send_flags::none);
@@ -292,59 +424,78 @@ int main(int argc, char const *argv[]) {
 						}
 					case PROGESSION :
 						{
-							int progess=lookForStatus((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-							zmq::message_t reply(sizeof(progess));
-							memcpy (reply.data (), &progess, sizeof(progess));
-							receiver.send(reply,zmq::send_flags::none);
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
+								sendIntReply(-1);
+								break;
+							}
+							int progress=lookForStatus((char*)request.data()+sizeof(infoContainer),requestSize-sizeof(infoContainer));
+							sendIntReply(progress);
 							break;
 						}
 					case JOB_STATUS :
 						{
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
+								sendIntReply(-1);
+								break;
+							}
 
 							jobIdType jobId;
 							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
 							int error=statusJobs(jobIds,jobQueue,jobId);
-							zmq::message_t reply(sizeof(error));
-							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply,zmq::send_flags::none);
+							sendIntReply(error);
 							break;
 						}
 					case DURATION :
 						{
-							int progess=lookForDuration((char*)request.data()+sizeof(infoContainer),requesSize-sizeof(infoContainer));
-							zmq::message_t reply(sizeof(progess));
-							memcpy (reply.data (), &progess, sizeof(progess));
-							receiver.send(reply,zmq::send_flags::none);
+							if(!payloadSizeIs(requestSize, sizeof(jobIdType))) {
+								sendIntReply(-1);
+								break;
+							}
+							int progress=lookForDuration((char*)request.data()+sizeof(infoContainer),requestSize-sizeof(infoContainer));
+							sendIntReply(progress);
 							break;
 						}
 					case KILL :
 						{
-							fprintf(stderr, "%s\n", "recieve KILL");
-							jobIdType jobId;
-							memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
-							recieveKill(jobIds,jobQueue,jobId);
-							int error=0;
-							zmq::message_t reply(sizeof(error));
-							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply,zmq::send_flags::none);
+							fprintf(stderr, "%s\n", "receive KILL");
+							int error=-1;
+							if(payloadSizeIs(requestSize, sizeof(jobIdType))){
+								jobIdType jobId;
+								memcpy(&jobId,(char*)request.data()+sizeof(infoContainer),sizeof(jobId));
+								error=receiveKill(jobIds,jobQueue,jobId);
+							}
+							sendIntReply(error);
 							break;
 						}
 					case UPLOAD_JSON :
 						{
-							int error=storeJson((char*)request.data()+sizeof(infoContainer), requesSize-sizeof(infoContainer), infoRequest.task != UPLOAD, true);
-							zmq::message_t reply(sizeof(error));
-							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply,zmq::send_flags::none);
-							break;
+							if(!payloadSizeBetween(requestSize, 65, 64+g2s::DataImage::MaxSerializedBytes)) {
+								sendIntReply(-1);
+								break;
+							}
+						int error=storeJson((char*)request.data()+sizeof(infoContainer), requestSize-sizeof(infoContainer), false, false);
+						if(error < 0) {
+							fprintf(stderr, "Failed to store uploaded JSON payload in /tmp/G2S/data\n");
 						}
+						sendIntReply(error);
+						break;
+					}
 					case DOWNLOAD_JSON :
 						{
+							if(!payloadSizeIs(requestSize, 64)) {
+								receiver.send(zmq::message_t(0),zmq::send_flags::none);
+								break;
+							}
 							zmq::message_t answer=sendJson((char*)request.data()+sizeof(infoContainer));
 							receiver.send(answer,zmq::send_flags::none);
 							break;
 						}
 					case DOWNLOAD_TEXT :
 						{
+							if(!payloadSizeIs(requestSize, 64)) {
+								receiver.send(zmq::message_t(0),zmq::send_flags::none);
+								break;
+							}
 							zmq::message_t answer=sendText((char*)request.data()+sizeof(infoContainer));
 							receiver.send(answer,zmq::send_flags::none);
 							break;
@@ -353,24 +504,27 @@ int main(int argc, char const *argv[]) {
 						{
 							needToStop=true;
 							int error=0;
-							zmq::message_t reply(sizeof(error));
-							memcpy (reply.data (), &error, sizeof(error));
-							receiver.send(reply,zmq::send_flags::none);
+							sendIntReply(error);
 							break;
 						}
 					case SERVER_STATUS :
 						{
 							int status=SERVER_TYPE+1; // (1 everything is ok)
-							zmq::message_t reply(sizeof(status));
-							memcpy (reply.data (), &status, sizeof(status));
-							receiver.send(reply,zmq::send_flags::none);
+							sendIntReply(status);
+							break;
+						}
+					default:
+						{
+							sendIntReply(-1);
 							break;
 						}
 				}
+			}else{
+				sendIntReply(-1);
 			}
 		}
 		if(cleanJobs(jobIds) || newRequest){
-			runJobInQueue(jobQueue, jobIds, singleTask, functionMode, maxNumberOfConcurrentJob);
+			runJobInQueue(jobQueue, jobIds, singleTask, functionMode, maxNumberOfConcurrentJob, allowUnregisteredAlgorithm);
 		}else{
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}

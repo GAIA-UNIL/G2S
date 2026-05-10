@@ -69,12 +69,12 @@ std::vector<unsigned> OpenCLGPUDevice::DeviceWithHostUnifiedMemory(unsigned plat
 	return result;
 }
 
-OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coeficientMatrix, unsigned int platformIndex, unsigned int deviceIndex, bool withCrossMesurement, bool circularTI){
-	_coeficientMatrix=coeficientMatrix;
+OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::vector<g2s::OperationMatrix> coefficientMatrix, unsigned int platformIndex, unsigned int deviceIndex, bool withCrossMeasurement, bool circularTI){
+	_coefficientMatrix=coefficientMatrix;
 	_deviceType=DT_gpuOpenCL;
 	int chip,core;
 	g2s::rdtscp(&chip, &core);
-	_crossMesurement=withCrossMesurement;
+	_crossMeasurement=withCrossMeasurement;
 	_circularTI=circularTI;
 	//printf("core %d, chip %d\n",core, chip );
 	_deviceID=chip;
@@ -84,7 +84,7 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	_fftSize=_sharedMemoryManager->_fftSize;
 	_srcSize=sharedMemoryManager->_srcSize;
 
-	_srcCplx=_sharedMemoryManager->adressSharedMemory(_memoryID);
+	_srcCplx=_sharedMemoryManager->addressSharedMemory(_memoryID);
 
 	// alloc memory
 
@@ -104,7 +104,7 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	}
 
 	_frenquencySpaceInput=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
-	for (int i = 0; i < _coeficientMatrix.size(); ++i)
+	for (int i = 0; i < _coefficientMatrix.size(); ++i)
 	{
 		FFTW_PRECISION(complex)* ptrCplx=(FFTW_PRECISION(complex)*)malloc(_fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 		_frenquencySpaceOutputArray.push_back(ptrCplx);
@@ -189,7 +189,7 @@ OpenCLGPUDevice::OpenCLGPUDevice(SharedMemoryManager* sharedMemoryManager,std::v
 		err = clfftSetup(&fftSetup);
 		if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", erroid++);
 
-		for (int i = 0; i < _coeficientMatrix.size(); ++i)
+		for (int i = 0; i < _coefficientMatrix.size(); ++i)
 		{
 			frenquencySpaceOutputArray_d.push_back(clCreateBuffer( ctx, CL_MEM_USE_HOST_PTR , _fftSpaceSize * sizeof(FFTW_PRECISION(complex)), _frenquencySpaceOutputArray[i], &err ));
 			realSpaceArray_d.push_back(clCreateBuffer( ctx, CL_MEM_USE_HOST_PTR , _realSpaceSize*sizeof(float), _realSpaceArray[i], &err ));
@@ -298,7 +298,7 @@ OpenCLGPUDevice::~OpenCLGPUDevice(){
 	}
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAdress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
+std::vector<g2s::spaceFrequencyMemoryAddress> OpenCLGPUDevice::allocAndInitSharedMemory(std::vector<void* > srcMemoryAddress, std::vector<unsigned> srcSize, std::vector<unsigned> fftSize){
 	
 	//fprintf(stderr, "alloc shared memory CPU\n");
 
@@ -317,21 +317,21 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitShare
 	std::vector<int> reverseFftSize(fftSize.begin(),fftSize.end());
 	std::reverse(reverseFftSize.begin(),reverseFftSize.end());
 
-	std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemory;
-	for (int i = 0; i < srcMemoryAdress.size(); ++i)
+	std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemory;
+	for (int i = 0; i < srcMemoryAddress.size(); ++i)
 	{
-		g2s::spaceFrequenceMemoryAddress sharedMemoryAdress;
-		sharedMemoryAdress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
-		memcpy(sharedMemoryAdress.space,srcMemoryAdress[i], realSpaceSize * sizeof(dataType_g2s));
-		sharedMemoryAdress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
+		g2s::spaceFrequencyMemoryAddress sharedMemoryAddress;
+		sharedMemoryAddress.space=malloc(realSpaceSize * sizeof(dataType_g2s));
+		memcpy(sharedMemoryAddress.space,srcMemoryAddress[i], realSpaceSize * sizeof(dataType_g2s));
+		sharedMemoryAddress.fft=malloc( fftSpaceSize * sizeof(FFTW_PRECISION(complex)));
 	
-		sharedMemory.push_back(sharedMemoryAdress);
+		sharedMemory.push_back(sharedMemoryAddress);
 
 		FFTW_PRECISION(plan) p;
 		#pragma omp critical (initPlan)
 		{
 			
-			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType_g2s*)sharedMemoryAdress.space, (FFTW_PRECISION(complex)*)sharedMemoryAdress.fft, FFTW_ESTIMATE);
+			p=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size(), reverseFftSize.data(), (dataType_g2s*)sharedMemoryAddress.space, (FFTW_PRECISION(complex)*)sharedMemoryAddress.fft, FFTW_ESTIMATE);
 		}
 		FFTW_PRECISION(execute)(p);
 		FFTW_PRECISION(destroy_plan)(p);
@@ -340,14 +340,14 @@ std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::allocAndInitShare
 
 }
 
-std::vector<g2s::spaceFrequenceMemoryAddress> OpenCLGPUDevice::freeSharedMemory(std::vector<g2s::spaceFrequenceMemoryAddress> sharedMemoryAdress){
-	for (int i = 0; i < sharedMemoryAdress.size(); ++i)
+std::vector<g2s::spaceFrequencyMemoryAddress> OpenCLGPUDevice::freeSharedMemory(std::vector<g2s::spaceFrequencyMemoryAddress> sharedMemoryAddress){
+	for (int i = 0; i < sharedMemoryAddress.size(); ++i)
 	{
-		free(sharedMemoryAdress[i].space);
-		free(sharedMemoryAdress[i].fft);
+		free(sharedMemoryAddress[i].space);
+		free(sharedMemoryAddress[i].fft);
 	}
-	sharedMemoryAdress.clear();
-	return sharedMemoryAdress;
+	sharedMemoryAddress.clear();
+	return sharedMemoryAddress;
 }
 
 //compute function
@@ -373,10 +373,10 @@ float OpenCLGPUDevice::getErrorAtPosition(unsigned index){
 	return _realSpaceArray.front()[index];
 }
 
-dataType_g2s* OpenCLGPUDevice::getCossErrorArray(){
+dataType_g2s* OpenCLGPUDevice::getCrossErrorArray(){
 	return _realSpaceArray.back();
 }
-float OpenCLGPUDevice::getCroossErrorAtPosition(unsigned index){
+float OpenCLGPUDevice::getCrossErrorAtPosition(unsigned index){
 	return _realSpaceArray.back()[index];
 }
 
@@ -412,13 +412,13 @@ void OpenCLGPUDevice::recursiveSetValueInRadius (unsigned position, float value,
 		if(level==1)
 		{
 			unsigned s=getErrorsArraySize();
-			float* errosArray=getErrorsArray();
+			float* errorsArray=getErrorsArray();
 			int r=int(ceil(sqrt(radius2-distance2)));
 			# pragma omp simd
 			for (int i = -r; i <= r; ++i)
 			{
 				// if(distance2+i*i<radius2)
-				errosArray[(position+i*_fftSize[0]+s)%s]=value;
+				errorsArray[(position+i*_fftSize[0]+s)%s]=value;
 			}
 		}
 		else{
@@ -452,7 +452,7 @@ unsigned OpenCLGPUDevice::cvtPositionToIndex(unsigned position){
 }
 
 
-bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoeficient, std::vector<float> delta0){
+bool  OpenCLGPUDevice::candidateForPattern(std::vector<std::vector<int> > &neighborArrayVector, std::vector<std::vector<float> >  &neighborValueArrayVector, std::vector<float> &variablesCoefficient, std::vector<float> delta0){
 	if(neighborValueArrayVector.size()==0)return false;
 
 	for (int i = 0; i < _min.size(); ++i)
@@ -472,7 +472,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 
 	{
 		bool lines[_fftSize.back()];
-		for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+		for (int dataArrayIndex = 0; dataArrayIndex < _coefficientMatrix.size(); ++dataArrayIndex)
 		{
 			memset(_frenquencySpaceOutputArray[dataArrayIndex], 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 		}
@@ -488,14 +488,14 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 		}
 
-		for (int var = 0; var <_coeficientMatrix[0].getNumberOfVariable() ; ++var)
+		for (int var = 0; var <_coefficientMatrix[0].getNumberOfVariable() ; ++var)
 		{
-			bool needTobeComputed=false;
-			for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+			bool needToBeComputed=false;
+			for (int dataArrayIndex = 0; dataArrayIndex < _coefficientMatrix.size(); ++dataArrayIndex)
 			{
-				needTobeComputed|=_coeficientMatrix[dataArrayIndex].needVariableAlongB(var);
+				needToBeComputed|=_coefficientMatrix[dataArrayIndex].needVariableAlongB(var);
 			}
-			if(!needTobeComputed) continue;
+			if(!needToBeComputed) continue;
 
 			memset(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
@@ -527,11 +527,11 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			}
 
 
-			for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+			for (int dataArrayIndex = 0; dataArrayIndex < _coefficientMatrix.size(); ++dataArrayIndex)
 			{
-				for (int varA = 0; varA < _coeficientMatrix[dataArrayIndex].getNumberOfVariable(); ++varA)
+				for (int varA = 0; varA < _coefficientMatrix[dataArrayIndex].getNumberOfVariable(); ++varA)
 				{
-					float localCoef=_coeficientMatrix[dataArrayIndex].getVariableAt(varA,var);
+					float localCoef=_coefficientMatrix[dataArrayIndex].getVariableAt(varA,var);
 					if (localCoef!=0.f)
 					{
 						unsigned shift=0;
@@ -543,7 +543,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 		}
 
 		// add //isation
-		for (int dataArrayIndex = 0; dataArrayIndex < _coeficientMatrix.size(); ++dataArrayIndex)
+		for (int dataArrayIndex = 0; dataArrayIndex < _coefficientMatrix.size(); ++dataArrayIndex)
 		{
 
 			//FFTW_PRECISION(execute)(_pInv);
@@ -556,7 +556,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 			if(err != CLFFT_SUCCESS) fprintf(stderr, "error %d\n", 1002);
 
 			dataType_g2s* realSpace= _realSpaceArray[dataArrayIndex];
-			//Remove fobidden/wrong value
+			//Remove forbidden/wrong value
 			if (!_circularTI)
 			{
 				for (int i = 0; i < _fftSize.size(); ++i)
@@ -582,7 +582,7 @@ bool  OpenCLGPUDevice::candidateForPatern(std::vector<std::vector<int> > &neighb
 				}
 			}
 
-			if(_trueMismatch && !_crossMesurement) // correct value needed
+			if(_trueMismatch && !_crossMeasurement) // correct value needed
 			{
 				//#pragma omp parallel for simd default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(delta0,realSpace,dataArrayIndex)
 				for (int i = 0; i < _realSpaceSize; ++i)
@@ -611,9 +611,9 @@ void OpenCLGPUDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 	}
 	int convertedVariable=0;
 	int tmp=variable;
-	for (unsigned int var = 0; var <_coeficientMatrix[1].getNumberOfVariable() ; ++var)
+	for (unsigned int var = 0; var <_coefficientMatrix[1].getNumberOfVariable() ; ++var)
 	{
-		tmp-=_coeficientMatrix[1].needVariableAlongA(var);
+		tmp-=_coefficientMatrix[1].needVariableAlongA(var);
 		if(tmp<0)
 		{
 			convertedVariable=var;

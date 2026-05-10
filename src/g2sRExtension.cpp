@@ -91,7 +91,7 @@ inline void sendKill(zmq::socket_t &socket, jobIdType id){
 	memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
 	socket.send (request);
 	Rcpp::stop(
-				"%s : %s", "gss:error", "Ctrl C, user interupted");
+				"%s : %s", "gss:error", "Ctrl C, user interrupted");
 }
 
 
@@ -127,8 +127,8 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 		Rcpp::NumericVector variableTypeArrayRcpp=Rcpp::as<Rcpp::NumericVector>(*variableTypeArray);
 		for (int i = 0; i < nbOfVariable; ++i)
 		{
-			if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VaraibleType::Continuous;
-			if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VaraibleType::Categorical;
+			if(variableTypeArrayRcpp[i]==0.f)image._types[i]=g2s::DataImage::VariableType::Continuous;
+			if(variableTypeArrayRcpp[i]==1.f)image._types[i]=g2s::DataImage::VariableType::Categorical;
 		}
 	}
 	
@@ -147,7 +147,7 @@ inline std::string uploadData(zmq::socket_t &socket, Rcpp::RObject* prh, Rcpp::R
 	char* rawData=image.serialize();
 	size_t fullsize=*((size_t*)rawData);
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize-1, hash.begin(), hash.end());
+	picosha2::hash256((unsigned char*)rawData, ((unsigned char*)rawData)+fullsize, hash.begin(), hash.end());
 
 	//check existance
 	infoContainer task;
@@ -316,6 +316,22 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 			}
 			result.push_back(localVector);
 		}
+		if(Rcpp::is<Rcpp::CharacterVector>(args[i]) && 0==strcmp(Rcpp::as<std::string>(args[i]).c_str(),"-mi")){
+			std::vector<std::string> localVector;
+			localVector.push_back("-mi");
+			for (int j=i+1; j < args.size(); ++j)
+			{
+				if(Rcpp::is<Rcpp::CharacterVector>(args[j]) && Rcpp::as<std::string>(args[j]).c_str()[0]=='-'){
+					break;
+				}
+				if(Rcpp::is<Rcpp::CharacterVector>(args[j])){
+					localVector.push_back(Rcpp::as<std::string>(args[j]));
+				}else{
+					localVector.push_back(uploadData(socket, &args[j]));
+				}
+			}
+			result.push_back(localVector);
+		}
 	}
 
 	return result;
@@ -417,10 +433,10 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 	serverRun=true;
 
 	if((saP1_Index!=-1)){
-		std::string adress=Rcpp::as<std::string>(args[saP1_Index]);
-		std::transform(adress.begin(), adress.end(), adress.begin(),::tolower);
+		std::string address=Rcpp::as<std::string>(args[saP1_Index]);
+		std::transform(address.begin(), address.end(), address.begin(),::tolower);
 		#ifdef WITH_WEB_SUPPORT
-		if(!adress.compare("web")||!adress.compare("browser")){
+		if(!address.compare("web")||!address.compare("browser")){
 			//printf("use browser server\n");
 			serverRun=false;
 			std::string from="tcp://*:8128";
@@ -518,6 +534,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 				   !inputArray[i].compare("-ti") ||
 				   !inputArray[i].compare("-di") ||
 				   !inputArray[i].compare("-sp") ||
+				   !inputArray[i].compare("-mi") ||
 				   !inputArray[i].compare("-ki") ||
 				   !inputArray[i].compare("-a")){
 					managed=true;
@@ -722,7 +739,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			if(!silentMode){
 				printf("\rprogres %.3f%%\n",100.0f );
 			}
-			g2s::DataImage image((char*)reply.data());
+			g2s::DataImage image((char*)reply.data(), reply.size());
 			plhs.push_back(convert2NDArray(image));
 			stop=true;
 		}
@@ -796,7 +813,7 @@ void RFunctionWork( Rcpp::List args, std::atomic<bool> &done, std::vector<Rcpp::
 			}
 			
 			if(reply.size()!=0){
-				g2s::DataImage image((char*)reply.data());
+				g2s::DataImage image((char*)reply.data(), reply.size());
 				plhs.push_back(convert2NDArray(image));
 				stop=true;
 				downloadInformation++;
