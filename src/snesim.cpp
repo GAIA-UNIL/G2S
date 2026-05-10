@@ -320,19 +320,39 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	if (args.count("-mg") >= 1) {
 		unsigned parsedMaxLevel = outOptions.simulationConfig.maxGridLevel;
 		bool hasValidValue = false;
-		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("-mg"); it != args.upper_bound("-mg"); ++it) {
-			unsigned level;
-			if (!parseUnsignedFromString(it->second, level)) {
+
+		for (auto it = args.lower_bound("-mg"); it != args.upper_bound("-mg"); ++it) {
+			double val;
+
+			try {
+				size_t idx;
+				val = std::stod(it->second, &idx);
+
+				// ensure full string was parsed (no "12abc")
+				if (idx != it->second.size()) {
+					throw std::invalid_argument("partial parse");
+				}
+			} catch (...) {
 				fprintf(outOptions.reportFile, "[SNESIM] invalid -mg value ignored: %s\n", it->second.c_str());
 				continue;
 			}
+
+			// avoid negative → unsigned wraparound
+			if (val < 0.0) {
+				fprintf(outOptions.reportFile, "[SNESIM] negative -mg value ignored: %s\n", it->second.c_str());
+				continue;
+			}
+
+			unsigned level = static_cast<unsigned>(std::round(val));
 			parsedMaxLevel = std::max(parsedMaxLevel, level);
 			hasValidValue = true;
 		}
+
 		if (hasValidValue) {
 			outOptions.simulationConfig.maxGridLevel = parsedMaxLevel;
 		}
 	}
+
 	args.erase("-mg");
 
 	if (args.count("--mg-level") >= 1) {
