@@ -80,6 +80,7 @@ example/.venv/
 *.config
 *.Rhistory
 *.log
+*.mlx.autosave
 
 *.depend
 .depend
