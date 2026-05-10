@@ -87,6 +87,14 @@ At startup, the server probes these runtime directories with a create/remove wri
 
 Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
 
+Human-readable algorithm logs are also being standardized around explicit sections:
+
+- `INPUT`: each successfully loaded image/grid and its resolved dimensions, variable count, encoding, and variable-type summary
+- `PARAM`: effective parameter values actually used after parsing and defaulting
+- `OUTPUT`: each written result artifact and its final dimensions/encoding
+
+That keeps the chronological log useful for operators while the structured sidecars remain the source of truth for progress and final metadata.
+
 ## Server data protocol hardening
 
 Data request frames are validated before dispatch. Uploads require exactly 64 hex hash characters, download/existence names are limited to safe 64-byte identifiers, job-id operations require exactly one `jobIdType`, and upload/download payloads are bounded.

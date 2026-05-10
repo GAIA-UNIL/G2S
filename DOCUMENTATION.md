@@ -100,3 +100,11 @@ This keeps the server stateless:
 - algorithm-specific timing keys such as `tree_creation_ms` or `simulation_ms`
 
 Interfaces should prefer the structured `progress` and `meta` files for progress and duration. Plain logs should be treated as human-facing traces, not as the canonical machine-readable status source.
+
+The human log should still be structured enough to follow setup and outputs without reading raw source. The current convention is:
+
+- `INPUT`: successful data/image loads with resolved shape and encoding
+- `PARAM`: effective parameter values after parsing, defaulting, and mode selection
+- `OUTPUT`: emitted result artifacts with resolved shape and encoding
+
+These log lines are for operators and debugging only. They should not be parsed as the authoritative machine-readable state channel.

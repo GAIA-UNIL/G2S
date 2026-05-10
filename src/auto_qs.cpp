@@ -432,6 +432,7 @@ int main(int argc, char const *argv[]) {
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", sourceFileNameVector[i], TIs.back());
 	}
 
 	std::vector<g2s::DataImage > kernels;
@@ -442,6 +443,7 @@ int main(int argc, char const *argv[]) {
 		if(kernels[i]._dims.size()-1==TIs[0]._dims.size()){
 			kernels[i].convertFirstDimInVariable();
 		}
+		g2s::reporting::logInput(reportFile, "-ki["+std::to_string(i)+"]", kernelFileName[i], kernels.back());
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -664,6 +666,7 @@ int main(int argc, char const *argv[]) {
 	else
 	{
 		g2s::DataImage neighboursImage=g2s::DataImage::createFromFile(listNumberNeigboursFilename);
+		g2s::reporting::logInput(reportFile, "-ni", listNumberNeigboursFilename, neighboursImage);
 		listNbNeihbours.reserve(neighboursImage.dataSize()/neighboursImage._nbVariable);
 		for (int i = 0; i < neighboursImage.dataSize()/neighboursImage._nbVariable; ++i)
 		{
@@ -692,6 +695,16 @@ int main(int argc, char const *argv[]) {
 	g2s::DataImage devErrorimage(dims.size(),dims.data(),maxNbCandidate);
 	g2s::DataImage numberOFsampleimage(dims.size(),dims.data(),maxNbCandidate);
 	numberOFsampleimage.setEncoding(g2s::DataImage::EncodingType::UInteger);
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "threads_over_ti", std::to_string(nbThreadsOverTi));
+	g2s::reporting::logParameter(reportFile, "threads_last_level", std::to_string(nbThreadsLastLevel));
+	g2s::reporting::logParameter(reportFile, "full_simulation", g2s::reporting::boolString(fullSimulation));
+	g2s::reporting::logParameter(reportFile, "noise_level", std::to_string(levelOfNoise));
+	g2s::reporting::logParameter(reportFile, "metric_power", std::to_string(metricPower));
+	g2s::reporting::logParameter(reportFile, "max_iterations", std::to_string(maxNumberOfIteration));
+	g2s::reporting::logParameter(reportFile, "min_iterations", std::to_string(minNumberOfIteration));
+	g2s::reporting::logParameter(reportFile, "max_neighbors", g2s::reporting::joinUnsignedVector(maxNbNeihbours, ","));
+	g2s::reporting::logParameter(reportFile, "density_count", std::to_string(densityArray.size()));
 
 	// run calib
 	std::atomic<bool> computationIsDone(false);
@@ -722,7 +735,6 @@ int main(int argc, char const *argv[]) {
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
 	g2s::reporting::markFinished(reportFile, time);
-
 	// free memory
 
 	for (unsigned int i = 0; i < nbThreads; ++i)
@@ -746,6 +758,9 @@ int main(int argc, char const *argv[]) {
 	numberOFsampleimage.write(std::string("im_3_")+std::to_string(uniqueID));
 	devErrorimage.write(std::string("im_2_")+std::to_string(uniqueID));
 	meanErrorimage.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "sample_count_image_runtime", std::string("im_3_")+std::to_string(uniqueID), numberOFsampleimage);
+	g2s::reporting::logOutput(reportFile, "deviation_error_image_runtime", std::string("im_2_")+std::to_string(uniqueID), devErrorimage);
+	g2s::reporting::logOutput(reportFile, "mean_error_image_runtime", std::string("im_1_")+std::to_string(uniqueID), meanErrorimage);
 	
 
 	// if(saveThread.joinable()){

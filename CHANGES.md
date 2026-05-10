@@ -8,6 +8,7 @@
 - Updated the Python interface to print warnings in orange and errors in red, keep fatal errors as exceptions, support live log/warning streaming with `-showLogs`, and optionally return final key/value metadata with `-returnMeta`.
 - Updated the MATLAB interface so warnings are non-fatal again, warnings use MATLAB's warning channel, fatal errors still abort the call, and `-returnMeta` can return the final key/value summary as a struct.
 - Added the same metadata-return and live-log plumbing in the shared interface template and the R binding so the C++ interface layer stays consistent across bindings.
+- Updated the main algorithm entrypoints to emit explicit `INPUT`, `PARAM`, and `OUTPUT` log lines so successful image loads, effective parameter values, resumed backups, and written result artifacts are visible in the chronological log instead of only appearing implicitly in raw argv or failure messages.
 
 ## 2026-05-01
 

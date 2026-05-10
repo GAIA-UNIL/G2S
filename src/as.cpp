@@ -467,8 +467,10 @@ int main(int argc, char const *argv[]) {
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", sourceFileNameVector[i], TIs.back());
 	}
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	g2s::reporting::logInput(reportFile, "-di", targetFileName, DI);
 
 	if(TIs.empty() || DI.isEmpty()){
 		fprintf(reportFile,"error: missing TI or DI data\n");
@@ -562,6 +564,7 @@ int main(int argc, char const *argv[]) {
 		if(kernels[i]._dims.size()-1==TIs[0]._dims.size()){
 			kernels[i].convertFirstDimInVariable();
 		}
+		g2s::reporting::logInput(reportFile, "-ki["+std::to_string(i)+"]", kernelFileName[i], kernels.back());
 	}
 	if(kernels.empty()){
 		std::vector<unsigned> maxSize=TIs[0]._dims;
@@ -579,12 +582,15 @@ int main(int argc, char const *argv[]) {
 
 	if(!numberOfNeighboursFileName.empty()){
 		numberOfNeighboursImage=g2s::DataImage::createFromFile(numberOfNeighboursFileName);
+		g2s::reporting::logInput(reportFile, "-ni", numberOfNeighboursFileName, numberOfNeighboursImage);
 	}
 	if(!kernelIndexImageFileName.empty()){
 		kernelIndexImage=g2s::DataImage::createFromFile(kernelIndexImageFileName);
+		g2s::reporting::logInput(reportFile, "-kii", kernelIndexImageFileName, kernelIndexImage);
 	}
 	if(!kValueImageFileName.empty()){
 		kValueImage=g2s::DataImage::createFromFile(kValueImageFileName);
+		g2s::reporting::logInput(reportFile, "-kvi", kValueImageFileName, kValueImage);
 		if(std::isnan(nbCandidate)){
 			nbCandidate=1.f;
 		}
@@ -606,6 +612,7 @@ int main(int argc, char const *argv[]) {
 			fprintf(reportFile,"error: -mi mask must have the same spatial geometry as -di and one value per TI\n");
 			return 0;
 		}
+		g2s::reporting::logInput(reportFile, "-mi", maskImageFileName, maskImage);
 	}
 
 	std::vector<unsigned> outputDims=DI._dims;
@@ -739,6 +746,7 @@ int main(int argc, char const *argv[]) {
 		std::shuffle(simulationPathIndex+beginPath,simulationPathIndex+simulationPathSize,randomGenerator);
 	}else{
 		simulationPath=g2s::DataImage::createFromFile(simulationPathFileName);
+		g2s::reporting::logInput(reportFile, "-sp", simulationPathFileName, simulationPath);
 		simulationPathSize=simulationPath.dataSize();
 		bool dimAgree=true;
 		fullSimulation=false;
@@ -779,7 +787,9 @@ int main(int argc, char const *argv[]) {
 	if(previousID>0){
 		id=g2s::DataImage::createFromFile(std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"));
 		if(id._dims.size()>=1){
+			g2s::reporting::logInput(reportFile, "resume-id", std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"), id, "resumed");
 			DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
+			g2s::reporting::logInput(reportFile, "resume-di", std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"), DI, "resumed");
 		}
 	}
 	if(id._dims.size()<1){
@@ -864,6 +874,18 @@ int main(int argc, char const *argv[]) {
 		}
 		qs_padding_utils::mapSimulationPathToPadded(simulationPathIndex,simulationPathSize,fullSimulation,DI._nbVariable,outputDims,spatialPadding);
 	}
+
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "simulation_mode", fullSimulation ? "full" : "vector");
+	g2s::reporting::logParameter(reportFile, "full_stationary", g2s::reporting::boolString(fullStationary));
+	g2s::reporting::logParameter(reportFile, "circular_simulation", g2s::reporting::boolString(circularSimulation));
+	g2s::reporting::logParameter(reportFile, "force_simulation", g2s::reporting::boolString(forceSimulation));
+	g2s::reporting::logParameter(reportFile, "use_padded_domain", g2s::reporting::boolString(usePaddedDomain));
+	g2s::reporting::logParameter(reportFile, "halo_dims", g2s::reporting::joinUnsignedVector(spatialPadding, ","));
+	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
+	g2s::reporting::logParameter(reportFile, "output_index", outputIndexFilename);
+	g2s::reporting::logParameter(reportFile, "simulation_path_size", std::to_string((unsigned long long)simulationPathSize));
 
 	importDataIndex=(unsigned*)id._data;
 
@@ -961,11 +983,19 @@ int main(int argc, char const *argv[]) {
 		croppedDI.write(outputFilename);
 		croppedId.write(std::string("im_2_")+std::to_string(uniqueID));
 		croppedDI.write(std::string("im_1_")+std::to_string(uniqueID));
+		g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, croppedId);
+		g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, croppedDI);
+		g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), croppedId);
+		g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), croppedDI);
 	}else{
 		id.write(outputIndexFilename);
 		DI.write(outputFilename);
 		id.write(std::string("im_2_")+std::to_string(uniqueID));
 		DI.write(std::string("im_1_")+std::to_string(uniqueID));
+		g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, id);
+		g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, DI);
+		g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), id);
+		g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), DI);
 	}
 
 	free(seedForIndex);

@@ -430,9 +430,11 @@ int main(int argc, char const *argv[]) {
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", sourceFileNameVector[i], TIs.back());
 	}
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	g2s::reporting::logInput(reportFile, "-di", targetFileName, DI);
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
@@ -475,6 +477,7 @@ int main(int argc, char const *argv[]) {
 		if(kernel._dims.size()-1==TIs[0]._dims.size()){
 			kernel.convertFirstDimInVariable();
 		}
+		g2s::reporting::logInput(reportFile, "-ki", kernelFileName, kernel);
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -728,6 +731,13 @@ int main(int argc, char const *argv[]) {
 	});
 	// run QS
 
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "threads_over_ti", std::to_string(nbThreadsOverTi));
+	g2s::reporting::logParameter(reportFile, "threads_last_level", std::to_string(nbThreadsLastLevel));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "kernel_size", std::to_string(kernelSize));
+	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
+	g2s::reporting::logParameter(reportFile, "output_index", outputIndexFilename);
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	narrowPathSimulation(reportFile, DI, NI, TIs, kernel, QSM, pathPosition, (unsigned*)simulationPath._data,
@@ -776,6 +786,14 @@ int main(int argc, char const *argv[]) {
 	NI.write(std::string("im_3_")+std::to_string(uniqueID));
 	simulationPath.write(std::string("im_4_")+std::to_string(uniqueID));
 	DI.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, id);
+	g2s::reporting::logOutput(reportFile, "narrowness_image", outputNarrownessFilename, NI);
+	g2s::reporting::logOutput(reportFile, "simulation_path", outputPathFilename, simulationPath);
+	g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, DI);
+	g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), id);
+	g2s::reporting::logOutput(reportFile, "narrowness_image_runtime", std::string("im_3_")+std::to_string(uniqueID), NI);
+	g2s::reporting::logOutput(reportFile, "simulation_path_runtime", std::string("im_4_")+std::to_string(uniqueID), simulationPath);
+	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), DI);
 
 	free(importDataIndex);
 	importDataIndex=nullptr;

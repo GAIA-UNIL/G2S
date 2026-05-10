@@ -969,6 +969,13 @@ int main(int argc, char const* argv[]) {
 		fprintf(reportFile, "[SNESIM] verbose mode enabled\n");
 	}
 	g2s::reporting::markStarted(reportFile, "snesim");
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(std::max(1u, options.simulationConfig.nbThreads)));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(options.simulationConfig.seed));
+	g2s::reporting::logParameter(reportFile, "max_grid_level", std::to_string(options.simulationConfig.maxGridLevel));
+	g2s::reporting::logParameter(reportFile, "tree_strategy", treeStrategyName(options.treeStrategy));
+	g2s::reporting::logParameter(reportFile, "tree_root", options.treeRoot);
+	g2s::reporting::logParameter(reportFile, "force_tree_rebuild", g2s::reporting::boolString(options.forceTreeRebuild));
+	g2s::reporting::logParameter(reportFile, "output_image", options.outputName.empty() ? std::string("im_1_")+std::to_string((options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID) : options.outputName);
 
 	std::vector<g2s::DataImage> trainingImages;
 	std::vector<snesim::TrainingImageSummary> trainingSummaries;
@@ -979,6 +986,7 @@ int main(int argc, char const* argv[]) {
 	for (size_t i = 0; i < options.trainingImageNames.size(); ++i) {
 		const std::string& trainingImageName = options.trainingImageNames[i];
 		g2s::DataImage trainingImage = g2s::DataImage::createFromFile(trainingImageName);
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", trainingImageName, trainingImage);
 
 		snesim::TrainingImageSummary summary;
 		std::string summaryError;
@@ -1005,6 +1013,7 @@ int main(int argc, char const* argv[]) {
 	}
 
 	g2s::DataImage destinationImage = g2s::DataImage::createFromFile(options.destinationImageName);
+	g2s::reporting::logInput(reportFile, "-di", options.destinationImageName, destinationImage);
 	const snesim::TrainingImageSummary& summary = trainingSummaries[0];
 	std::set<int> categorySet(summary.categories.begin(), summary.categories.end());
 	std::string destinationError;
@@ -1020,6 +1029,7 @@ int main(int argc, char const* argv[]) {
 	const bool useTiSelectionImage = !options.trainingImageIndexName.empty();
 	if (useTiSelectionImage) {
 		tiSelectionImage = g2s::DataImage::createFromFile(options.trainingImageIndexName);
+		g2s::reporting::logInput(reportFile, "-ii", options.trainingImageIndexName, tiSelectionImage);
 		std::string tiSelectionError;
 		if (!validateTrainingImageSelectionImage(tiSelectionImage, destinationImage, static_cast<unsigned>(trainingImages.size()), tiSelectionError)) {
 			fprintf(reportFile, "[SNESIM] %s\n", tiSelectionError.c_str());
@@ -1218,11 +1228,13 @@ int main(int argc, char const* argv[]) {
 
 	destinationImage.write(options.outputName);
 	fprintf(reportFile, "[SNESIM] output written with id '%s'\n", options.outputName.c_str());
+	g2s::reporting::logOutput(reportFile, "simulation_image", options.outputName, destinationImage);
 	const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
 	const std::string conventionalOutputName = std::string("im_1_") + std::to_string(conventionalUniqueID);
 	if (options.outputName != conventionalOutputName) {
 		destinationImage.write(conventionalOutputName);
 		fprintf(reportFile, "[SNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());
+		g2s::reporting::logOutput(reportFile, "simulation_image_runtime", conventionalOutputName, destinationImage);
 	}
 
 	if (options.closeReportFile) {

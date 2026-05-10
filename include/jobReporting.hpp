@@ -5,6 +5,7 @@
 #include <cstring>
 #include <map>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,6 +14,7 @@
 #include <chrono>
 
 #include "jobManager.hpp"
+#include "DataImage.hpp"
 
 namespace g2s {
 namespace reporting {
@@ -242,6 +244,73 @@ inline void recordMetric(FILE* reportFile, const std::string& key, const std::st
 	auto it=registry().find(reportFile);
 	if(it==registry().end()) return;
 	it->second.progressValues[key]=value;
+}
+
+inline std::string joinUnsignedVector(const std::vector<unsigned>& values, const char* separator="x"){
+	std::ostringstream stream;
+	for (size_t i = 0; i < values.size(); ++i)
+	{
+		if(i>0) stream << separator;
+		stream << values[i];
+	}
+	return stream.str();
+}
+
+inline const char* encodingTypeName(g2s::DataImage::EncodingType encodingType){
+	switch(encodingType){
+		case g2s::DataImage::Float: return "float";
+		case g2s::DataImage::Integer: return "int";
+		case g2s::DataImage::UInteger: return "uint";
+		default: return "unknown";
+	}
+}
+
+inline std::string variableTypesSummary(const g2s::DataImage& image){
+	if(image._types.empty()) return "none";
+	bool allContinuous=true;
+	bool allCategorical=true;
+	for (size_t i = 0; i < image._types.size(); ++i)
+	{
+		allContinuous &= (image._types[i]==g2s::DataImage::Continuous);
+		allCategorical &= (image._types[i]==g2s::DataImage::Categorical);
+	}
+	if(allContinuous) return "continuous";
+	if(allCategorical) return "categorical";
+	return "mixed";
+}
+
+inline void logInput(FILE* reportFile, const std::string& parameterName, const std::string& sourceName, const g2s::DataImage& image, const std::string& status="loaded"){
+	if(!reportFile) return;
+	fprintf(reportFile,
+		"[INPUT] %s source=%s dims=%s vars=%u encoding=%s types=%s status=%s\n",
+		parameterName.c_str(),
+		sourceName.c_str(),
+		joinUnsignedVector(image._dims).c_str(),
+		image._nbVariable,
+		encodingTypeName(image._encodingType),
+		variableTypesSummary(image).c_str(),
+		status.c_str());
+}
+
+inline void logParameter(FILE* reportFile, const std::string& key, const std::string& value){
+	if(!reportFile) return;
+	fprintf(reportFile, "[PARAM] %s=%s\n", key.c_str(), value.c_str());
+}
+
+inline std::string boolString(bool value){
+	return value ? "true" : "false";
+}
+
+inline void logOutput(FILE* reportFile, const std::string& label, const std::string& targetName, const g2s::DataImage& image){
+	if(!reportFile) return;
+	fprintf(reportFile,
+		"[OUTPUT] %s target=%s dims=%s vars=%u encoding=%s types=%s\n",
+		label.c_str(),
+		targetName.c_str(),
+		joinUnsignedVector(image._dims).c_str(),
+		image._nbVariable,
+		encodingTypeName(image._encodingType),
+		variableTypesSummary(image).c_str());
 }
 
 inline void recordWarning(FILE* reportFile, const std::string& message){
