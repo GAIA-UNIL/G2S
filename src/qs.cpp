@@ -666,6 +666,7 @@ int main(int argc, char const *argv[]) {
 	bool augmentedDimensionSimulation=false;
 	bool forceSimulation=false;
 	bool maxNK=false;
+	bool withPathOptim=false;
 
 	if (arg.count("-nV") == 1)
 	{
@@ -770,6 +771,12 @@ int main(int argc, char const *argv[]) {
 		maxNK=true;
 	}
 	arg.erase("-maxNK");
+
+	if (arg.count("-wPO") == 1)
+	{
+		withPathOptim=true;
+	}
+	arg.erase("-wPO");
 
 	//add extra paremetre here
 	float alpha=0;
@@ -2031,7 +2038,7 @@ int main(int argc, char const *argv[]) {
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation,maxNK, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, maxNK, withPathOptim, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimension sim");
