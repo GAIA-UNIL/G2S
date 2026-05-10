@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-05-10
+
+- Added SNESIM support for `-wPO` path-optimization scheduling by threading the flag through `src/snesim.cpp` into the shared vector `simulation()` loop.
+- Fixed the SNESIM `simulation()` call to match the current callback-aware signature, preserving explicit `posteriorPath` tracking and progress callbacks when path optimization is disabled or enabled.
+- Documented the SNESIM `-wPO` option in the algorithm docs and top-level README.
+
 ## 2026-05-01
 
 - Added explicit `/tmp/G2S/data` and `/tmp/G2S/logs` writability diagnostics: server startup now probes both runtime directories, upload failures log the failing operation, and payload publication errors print the target path instead of failing silently.
