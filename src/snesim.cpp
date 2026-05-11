@@ -46,6 +46,7 @@ struct SimulationRunConfig {
 	unsigned nbThreads = 1;
 	unsigned seed = 0;
 	unsigned maxGridLevel = 0;
+	bool withPathOptim = false;
 	std::vector<int> templateRadius;
 };
 
@@ -130,6 +131,7 @@ void printHelp() {
 	printf("  -mg <level>                   Max multi-grid level (levels run from <level> down to 0)\n");
 	printf("  -tpl <radius> [repeat]        Template radius (3 means offsets in [-3,+3])\n");
 	printf("  --template-radius <radius>    Same as -tpl\n");
+	printf("  -wPO                          Reorder each level path to reduce dependency stalls\n");
 	printf("  -tree-root <path>             Tree cache root (optional)\n");
 	printf("  -force-tree                   Force tree rebuild and overwrite cache\n");
 	printf("  -s <seed>                     Random seed (optional)\n");
@@ -263,6 +265,11 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	}
 	args.erase("--jobs");
 
+	if (args.count("-wPO") == 1) {
+		outOptions.simulationConfig.withPathOptim = true;
+	}
+	args.erase("-wPO");
+
 	if (args.count("-v") == 1 || args.count("--verbose") == 1) {
 		outOptions.verbose = true;
 	}
@@ -312,19 +319,39 @@ bool parseCliOptions(int argc, const char* argv[], CliOptions& outOptions) {
 	if (args.count("-mg") >= 1) {
 		unsigned parsedMaxLevel = outOptions.simulationConfig.maxGridLevel;
 		bool hasValidValue = false;
-		for (std::multimap<std::string, std::string>::iterator it = args.lower_bound("-mg"); it != args.upper_bound("-mg"); ++it) {
-			unsigned level;
-			if (!parseUnsignedFromString(it->second, level)) {
+
+		for (auto it = args.lower_bound("-mg"); it != args.upper_bound("-mg"); ++it) {
+			double val;
+
+			try {
+				size_t idx;
+				val = std::stod(it->second, &idx);
+
+				// ensure full string was parsed (no "12abc")
+				if (idx != it->second.size()) {
+					throw std::invalid_argument("partial parse");
+				}
+			} catch (...) {
 				fprintf(outOptions.reportFile, "[SNESIM] invalid -mg value ignored: %s\n", it->second.c_str());
 				continue;
 			}
+
+			// avoid negative → unsigned wraparound
+			if (val < 0.0) {
+				fprintf(outOptions.reportFile, "[SNESIM] negative -mg value ignored: %s\n", it->second.c_str());
+				continue;
+			}
+
+			unsigned level = static_cast<unsigned>(std::round(val));
 			parsedMaxLevel = std::max(parsedMaxLevel, level);
 			hasValidValue = true;
 		}
+
 		if (hasValidValue) {
 			outOptions.simulationConfig.maxGridLevel = parsedMaxLevel;
 		}
 	}
+
 	args.erase("-mg");
 
 	if (args.count("--mg-level") >= 1) {
@@ -1179,10 +1206,11 @@ int main(int argc, char const* argv[]) {
 		numberNeighbor.assign(std::max(1u, summary.nbVariable),
 			static_cast<unsigned>(levelPlan.pathPositionArray.size()));
 
-		fprintf(reportFile,
-			"[SNESIM] level %u running default simulation() with %lu path nodes\n",
-			levelPlan.level,
-			static_cast<unsigned long>(levelPlan.simulationPath.size()));
+			fprintf(reportFile,
+				"[SNESIM] level %u running default simulation() with %lu path nodes (wPO=%s)\n",
+				levelPlan.level,
+				static_cast<unsigned long>(levelPlan.simulationPath.size()),
+				(options.simulationConfig.withPathOptim ? "on" : "off"));
 
 		simulation(reportFile,
 			destinationImage,
@@ -1199,15 +1227,16 @@ int main(int argc, char const* argv[]) {
 			numberNeighbor,
 			nullptr,
 			nullptr,
-			categoriesValues,
-			std::max(1u, options.simulationConfig.nbThreads),
-			false,
-			false,
-			false,
-			false,
-			posteriorPath.data(),
-			(overallSimulationPointCount > 0ULL ? snesimOverallProgressCallback : nullptr),
-			(overallSimulationPointCount > 0ULL ? static_cast<void*>(&overallProgressContext) : nullptr));
+				categoriesValues,
+				std::max(1u, options.simulationConfig.nbThreads),
+				false,
+				false,
+				false,
+				false,
+				options.simulationConfig.withPathOptim,
+				posteriorPath.data(),
+				(overallSimulationPointCount > 0ULL ? snesimOverallProgressCallback : nullptr),
+				(overallSimulationPointCount > 0ULL ? static_cast<void*>(&overallProgressContext) : nullptr));
 	}
 	if (overallSimulationPointCount > 0ULL
 		&& overallProgressContext.lastPrintedPercent.load(std::memory_order_relaxed) < 100) {

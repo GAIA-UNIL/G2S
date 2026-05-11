@@ -11,6 +11,13 @@
 - Updated the main algorithm entrypoints to emit explicit `INPUT`, `PARAM`, and `OUTPUT` log lines so successful image loads, effective parameter values, resumed backups, and written result artifacts are visible in the chronological log instead of only appearing implicitly in raw argv or failure messages.
 - Updated `qs` and `snesim` logging for `-wPO`: QS now reports the effective `path_optimization` value in its `PARAM` block, and SNESIM records when `-wPO` was requested instead of letting the flag fall through as an ignored argument.
 - Expanded `README.md` and `DOCUMENTATION.md` to describe the stateless cursor-based polling model, `-showLogs` / `-returnMeta`, and the operator-facing meaning of `-wPO` log entries in QS and SNESIM.
+- Expanded the MATLAB SNESIM example to use the public Strebelle training image more robustly, with a fallback download path for MATLAB releases that cannot `imread()` HTTP URLs directly, plus elapsed-time reporting.
+- Corrected the MATLAB SNESIM example to follow the categorical MATLAB test pattern more closely by casting the Strebelle TIFF and destination grid to `single`, using a normal `-j 0.5` thread setting, and rendering categorical outputs with `imagesc`.
+- Updated the SNESIM algorithm page and top-level README to point to the MATLAB/Python Strebelle examples explicitly.
+- Added SNESIM support for `-wPO` path-optimization scheduling by threading the flag through `src/snesim.cpp` into the shared vector `simulation()` loop.
+- Fixed the SNESIM `simulation()` call to match the current callback-aware signature, preserving explicit `posteriorPath` tracking and progress callbacks when path optimization is disabled or enabled.
+- Documented the SNESIM `-wPO` option in the algorithm docs and top-level README.
+
 
 ## 2026-05-01
 

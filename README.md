@@ -13,6 +13,8 @@
 - the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
 
 Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), and **NDS** (Narrow Distribution Selection).
+The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation, including the `-wPO` path-optimization scheduling option shared with vector-path simulation.
+Concrete interface demos live under `example/matlab/` and `example/python/`, including `snesim_example.m` / `snesim_example.py` using the public Strebelle training image. The MATLAB SNESIM example follows the categorical MATLAB test pattern by casting the TIFF to `single` before calling `g2s`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
