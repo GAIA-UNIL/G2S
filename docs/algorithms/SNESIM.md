@@ -23,7 +23,6 @@ Usage: `[sim,time,...] = g2s(flag1,value1, flag2,value2, ...)`
 | `-j` | Number of worker threads. Decimal values in `]0,1[` represent a fraction of the available logical cores. |  |
 | `-mg` | Maximum multigrid level. The execution proceeds from this level down to `0`. |  |
 | `-tpl` | Template radius. A value of `3` means offsets in `[-3,+3]`. Provide one value per dimension if needed. |  |
-| `-wPO` | Enable path optimization within each multigrid level. This reorders execution to reduce dependency stalls while preserving the original path-order conditioning rules. |  |
 | `--tree-strategy` | Tree-selection strategy. Supported values are `first`, `ii`, and `merged`. Default: `merged`. |  |
 | `-tree-root` | Root directory used for the SNESIM tree cache. |  |
 | `-force-tree` | Force a rebuild of the tree cache instead of reusing cached trees. |  |
@@ -129,5 +128,4 @@ axis image off;
 
 - SNESIM is intended for categorical variables.
 - The multigrid controls are specific to this algorithm.
-- `-wPO` only changes the execution schedule inside a level; it does not change the multigrid path definition or neighbor eligibility rules.
 - Tree caching is managed internally by the executable and can be controlled with `-tree-root` and `-force-tree`.
