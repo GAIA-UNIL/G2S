@@ -786,6 +786,10 @@ int main(int argc, char const *argv[]) {
 	NI.write(std::string("im_3_")+std::to_string(uniqueID));
 	simulationPath.write(std::string("im_4_")+std::to_string(uniqueID));
 	DI.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 2, "indexmap", std::string("im_2_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 3, "narrowness", std::string("im_3_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 4, "simulation_path", std::string("im_4_")+std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, id);
 	g2s::reporting::logOutput(reportFile, "narrowness_image", outputNarrownessFilename, NI);
 	g2s::reporting::logOutput(reportFile, "simulation_path", outputPathFilename, simulationPath);

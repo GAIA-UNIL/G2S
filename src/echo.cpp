@@ -19,6 +19,7 @@
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
 
 int main(int argc, char const *argv[]) {
 
@@ -104,6 +105,7 @@ int main(int argc, char const *argv[]) {
 
 	// new filename 
 	srcInput.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_")+std::to_string(uniqueID));
 
 
 	return 0;

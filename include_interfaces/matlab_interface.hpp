@@ -157,6 +157,10 @@ public:
 		return std::any(output);
 	};
 
+	std::any StringToNative(const std::string& val) override{
+		return std::any(mxCreateString(val.c_str()));
+	}
+
 	bool matlabElementToUnsignedString(mxArray const* matrix, size_t linearIndex, std::string &stringValue){
 		switch(mxGetClassID(matrix)){
 			case mxUINT8_CLASS:
@@ -310,6 +314,34 @@ public:
 		for (auto it=values.begin(); it!=values.end(); ++it, ++fieldIndex)
 		{
 			mxSetFieldByNumber(output, 0, fieldIndex, mxCreateString(it->second.c_str()));
+		}
+		return std::any(output);
+	}
+
+	std::any anyMapToNative(const std::map<std::string,std::any>& values) override{
+		std::vector<std::string> fieldNameStorage;
+		std::vector<const char*> fieldNames;
+		fieldNameStorage.reserve(values.size());
+		fieldNames.reserve(values.size());
+		for (auto it=values.begin(); it!=values.end(); ++it)
+		{
+			fieldNameStorage.push_back(it->first);
+		}
+		for (size_t i = 0; i < fieldNameStorage.size(); ++i)
+		{
+			fieldNames.push_back(fieldNameStorage[i].c_str());
+		}
+		mxArray* output=mxCreateStructMatrix(1,1,(int)fieldNames.size(),fieldNames.empty() ? nullptr : fieldNames.data());
+		int fieldIndex=0;
+		for (auto it=values.begin(); it!=values.end(); ++it, ++fieldIndex)
+		{
+			if(it->second.type()==typeid(mxArray*)){
+				mxSetFieldByNumber(output, 0, fieldIndex, std::any_cast<mxArray*>(it->second));
+			}else if(it->second.type()==typeid(std::map<std::string,std::any>)){
+				mxSetFieldByNumber(output, 0, fieldIndex, std::any_cast<mxArray*>(anyMapToNative(std::any_cast<std::map<std::string,std::any>>(it->second))));
+			}else if(it->second.type()==typeid(std::string)){
+				mxSetFieldByNumber(output, 0, fieldIndex, mxCreateString(std::any_cast<std::string>(it->second).c_str()));
+			}
 		}
 		return std::any(output);
 	}
@@ -544,6 +576,16 @@ public:
 		}
 
 		runStandardCommunication(inputs, outputs, nlhs);
+
+		auto schemaIter=outputs.find("schema");
+		if(schemaIter!=outputs.end()){
+			plhs[0]=std::any_cast<mxArray *>(schemaIter->second);
+			for (int i = 1; i < nlhs; ++i)
+			{
+				plhs[i]=mxCreateDoubleMatrix(0,0,mxREAL);
+			}
+			return;
+		}
 
 		int position=0;
 		for (int i=0; i < nlhs; ++i)

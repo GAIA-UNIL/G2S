@@ -75,11 +75,13 @@ public:
 
 	virtual std::any ScalarToNative(double val)=0;
 	virtual std::any Uint32ToNative(unsigned val)=0;
+	virtual std::any StringToNative(const std::string& val)=0;
 	virtual void sendError(std::string val)=0;
 	virtual void sendWarning(std::string val)=0;
 	virtual void eraseAndPrint(std::string val)=0;
 	virtual void printMessage(std::string val){ printf("%s\n", val.c_str()); }
 	virtual std::any keyValueMapToNative(const std::map<std::string,std::string>& values)=0;
+	virtual std::any anyMapToNative(const std::map<std::string,std::any>& values)=0;
 	virtual bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue){return false;}
 
 	std::string toString(std::any val){
@@ -95,6 +97,77 @@ public:
 
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
+
+	enum class ReturnFormat {
+		Legacy,
+		Schema,
+	};
+
+	static bool equalsIgnoreCase(const std::string& lhs, const std::string& rhs){
+		if(lhs.size()!=rhs.size()) return false;
+		for (size_t i = 0; i < lhs.size(); ++i)
+		{
+			if(std::tolower(static_cast<unsigned char>(lhs[i]))!=std::tolower(static_cast<unsigned char>(rhs[i]))){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	static ReturnFormat parseReturnFormat(const std::multimap<std::string, std::any>& input){
+		const auto it=input.find("-returnFormat");
+		if(it==input.end()) return ReturnFormat::Legacy;
+		const std::string value=trimWhitespaceCopyStatic(valueToString(it->second));
+		if(equalsIgnoreCase(value, "schema")) return ReturnFormat::Schema;
+		return ReturnFormat::Legacy;
+	}
+
+	static std::string valueToString(const std::any& value){
+		if(value.type()==typeid(std::string)) return std::any_cast<std::string>(value);
+		if(value.type()==typeid(const char*)) return std::string(std::any_cast<const char*>(value));
+		if(value.type()==typeid(char*)) return std::string(std::any_cast<char*>(value));
+		return "";
+	}
+
+	static std::string trimWhitespaceCopyStatic(const std::string &value){
+		size_t begin=0;
+		size_t end=value.size();
+		while(begin<end && std::isspace(static_cast<unsigned char>(value[begin]))){
+			++begin;
+		}
+		while(end>begin && std::isspace(static_cast<unsigned char>(value[end-1]))){
+			--end;
+		}
+		return value.substr(begin,end-begin);
+	}
+
+	static std::string schemaSafeKey(const std::string& rawValue, const std::string& fallbackBase, unsigned fallbackIndex=0){
+		std::string key;
+		key.reserve(rawValue.size());
+		for (size_t i = 0; i < rawValue.size(); ++i)
+		{
+			const unsigned char ch=static_cast<unsigned char>(rawValue[i]);
+			if(std::isalnum(ch) || ch=='_'){
+				key.push_back(static_cast<char>(std::tolower(ch)));
+			}else if(ch=='-' || std::isspace(ch) || ch=='.'){
+				key.push_back('_');
+			}
+		}
+		while(!key.empty() && key.front()=='_'){
+			key.erase(key.begin());
+		}
+		while(!key.empty() && key.back()=='_'){
+			key.pop_back();
+		}
+		if(key.empty()){
+			key=fallbackBase;
+			if(fallbackIndex>0) key+="_"+std::to_string(fallbackIndex);
+		}
+		if(std::isdigit(static_cast<unsigned char>(key.front()))){
+			key=fallbackBase+"_"+key;
+		}
+		return key;
+	}
 
 	void normalizeJobGridParameter(std::multimap<std::string, std::any> &input){
 		std::vector<std::any> values;
@@ -208,15 +281,7 @@ public:
 	}
 
 	static std::string trimWhitespaceCopy(const std::string &value){
-		size_t begin=0;
-		size_t end=value.size();
-		while(begin<end && std::isspace(static_cast<unsigned char>(value[begin]))){
-			++begin;
-		}
-		while(end>begin && std::isspace(static_cast<unsigned char>(value[end-1]))){
-			--end;
-		}
-		return value.substr(begin,end-begin);
+		return trimWhitespaceCopyStatic(value);
 	}
 
 	static bool isInlineJsonPayload(const std::string &value){
@@ -226,6 +291,119 @@ public:
 		}
 		const char first=trimmed.front();
 		return (first=='[' || first=='{');
+	}
+
+	static bool isReservedSchemaKey(const std::string& key){
+		return key=="simulation" || key=="time" || key=="job_id" || key=="status" ||
+			key=="progress" || key=="artifacts" || key=="error" || key=="warnings";
+	}
+
+	static bool isInternalResultMetadataKey(const std::string& key){
+		return key.rfind("result_output_",0)==0;
+	}
+
+	static std::map<unsigned,std::string> parseOutputSemanticNames(const std::map<std::string,std::string>& values){
+		std::map<unsigned,std::string> names;
+		for (auto it=values.begin(); it!=values.end(); ++it)
+		{
+			unsigned index=0;
+			if(sscanf(it->first.c_str(),"result_output_%u_name",&index)==1 && index>0){
+				names[index]=it->second;
+			}
+		}
+		return names;
+	}
+
+	std::any buildSchemaResult(
+		const std::multimap<std::string,std::any>& outputs,
+		const std::map<std::string,std::string>& finalMeta,
+		const std::map<std::string,std::string>& progressSnapshot,
+		jobIdType id,
+		bool waitAndDownload,
+		bool statusOnly,
+		float lastProgression,
+		const std::string& logArtifactName,
+		const std::string& warningArtifactName,
+		const std::string& errorArtifactName,
+		const std::string& progressArtifactName,
+		const std::string& metaArtifactName) {
+
+		std::map<std::string,std::any> schema;
+		std::set<std::string> usedKeys;
+		std::map<std::string,std::any> artifacts;
+		artifacts["log"]=StringToNative(logArtifactName);
+		artifacts["warning"]=StringToNative(warningArtifactName);
+		artifacts["error"]=StringToNative(errorArtifactName);
+		artifacts["progress"]=StringToNative(progressArtifactName);
+		artifacts["meta"]=StringToNative(metaArtifactName);
+
+		const std::map<unsigned,std::string> semanticNames=parseOutputSemanticNames(finalMeta);
+		unsigned outputCount=0;
+		for (auto it=outputs.begin(); it!=outputs.end(); ++it)
+		{
+			unsigned outputIndex=0;
+			if(sscanf(it->first.c_str(),"%u",&outputIndex)==1 && outputIndex>0){
+				++outputCount;
+				std::string preferredName;
+				const auto nameIter=semanticNames.find(outputIndex);
+				if(nameIter!=semanticNames.end()){
+					preferredName=nameIter->second;
+				}else if(outputIndex==1){
+					preferredName="simulation";
+				}
+				std::string key=schemaSafeKey(preferredName, "output", outputIndex);
+				while(usedKeys.count(key)>0 || isReservedSchemaKey(key)){
+					key=schemaSafeKey("output_"+std::to_string(outputIndex), "output", outputIndex);
+					if(usedKeys.count(key)==0 && !isReservedSchemaKey(key)) break;
+					key+="_"+std::to_string(outputIndex);
+				}
+				if(outputIndex==1 && preferredName.empty() && !usedKeys.count("simulation")){
+					key="simulation";
+				}
+				usedKeys.insert(key);
+				schema[key]=it->second;
+				artifacts[key]=StringToNative("im_"+std::to_string(outputIndex)+"_"+std::to_string(id));
+			}
+		}
+
+		if(finalMeta.count("duration_ms")>0){
+			schema["time"]=ScalarToNative(atof(finalMeta.find("duration_ms")->second.c_str())/1000.0);
+		}
+		schema["job_id"]=Uint32ToNative(id);
+
+		std::string statusValue;
+		if(finalMeta.count("status")>0) statusValue=finalMeta.find("status")->second;
+		else if(progressSnapshot.count("status")>0) statusValue=progressSnapshot.find("status")->second;
+		else if(statusOnly) statusValue="running";
+		else if(!waitAndDownload) statusValue="submitted";
+		if(!statusValue.empty()){
+			schema["status"]=StringToNative(statusValue);
+		}
+
+		if(progressSnapshot.count("progress_percent")>0){
+			schema["progress"]=ScalarToNative(atof(progressSnapshot.find("progress_percent")->second.c_str()));
+		}else if(lastProgression>=0.f){
+			schema["progress"]=ScalarToNative(lastProgression);
+		}
+
+		schema["artifacts"]=anyMapToNative(artifacts);
+
+		for (auto it=progressSnapshot.begin(); it!=progressSnapshot.end(); ++it)
+		{
+			if(isReservedSchemaKey(it->first) || isInternalResultMetadataKey(it->first)) continue;
+			if(schema.count(it->first)==0){
+				schema[it->first]=StringToNative(it->second);
+			}
+		}
+		for (auto it=finalMeta.begin(); it!=finalMeta.end(); ++it)
+		{
+			if(isReservedSchemaKey(it->first) || isInternalResultMetadataKey(it->first)) continue;
+			if(schema.count(it->first)==0){
+				schema[it->first]=StringToNative(it->second);
+			}
+		}
+
+		return anyMapToNative(schema);
 	}
 
 	std::string uploadJson(zmq::socket_t &socket, const std::string &jsonPayload){
@@ -436,6 +614,7 @@ public:
 		bool requestServerStatus=false; // to check programmatically if the server is running
 		bool showLogs=false;
 		bool returnMeta=false;
+		ReturnFormat returnFormat=ReturnFormat::Legacy;
 
 		if(input.count("-noTO")>0)
 		{
@@ -468,8 +647,14 @@ public:
 		{
 			returnMeta=true;
 		}
+		if(input.count("-returnFormat")>0)
+		{
+			returnFormat=equalsIgnoreCase(trimWhitespaceCopy(toString(input.find("-returnFormat")->second)), "schema") ?
+				ReturnFormat::Schema : ReturnFormat::Legacy;
+		}
 		input.erase("-showLogs");
 		input.erase("-returnMeta");
+		input.erase("-returnFormat");
 
 		if(input.count("-statusOnly")>0){
 			statusOnly=true;
@@ -715,6 +900,7 @@ public:
 		size_t logOffset=0;
 		size_t warningOffset=0;
 		std::map<std::string,std::string> finalMeta;
+		std::map<std::string,std::string> progressSnapshot;
 
 		if(kill){
 			sendKill(socket, id, true);
@@ -746,9 +932,9 @@ public:
 				else{
 					int progress=*((int*)reply.data());
 					if(textArtifactExists(socket, progressArtifactName, withTimeout)){
-						std::map<std::string,std::string> progressValues=parseKeyValueText(downloadTextArtifact(socket, progressArtifactName, withTimeout));
-						auto progressIter=progressValues.find("progress_percent");
-						if(progressIter!=progressValues.end()){
+						progressSnapshot=parseKeyValueText(downloadTextArtifact(socket, progressArtifactName, withTimeout));
+						auto progressIter=progressSnapshot.find("progress_percent");
+						if(progressIter!=progressSnapshot.end()){
 							progress=int(1000.0*atof(progressIter->second.c_str()));
 						}
 					}
@@ -986,6 +1172,15 @@ public:
 				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
 			}
 			outputs.insert({"meta", keyValueMapToNative(finalMeta)});
+		}
+		if(returnFormat==ReturnFormat::Schema){
+			if(progressSnapshot.empty() && textArtifactExists(socket, progressArtifactName, withTimeout)){
+				progressSnapshot=parseKeyValueText(downloadTextArtifact(socket, progressArtifactName, withTimeout));
+			}
+			if(finalMeta.empty() && textArtifactExists(socket, metaArtifactName, withTimeout)){
+				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
+			}
+			outputs.insert({"schema", buildSchemaResult(outputs, finalMeta, progressSnapshot, id, waitAndDownload, statusOnly, lastProgression, logArtifactName, warningArtifactName, errorArtifactName, progressArtifactName, metaArtifactName)});
 		}
 		done=true;
 		

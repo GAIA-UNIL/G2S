@@ -119,6 +119,10 @@ public:
         return std::any(PyLong_FromUnsignedLong(val));
     }
 
+    std::any StringToNative(const std::string& val) override {
+        return std::any(PyUnicode_FromString(val.c_str()));
+    }
+
     bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue) override{
         PyObject* source=std::any_cast<PyObject*>(matrix);
         PyObject* contiguous=PyArray_ContiguousFromAny(source, NPY_NOTYPE, 1, NPY_MAXDIMS);
@@ -245,6 +249,30 @@ public:
             PyDict_SetItem(dict, key, value);
             Py_DECREF(key);
             Py_DECREF(value);
+        }
+        return std::any(dict);
+    }
+
+    std::any anyMapToNative(const std::map<std::string,std::any>& values) override {
+        PyObject* dict=PyDict_New();
+        for (auto it=values.begin(); it!=values.end(); ++it)
+        {
+            PyObject* key=PyUnicode_FromString(it->first.c_str());
+            PyObject* valueObject=nullptr;
+            if(it->second.type()==typeid(PyObject*)){
+                valueObject=std::any_cast<PyObject*>(it->second);
+            }else if(it->second.type()==typeid(std::map<std::string,std::any>)){
+                valueObject=std::any_cast<PyObject*>(anyMapToNative(std::any_cast<std::map<std::string,std::any>>(it->second)));
+            }else if(it->second.type()==typeid(std::string)){
+                valueObject=PyUnicode_FromString(std::any_cast<std::string>(it->second).c_str());
+            }
+            if(valueObject){
+                PyDict_SetItem(dict, key, valueObject);
+                if(it->second.type()!=typeid(PyObject*)){
+                    Py_DECREF(valueObject);
+                }
+            }
+            Py_DECREF(key);
         }
         return std::any(dict);
     }
@@ -491,6 +519,18 @@ public:
             runStandardCommunication(inputs, outputs, numberOfOutput);
         }catch(const std::exception& e){
             return nullptr;
+        }
+
+        auto schemaIter=outputs.find("schema");
+        if(schemaIter!=outputs.end()){
+            PyObject* schemaObject=std::any_cast<PyObject*>(schemaIter->second);
+            Py_INCREF(schemaObject);
+            for (auto it=outputs.begin(); it!=outputs.end(); ++it){
+                if(it->second.type()==typeid(PyObject *)){
+                    Py_DECREF(std::any_cast<PyObject*>(it->second));
+                }
+            }
+            return schemaObject;
         }
 
         if(outputs.size()==0){

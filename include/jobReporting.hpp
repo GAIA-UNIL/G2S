@@ -246,6 +246,12 @@ inline void recordMetric(FILE* reportFile, const std::string& key, const std::st
 	it->second.progressValues[key]=value;
 }
 
+inline void recordOutputDescriptor(FILE* reportFile, unsigned outputIndex, const std::string& semanticName, const std::string& artifactName){
+	if(outputIndex<1) return;
+	recordMetric(reportFile, "result_output_"+std::to_string(outputIndex)+"_name", semanticName);
+	recordMetric(reportFile, "result_output_"+std::to_string(outputIndex)+"_artifact", artifactName);
+}
+
 inline std::string joinUnsignedVector(const std::vector<unsigned>& values, const char* separator="x"){
 	std::ostringstream stream;
 	for (size_t i = 0; i < values.size(); ++i)

@@ -109,6 +109,10 @@ unsigned anyNativeToUnsigned(std::any val){
 		printf("%s\n",val.c_str());
 	}
 
+	std::any StringToNative(const std::string& val) override{
+		return std::any(Rcpp::RObject(Rcpp::wrap(val)));
+	}
+
 	std::any keyValueMapToNative(const std::map<std::string,std::string>& values) override{
 		Rcpp::List result(values.size());
 		Rcpp::CharacterVector names(values.size());
@@ -116,6 +120,25 @@ unsigned anyNativeToUnsigned(std::any val){
 		for (auto it=values.begin(); it!=values.end(); ++it, ++index)
 		{
 			result[index]=it->second;
+			names[index]=it->first;
+		}
+		result.attr("names")=names;
+		return std::any(Rcpp::RObject(result));
+	}
+
+	std::any anyMapToNative(const std::map<std::string,std::any>& values) override{
+		Rcpp::List result(values.size());
+		Rcpp::CharacterVector names(values.size());
+		int index=0;
+		for (auto it=values.begin(); it!=values.end(); ++it, ++index)
+		{
+			if(it->second.type()==typeid(Rcpp::RObject)){
+				result[index]=std::any_cast<Rcpp::RObject>(it->second);
+			}else if(it->second.type()==typeid(std::map<std::string,std::any>)){
+				result[index]=std::any_cast<Rcpp::RObject>(anyMapToNative(std::any_cast<std::map<std::string,std::any>>(it->second)));
+			}else if(it->second.type()==typeid(std::string)){
+				result[index]=std::any_cast<std::string>(it->second);
+			}
 			names[index]=it->first;
 		}
 		result.attr("names")=names;
@@ -287,6 +310,11 @@ unsigned anyNativeToUnsigned(std::any val){
 		}
 
 		runStandardCommunication(inputs, outputs, numberOfOutput);
+
+		auto schemaIter=outputs.find("schema");
+		if(schemaIter!=outputs.end()){
+			return std::any_cast<Rcpp::RObject>(schemaIter->second);
+		}
 
 		int nlhs=std::min(numberOfOutput,std::max(int(outputs.size())-1,1));
 

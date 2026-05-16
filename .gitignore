@@ -51,6 +51,7 @@ g2s_server*.log
 # README.md and DOCUMENTATION.md describe the stateless cursor-based log polling model; no runtime cursor files should be tracked in-repo.
 # Reporting-probe smoke tests are expected to create only disposable /tmp/G2S runtime artifacts.
 # The checked-in probe examples intentionally do not suppress fatal interface exceptions.
+# Schema-mode helpers and examples are tracked; only generated runtime artifacts stay ignored.
 
 # Generated local-only DataImage binary data files
 *.bgrid

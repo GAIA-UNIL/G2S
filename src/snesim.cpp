@@ -1259,6 +1259,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::logOutput(reportFile, "simulation_image", options.outputName, destinationImage);
 	const unsigned conventionalUniqueID = (options.uniqueID == std::numeric_limits<unsigned>::max()) ? 0u : options.uniqueID;
 	const std::string conventionalOutputName = std::string("im_1_") + std::to_string(conventionalUniqueID);
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", conventionalOutputName);
 	if (options.outputName != conventionalOutputName) {
 		destinationImage.write(conventionalOutputName);
 		fprintf(reportFile, "[SNESIM] conventional output also written with id '%s'\n", conventionalOutputName.c_str());

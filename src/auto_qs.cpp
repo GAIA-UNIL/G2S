@@ -758,6 +758,9 @@ int main(int argc, char const *argv[]) {
 	numberOFsampleimage.write(std::string("im_3_")+std::to_string(uniqueID));
 	devErrorimage.write(std::string("im_2_")+std::to_string(uniqueID));
 	meanErrorimage.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "mean_error", std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 2, "deviation_error", std::string("im_2_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 3, "sample_count", std::string("im_3_")+std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "sample_count_image_runtime", std::string("im_3_")+std::to_string(uniqueID), numberOFsampleimage);
 	g2s::reporting::logOutput(reportFile, "deviation_error_image_runtime", std::string("im_2_")+std::to_string(uniqueID), devErrorimage);
 	g2s::reporting::logOutput(reportFile, "mean_error_image_runtime", std::string("im_1_")+std::to_string(uniqueID), meanErrorimage);

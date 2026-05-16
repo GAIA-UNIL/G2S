@@ -132,6 +132,7 @@ Bindings now separate transport/state from display:
 
 - `-showLogs` enables live display of newly appended `log_<job>` and `warning_<job>` text while the job runs
 - `-returnMeta` returns the final parsed `meta_<job>` key/value payload to the caller
+- `-returnFormat schema` returns one named dictionary/struct/list envelope instead of the legacy positional tuple/multi-output contract
 - Python displays warnings in orange/yellow-ish ANSI text and errors in red before warning/exception propagation
 - MATLAB warnings are non-fatal again, while fatal errors still abort the call
 
@@ -141,7 +142,20 @@ The repository includes a small reporting-only utility algorithm, `report_probe`
 - `-mode warning`: progress, plain log lines, one warning event, then success
 - `-mode error`: progress, plain log lines, one warning event, a fatal error payload, then nonzero exit
 
-The companion examples `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+The companion examples `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering and the new schema return mode. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+
+Schema mode is designed for forward-compatible callers:
+
+- outputs are named semantically when the algorithm publishes `result_output_<n>_name`
+- `artifacts` always contains logical refs for `log`, `warning`, `error`, `progress`, `meta`, and named output artifacts
+- top-level reserved interface keys are `simulation`, named outputs, `time`, `job_id`, `status`, `progress`, `artifacts`, `error`, and `warnings`
+- remaining progress/meta key-values are flattened at the top level unless they collide with reserved interface keys
+
+During the transition, the legacy positional contract remains the default. Compatibility helpers are available in each binding layer:
+
+- Python: `g2s.schema_to_legacy(result)`
+- MATLAB: `g2sSchemaToLegacy(result)`
+- R: `g2s_schema_to_legacy(result)`
 
 ## Algorithm logging conventions
 

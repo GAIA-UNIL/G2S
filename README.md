@@ -15,7 +15,7 @@
 Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), and **NDS** (Narrow Distribution Selection).
 The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation.
 Concrete interface demos live under `example/matlab/` and `example/python/`, including `snesim_example.m` / `snesim_example.py` using the public Strebelle training image. The MATLAB SNESIM example follows the categorical MATLAB test pattern by casting the TIFF to `single` before calling `g2s`.
-For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and `-returnMeta` through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
+For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, and the schema-first `-returnFormat schema` path through the real interface bindings. Both examples let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
@@ -89,6 +89,8 @@ These directories are shared by jobs triggered through the server and use `0770`
 At startup, the server probes these runtime directories with a create/remove write test. If any of `/tmp/G2S/data`, `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, or `/tmp/G2S/meta` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload or report update silently fails.
 
 Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
+
+Interfaces now also support `-returnFormat schema` as the new named-result mode. In schema mode, callers receive one dictionary/struct/list object with stable keys such as `simulation`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. The current positional return contract remains available as the legacy default during the transition.
 
 The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
 
