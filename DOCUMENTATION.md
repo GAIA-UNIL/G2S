@@ -169,6 +169,8 @@ Native QS accepts deterministic CPU-only local search-pattern transforms:
 - `-rmi` supplies rotation per simulated node;
 - `-smi` supplies isotropic scale per simulated node.
 
-Transforms are applied to neighborhood offsets before candidate matching. The training image is not transformed. The transformed offset list is reused for the full candidate scan of that node and then passed into the existing QS matcher, preserving vector/full simulation behavior and kernel-weight lookup through the effective offset's flat kernel index.
+Transforms map original QS template offsets into simulation-space lookup offsets before candidate matching. The training image is not transformed. QS reads already simulated values at transformed offsets, then passes those values to the existing matcher with the original TI/kernel offsets so kernel weights keep their original flat-index mapping. This preserves vector/full simulation behavior while allowing constant rotations or scales to turn or resize TI structures in the simulation.
 
 Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
+
+The Python example `example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.

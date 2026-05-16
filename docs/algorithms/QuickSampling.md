@@ -63,14 +63,13 @@ Transforms are deterministic and are associated with each simulated node through
 - `-rmi` controls local rotation.
 - `-smi` controls local isotropic scaling.
 
-For every original sorted QS search-pattern offset, QS applies:
+For every original sorted QS search-pattern offset, QS builds a simulation-space lookup offset by applying:
 
 1. isotropic scale,
 2. rotation,
-3. nearest-neighbor integer rounding,
-4. matching with the transformed offset.
+3. nearest-neighbor integer rounding.
 
-The original QS neighbor order is preserved after transformation; neighbors are not re-ranked. Duplicate transformed offsets are allowed. Kernel weights are still read through the transformed offset's true flat kernel index, so neighbor rank and kernel storage index remain separate concepts.
+QS reads already simulated values at the transformed offsets, then scores TI candidates with the original sorted offsets and original kernel flat-index mapping. The training image is not transformed. This maps the TI template geometry into simulation coordinates, so a constant `+pi/2` map produces structures comparable to a 90-degree rotated TI. The original QS neighbor order is preserved after transformation; neighbors are not re-ranked. Duplicate transformed simulation offsets are allowed.
 
 Rotation maps are supported only for 2D and 3D simulations. In 2D, `-rmi` has one channel containing an angle in radians applied in the XY plane. In 3D, `-rmi` has four channels containing `(qx, qy, qz, qw)`; quaternions are normalized per node, while invalid or near-zero quaternions use identity rotation. Scale maps have one channel and use strictly positive finite values; invalid per-node scale values use identity scale.
 
@@ -103,15 +102,26 @@ Below are several examples showcasing different applications of QS. For these ex
 {% include include_code.md exampleName="3D" %}
 
 ### 2D rotation map
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
 {% include include_code.md exampleName="qs_rotation_2d" %}
 
+### 2D constant rotation equivalence check
+This diagnostic compares a constant `+pi/2` rotation map with simulations using clockwise and counter-clockwise rotated training images. Exact pixel equality is not expected because the TI candidate order changes when the TI array is rotated, but structures should visibly turn and the closer comparison identifies the effective rotation sign convention.
+
+{% include include_code.md exampleName="qs_rotation_equivalence_2d" %}
+
 ### 2D scale map
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
 {% include include_code.md exampleName="qs_scale_2d" %}
 
 ### 3D quaternion rotation map
 {% include include_code.md exampleName="qs_quaternion_rotation_3d" %}
 
 ### 2D scale and rotation maps
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform maps through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
 {% include include_code.md exampleName="qs_scale_rotation_2d" %}
 
 ### Asynchronous mode 

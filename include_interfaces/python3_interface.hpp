@@ -63,10 +63,31 @@ public:
 
     /* ------------ conversions ------------ */
     bool isDataMatrix (std::any v) override {
-        return PyArray_Check(std::any_cast<PyObject*>(v));
+        if (v.type() != typeid(PyObject*)) return false;
+        PyObject* o = std::any_cast<PyObject*>(v);
+        if (PyArray_Check(o)) return true;
+        if (o == Py_None || PyUnicode_Check(o) || PyFloat_Check(o) || PyLong_Check(o)) return false;
+        PyObject* array = PyArray_FromAny(o, nullptr, 1, 0, 0, nullptr);
+        if (array) {
+            Py_DECREF(array);
+            return true;
+        }
+        PyErr_Clear();
+        return false;
+    }
+
+    bool shouldUploadWithoutDataType(const std::string& key, std::any val) override {
+        if ((key == "-rmi" || key == "-smi") && val.type() == typeid(PyObject*)) {
+            PyObject* o = std::any_cast<PyObject*>(val);
+            return o != Py_None && !PyUnicode_Check(o);
+        }
+        return isDataMatrix(val);
     }
 
     std::string nativeToStandardString(std::any v) override {
+        if (v.type() == typeid(std::string)) return std::any_cast<std::string>(v);
+        if (v.type() == typeid(nullptr)) return {};
+        if (v.type() != typeid(PyObject*)) return {};
         PyObject* o = std::any_cast<PyObject*>(v);
         if (PyUnicode_Check(o)) return PyUnicode_AsUTF8(o);
         if (PyFloat_Check(o))   return std::to_string(PyFloat_AsDouble(o));
@@ -275,7 +296,12 @@ public:
         if (dataTypeVariable.type() == typeid(PyObject*))
             variableTypeArray = std::any_cast<PyObject*>(dataTypeVariable);
 
-        prh = PyArray_ContiguousFromAny(prh, PyArray_TYPE_SAFE(prh), 0, 0);
+        int sourceType = PyArray_Check(prh) ? PyArray_TYPE_SAFE(prh) : NPY_NOTYPE;
+        prh = PyArray_ContiguousFromAny(prh, sourceType, 0, 0);
+        if (!prh) {
+            PyErr_Clear();
+            sendError("Unable to convert input matrix to a contiguous NumPy array");
+        }
         int dataSize = PyArray_SIZE_SAFE(prh);
         int nbVar = 1;
         if (variableTypeArray) nbVar = PyArray_SIZE_SAFE(variableTypeArray);
@@ -329,8 +355,16 @@ public:
     }
 
     /* ------------ utility ------------ */
+    static bool isSingleMatrixUploadParameter(const std::string& key) {
+        return key == "-rmi" || key == "-smi";
+    }
+
     void addInputsToInputsMap(std::multimap<std::string, std::any>& inputs,
                               const std::string& key, PyObject* value) {
+        if (isSingleMatrixUploadParameter(key) && !PyUnicode_Check(value)) {
+            inputs.emplace(key, value);
+            return;
+        }
         if (PyTuple_Check(value)) {
             for (Py_ssize_t i = 0; i < PyTuple_Size(value); ++i)
                 inputs.emplace(key, PyTuple_GetItem(value, i));

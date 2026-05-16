@@ -624,6 +624,10 @@ int main(int argc, char const *argv[]) {
 	}else if (arg.count("-rmi") ==1)
 	{
 		rotationMapFileName=arg.find("-rmi")->second;
+		if(rotationMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -rmi requires a rotation map value\n");
+			run=false;
+		}
 	}
 	arg.erase("-rmi");
 
@@ -634,6 +638,10 @@ int main(int argc, char const *argv[]) {
 	}else if (arg.count("-smi") ==1)
 	{
 		scaleMapFileName=arg.find("-smi")->second;
+		if(scaleMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -smi requires a scale map value\n");
+			run=false;
+		}
 	}
 	arg.erase("-smi");
 	parseDistributedCliArgs(arg, distributedOptions);

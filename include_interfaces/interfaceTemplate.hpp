@@ -68,6 +68,10 @@ public:
 	virtual bool userRequestInteruption(){return false;}
 
 	virtual bool isDataMatrix(std::any val)=0;
+	virtual bool shouldUploadWithoutDataType(const std::string& key, std::any val){
+		(void)key;
+		return isDataMatrix(val);
+	}
 
 	virtual std::string nativeToStandardString(std::any val)=0;
 	virtual double nativeToScalar(std::any val)=0;
@@ -87,6 +91,9 @@ public:
 			return "";
 		if(val.type()==typeid(std::string))
 			return std::any_cast<std::string>(val);
+		if(isDataMatrix(val)){
+			sendError("matrix argument was not uploaded before job serialization; check upload plumbing for this parameter");
+		}
 		return nativeToStandardString(val);
 	}
 
@@ -311,10 +318,15 @@ public:
 						it->second=std::any(uploadData(socket, it->second,dataTypeVariable->second));
 					else
 						sendError("-dt is missing, impossible to uplaod a matrix without data type");
-					}
+			}
 			if(listOfParameterToUploadIfNeededWithoutdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithoutdataTypeVariable.end()){
-				if(isDataMatrix(it->second))
-					it->second=std::any(uploadData(socket, it->second));
+				if(shouldUploadWithoutDataType(it->first,it->second)){
+					const std::string uploadedName=uploadData(socket, it->second);
+					if(uploadedName.empty() && (it->first=="-rmi" || it->first=="-smi")){
+						sendError("failed to upload transform map for "+it->first);
+					}
+					it->second=std::any(uploadedName);
+				}
 			}
 			if(listOfJsonParameterToUploadIfNeeded.find(it->first) != listOfJsonParameterToUploadIfNeeded.end()){
 				const std::string payload=toString(it->second);
