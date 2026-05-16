@@ -50,7 +50,7 @@ public:
 	}
 
 	static std::set<std::string> parametersUploadedWithoutDataType(){
-		return {"-ki","-sp","-ii","-mi","-ni","-kii","-kvi","-rmi","-smi"};
+		return {"-ki","-sp","-ii","-mi","-ni","-kii","-kvi","-rmi","-rti","-smi","-sti"};
 	}
 
 	static std::set<std::string> jsonParametersUploaded(){

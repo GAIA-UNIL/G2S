@@ -32,7 +32,8 @@
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
 	std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
 	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false, bool withPathOptim=false, g2s_path_index_t* inputPosteriorPath=nullptr,
-	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr){
+	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr,
+	const std::vector<std::vector<int> >* kernelFlatIndexArray=nullptr, unsigned globalSeed=0){
 
 
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
@@ -77,6 +78,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 	std::vector<qs_transform_utils::ThreadTransformCache> transformCaches(nbThreads);
+	const bool rawNeighborValues=samplingModule.useRawNeighborValues();
+	const bool strictInformedNeighbors=samplingModule.strictInformedNeighbors();
 
 	g2s_path_index_t* adjustedPath=(g2s_path_index_t*)malloc( sizeof(g2s_path_index_t) * numberOfPointToSimulate);
 	std::iota(adjustedPath, adjustedPath+numberOfPointToSimulate, 0);
@@ -158,7 +161,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 				for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 				{
-					const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+					const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell,indexPath,0);
 					unsigned numberOfNeigboursforThisKernel=0;
 					unsigned positionSearch=0;
 					bool localNeedMoreNeighbours=needMoreNeighbours;
@@ -221,7 +224,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			{
 				const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-				const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+				const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell,indexPath,0);
 				unsigned positionSearch=0;
 				while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 					unsigned dataIndex;
@@ -272,7 +275,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(adjustedPath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
-		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim, transformContext) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
 	for (g2s_path_index_t optimIndexPath = 0; optimIndexPath < numberOfPointToSimulate; ++optimIndexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -352,7 +355,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 			{
-				const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+				const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell,currentPathOrder,0);
 				unsigned numberOfNeigboursforThisKernel=0;
 				unsigned positionSearch=0;
 				bool localNeedMoreNeighbours=needMoreNeighbours;
@@ -415,37 +418,42 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		{
 			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell,currentPathOrder,0);
 			unsigned positionSearch=0;
 			while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 				unsigned dataIndex;
 				const std::vector<int> *vectorInDi=&(*effectivePath)[positionSearch];
-				if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
-				{
-					//add for
-					if(posteriorPath[dataIndex]<=currentPathOrder){
-						unsigned numberOfNaN=0;
-						float val;
-						while(true) {
-							numberOfNaN=0;
-							for (unsigned int i = 0; i < di._nbVariable; ++i)
-							{
-								#pragma omp atomic read
-								val=di._data[dataIndex*di._nbVariable+i];
-								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
+					if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
+					{
+						//add for
+						const bool dataIsInformed=strictInformedNeighbors ? (posteriorPath[dataIndex]<currentPathOrder) : (posteriorPath[dataIndex]<=currentPathOrder);
+						if(dataIsInformed){
+							unsigned numberOfNaN=0;
+							float val;
+							while(true) {
+								numberOfNaN=0;
+								for (unsigned int i = 0; i < di._nbVariable; ++i)
+								{
+									#pragma omp atomic read
+									val=di._data[dataIndex*di._nbVariable+i];
+									numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
+								}
+								if(strictInformedNeighbors || (numberOfNaN==0)||(posteriorPath[dataIndex]==currentPathOrder))break;
+								std::this_thread::sleep_for(std::chrono::microseconds(250));
 							}
-							if((numberOfNaN==0)||(posteriorPath[dataIndex]==currentPathOrder))break;
-							std::this_thread::sleep_for(std::chrono::microseconds(250));
-						}
 
-						std::vector<float> data(di._nbVariable);
-						unsigned cpt=0;
+							std::vector<float> data(di._nbVariable);
+							unsigned cpt=0;
 						for (unsigned int i = 0; i < di._nbVariable; ++i)
 						{
 							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
+								if(strictInformedNeighbors && std::isnan(val)){
+									data[i]=std::nanf("0");
+									continue;
+								}
 								data[i]=val;
 								cpt++;
 								numberOfNeighborsProVariable[i]++;
@@ -458,37 +466,41 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 								data[i]=std::nanf("0");
 							}
 						}
-						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
-						if(cpt==0) break;
+			if(cpt>0 || !strictInformedNeighbors){
+				neighborValueArrayVector.push_back(data);
+				neighborArrayVector.push_back((*effectivePath)[positionSearch]);
+			}
+						if(cpt==0 && !strictInformedNeighbors) break;
 					}
 				}
 				positionSearch++;
 			}
 		}
-		// conversion from one variable to many
-		for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
-		{
-			std::vector<float> data(numberOfVariable);
-			unsigned id=0;
-			unsigned idCategorie=0;
-			for (unsigned int i = 0; i < di._nbVariable; ++i)
+		if(!rawNeighborValues){
+			// conversion from one variable to many
+			for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
 			{
-				if(di._types[i]==g2s::DataImage::Continuous){
-					
-					data[id]=neighborValueArrayVector[j][i];
-					id++;
-				}
-				if(di._types[i]==g2s::DataImage::Categorical){
-					for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
-					{
-						data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
+				std::vector<float> data(numberOfVariable);
+				unsigned id=0;
+				unsigned idCategorie=0;
+				for (unsigned int i = 0; i < di._nbVariable; ++i)
+				{
+					if(di._types[i]==g2s::DataImage::Continuous){
+						
+						data[id]=neighborValueArrayVector[j][i];
 						id++;
 					}
-					idCategorie++;
+					if(di._types[i]==g2s::DataImage::Categorical){
+						for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
+						{
+							data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
+							id++;
+						}
+						idCategorie++;
+					}
 				}
+				neighborValueArrayVector[j]=data;
 			}
-			neighborValueArrayVector[j]=data;
 		}
 
 
@@ -503,10 +515,24 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		SamplingModule::matchLocation importIndex;
 		importIndex.TI=0;
 		importIndex.index=INT_MAX;
+		const int effectiveKernelIndexForSample=(kernelImageIndex>-1 ? kernelImageIndex : 0);
+		SamplingModule::SampleContext sampleContext;
+		sampleContext.currentCell=currentCell;
+		sampleContext.pathIndex=currentPathOrder;
+		sampleContext.variableOfInterest=0;
+		sampleContext.globalSeed=globalSeed;
+		sampleContext.kernelFlatIndexVector=(kernelFlatIndexArray && effectiveKernelIndexForSample>=0 && size_t(effectiveKernelIndexForSample)<kernelFlatIndexArray->size()) ? &((*kernelFlatIndexArray)[effectiveKernelIndexForSample]) : nullptr;
+		sampleContext.fullSimulation=false;
+		samplingModule.setSampleContext(sampleContext);
+		const int requestedTiId=(ii ? samplingModule.resolveTiId(ii->_data[currentCell], static_cast<unsigned>(TIs.size())) : imageIndex);
 
-		if(neighborArrayVector.size()>1){
-			unsigned dataIndex;
-			std::vector<int> vectorInDi=neighborArrayVector[1];
+			if(rawNeighborValues && !neighborArrayVector.empty()){
+				SamplingModule::matchLocation verbatimRecord;
+				verbatimRecord.TI=TIs.size();
+				importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, requestedTiId,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
+			}else if(neighborArrayVector.size()>1){
+				unsigned dataIndex;
+				std::vector<int> vectorInDi=neighborArrayVector[1];
 			vectorInDi.resize(di._dims.size(),0);
 			di.indexWithDelta(dataIndex, currentCell, vectorInDi, localExternalMemory4IndexComputation);
 			unsigned verbatimIndex=importDataIndex[dataIndex];
@@ -518,11 +544,11 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				reverseVector[i]*=-1;
 			}
 			TIs[verbatimRecord.TI].indexWithDelta(verbatimRecord.index, verbatimIndex/TIs.size(), reverseVector, localExternalMemory4IndexComputation);
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, (ii ? int(ii->_data[currentCell]):imageIndex),(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, requestedTiId,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
 		}else if(withDataInCenter){
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=TIs.size();
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, (ii ? int(ii->_data[currentCell]):imageIndex),(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, requestedTiId,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
 		}else{
 
 			// sample from the marginal
@@ -632,7 +658,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
 	std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
 	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosteriorPath=nullptr,
-	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr){
+	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr,
+	const std::vector<std::vector<int> >* kernelFlatIndexArray=nullptr, unsigned globalSeed=0){
 	
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
 	bool localPosteriorPathAllocated=false;
@@ -676,9 +703,11 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
 	std::vector<qs_transform_utils::ThreadTransformCache> transformCaches(nbThreads);
+	const bool rawNeighborValues=samplingModule.useRawNeighborValues();
+	const bool strictInformedNeighbors=samplingModule.strictInformedNeighbors();
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, transformContext) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -710,14 +739,14 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 		std::vector<std::vector<int> > *pathPosition=&pathPositionArray[0];
 		if(kii){
-			kernelImageIndex=int(kii->_data[currentCell*kii->_nbVariable+0]);
+			kernelImageIndex=int(kii->_data[currentPosition*kii->_nbVariable+0]);
 			pathPosition=&pathPositionArray[kernelImageIndex];
 		}
 
 		float localk=0.f;
 
 		if(kvi){
-			localk=kvi->_data[currentCell*kvi->_nbVariable+currentVariable];
+			localk=kvi->_data[currentPosition*kvi->_nbVariable+currentVariable];
 		}
 
 		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
@@ -733,7 +762,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		}
 		{
 			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentPosition);
+			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentPosition,currentPathOrder,currentVariable);
 			unsigned positionSearch=0;
 			while((numberNeighbor.size()>1||needMoreNeighbours)&&(positionSearch<effectivePath->size())){
 				unsigned dataIndex;
@@ -757,7 +786,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 								val=di._data[dataIndex*di._nbVariable+i];
 								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder) && std::isnan(val);
 							}
-							if(numberOfNaN==0)break;
+							if(strictInformedNeighbors || numberOfNaN==0)break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
 
@@ -769,6 +798,10 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 							{
 								#pragma omp atomic read
 								val=di._data[dataIndex*di._nbVariable+i];
+								if(strictInformedNeighbors && std::isnan(val)){
+									data[i]=std::nanf("0");
+									continue;
+								}
 								data[i]=val;
 								cpt++;
 								numberOfNeighborsProVariable[i]++;
@@ -781,37 +814,41 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 								data[i]=std::nanf("0");
 							}
 						}
-						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
-						if(cpt==0) break;
+						if(cpt>0 || !strictInformedNeighbors){
+							neighborValueArrayVector.push_back(data);
+							neighborArrayVector.push_back((*effectivePath)[positionSearch]);
+						}
+						if(cpt==0 && !strictInformedNeighbors) break;
 					}
 				}
 				positionSearch++;
 			}
 		}
-		// conversion from one variable to many
-		for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
-		{
-			std::vector<float> data(numberOfVariable);
-			unsigned id=0;
-			unsigned idCategorie=0;
-			for (unsigned int i = 0; i < di._nbVariable; ++i)
+		if(!rawNeighborValues){
+			// conversion from one variable to many
+			for (size_t j = 0; j < neighborValueArrayVector.size(); ++j)
 			{
-				if(di._types[i]==g2s::DataImage::Continuous){
-					
-					data[id]=neighborValueArrayVector[j][i];
-					id++;
-				}
-				if(di._types[i]==g2s::DataImage::Categorical){
-					for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
-					{
-						data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
+				std::vector<float> data(numberOfVariable);
+				unsigned id=0;
+				unsigned idCategorie=0;
+				for (unsigned int i = 0; i < di._nbVariable; ++i)
+				{
+					if(di._types[i]==g2s::DataImage::Continuous){
+						
+						data[id]=neighborValueArrayVector[j][i];
 						id++;
 					}
-					idCategorie++;
+					if(di._types[i]==g2s::DataImage::Categorical){
+						for (size_t k = 0; k < categoriesValues[idCategorie].size(); ++k)
+						{
+							data[id] = (neighborValueArrayVector[j][i] == categoriesValues[idCategorie][k]);
+							id++;
+						}
+						idCategorie++;
+					}
 				}
+				neighborValueArrayVector[j]=data;
 			}
-			neighborValueArrayVector[j]=data;
 		}
 
 
@@ -819,11 +856,25 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 
 		importIndex.TI=0;
 		importIndex.index=INT_MAX;
+		const int effectiveKernelIndexForSample=(kernelImageIndex>-1 ? kernelImageIndex : 0);
+		SamplingModule::SampleContext sampleContext;
+		sampleContext.currentCell=currentPosition;
+		sampleContext.pathIndex=currentPathOrder;
+		sampleContext.variableOfInterest=currentVariable;
+		sampleContext.globalSeed=globalSeed;
+		sampleContext.kernelFlatIndexVector=(kernelFlatIndexArray && effectiveKernelIndexForSample>=0 && size_t(effectiveKernelIndexForSample)<kernelFlatIndexArray->size()) ? &((*kernelFlatIndexArray)[effectiveKernelIndexForSample]) : nullptr;
+		sampleContext.fullSimulation=true;
+		samplingModule.setSampleContext(sampleContext);
+		const int requestedTiId=(ii ? samplingModule.resolveTiId(ii->_data[currentCell], static_cast<unsigned>(TIs.size())) : -1);
 
-		if(neighborArrayVector.size()>1){
-			SamplingModule::matchLocation verbatimRecord;
-			verbatimRecord.TI=TIs.size();
-			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable , localk, (ii ? int(ii->_data[currentCell]):-1),(kii ? &(kernels[kernelImageIndex]):nullptr));
+			if(rawNeighborValues && !neighborArrayVector.empty()){
+				SamplingModule::matchLocation verbatimRecord;
+				verbatimRecord.TI=TIs.size();
+				importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable , localk, requestedTiId,(kii ? &(kernels[kernelImageIndex]):nullptr));
+			}else if(neighborArrayVector.size()>1){
+				SamplingModule::matchLocation verbatimRecord;
+				verbatimRecord.TI=TIs.size();
+			importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable , localk, requestedTiId,(kii ? &(kernels[kernelImageIndex]):nullptr));
 		}else{
 
 			// sample from the marginal

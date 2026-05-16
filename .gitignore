@@ -73,6 +73,7 @@ build/matlab-build/*.mex*
 example/python/reporting_probe_transcript.txt
 example/matlab/reporting_probe_transcript.txt
 qs_transform_smoke_*
+ds_smoke_*
 build/python-build/__pycache__
 build/python-build/G2S.egg-info
 build/python-build/build

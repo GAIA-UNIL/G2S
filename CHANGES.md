@@ -6,6 +6,7 @@
 
 ## 2026-05-16
 
+- Added native CPU Direct Sampling as `ds`, `DS`, and `DirectSampling`, with legacy `ds-l` aliases preserved on the old implementation. Native DS reuses the shared simulation path, vector/full modes, per-node control maps, interface upload plumbing, and OpenMP path scheduling while providing DS-specific sequential TI scanning, threshold acceptance, kernel-weighted mixed mismatch, safe `-ii` handling, and stochastic local rotation/scale transforms.
 - Added deterministic CPU-side QuickSampling search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. QS now transforms local neighborhood offsets before matching while leaving the training image unchanged, with support for 2D radians and 3D quaternions.
 - Reworked `errorTest` into a reusable `report_probe` utility algorithm that emits structured logs, warnings, progress, metadata, and fatal errors through the current reporting helpers instead of writing only the legacy ad hoc error file path.
 - Added Python and MATLAB reporting-probe examples that exercise `-showLogs`, warning propagation, fatal error propagation, and `-returnMeta` through the real interface bindings.

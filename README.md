@@ -12,10 +12,11 @@
 - the first one is a server that manages computations and can be compiled for each hardware to obtain optimal performance.
 - the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
 
-Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), and **NDS** (Narrow Distribution Selection).
+Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), native **DS** (Direct Sampling), and **NDS** (Narrow Distribution Selection).
 Native QS supports deterministic CPU-side search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. These maps transform neighborhood offsets before matching while leaving the training image unchanged.
+Native DS is available as `ds`, `DS`, or `DirectSampling`; the old DS-like implementation remains available as `ds-l`, `dsl`, `DirectSamplingLike`, and `DS-L`.
 The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation.
-Concrete interface demos live under `example/matlab/` and `example/python/`, including `snesim_example.m` / `snesim_example.py` using the public Strebelle training image. The MATLAB SNESIM example follows the categorical MATLAB test pattern by casting the TIFF to `single` before calling `g2s`.
+Concrete interface demos live under `example/matlab/` and `example/python/`, including native DS examples for continuous stone, categorical Strebelle, transform-controlled DS, and full mixed multivariate DS. SNESIM examples are also available as `snesim_example.m` / `snesim_example.py` using the public Strebelle training image.
 For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and `-returnMeta` through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 

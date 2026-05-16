@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "DataImage.hpp"
@@ -18,8 +19,11 @@ inline uint32_t floatBits(float value){
 
 struct TransformContext{
 	g2s::DataImage* rotationMap=nullptr;
+	g2s::DataImage* rotationToleranceMap=nullptr;
 	g2s::DataImage* scaleMap=nullptr;
+	g2s::DataImage* scaleToleranceMap=nullptr;
 	unsigned rank=0;
+	unsigned globalSeed=0;
 
 	bool enabled() const{
 		return rotationMap!=nullptr || scaleMap!=nullptr;
@@ -69,7 +73,35 @@ inline float mapValue(const g2s::DataImage* image, unsigned cellIndex, unsigned 
 	return image->_data[cellIndex*image->_nbVariable+variableIndex];
 }
 
-inline NodeTransform readNodeTransform(const TransformContext& context, unsigned cellIndex, TransformKey& key){
+inline uint64_t mix64(uint64_t value){
+	value+=0x9e3779b97f4a7c15ULL;
+	value=(value^(value>>30))*0xbf58476d1ce4e5b9ULL;
+	value=(value^(value>>27))*0x94d049bb133111ebULL;
+	return value^(value>>31);
+}
+
+inline float hashUnit(uint64_t a, uint64_t b, uint64_t c, uint64_t d){
+	const uint64_t value=mix64(a^(mix64(b)+0x9e3779b97f4a7c15ULL+(a<<6)+(a>>2))^mix64(c)^mix64(d));
+	const uint32_t top=static_cast<uint32_t>(value>>40);
+	return float(double(top)/double(0x1000000u));
+}
+
+inline float drawUniform(float center, float tolerance, const TransformContext& context, uint64_t pathIndex, unsigned variableIndex, unsigned component){
+	if(!std::isfinite(tolerance) || tolerance<=0.f){
+		return center;
+	}
+	const float u=hashUnit(context.globalSeed,pathIndex,variableIndex,component);
+	return center + (2.f*u-1.f)*tolerance;
+}
+
+inline float quantize(float value, float step){
+	if(!std::isfinite(value) || step<=0.f){
+		return value;
+	}
+	return std::round(value/step)*step;
+}
+
+inline NodeTransform readNodeTransform(const TransformContext& context, unsigned cellIndex, TransformKey& key, uint64_t pathIndex=0, unsigned variableIndex=0){
 	NodeTransform transform;
 	key.rank=context.rank;
 	key.values[0]=floatBits(transform.scale);
@@ -81,21 +113,53 @@ inline NodeTransform readNodeTransform(const TransformContext& context, unsigned
 	if(context.scaleMap!=nullptr){
 		const float scale=mapValue(context.scaleMap,cellIndex,0);
 		if(std::isfinite(scale) && scale>0.f){
-			transform.scale=scale;
+			float logScale=std::log(scale);
+			if(context.scaleToleranceMap!=nullptr){
+				const float tolerance=mapValue(context.scaleToleranceMap,cellIndex,0);
+				if(std::isfinite(tolerance) && tolerance>0.f){
+					logScale=drawUniform(logScale,tolerance,context,pathIndex,variableIndex,5);
+					logScale=quantize(logScale,0.05f);
+				}
+			}
+			transform.scale=std::exp(logScale);
 		}
 	}
 
 	if(context.rotationMap!=nullptr && context.rank==2){
 		const float angle=mapValue(context.rotationMap,cellIndex,0);
 		if(std::isfinite(angle)){
-			transform.rotation[0]=angle;
+			float sampledAngle=angle;
+			if(context.rotationToleranceMap!=nullptr){
+				const float tolerance=mapValue(context.rotationToleranceMap,cellIndex,0);
+				if(std::isfinite(tolerance) && tolerance>0.f){
+					sampledAngle=drawUniform(angle,tolerance,context,pathIndex,variableIndex,0);
+					const float degree=3.14159265358979323846f/180.f;
+					sampledAngle=quantize(sampledAngle,degree);
+				}
+			}
+			transform.rotation[0]=sampledAngle;
 			transform.hasRotation=true;
 		}
 	}else if(context.rotationMap!=nullptr && context.rank==3){
-		const float qx=mapValue(context.rotationMap,cellIndex,0);
-		const float qy=mapValue(context.rotationMap,cellIndex,1);
-		const float qz=mapValue(context.rotationMap,cellIndex,2);
-		const float qw=mapValue(context.rotationMap,cellIndex,3);
+		float qx=mapValue(context.rotationMap,cellIndex,0);
+		float qy=mapValue(context.rotationMap,cellIndex,1);
+		float qz=mapValue(context.rotationMap,cellIndex,2);
+		float qw=mapValue(context.rotationMap,cellIndex,3);
+		if(context.rotationToleranceMap!=nullptr){
+			const float tx=mapValue(context.rotationToleranceMap,cellIndex,0);
+			const float ty=mapValue(context.rotationToleranceMap,cellIndex,1);
+			const float tz=mapValue(context.rotationToleranceMap,cellIndex,2);
+			const float tw=mapValue(context.rotationToleranceMap,cellIndex,3);
+			if(std::isfinite(tx) && tx>0.f) qx=drawUniform(qx,tx,context,pathIndex,variableIndex,0);
+			if(std::isfinite(ty) && ty>0.f) qy=drawUniform(qy,ty,context,pathIndex,variableIndex,1);
+			if(std::isfinite(tz) && tz>0.f) qz=drawUniform(qz,tz,context,pathIndex,variableIndex,2);
+			if(std::isfinite(tw) && tw>0.f) qw=drawUniform(qw,tw,context,pathIndex,variableIndex,3);
+			const float qStep=0.01f;
+			qx=quantize(qx,qStep);
+			qy=quantize(qy,qStep);
+			qz=quantize(qz,qStep);
+			qw=quantize(qw,qStep);
+		}
 		const double norm2=double(qx)*double(qx)+double(qy)*double(qy)+double(qz)*double(qz)+double(qw)*double(qw);
 		if(std::isfinite(qx) && std::isfinite(qy) && std::isfinite(qz) && std::isfinite(qw) && norm2>1.0e-20){
 			const double invNorm=1.0/std::sqrt(norm2);
@@ -179,14 +243,16 @@ inline const std::vector<std::vector<int> >* effectivePath(
 	ThreadTransformCache& cache,
 	const std::vector<std::vector<int> >& basePath,
 	int kernelIndex,
-	unsigned cellIndex){
+	unsigned cellIndex,
+	uint64_t pathIndex=0,
+	unsigned variableIndex=0){
 	if(context==nullptr || !context->enabled()){
 		return &basePath;
 	}
 
 	TransformKey key;
 	key.kernelIndex=kernelIndex;
-	const NodeTransform transform=readNodeTransform(*context,cellIndex,key);
+	const NodeTransform transform=readNodeTransform(*context,cellIndex,key,pathIndex,variableIndex);
 	if(transform.identity){
 		return &basePath;
 	}

@@ -8,6 +8,12 @@ Those copied directories are generated build inputs, not source of truth. They a
 
 When reviewing, debugging, or changing G2S code, use the repository-level source and header trees. Do not treat ignored files under `build/python-build/src`, `build/python-build/include`, `build/python-build/src_interfaces`, `build/python-build/include_interfaces`, or the local `build/python-build/jsoncpp` clone as canonical project source.
 
+## Native Direct Sampling
+
+Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It intentionally reuses the generic `simulation()` / `simulationFull()` orchestration and only opts into additional `SamplingModule` hooks for raw neighbor values, strict informed-neighbor filtering, safe TI-id resolution, per-node sample context, and kernel flat-index mapping. Legacy `ds-l` remains implemented by `src/ds-l.cpp` and should not be changed when working on native DS behavior.
+
+The transform helper in `include/qsTransformUtils.hpp` is shared by QS and native DS. Rotation and scale tolerance maps are inert unless provided by a caller; existing QS deterministic transform behavior should remain unchanged.
+
 ## Server protocol schema and validation
 
 G2S clients and the server communicate over ZeroMQ using one binary request frame. Every request starts with `infoContainer`, defined in `include/protocol.hpp`:
