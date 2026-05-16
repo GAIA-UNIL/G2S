@@ -43,6 +43,8 @@ Outputs: sim = simulation, index = index of the simulated values in the flattene
 | `-kii` | Array that specifies for each pixel which kernel to use. Useful if you want different weight fields when simulating different parts of the di, or if you want certain covariables to only influence parts of your di (e.g. you want a surface variable to only influence the simulation of the top subsurface layer). Usage: provide a list of full kernels in -ki, and only a single image for -kii to specify which full kernel to use at which pixel.  | |
 | `-ni` | Array that specifies for each pixel which the number of neighbors. | |
 | `-kvi` | Array that specifies for each pixel which the number of best candidates to consider. | |
+| `-rmi` | Rotation map input for deterministic local search-pattern transforms. In 2D, provide one channel containing an angle in radians applied in the XY plane. In 3D, provide four channels containing a quaternion `(qx, qy, qz, qw)`. | |
+| `-smi` | Scale map input for deterministic local search-pattern transforms. Provide one channel containing a strictly positive isotropic scale. Invalid per-node values are treated as identity scale. | |
 | `-far` | Fast and risky &#x1f604;, like -ii but with a random input (experimental). | |
 | `-cti` | With this flag QS will treat the training image(s) as periodic (aka circular or cyclic) over each dimension. | |
 | `-csim` | With this flag QS will make sure to create a periodic (aka circular or cyclic) simulation over each dimension. | |
@@ -51,6 +53,28 @@ Outputs: sim = simulation, index = index of the simulated values in the flattene
 | `-f` | f=1/k equivalent to f of DS with a threshold to 0. | |
 | `-nV` | No Verbatim, i.e. prohibits neighbors in the training image to be neighbors in the simulation. (experimental). | |
 | `--forceSimulation` | Restimulate a value even if already existing. | |
+
+### Deterministic transformed search patterns
+
+Native QS can locally transform the search pattern before the candidate search begins. This changes the neighborhood geometry used for matching, but it never transforms the training image itself. The transformed offsets are fixed for the simulated node and reused during the full training-image candidate scan.
+
+Transforms are deterministic and are associated with each simulated node through optional maps:
+
+- `-rmi` controls local rotation.
+- `-smi` controls local isotropic scaling.
+
+For every original sorted QS search-pattern offset, QS applies:
+
+1. isotropic scale,
+2. rotation,
+3. nearest-neighbor integer rounding,
+4. matching with the transformed offset.
+
+The original QS neighbor order is preserved after transformation; neighbors are not re-ranked. Duplicate transformed offsets are allowed. Kernel weights are still read through the transformed offset's true flat kernel index, so neighbor rank and kernel storage index remain separate concepts.
+
+Rotation maps are supported only for 2D and 3D simulations. In 2D, `-rmi` has one channel containing an angle in radians applied in the XY plane. In 3D, `-rmi` has four channels containing `(qx, qy, qz, qw)`; quaternions are normalized per node, while invalid or near-zero quaternions use identity rotation. Scale maps have one channel and use strictly positive finite values; invalid per-node scale values use identity scale.
+
+This feature is CPU-only and is compatible with vector simulation and full simulation (`-fs`). It is not used with augmented-dimensional QS (`-adsim`) or GPU execution flags.
 
 
 
@@ -77,6 +101,18 @@ Below are several examples showcasing different applications of QS. For these ex
 
 ### 3D simulation
 {% include include_code.md exampleName="3D" %}
+
+### 2D rotation map
+{% include include_code.md exampleName="qs_rotation_2d" %}
+
+### 2D scale map
+{% include include_code.md exampleName="qs_scale_2d" %}
+
+### 3D quaternion rotation map
+{% include include_code.md exampleName="qs_quaternion_rotation_3d" %}
+
+### 2D scale and rotation maps
+{% include include_code.md exampleName="qs_scale_rotation_2d" %}
 
 ### Asynchronous mode 
 {% include include_code.md exampleName="async_mode" %}
@@ -199,4 +235,3 @@ sim=g2s('-a','qs','-ti',ti2,'-di',sim,'-dt',dt,'-n',50,'-k',1.5,'-j',0.5,'-ki',k
 imshow(medfilt2(sim))
 pause(5)
 ```
-

@@ -155,3 +155,14 @@ For `-wPO`, the current conventions are:
 
 - `qs`: logs `path_optimization=true|false` because the flag is effective in QS simulation
 - `snesim`: logs `path_optimization_requested=true|false` so the request is visible in the operator log, even though the current scaffold does not expose the same effective mode as QS
+
+## QS deterministic search-pattern transforms
+
+Native QS accepts deterministic CPU-only local search-pattern transforms:
+
+- `-rmi` supplies rotation per simulated node;
+- `-smi` supplies isotropic scale per simulated node.
+
+Transforms are applied to neighborhood offsets before candidate matching. The training image is not transformed. The transformed offset list is reused for the full candidate scan of that node and then passed into the existing QS matcher, preserving vector/full simulation behavior and kernel-weight lookup through the effective offset's flat kernel index.
+
+Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.

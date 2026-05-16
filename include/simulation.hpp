@@ -24,6 +24,7 @@
 #include "pathIndexType.hpp"
 #include "simulationUpdateCallback.hpp"
 #include "jobReporting.hpp"
+#include "qsTransformUtils.hpp"
 #include <thread>
 #include <execution>
 
@@ -31,7 +32,7 @@
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
 	std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
 	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, bool kernelAutoSelection=false, bool withPathOptim=false, g2s_path_index_t* inputPosteriorPath=nullptr,
-	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr){
+	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr){
 
 
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
@@ -62,12 +63,20 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
+	for (size_t kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
+	{
+		for (size_t offsetIndex = 0; offsetIndex < pathPositionArray[kernelIndex].size(); ++offsetIndex)
+		{
+			pathPositionArray[kernelIndex][offsetIndex].resize(di._dims.size(),0);
+		}
+	}
 
 	int* externalMemory4IndexComputation[nbThreads];
 	for (int i = 0; i < nbThreads; ++i)
 	{
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
+	std::vector<qs_transform_utils::ThreadTransformCache> transformCaches(nbThreads);
 
 	g2s_path_index_t* adjustedPath=(g2s_path_index_t*)malloc( sizeof(g2s_path_index_t) * numberOfPointToSimulate);
 	std::iota(adjustedPath, adjustedPath+numberOfPointToSimulate, 0);
@@ -77,7 +86,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		memset(maxDpendencePath,255,sizeof(g2s_path_index_t) * di.dataSize()/di._nbVariable);
 
 		#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(maxDpendencePath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
-		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, transformContext) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
 		for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 			g2s_path_index_t maxDependency=0;
 			unsigned moduleID=0;
@@ -149,14 +158,14 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 				for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 				{
+					const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
 					unsigned numberOfNeigboursforThisKernel=0;
 					unsigned positionSearch=0;
 					bool localNeedMoreNeighbours=needMoreNeighbours;
 					std::vector<unsigned> numberOfNeighborsProVariableLocal(numberOfNeighborsProVariable);
-					while(( numberNeighbor.size()>1 || localNeedMoreNeighbours ) && ( positionSearch<pathPositionArray[kernelIndex].size() )){
+					while(( numberNeighbor.size()>1 || localNeedMoreNeighbours ) && ( positionSearch<candidatePath->size() )){
 						unsigned dataIndex;
-						std::vector<int> *vectorInDi=&pathPositionArray[kernelIndex][positionSearch];
-						vectorInDi->resize(di._dims.size(),0);
+						const std::vector<int> *vectorInDi=&(*candidatePath)[positionSearch];
 						if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 						{
 							//add for
@@ -211,11 +220,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			}
 
 			{
+				const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
+				const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
 				unsigned positionSearch=0;
-				while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<pathPosition->size() )){
+				while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 					unsigned dataIndex;
-					std::vector<int> *vectorInDi=&(*pathPosition)[positionSearch];
-					vectorInDi->resize(di._dims.size(),0);
+					const std::vector<int> *vectorInDi=&(*effectivePath)[positionSearch];
 					if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 					{
 						//add for
@@ -262,7 +272,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 	}
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(adjustedPath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
-		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim, transformContext) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
 	for (g2s_path_index_t optimIndexPath = 0; optimIndexPath < numberOfPointToSimulate; ++optimIndexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -342,14 +352,14 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 			{
+				const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
 				unsigned numberOfNeigboursforThisKernel=0;
 				unsigned positionSearch=0;
 				bool localNeedMoreNeighbours=needMoreNeighbours;
 				std::vector<unsigned> numberOfNeighborsProVariableLocal(numberOfNeighborsProVariable);
-				while(( numberNeighbor.size()>1 || localNeedMoreNeighbours ) && ( positionSearch<pathPositionArray[kernelIndex].size() )){
+				while(( numberNeighbor.size()>1 || localNeedMoreNeighbours ) && ( positionSearch<candidatePath->size() )){
 					unsigned dataIndex;
-					std::vector<int> *vectorInDi=&pathPositionArray[kernelIndex][positionSearch];
-					vectorInDi->resize(di._dims.size(),0);
+					const std::vector<int> *vectorInDi=&(*candidatePath)[positionSearch];
 					if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 					{
 						//add for
@@ -404,11 +414,12 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		}
 
 		{
+			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
+			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
 			unsigned positionSearch=0;
-			while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<pathPosition->size() )){
+			while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 				unsigned dataIndex;
-				std::vector<int> *vectorInDi=&(*pathPosition)[positionSearch];
-				vectorInDi->resize(di._dims.size(),0);
+				const std::vector<int> *vectorInDi=&(*effectivePath)[positionSearch];
 				if(di.indexWithDelta(dataIndex, currentCell, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 				{
 					//add for
@@ -448,7 +459,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 							}
 						}
 						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*pathPosition)[positionSearch]);
+						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
 						if(cpt==0) break;
 					}
 				}
@@ -621,7 +632,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
 	std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
 	std::vector<std::vector<float> > categoriesValues, unsigned nbThreads=1, bool fullStationary=false, bool circularSim=false, bool forceSimulation=false, g2s_path_index_t* inputPosteriorPath=nullptr,
-	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr){
+	g2s_simulation_update_callback_t updateCallback=nullptr, void* updateCallbackUserData=nullptr, const qs_transform_utils::TransformContext* transformContext=nullptr){
 	
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
 	bool localPosteriorPathAllocated=false;
@@ -651,15 +662,23 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	{
 		numberOfVariable+=categoriesValues[i].size()-1;
 	}
+	for (size_t kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
+	{
+		for (size_t offsetIndex = 0; offsetIndex < pathPositionArray[kernelIndex].size(); ++offsetIndex)
+		{
+			pathPositionArray[kernelIndex][offsetIndex].resize(di._dims.size(),0);
+		}
+	}
 
 	int* externalMemory4IndexComputation[nbThreads];
 	for (int i = 0; i < nbThreads; ++i)
 	{
 		externalMemory4IndexComputation[i]=new int[di._dims.size()];
 	}
+	std::vector<qs_transform_utils::ThreadTransformCache> transformCaches(nbThreads);
 
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
-		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData) shared( pathPositionArray, di, samplingModule, TIs, kernels)
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, transformContext) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -713,11 +732,12 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 			needMoreNeighbours|=numberOfNeighborsProVariable[l]<numberNeighbor[l%numberNeighbor.size()];
 		}
 		{
+			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
+			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentPosition);
 			unsigned positionSearch=0;
-			while((numberNeighbor.size()>1||needMoreNeighbours)&&(positionSearch<pathPosition->size())){
+			while((numberNeighbor.size()>1||needMoreNeighbours)&&(positionSearch<effectivePath->size())){
 				unsigned dataIndex;
-				std::vector<int> *vectorInDi=&(*pathPosition)[positionSearch];
-				vectorInDi->resize(di._dims.size(),0);
+				const std::vector<int> *vectorInDi=&(*effectivePath)[positionSearch];
 				if(di.indexWithDelta(dataIndex, currentPosition, *vectorInDi,localExternalMemory4IndexComputation) || circularSim)
 				{
 					bool needToBeadd=false;
@@ -762,7 +782,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 							}
 						}
 						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*pathPosition)[positionSearch]);
+						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
 						if(cpt==0) break;
 					}
 				}
