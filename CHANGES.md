@@ -1,5 +1,9 @@
 # Changes
 
+## 2026-05-12
+
+- Removed the short-lived SNESIM path-optimization CLI support, logging, and documentation. SNESIM now always uses the default per-level execution order built by its multigrid planner.
+
 ## 2026-05-10
 
 - Split server-side reporting into `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, and `/tmp/G2S/meta`, while keeping the server stateless and reusing the existing text-download protocol through conventional artifact names such as `progress_<job>` and `meta_<job>`.
@@ -14,9 +18,7 @@
 - Expanded the MATLAB SNESIM example to use the public Strebelle training image more robustly, with a fallback download path for MATLAB releases that cannot `imread()` HTTP URLs directly, plus elapsed-time reporting.
 - Corrected the MATLAB SNESIM example to follow the categorical MATLAB test pattern more closely by casting the Strebelle TIFF and destination grid to `single`, using a normal `-j 0.5` thread setting, and rendering categorical outputs with `imagesc`.
 - Updated the SNESIM algorithm page and top-level README to point to the MATLAB/Python Strebelle examples explicitly.
-- Added SNESIM support for `-wPO` path-optimization scheduling by threading the flag through `src/snesim.cpp` into the shared vector `simulation()` loop.
 - Fixed the SNESIM `simulation()` call to match the current callback-aware signature, preserving explicit `posteriorPath` tracking and progress callbacks when path optimization is disabled or enabled.
-- Documented the SNESIM `-wPO` option in the algorithm docs and top-level README.
 
 
 ## 2026-05-01

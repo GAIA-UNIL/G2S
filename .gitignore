@@ -84,6 +84,7 @@ example/.venv/
 *.Rhistory
 *.log
 *.mlx.autosave
+# Temporary SNESIM investigation artifacts also stay local.
 
 *.depend
 .depend
