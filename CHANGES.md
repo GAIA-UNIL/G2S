@@ -4,6 +4,13 @@
 
 - Removed the short-lived SNESIM path-optimization CLI support, logging, and documentation. SNESIM now always uses the default per-level execution order built by its multigrid planner.
 
+## 2026-05-16
+
+- Reworked `errorTest` into a reusable `report_probe` utility algorithm that emits structured logs, warnings, progress, metadata, and fatal errors through the current reporting helpers instead of writing only the legacy ad hoc error file path.
+- Added Python and MATLAB reporting-probe examples that exercise `-showLogs`, warning propagation, fatal error propagation, and `-returnMeta` through the real interface bindings.
+- Made the Python reporting-probe example accept interface builds that return extra trailing values beyond elapsed time and metadata, avoiding fixed-length tuple unpack failures during smoke tests.
+- Changed the Python and MATLAB reporting-probe examples so the fatal probe now propagates the native interface exception by default instead of catching it inside the demo script.
+
 ## 2026-05-10
 
 - Split server-side reporting into `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, and `/tmp/G2S/meta`, while keeping the server stateless and reusing the existing text-download protocol through conventional artifact names such as `progress_<job>` and `meta_<job>`.

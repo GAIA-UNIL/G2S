@@ -49,6 +49,8 @@ g2s_server*.log
 # Includes structured runtime sidecars under /tmp/G2S/{logs,warnings,errors,progress,meta}
 # Algorithm PARAM logging now covers runtime flags such as -wPO; logs remain disposable runtime artifacts.
 # README.md and DOCUMENTATION.md describe the stateless cursor-based log polling model; no runtime cursor files should be tracked in-repo.
+# Reporting-probe smoke tests are expected to create only disposable /tmp/G2S runtime artifacts.
+# The checked-in probe examples intentionally do not suppress fatal interface exceptions.
 
 # Generated local-only DataImage binary data files
 *.bgrid
@@ -68,6 +70,8 @@ build/matlab-build/*.mex*
 *.m~
 *.DS_Store
 *.npz
+example/python/reporting_probe_transcript.txt
+example/matlab/reporting_probe_transcript.txt
 build/python-build/__pycache__
 build/python-build/G2S.egg-info
 build/python-build/build

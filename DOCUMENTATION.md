@@ -135,6 +135,14 @@ Bindings now separate transport/state from display:
 - Python displays warnings in orange/yellow-ish ANSI text and errors in red before warning/exception propagation
 - MATLAB warnings are non-fatal again, while fatal errors still abort the call
 
+The repository includes a small reporting-only utility algorithm, `report_probe`, for exercising this stack without running a full simulation. It is implemented by `src/errorTest.cpp`, registered in `build/algosName.config`, and supports:
+
+- `-mode log`: progress plus plain log lines, then success
+- `-mode warning`: progress, plain log lines, one warning event, then success
+- `-mode error`: progress, plain log lines, one warning event, a fatal error payload, then nonzero exit
+
+The companion examples `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+
 ## Algorithm logging conventions
 
 The human-readable log is now expected to show both setup and effective behavior, not just raw argv. In practice this means:
