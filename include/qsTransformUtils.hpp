@@ -62,6 +62,11 @@ struct ThreadTransformCache{
 	std::vector<TransformCacheEntry> entries;
 };
 
+struct EffectivePath{
+	const std::vector<std::vector<int> >* simulationPath=nullptr;
+	const std::vector<std::vector<int> >* matchingPath=nullptr;
+};
+
 inline float mapValue(const g2s::DataImage* image, unsigned cellIndex, unsigned variableIndex){
 	if(image==nullptr || variableIndex>=image->_nbVariable){
 		return std::nanf("0");
@@ -174,21 +179,21 @@ inline std::vector<int> transformOffset(const std::vector<int>& input, unsigned 
 	return output;
 }
 
-inline const std::vector<std::vector<int> >* effectivePath(
+inline EffectivePath effectivePath(
 	const TransformContext* context,
 	ThreadTransformCache& cache,
 	const std::vector<std::vector<int> >& basePath,
 	int kernelIndex,
 	unsigned cellIndex){
 	if(context==nullptr || !context->enabled()){
-		return &basePath;
+		return EffectivePath{&basePath,&basePath};
 	}
 
 	TransformKey key;
 	key.kernelIndex=kernelIndex;
 	const NodeTransform transform=readNodeTransform(*context,cellIndex,key);
 	if(transform.identity){
-		return &basePath;
+		return EffectivePath{&basePath,&basePath};
 	}
 
 	const size_t cacheIndex=static_cast<size_t>(kernelIndex<0 ? 0 : kernelIndex);
@@ -197,7 +202,7 @@ inline const std::vector<std::vector<int> >* effectivePath(
 	}
 	TransformCacheEntry& entry=cache.entries[cacheIndex];
 	if(entry.valid && entry.key.equals(key)){
-		return &entry.transformedPath;
+		return EffectivePath{&entry.transformedPath,&basePath};
 	}
 
 	entry.key=key;
@@ -208,7 +213,7 @@ inline const std::vector<std::vector<int> >* effectivePath(
 	{
 		entry.transformedPath.push_back(transformOffset(basePath[i],context->rank,transform));
 	}
-	return &entry.transformedPath;
+	return EffectivePath{&entry.transformedPath,&basePath};
 }
 
 } // namespace qs_transform_utils

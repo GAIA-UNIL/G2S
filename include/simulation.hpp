@@ -158,7 +158,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 				for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 				{
-					const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+					const qs_transform_utils::EffectivePath candidatePathView=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+					const std::vector<std::vector<int> >* candidatePath=candidatePathView.simulationPath;
 					unsigned numberOfNeigboursforThisKernel=0;
 					unsigned positionSearch=0;
 					bool localNeedMoreNeighbours=needMoreNeighbours;
@@ -221,7 +222,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			{
 				const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-				const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+				const qs_transform_utils::EffectivePath effectivePathView=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+				const std::vector<std::vector<int> >* effectivePath=effectivePathView.simulationPath;
 				unsigned positionSearch=0;
 				while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 					unsigned dataIndex;
@@ -332,6 +334,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		std::vector<unsigned> numberOfNeighborsProVariable(di._nbVariable);
 		std::vector<std::vector<int> > neighborArrayVector;
 		neighborArrayVector.reserve(numberNeighbor[0]);
+		std::vector<std::vector<int> > simulationNeighborArrayVector;
+		simulationNeighborArrayVector.reserve(numberNeighbor[0]);
 		std::vector<std::vector<float> > neighborValueArrayVector;
 		neighborValueArrayVector.reserve(numberNeighbor[0]);
 
@@ -352,7 +356,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 			for (int kernelIndex = 0; kernelIndex < pathPositionArray.size(); ++kernelIndex)
 			{
-				const std::vector<std::vector<int> >* candidatePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+				const qs_transform_utils::EffectivePath candidatePathView=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],pathPositionArray[kernelIndex],kernelIndex,currentCell);
+				const std::vector<std::vector<int> >* candidatePath=candidatePathView.simulationPath;
 				unsigned numberOfNeigboursforThisKernel=0;
 				unsigned positionSearch=0;
 				bool localNeedMoreNeighbours=needMoreNeighbours;
@@ -415,7 +420,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		{
 			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+			const qs_transform_utils::EffectivePath effectivePathView=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentCell);
+			const std::vector<std::vector<int> >* effectivePath=effectivePathView.simulationPath;
+			const std::vector<std::vector<int> >* matchingPath=effectivePathView.matchingPath;
 			unsigned positionSearch=0;
 			while(( numberNeighbor.size()>1 || needMoreNeighbours ) && ( positionSearch<effectivePath->size() )){
 				unsigned dataIndex;
@@ -459,7 +466,8 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 							}
 						}
 						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
+						neighborArrayVector.push_back((*matchingPath)[positionSearch]);
+						simulationNeighborArrayVector.push_back((*effectivePath)[positionSearch]);
 						if(cpt==0) break;
 					}
 				}
@@ -506,7 +514,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 		if(neighborArrayVector.size()>1){
 			unsigned dataIndex;
-			std::vector<int> vectorInDi=neighborArrayVector[1];
+			std::vector<int> vectorInDi=simulationNeighborArrayVector[1];
 			vectorInDi.resize(di._dims.size(),0);
 			di.indexWithDelta(dataIndex, currentCell, vectorInDi, localExternalMemory4IndexComputation);
 			unsigned verbatimIndex=importDataIndex[dataIndex];
@@ -733,7 +741,9 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		}
 		{
 			const int effectiveKernelIndex=(kernelImageIndex>-1 ? kernelImageIndex : 0);
-			const std::vector<std::vector<int> >* effectivePath=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentPosition);
+			const qs_transform_utils::EffectivePath effectivePathView=qs_transform_utils::effectivePath(transformContext,transformCaches[moduleID],*pathPosition,effectiveKernelIndex,currentPosition);
+			const std::vector<std::vector<int> >* effectivePath=effectivePathView.simulationPath;
+			const std::vector<std::vector<int> >* matchingPath=effectivePathView.matchingPath;
 			unsigned positionSearch=0;
 			while((numberNeighbor.size()>1||needMoreNeighbours)&&(positionSearch<effectivePath->size())){
 				unsigned dataIndex;
@@ -782,7 +792,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 							}
 						}
 						neighborValueArrayVector.push_back(data);
-						neighborArrayVector.push_back((*effectivePath)[positionSearch]);
+						neighborArrayVector.push_back((*matchingPath)[positionSearch]);
 						if(cpt==0) break;
 					}
 				}

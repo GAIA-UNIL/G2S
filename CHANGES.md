@@ -7,6 +7,10 @@
 ## 2026-05-16
 
 - Added deterministic CPU-side QuickSampling search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. QS now transforms local neighborhood offsets before matching while leaving the training image unchanged, with support for 2D radians and 3D quaternions.
+- Adjusted QS transform matching so transformed offsets are used for simulation-side neighbor lookup while TI scoring keeps the original template/kernel offsets, allowing constant rotations to produce visibly rotated structures.
+- Expanded the 2D QS transform Python examples to 500x500 Strebelle simulations with same-seed baseline comparisons, stronger transform maps, `-j 1.0001` parallel execution, and saved comparison figures.
+- Added a 2D constant-rotation diagnostic example comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+- Hardened Python interface handling for `-rmi`/`-smi` so transform-map arrays are forced through the normal ZeroMQ upload path for local and remote servers, and added interface/server/QS validation to reject empty transform-map values.
 - Reworked `errorTest` into a reusable `report_probe` utility algorithm that emits structured logs, warnings, progress, metadata, and fatal errors through the current reporting helpers instead of writing only the legacy ad hoc error file path.
 - Added Python and MATLAB reporting-probe examples that exercise `-showLogs`, warning propagation, fatal error propagation, and `-returnMeta` through the real interface bindings.
 - Made the Python reporting-probe example accept interface builds that return extra trailing values beyond elapsed time and metadata, avoiding fixed-length tuple unpack failures during smoke tests.

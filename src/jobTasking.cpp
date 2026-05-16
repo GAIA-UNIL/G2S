@@ -36,6 +36,15 @@ namespace {
 		}
 		return true;
 	}
+
+	bool rejectEmptyRequiredParameterValue(const std::string& parameterName, const std::string& parameterValue)
+	{
+		if(parameterValue.empty() && (parameterName=="-rmi" || parameterName=="-smi")){
+			fprintf(stderr, "Parameter %s requires a non-empty uploaded data reference\n", parameterName.c_str());
+			return true;
+		}
+		return false;
+	}
 }
 
 bool resolveRegisteredAlgorithm(const char* algo, std::string* exeName, std::vector<std::string>* listOfMendatory)
@@ -228,6 +237,9 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 				if(param[member[i]].isString())
 				{
 					std::string parameterValue=param[member[i]].asString();
+					if(rejectEmptyRequiredParameterValue(member[i],parameterValue)){
+						return -1;
+					}
 					if(!validateJobStringLength(parameterValue,kMaxJobArgumentLength,"Parameter value")){
 						return -1;
 					}
@@ -242,6 +254,9 @@ jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bo
 					{
 						if(arrayData[j].isString()){
 							std::string parameterValue=arrayData[j].asString();
+							if(rejectEmptyRequiredParameterValue(member[i],parameterValue)){
+								return -1;
+							}
 							if(!validateJobStringLength(parameterValue,kMaxJobArgumentLength,"Parameter value")){
 								return -1;
 							}

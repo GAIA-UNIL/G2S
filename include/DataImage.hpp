@@ -332,8 +332,8 @@ class DataImage{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+deltaVect[i];
 			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
-			//val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
-			val[i] = (val[i] + int(_dims[i])) % int(_dims[i]);
+			const int dim=int(_dims[i]);
+			val[i] = ((val[i] % dim) + dim) % dim;
 			position/=_dims[i];
 		}
 
@@ -363,8 +363,8 @@ class DataImage{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+( combi[i] ? deltaVect[deltaVectoridx++] : 0);
 			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
-			//val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
-			val[i] = (val[i] + int(_dims[i])) % int(_dims[i]);
+			const int dim=int(_dims[i]);
+			val[i] = ((val[i] % dim) + dim) % dim;
 			position/=_dims[i];
 		}
 
