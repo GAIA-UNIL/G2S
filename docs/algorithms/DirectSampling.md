@@ -37,6 +37,7 @@ Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, .
 | `-kvi` | Optional per-node exploration-ratio map. | |
 | `-cti` | Treat each TI as circular during TI-side lookup. | |
 | `-csim` | Treat the simulation domain as circular for neighbor lookup. | |
+| `-wPO` | Enable vector simulation path optimization. This mirrors the QS flag and is ignored by full simulation. | |
 | `-fs` | Full simulation: one path entry per variable. | |
 | `--forceSimulation` | Simulate finite destination values too. | |
 | `-cn` / `-cnorm` | Continuous rooted Lp mismatch norm. Provide one strictly positive value for all continuous variables or one per continuous variable. Default is `2`. | |

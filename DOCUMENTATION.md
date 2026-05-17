@@ -161,7 +161,7 @@ The human-readable log is now expected to show both setup and effective behavior
 
 For `-wPO`, the current conventions are:
 
-- `qs`: logs `path_optimization=true|false` because the flag is effective in QS simulation
+- `qs` and native `ds`: log `path_optimization=true|false` because the flag is effective in vector simulation
 - `snesim`: logs `path_optimization_requested=true|false` so the request is visible in the operator log, even though the current scaffold does not expose the same effective mode as QS
 
 ## QS deterministic search-pattern transforms

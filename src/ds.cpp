@@ -30,6 +30,7 @@
 void printHelp(){
 	printf("Native Direct Sampling (DS)\n");
 	printf("Required: -ti <training image> -di <destination image> -dt <types> -th <threshold> -f <exploration ratio> -n <neighbors>\n");
+	printf("Optional: -wPO enables vector simulation path optimization, matching the QS flag behavior\n");
 }
 
 static bool parsePositiveFloatList(const std::string& rawValue, const char* flagName, FILE* reportFile, std::vector<float>& values){
@@ -406,6 +407,7 @@ int main(int argc, char const *argv[]) {
 	bool considerTiAsCircular=false;
 	bool circularSimulation=false;
 	bool forceSimulation=false;
+	bool withPathOptim=false;
 	g2s::DistanceType searchDistance=g2s::EUCLIDIEN;
 	std::vector<float> continuousNormInput;
 
@@ -431,6 +433,8 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-csim");
 	if(arg.count("--forceSimulation")==1) forceSimulation=true;
 	arg.erase("--forceSimulation");
+	if(arg.count("-wPO")==1) withPathOptim=true;
+	arg.erase("-wPO");
 	if(arg.count("-wd")==1) searchDistance=g2s::KERNEL;
 	arg.erase("-wd");
 	if(arg.count("-ed")==1) searchDistance=g2s::EUCLIDIEN;
@@ -785,6 +789,7 @@ int main(int argc, char const *argv[]) {
 	g2s::reporting::logParameter(reportFile,"circular_ti",g2s::reporting::boolString(considerTiAsCircular));
 	g2s::reporting::logParameter(reportFile,"circular_simulation",g2s::reporting::boolString(circularSimulation));
 	g2s::reporting::logParameter(reportFile,"force_simulation",g2s::reporting::boolString(forceSimulation));
+	g2s::reporting::logParameter(reportFile,"path_optimization",g2s::reporting::boolString(withPathOptim));
 	g2s::reporting::logParameter(reportFile,"rotation_map",g2s::reporting::boolString(useRotationMap));
 	g2s::reporting::logParameter(reportFile,"rotation_tolerance_map",g2s::reporting::boolString(useRotationToleranceMap));
 	g2s::reporting::logParameter(reportFile,"scale_map",g2s::reporting::boolString(useScaleMap));
@@ -846,7 +851,7 @@ int main(int argc, char const *argv[]) {
 			(!idImage.isEmpty() ? &idImage : nullptr),(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr),
 			seedForIndex,importDataIndex,nbNeighbors,(!numberOfNeighboursImage.isEmpty() ? &numberOfNeighboursImage : nullptr),
 			(!kValueImage.isEmpty() ? &kValueImage : nullptr),categoriesValues,nbThreads,false,circularSimulation,forceSimulation,
-			false,false,posteriorPath.data(),nullptr,nullptr,transformContextPtr,&kernelFlatIndexArray,seed);
+			false,withPathOptim,posteriorPath.data(),nullptr,nullptr,transformContextPtr,&kernelFlatIndexArray,seed);
 	}
 	auto end=std::chrono::high_resolution_clock::now();
 	cleanCategoricalSingletons(DI,protectedMask);

@@ -106,7 +106,7 @@ For quick end-to-end validation of that path, the built-in `report_probe` algori
 
 The current `-wPO` logging convention is intentionally explicit:
 
-- `qs` logs `path_optimization=true|false` because the flag is parsed and used by the simulation path logic
+- `qs` and native `ds` log `path_optimization=true|false` because the flag is parsed and used by the vector simulation path logic
 - `snesim` logs `path_optimization_requested=true|false` so operators can see the requested CLI flag even though the current scaffold does not expose an effective path-optimization mode in the same way as QS
 
 ## Server data protocol hardening
