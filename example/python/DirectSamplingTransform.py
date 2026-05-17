@@ -13,7 +13,7 @@ def load_tiff(url):
 
 
 ti = load_tiff("https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/stone.tiff")
-di = np.full((180, 180), np.nan, dtype=np.float32)
+di = np.full(ti.shape, np.nan, dtype=np.float32)
 
 yy, xx = np.indices(di.shape, dtype=np.float32)
 cy = (di.shape[0] - 1) / 2.0
@@ -41,6 +41,8 @@ simulation, index, *_ = g2s(
     0.35,
     "-n",
     40,
+    "-j",
+    1.00001,
     "-s",
     456,
     "-rmi",

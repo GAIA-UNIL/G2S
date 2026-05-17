@@ -13,8 +13,7 @@ def load_tiff(url):
 
 
 ti = load_tiff("https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff")
-di = np.full((180, 180), np.nan, dtype=np.float32)
-di[::45, ::45] = ti[: di.shape[0] : 45, : di.shape[1] : 45]
+di = np.full(ti.shape, np.nan, dtype=np.float32)
 
 simulation, index, *_ = g2s(
     "-a",
@@ -31,12 +30,14 @@ simulation, index, *_ = g2s(
     0.4,
     "-n",
     48,
+    "-j",
+    1.00001,
     "-s",
     321,
 )
 
-fig, axes = plt.subplots(1, 3, figsize=(9, 3))
-for ax, image, title in zip(axes, [ti, di, simulation], ["Strebelle TI", "Conditioning", "Native DS"]):
+fig, axes = plt.subplots(1, 2, figsize=(7, 3))
+for ax, image, title in zip(axes, [ti, simulation], ["Strebelle TI", "Native DS"]):
     ax.imshow(image, cmap="tab20")
     ax.set_title(title)
     ax.axis("off")

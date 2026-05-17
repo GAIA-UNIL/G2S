@@ -23,8 +23,7 @@ continuous = (
 continuous = (continuous - np.nanmin(continuous)) / (np.nanmax(continuous) - np.nanmin(continuous))
 
 ti = np.stack([categorical, continuous.astype(np.float32)], axis=-1).astype(np.float32)
-di = np.full((180, 180, 2), np.nan, dtype=np.float32)
-di[::45, ::45, :] = ti[: di.shape[0] : 45, : di.shape[1] : 45, :]
+di = np.full(ti.shape, np.nan, dtype=np.float32)
 
 simulation, index, *_ = g2s(
     "-a",
@@ -41,6 +40,8 @@ simulation, index, *_ = g2s(
     0.4,
     "-n",
     48,
+    "-j",
+    1.00001,
     "-cnorm",
     2.0,
     "-fs",

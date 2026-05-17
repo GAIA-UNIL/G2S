@@ -64,10 +64,11 @@ Categorical mismatch is a normalized weighted mismatch count. Continuous mismatc
 ## Examples
 
 The following examples assume the G2S server is running.
+They are fully unconditional, create all-`NaN` destination images with the same shape as the loaded training image, and use `-j 1.00001` for path-level parallel execution.
 
-- Continuous stone example: `example/python/DirectSamplingContinuous.py`
-- Categorical Strebelle example: `example/python/DirectSamplingCategorical.py`
-- Local transform example: `example/python/DirectSamplingTransform.py`
-- Full mixed multivariate example: `example/python/DirectSamplingMixedFull.py`
+- Continuous stone examples: `example/python/DirectSamplingContinuous.py`, `example/matlab/DirectSamplingContinuous.m`
+- Categorical Strebelle examples: `example/python/DirectSamplingCategorical.py`, `example/matlab/DirectSamplingCategorical.m`
+- Local transform examples: `example/python/DirectSamplingTransform.py`, `example/matlab/DirectSamplingTransform.m`
+- Full mixed multivariate examples: `example/python/DirectSamplingMixedFull.py`, `example/matlab/DirectSamplingMixedFull.m`
 
-All Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`.
+The Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`. The MATLAB examples use `imread` with a `websave` fallback for older MATLAB releases.
