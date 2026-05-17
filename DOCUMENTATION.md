@@ -12,6 +12,8 @@ When reviewing, debugging, or changing G2S code, use the repository-level source
 
 Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It intentionally reuses the generic `simulation()` / `simulationFull()` orchestration and only opts into additional `SamplingModule` hooks for raw neighbor values, strict informed-neighbor filtering, safe TI-id resolution, per-node sample context, and kernel flat-index mapping. Legacy `ds-l` remains implemented by `src/ds-l.cpp` and should not be changed when working on native DS behavior.
 
+Native DS uses the first configured kernel as its default mismatch kernel and switches to a per-node kernel only when a valid `-kii` map selects one. `-ii` maps are interpreted per simulation cell in both vector and full simulation; multi-channel `-ii` maps may provide per-variable TI selection for full simulation. Candidate patterns that cannot support the full observed data event inside the selected TI are rejected instead of being scored on a partial neighborhood. After simulation, native DS applies a conservative categorical singleton cleanup that preserves conditioning values and only flips one-cell islands fully surrounded by another categorical value.
+
 The transform helper in `include/qsTransformUtils.hpp` is shared by QS and native DS. Rotation and scale tolerance maps are inert unless provided by a caller; existing QS deterministic transform behavior should remain unchanged.
 
 ## Server protocol schema and validation

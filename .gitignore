@@ -74,6 +74,7 @@ example/python/reporting_probe_transcript.txt
 example/matlab/reporting_probe_transcript.txt
 qs_transform_smoke_*
 ds_smoke_*
+ds_full_ii_*
 qs_rotation_2d_*.png
 qs_rotation_equivalence_2d*.png
 qs_scale_2d_*.png

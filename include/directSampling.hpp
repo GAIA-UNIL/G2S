@@ -126,18 +126,28 @@ private:
 		{
 			unsigned tiNeighborIndex=0;
 			if(!tiIndexWithDelta(ti,tiNeighborIndex,candidateIndex,neighborArrayVector[neighbor])){
+				for (unsigned variable = 0; variable < ti._nbVariable && variable < neighborValueArrayVector[neighbor].size() && variable < _types.size(); ++variable)
+				{
+					const float observed=neighborValueArrayVector[neighbor][variable];
+					if(std::isfinite(observed) && kernelWeight(kernel,static_cast<unsigned>(neighbor),variable)>0.f){
+						return std::numeric_limits<float>::infinity();
+					}
+				}
 				continue;
 			}
 			for (unsigned variable = 0; variable < ti._nbVariable && variable < neighborValueArrayVector[neighbor].size() && variable < _types.size(); ++variable)
 			{
 				const float observed=neighborValueArrayVector[neighbor][variable];
 				const float expected=ti._data[tiNeighborIndex*ti._nbVariable+variable];
-				if(!std::isfinite(observed) || !std::isfinite(expected)){
+				if(!std::isfinite(observed)){
 					continue;
 				}
 				const float weight=kernelWeight(kernel,static_cast<unsigned>(neighbor),variable);
 				if(weight<=0.f){
 					continue;
+				}
+				if(!std::isfinite(expected)){
+					return std::numeric_limits<float>::infinity();
 				}
 				if(_types[variable]==g2s::DataImage::Continuous){
 					const float p=std::max(1.0e-6f,_continuousNormPowerByVariable[variable]);
@@ -256,6 +266,31 @@ public:
 		const float explorationRatio=(localk>0.f && std::isfinite(localk)) ? localk : _maxExplorationRatio;
 		const size_t maxScanned=std::max<size_t>(1,std::min<size_t>(totalCandidateCount,static_cast<size_t>(std::ceil(double(totalCandidateCount)*std::max(0.f,explorationRatio)))));
 		const size_t start=static_cast<size_t>(std::floor(hashUnit(_context.globalSeed,_context.pathIndex,variableOfInterest,0)*double(totalCandidateCount)))%totalCandidateCount;
+
+		if(neighborArrayVector.empty()){
+			for (size_t scan = 0; scan < totalCandidateCount; ++scan)
+			{
+				size_t flattened=(start+scan)%totalCandidateCount;
+				unsigned tiId=allowedTis.front();
+				unsigned index=0;
+				for (size_t tiOrder = 0; tiOrder < allowedTis.size(); ++tiOrder)
+				{
+					tiId=allowedTis[tiOrder];
+					const unsigned cellCount=(*_tis)[tiId].dataSize()/(*_tis)[tiId]._nbVariable;
+					if(flattened<cellCount){
+						index=static_cast<unsigned>(flattened);
+						break;
+					}
+					flattened-=cellCount;
+				}
+				if(centerIsValid((*_tis)[tiId],index,variableOfInterest)){
+					best.TI=tiId;
+					best.index=index;
+					return best;
+				}
+			}
+			return best;
+		}
 
 		float bestScore=std::numeric_limits<float>::infinity();
 		bool foundAny=false;

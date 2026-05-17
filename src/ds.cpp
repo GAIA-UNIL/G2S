@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -80,6 +81,84 @@ static bool validateFiniteMap(const g2s::DataImage& image, bool strictlyPositive
 		}
 	}
 	return true;
+}
+
+static std::vector<unsigned char> protectedSamples(const g2s::DataImage& image, bool forceSimulation){
+	std::vector<unsigned char> protectedMask(const_cast<g2s::DataImage&>(image).dataSize(),0);
+	if(forceSimulation){
+		return protectedMask;
+	}
+	for (unsigned i = 0; i < const_cast<g2s::DataImage&>(image).dataSize(); ++i)
+	{
+		protectedMask[i]=std::isfinite(image._data[i]);
+	}
+	return protectedMask;
+}
+
+static void cleanCategoricalSingletons(g2s::DataImage& image, const std::vector<unsigned char>& protectedMask){
+	if(image._dims.empty()){
+		return;
+	}
+	const unsigned cellCount=image.dataSize()/image._nbVariable;
+	std::vector<float> cleaned(image._data,image._data+image.dataSize());
+	std::vector<int> offset(image._dims.size(),0);
+	const unsigned requiredMajority=std::max<unsigned>(2,image._dims.size());
+	for (unsigned cell = 0; cell < cellCount; ++cell)
+	{
+		for (unsigned variable = 0; variable < image._nbVariable; ++variable)
+		{
+			if(image._types[variable]!=g2s::DataImage::Categorical){
+				continue;
+			}
+			const unsigned flat=cell*image._nbVariable+variable;
+			if(flat<protectedMask.size() && protectedMask[flat]){
+				continue;
+			}
+			const float center=image._data[flat];
+			if(!std::isfinite(center)){
+				continue;
+			}
+			unsigned same=0;
+			std::map<float,unsigned> neighborCounts;
+			for (size_t dim = 0; dim < image._dims.size(); ++dim)
+			{
+				for (int direction = -1; direction <= 1; direction+=2)
+				{
+					std::fill(offset.begin(),offset.end(),0);
+					offset[dim]=direction;
+					unsigned neighborCell=0;
+					if(!image.indexWithDelta(neighborCell,cell,offset)){
+						continue;
+					}
+					const float value=image._data[neighborCell*image._nbVariable+variable];
+					if(!std::isfinite(value)){
+						continue;
+					}
+					if(value==center){
+						same++;
+					}else{
+						neighborCounts[value]++;
+					}
+				}
+			}
+			if(same>0 || neighborCounts.empty()){
+				continue;
+			}
+			float bestValue=center;
+			unsigned bestCount=0;
+			for (std::map<float,unsigned>::const_iterator it=neighborCounts.begin(); it!=neighborCounts.end(); ++it)
+			{
+				if(it->second>bestCount){
+					bestValue=it->first;
+					bestCount=it->second;
+				}
+			}
+			if(bestCount>=requiredMajority){
+				cleaned[flat]=bestValue;
+			}
+		}
+	}
+	std::copy(cleaned.begin(),cleaned.end(),image._data);
 }
 
 struct DsPathEntry{
@@ -411,6 +490,7 @@ int main(int argc, char const *argv[]) {
 		fprintf(reportFile,"error: failed to load -ti or -di\n");
 		return 0;
 	}
+	std::vector<unsigned char> protectedMask=protectedSamples(DI,forceSimulation);
 
 	if(arg.count("-dt")>=1){
 		std::vector<g2s::DataImage::VariableType> types;
@@ -713,7 +793,7 @@ int main(int argc, char const *argv[]) {
 	g2s::reporting::logParameter(reportFile,"output_image",outputFilename);
 	g2s::reporting::logParameter(reportFile,"output_index",outputIndexFilename);
 
-	DirectSamplingModule DSM(&TIs,(kernels.size()==1 ? &kernels[0] : nullptr),DI._types,continuousNormPowerByVariable,threshold,mer,considerTiAsCircular);
+	DirectSamplingModule DSM(&TIs,&kernels[0],DI._types,continuousNormPowerByVariable,threshold,mer,considerTiAsCircular);
 
 	std::vector<std::vector<float> > categoriesValues;
 	qs_transform_utils::TransformContext transformContext;
@@ -769,6 +849,7 @@ int main(int argc, char const *argv[]) {
 			false,false,posteriorPath.data(),nullptr,nullptr,transformContextPtr,&kernelFlatIndexArray,seed);
 	}
 	auto end=std::chrono::high_resolution_clock::now();
+	cleanCategoricalSingletons(DI,protectedMask);
 	const double time=1.0e-6*std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n",time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n",time);

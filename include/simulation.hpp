@@ -536,7 +536,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		samplingModule.setSampleContext(sampleContext);
 		const int requestedTiId=(ii ? samplingModule.resolveTiId(ii->_data[currentCell], static_cast<unsigned>(TIs.size())) : imageIndex);
 
-			if(rawNeighborValues && !neighborArrayVector.empty()){
+			if(rawNeighborValues && (!neighborArrayVector.empty() || requestedTiId>=0)){
 				SamplingModule::matchLocation verbatimRecord;
 				verbatimRecord.TI=TIs.size();
 				importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID,fullStationary,0, localk, requestedTiId,(kernelImageIndex>-1 ? &(kernels[kernelImageIndex]):nullptr));
@@ -877,9 +877,18 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		sampleContext.kernelFlatIndexVector=(kernelFlatIndexArray && effectiveKernelIndexForSample>=0 && size_t(effectiveKernelIndexForSample)<kernelFlatIndexArray->size()) ? &((*kernelFlatIndexArray)[effectiveKernelIndexForSample]) : nullptr;
 		sampleContext.fullSimulation=true;
 		samplingModule.setSampleContext(sampleContext);
-		const int requestedTiId=(ii ? samplingModule.resolveTiId(ii->_data[currentCell], static_cast<unsigned>(TIs.size())) : -1);
+		int requestedTiId=-1;
+		if(ii){
+			unsigned iiOffset=currentPosition*ii->_nbVariable;
+			if(ii->_nbVariable>1 && currentVariable<ii->_nbVariable){
+				iiOffset+=currentVariable;
+			}
+			if(iiOffset<ii->dataSize()){
+				requestedTiId=samplingModule.resolveTiId(ii->_data[iiOffset], static_cast<unsigned>(TIs.size()));
+			}
+		}
 
-			if(rawNeighborValues && !neighborArrayVector.empty()){
+			if(rawNeighborValues && (!neighborArrayVector.empty() || requestedTiId>=0)){
 				SamplingModule::matchLocation verbatimRecord;
 				verbatimRecord.TI=TIs.size();
 				importIndex=samplingModule.sample(neighborArrayVector,neighborValueArrayVector,localSeed,verbatimRecord,moduleID, fullStationary, currentVariable , localk, requestedTiId,(kii ? &(kernels[kernelImageIndex]):nullptr));
