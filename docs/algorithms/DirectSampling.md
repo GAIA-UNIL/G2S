@@ -25,12 +25,12 @@ Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, .
 | `-di` | Destination image. `NaN` values are simulated; finite values are conditioning data unless `--forceSimulation` is set. | &#x2714; |
 | `-dt` | Data type per variable: `0` continuous, `1` categorical. | &#x2714; |
 | `-th` | Acceptance threshold. DS accepts the first scanned candidate at or below this mismatch. | &#x2714; |
-| `-f` / `-mer` | Maximum exploration ratio. TI candidates are scanned sequentially from a randomized start with wraparound. | &#x2714; |
+| `-f` / `-mer` | Maximum exploration ratio. TI candidates are visited without replacement through a deterministic pseudo-random permutation. | &#x2714; |
 | `-n` | Number of informed neighbors to use, scalar or per-variable. | &#x2714; unless `-ni` is provided |
 | `-ki` | Optional kernel image. Kernel weights are honored using the true kernel flat index after neighborhood sorting. | |
 | `-sp` | Optional simulation path. Default is a random path. | |
 | `-j` | Number of OpenMP path-level workers. | |
-| `-s` | Global seed. DS candidate starts and stochastic transforms use stateless hash-based draws from this seed. | |
+| `-s` | Global seed. DS candidate permutations and stochastic transforms use stateless hash-based draws from this seed. | |
 | `-ii` | Optional per-node TI-id map. Invalid values (`NaN`, non-finite, negative, non-integer, or out-of-range) mean unrestricted TI selection. | |
 | `-ni` | Optional per-node neighbor-count map. | |
 | `-kii` | Optional per-node kernel-index map. | |
@@ -60,6 +60,8 @@ Transform cache bins are deterministic: 1 degree for 2D angles and `0.05` for lo
 ## Mismatch
 
 Categorical mismatch is a normalized weighted mismatch count. Continuous mismatch is a kernel-weighted rooted Lp mismatch using `-cn` / `-cnorm`. Mixed-variable DS uses a normalized sum across active variables and ignores non-finite neighbor or TI values without consuming support.
+
+For each simulated node, candidate order is a deterministic pseudo-random permutation over the flattened allowed TI cells. The permutation is keyed by the global seed, local per-node seed, simulation path order, and variable, so a fixed explicit path remains reproducible while changing `-s` changes the TI visit order.
 
 ## Examples
 

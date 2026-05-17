@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <numeric>
 #include <vector>
@@ -19,7 +20,6 @@ private:
 	float _threshold=0.f;
 	float _maxExplorationRatio=1.f;
 	bool _circularTI=false;
-	SampleContext _context;
 
 	static inline uint64_t mix64(uint64_t value){
 		value+=0x9e3779b97f4a7c15ULL;
@@ -28,17 +28,66 @@ private:
 		return value^(value>>31);
 	}
 
-	static inline float hashUnit(uint64_t seed, uint64_t pathIndex, uint64_t variableIndex, uint64_t counter){
-		const uint64_t value=mix64(seed^(mix64(pathIndex)+0x9e3779b97f4a7c15ULL)^(mix64(variableIndex)<<1)^mix64(counter));
-		const uint32_t top=static_cast<uint32_t>(value>>40);
-		return float(double(top)/double(0x1000000u));
+	static inline uint32_t floatBits(float value){
+		uint32_t bits=0;
+		std::memcpy(&bits,&value,sizeof(float));
+		return bits;
 	}
 
-	inline bool centerIsValid(g2s::DataImage& ti, unsigned index, unsigned variableOfInterest) const{
+	static inline SampleContext& threadSampleContext(){
+		static thread_local SampleContext context;
+		return context;
+	}
+
+	static inline unsigned permutationBitCount(size_t count){
+		unsigned bits=0;
+		size_t value=1;
+		while(value<count && bits<sizeof(size_t)*8){
+			value<<=1;
+			bits++;
+		}
+		return bits;
+	}
+
+	static inline size_t permutePowerOfTwo(size_t value, unsigned bits, uint64_t key){
+		if(bits==0){
+			return 0;
+		}
+		const size_t mask=(bits>=sizeof(size_t)*8) ? std::numeric_limits<size_t>::max() : ((size_t(1)<<bits)-size_t(1));
+		size_t x=value&mask;
+		const size_t mul1=static_cast<size_t>(mix64(key^0x243f6a8885a308d3ULL))|size_t(1);
+		const size_t mul2=static_cast<size_t>(mix64(key^0x13198a2e03707344ULL))|size_t(1);
+		const size_t add1=static_cast<size_t>(mix64(key^0xa4093822299f31d0ULL));
+		const size_t add2=static_cast<size_t>(mix64(key^0x082efa98ec4e6c89ULL));
+		const unsigned shift1=std::max(1u,bits/2u);
+		const unsigned shift2=std::max(1u,bits/3u+1u);
+		x=(x+add1)&mask;
+		x^=(x>>shift1);
+		x=(x*mul1)&mask;
+		x^=(x>>shift2);
+		x=(x+add2)&mask;
+		x=(x*mul2)&mask;
+		x^=(x>>shift1);
+		return x&mask;
+	}
+
+	static inline size_t permutedCandidate(size_t scan, size_t candidateCount, uint64_t key){
+		if(candidateCount<=1){
+			return 0;
+		}
+		const unsigned bits=permutationBitCount(candidateCount);
+		size_t value=scan;
+		do {
+			value=permutePowerOfTwo(value,bits,key);
+		} while(value>=candidateCount);
+		return value;
+	}
+
+	inline bool centerIsValid(g2s::DataImage& ti, unsigned index, unsigned variableOfInterest, const SampleContext& context) const{
 		if(index>=ti.dataSize()/ti._nbVariable){
 			return false;
 		}
-		if(_context.fullSimulation){
+		if(context.fullSimulation){
 			return variableOfInterest<ti._nbVariable && std::isfinite(ti._data[index*ti._nbVariable+variableOfInterest]);
 		}
 		for (unsigned variable = 0; variable < ti._nbVariable; ++variable)
@@ -50,13 +99,13 @@ private:
 		return true;
 	}
 
-	inline float kernelWeight(g2s::DataImage* kernel, unsigned neighborIndex, unsigned variable) const{
+	inline float kernelWeight(g2s::DataImage* kernel, unsigned neighborIndex, unsigned variable, const SampleContext& context) const{
 		if(kernel==nullptr || kernel->isEmpty()){
 			return 1.f;
 		}
 		unsigned flatIndex=0;
-		if(_context.kernelFlatIndexVector!=nullptr && neighborIndex<_context.kernelFlatIndexVector->size() && (*_context.kernelFlatIndexVector)[neighborIndex]>=0){
-			flatIndex=static_cast<unsigned>((*_context.kernelFlatIndexVector)[neighborIndex]);
+		if(context.kernelFlatIndexVector!=nullptr && neighborIndex<context.kernelFlatIndexVector->size() && (*context.kernelFlatIndexVector)[neighborIndex]>=0){
+			flatIndex=static_cast<unsigned>((*context.kernelFlatIndexVector)[neighborIndex]);
 		}else{
 			unsigned center=0;
 			for (int dim = int(kernel->_dims.size())-1; dim>=0; --dim)
@@ -111,9 +160,10 @@ private:
 		std::vector<std::vector<int> >& neighborArrayVector,
 		std::vector<std::vector<float> >& neighborValueArrayVector,
 		unsigned variableOfInterest,
-		g2s::DataImage* kernel) const{
+		g2s::DataImage* kernel,
+		const SampleContext& context) const{
 
-		if(!centerIsValid(ti,candidateIndex,variableOfInterest)){
+		if(!centerIsValid(ti,candidateIndex,variableOfInterest,context)){
 			return std::numeric_limits<float>::infinity();
 		}
 
@@ -129,7 +179,7 @@ private:
 				for (unsigned variable = 0; variable < ti._nbVariable && variable < neighborValueArrayVector[neighbor].size() && variable < _types.size(); ++variable)
 				{
 					const float observed=neighborValueArrayVector[neighbor][variable];
-					if(std::isfinite(observed) && kernelWeight(kernel,static_cast<unsigned>(neighbor),variable)>0.f){
+					if(std::isfinite(observed) && kernelWeight(kernel,static_cast<unsigned>(neighbor),variable,context)>0.f){
 						return std::numeric_limits<float>::infinity();
 					}
 				}
@@ -142,7 +192,7 @@ private:
 				if(!std::isfinite(observed)){
 					continue;
 				}
-				const float weight=kernelWeight(kernel,static_cast<unsigned>(neighbor),variable);
+				const float weight=kernelWeight(kernel,static_cast<unsigned>(neighbor),variable,context);
 				if(weight<=0.f){
 					continue;
 				}
@@ -229,15 +279,14 @@ public:
 	}
 
 	void setSampleContext(const SampleContext& context) override {
-		_context=context;
+		threadSampleContext()=context;
 	}
 
 	matchLocation sample(std::vector<std::vector<int> > neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr) override {
-		(void)seed;
 		(void)verbatimRecord;
 		(void)moduleID;
 		(void)fullStationary;
-		(void)localk;
+		const SampleContext& context=threadSampleContext();
 		g2s::DataImage* kernel=(localKernel!=nullptr ? localKernel : _kernel);
 		matchLocation best;
 		best.TI=0;
@@ -265,12 +314,12 @@ public:
 
 		const float explorationRatio=(localk>0.f && std::isfinite(localk)) ? localk : _maxExplorationRatio;
 		const size_t maxScanned=std::max<size_t>(1,std::min<size_t>(totalCandidateCount,static_cast<size_t>(std::ceil(double(totalCandidateCount)*std::max(0.f,explorationRatio)))));
-		const size_t start=static_cast<size_t>(std::floor(hashUnit(_context.globalSeed,_context.pathIndex,variableOfInterest,0)*double(totalCandidateCount)))%totalCandidateCount;
+		const uint64_t permutationKey=mix64(uint64_t(context.globalSeed))^mix64(uint64_t(context.pathIndex))^(mix64(uint64_t(variableOfInterest))<<1)^mix64(uint64_t(floatBits(seed)));
 
 		if(neighborArrayVector.empty()){
 			for (size_t scan = 0; scan < totalCandidateCount; ++scan)
 			{
-				size_t flattened=(start+scan)%totalCandidateCount;
+				size_t flattened=permutedCandidate(scan,totalCandidateCount,permutationKey);
 				unsigned tiId=allowedTis.front();
 				unsigned index=0;
 				for (size_t tiOrder = 0; tiOrder < allowedTis.size(); ++tiOrder)
@@ -283,7 +332,7 @@ public:
 					}
 					flattened-=cellCount;
 				}
-				if(centerIsValid((*_tis)[tiId],index,variableOfInterest)){
+				if(centerIsValid((*_tis)[tiId],index,variableOfInterest,context)){
 					best.TI=tiId;
 					best.index=index;
 					return best;
@@ -296,7 +345,7 @@ public:
 		bool foundAny=false;
 		for (size_t scan = 0; scan < maxScanned; ++scan)
 		{
-			size_t flattened=(start+scan)%totalCandidateCount;
+			size_t flattened=permutedCandidate(scan,totalCandidateCount,permutationKey);
 			unsigned tiId=allowedTis.front();
 			unsigned index=0;
 			for (size_t tiOrder = 0; tiOrder < allowedTis.size(); ++tiOrder)
@@ -310,7 +359,7 @@ public:
 				flattened-=cellCount;
 			}
 
-			const float score=scoreCandidate((*_tis)[tiId],index,neighborArrayVector,neighborValueArrayVector,variableOfInterest,kernel);
+			const float score=scoreCandidate((*_tis)[tiId],index,neighborArrayVector,neighborValueArrayVector,variableOfInterest,kernel,context);
 			if(score<bestScore){
 				bestScore=score;
 				best.TI=tiId;
@@ -334,7 +383,7 @@ public:
 			const unsigned cellCount=(*_tis)[tiId].dataSize()/(*_tis)[tiId]._nbVariable;
 			for (unsigned index = 0; index < cellCount; ++index)
 			{
-				if(centerIsValid((*_tis)[tiId],index,variableOfInterest)){
+				if(centerIsValid((*_tis)[tiId],index,variableOfInterest,context)){
 					best.TI=tiId;
 					best.index=index;
 					return best;

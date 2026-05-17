@@ -7,6 +7,7 @@
 ## 2026-05-16
 
 - Added native CPU Direct Sampling as `ds`, `DS`, and `DirectSampling`, with legacy `ds-l` aliases preserved on the old implementation. Native DS reuses the shared simulation path, vector/full modes, per-node control maps, interface upload plumbing, and OpenMP path scheduling while providing DS-specific sequential TI scanning, threshold acceptance, kernel-weighted mixed mismatch, safe `-ii` handling, and stochastic local rotation/scale transforms.
+- Changed native DS candidate scanning from a random-start contiguous TI segment to an array-free deterministic pseudo-random permutation keyed by global seed, local per-node seed, path order, and variable, and made the DS sample context thread-local for parallel runs.
 - Fixed native DS edge cases where no-neighbor nodes ignored `-ii` TI-selection maps, full simulation indexed cell-level `-ii` maps by full variable slot, multi-kernel runs without `-kii` lost the default kernel weights, TI-border candidates could be accepted from partial data-event support, and categorical outputs could retain isolated one-cell islands.
 - Added native DS support for the QS-style `-wPO` path-optimization flag in vector simulation, with explicit `path_optimization=true|false` reporting.
 - Updated the native DS Python examples to be fully unconditional, to size destination images from the loaded training image instead of using sparse point conditioning on fixed 180x180 grids, and to pass `-j 1.00001`.

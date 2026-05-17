@@ -14,6 +14,8 @@ Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It 
 
 Native DS uses the first configured kernel as its default mismatch kernel and switches to a per-node kernel only when a valid `-kii` map selects one. `-ii` maps are interpreted per simulation cell in both vector and full simulation; multi-channel `-ii` maps may provide per-variable TI selection for full simulation. Candidate patterns that cannot support the full observed data event inside the selected TI are rejected instead of being scored on a partial neighborhood. After simulation, native DS applies a conservative categorical singleton cleanup that preserves conditioning values and only flips one-cell islands fully surrounded by another categorical value.
 
+Native DS visits TI candidates through a deterministic pseudo-random permutation over the allowed flattened TI candidates. The permutation is array-free, bounded by `-f` / `-mer`, and keyed by the global seed, local per-node seed, simulation path order, and variable. Per-node sample context is stored per thread so parallel path workers do not overwrite each other's candidate-order context.
+
 The Python and MATLAB native DS examples are intentionally fully unconditional: their destination images are all `NaN`, use the same spatial and variable shape as the loaded training image, and pass `-j 1.00001` to exercise path-level parallel execution. Do not add sparse demonstration conditioning points to those examples unless the example is explicitly renamed and documented as conditional.
 
 The transform helper in `include/qsTransformUtils.hpp` is shared by QS and native DS. Rotation and scale tolerance maps are inert unless provided by a caller; existing QS deterministic transform behavior should remain unchanged.
