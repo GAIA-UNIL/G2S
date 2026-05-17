@@ -16,6 +16,8 @@ Native DS uses the first configured kernel as its default mismatch kernel and sw
 
 Native DS visits TI candidates through a deterministic pseudo-random permutation over the allowed flattened TI candidates. The permutation is array-free, bounded by `-f` / `-mer`, and keyed by the global seed, local per-node seed, simulation path order, and variable. Per-node sample context is stored per thread so parallel path workers do not overwrite each other's candidate-order context.
 
+Continuous DS mismatch keeps the generic `pow` path for custom `-cn` / `-cnorm` values, but shortcuts the common `1` and `2` powers with direct absolute-difference and multiplication/square-root operations in the candidate scoring loop.
+
 The Python and MATLAB native DS examples are intentionally fully unconditional: their destination images are all `NaN`, use the same spatial and variable shape as the loaded training image, and pass `-j 1.00001` to exercise path-level parallel execution. Do not add sparse demonstration conditioning points to those examples unless the example is explicitly renamed and documented as conditional.
 
 The transform helper in `include/qsTransformUtils.hpp` is shared by QS and native DS. Rotation and scale tolerance maps are inert unless provided by a caller; existing QS deterministic transform behavior should remain unchanged.

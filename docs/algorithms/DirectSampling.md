@@ -59,7 +59,7 @@ Transform cache bins are deterministic: 1 degree for 2D angles and `0.05` for lo
 
 ## Mismatch
 
-Categorical mismatch is a normalized weighted mismatch count. Continuous mismatch is a kernel-weighted rooted Lp mismatch using `-cn` / `-cnorm`. Mixed-variable DS uses a normalized sum across active variables and ignores non-finite neighbor or TI values without consuming support.
+Categorical mismatch is a normalized weighted mismatch count. Continuous mismatch is a kernel-weighted rooted Lp mismatch using `-cn` / `-cnorm`. The common continuous powers `1` and `2` use direct arithmetic instead of generic `pow` calls. Mixed-variable DS uses a normalized sum across active variables and ignores non-finite neighbor or TI values without consuming support.
 
 For each simulated node, candidate order is a deterministic pseudo-random permutation over the flattened allowed TI cells. The permutation is keyed by the global seed, local per-node seed, simulation path order, and variable, so a fixed explicit path remains reproducible while changing `-s` changes the TI visit order.
 

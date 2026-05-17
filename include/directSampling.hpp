@@ -154,6 +154,26 @@ private:
 		return true;
 	}
 
+	static inline float continuousNormAccumulation(float absoluteDifference, float power){
+		if(power==2.f){
+			return absoluteDifference*absoluteDifference;
+		}
+		if(power==1.f){
+			return absoluteDifference;
+		}
+		return std::pow(absoluteDifference,power);
+	}
+
+	static inline float continuousNormRoot(float meanPower, float power){
+		if(power==2.f){
+			return std::sqrt(meanPower);
+		}
+		if(power==1.f){
+			return meanPower;
+		}
+		return std::pow(meanPower,1.f/power);
+	}
+
 	inline float scoreCandidate(
 		g2s::DataImage& ti,
 		unsigned candidateIndex,
@@ -201,7 +221,7 @@ private:
 				}
 				if(_types[variable]==g2s::DataImage::Continuous){
 					const float p=std::max(1.0e-6f,_continuousNormPowerByVariable[variable]);
-					continuousPower[variable]+=weight*std::pow(std::fabs(observed-expected),p);
+					continuousPower[variable]+=weight*continuousNormAccumulation(std::fabs(observed-expected),p);
 					continuousSupport[variable]+=weight;
 				}else{
 					categoricalMismatch[variable]+=weight*(observed==expected ? 0.f : 1.f);
@@ -217,7 +237,7 @@ private:
 			if(_types[variable]==g2s::DataImage::Continuous){
 				if(continuousSupport[variable]>0.f){
 					const float p=std::max(1.0e-6f,_continuousNormPowerByVariable[variable]);
-					totalScore+=std::pow(continuousPower[variable]/continuousSupport[variable],1.f/p);
+					totalScore+=continuousNormRoot(continuousPower[variable]/continuousSupport[variable],p);
 					activeVariableCount+=1.f;
 				}
 			}else if(categoricalSupport[variable]>0.f){
