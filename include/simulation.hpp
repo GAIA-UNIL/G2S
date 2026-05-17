@@ -269,7 +269,10 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 			std::execution::par,
 			#endif
 			 adjustedPath, adjustedPath+numberOfPointToSimulate, [&](size_t i1, size_t i2) {
-			return maxDpendencePath[i1] < maxDpendencePath[i2];
+			if(maxDpendencePath[i1]!=maxDpendencePath[i2]){
+				return maxDpendencePath[i1] < maxDpendencePath[i2];
+			}
+			return i1 < i2;
 		});
 		
 		free(maxDpendencePath);
@@ -445,7 +448,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 									val=di._data[dataIndex*di._nbVariable+i];
 									numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
 								}
-								if(strictInformedNeighbors || (numberOfNaN==0)||(posteriorPath[dataIndex]==currentPathOrder))break;
+								if((numberOfNaN==0)||(!strictInformedNeighbors && posteriorPath[dataIndex]==currentPathOrder))break;
 								std::this_thread::sleep_for(std::chrono::microseconds(250));
 							}
 
@@ -798,7 +801,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 								val=di._data[dataIndex*di._nbVariable+i];
 								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder) && std::isnan(val);
 							}
-							if(strictInformedNeighbors || numberOfNaN==0)break;
+							if(numberOfNaN==0)break;
 							std::this_thread::sleep_for(std::chrono::microseconds(250));
 						}
 

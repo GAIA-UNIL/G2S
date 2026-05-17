@@ -665,7 +665,20 @@ int main(int argc, char const *argv[]) {
 		std::iota(simulationPathIndex,simulationPathIndex+simulationPathSize,0);
 		float* simulationPathData=simulationPath._data;
 		std::sort(simulationPathIndex,simulationPathIndex+simulationPathSize,[simulationPathData](g2s_path_index_t a, g2s_path_index_t b){
-			return simulationPathData[a]<simulationPathData[b];
+			const float valueA=simulationPathData[a];
+			const float valueB=simulationPathData[b];
+			if(valueA<valueB){
+				return true;
+			}
+			if(valueB<valueA){
+				return false;
+			}
+			const bool nanA=std::isnan(valueA);
+			const bool nanB=std::isnan(valueB);
+			if(nanA!=nanB){
+				return !nanA;
+			}
+			return a<b;
 		});
 		for (beginPath=0; beginPath<simulationPathSize; ++beginPath)
 		{

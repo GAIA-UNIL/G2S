@@ -78,6 +78,7 @@ ds_full_ii_*
 ds_wpo_smoke_*
 ds_permutation_smoke_*
 ds_norm_smoke_*
+ds_repro_smoke_*
 qs_rotation_2d_*.png
 qs_rotation_equivalence_2d*.png
 qs_scale_2d_*.png

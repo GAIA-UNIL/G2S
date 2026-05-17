@@ -16,6 +16,10 @@ Native DS uses the first configured kernel as its default mismatch kernel and sw
 
 Native DS visits TI candidates through a deterministic pseudo-random permutation over the allowed flattened TI candidates. The permutation is array-free, bounded by `-f` / `-mer`, and keyed by the global seed, local per-node seed, simulation path order, and variable. Per-node sample context is stored per thread so parallel path workers do not overwrite each other's candidate-order context.
 
+Explicit `-sp` path ordering and `-wPO` dependency ordering use deterministic tie-breakers. This is required for repeated same-seed DS runs because equal path priorities or dependency depths otherwise leave the visit order unspecified, especially when path optimization uses a parallel sort implementation.
+
+When a sampler requests strict informed neighbors, the parallel simulation loop waits until earlier-path neighbor values are written before adding them to the data event. Native DS depends on this behavior for reproducibility under `-j`; otherwise thread timing can decide whether a still-pending neighbor is skipped.
+
 Continuous DS mismatch keeps the generic `pow` path for custom `-cn` / `-cnorm` values, but shortcuts the common `1` and `2` powers with direct absolute-difference and multiplication/square-root operations in the candidate scoring loop.
 
 The Python and MATLAB native DS examples are intentionally fully unconditional: their destination images are all `NaN`, use the same spatial and variable shape as the loaded training image, and pass `-j 1.00001` to exercise path-level parallel execution. Do not add sparse demonstration conditioning points to those examples unless the example is explicitly renamed and documented as conditional.

@@ -28,7 +28,7 @@ Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, .
 | `-f` / `-mer` | Maximum exploration ratio. TI candidates are visited without replacement through a deterministic pseudo-random permutation. | &#x2714; |
 | `-n` | Number of informed neighbors to use, scalar or per-variable. | &#x2714; unless `-ni` is provided |
 | `-ki` | Optional kernel image. Kernel weights are honored using the true kernel flat index after neighborhood sorting. | |
-| `-sp` | Optional simulation path. Default is a random path. | |
+| `-sp` | Optional simulation path. Equal path priorities are resolved by index for reproducible ordering. Default is a random path. | |
 | `-j` | Number of OpenMP path-level workers. | |
 | `-s` | Global seed. DS candidate permutations and stochastic transforms use stateless hash-based draws from this seed. | |
 | `-ii` | Optional per-node TI-id map. Invalid values (`NaN`, non-finite, negative, non-integer, or out-of-range) mean unrestricted TI selection. | |
@@ -37,7 +37,7 @@ Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, .
 | `-kvi` | Optional per-node exploration-ratio map. | |
 | `-cti` | Treat each TI as circular during TI-side lookup. | |
 | `-csim` | Treat the simulation domain as circular for neighbor lookup. | |
-| `-wPO` | Enable vector simulation path optimization. This mirrors the QS flag and is ignored by full simulation. | |
+| `-wPO` | Enable vector simulation path optimization. Equal dependency depths are resolved by path index for same-seed reproducibility. This mirrors the QS flag and is ignored by full simulation. | |
 | `-fs` | Full simulation: one path entry per variable. | |
 | `--forceSimulation` | Simulate finite destination values too. | |
 | `-cn` / `-cnorm` | Continuous rooted Lp mismatch norm. Provide one strictly positive value for all continuous variables or one per continuous variable. Default is `2`. | |
@@ -61,7 +61,7 @@ Transform cache bins are deterministic: 1 degree for 2D angles and `0.05` for lo
 
 Categorical mismatch is a normalized weighted mismatch count. Continuous mismatch is a kernel-weighted rooted Lp mismatch using `-cn` / `-cnorm`. The common continuous powers `1` and `2` use direct arithmetic instead of generic `pow` calls. Mixed-variable DS uses a normalized sum across active variables and ignores non-finite neighbor or TI values without consuming support.
 
-For each simulated node, candidate order is a deterministic pseudo-random permutation over the flattened allowed TI cells. The permutation is keyed by the global seed, local per-node seed, simulation path order, and variable, so a fixed explicit path remains reproducible while changing `-s` changes the TI visit order.
+For each simulated node, candidate order is a deterministic pseudo-random permutation over the flattened allowed TI cells. The permutation is keyed by the global seed, local per-node seed, simulation path order, and variable, so a fixed explicit path remains reproducible while changing `-s` changes the TI visit order. In parallel runs, DS waits for earlier-path strict-informed neighbors before scoring candidates, so thread timing does not change the data event.
 
 ## Examples
 
