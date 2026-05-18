@@ -132,7 +132,9 @@ Bindings now separate transport/state from display:
 
 - `-showLogs` enables live display of newly appended `log_<job>` and `warning_<job>` text while the job runs
 - `-returnMeta` returns the final parsed `meta_<job>` key/value payload to the caller
-- `-returnFormat schema` returns one named dictionary/struct/list envelope instead of the legacy positional tuple/multi-output contract
+- schema named-result output is the default dictionary/struct/list envelope returned instead of the legacy positional tuple/multi-output contract
+- `-returnFormat schema` keeps requesting the schema output explicitly for callers that already adopted that spelling
+- `-legacy_output` explicitly forces the legacy positional tuple/multi-output contract; if both it and `-returnFormat schema` are supplied, legacy output wins
 - Python displays warnings in orange/yellow-ish ANSI text and errors in red before warning/exception propagation
 - MATLAB warnings are non-fatal again, while fatal errors still abort the call
 
@@ -151,7 +153,7 @@ Schema mode is designed for forward-compatible callers:
 - top-level reserved interface keys are `simulation`, named outputs, `time`, `job_id`, `status`, `progress`, `artifacts`, `error`, and `warnings`
 - remaining progress/meta key-values are flattened at the top level unless they collide with reserved interface keys
 
-During the transition, the legacy positional contract remains the default. Compatibility helpers are available in each binding layer:
+The legacy positional contract can be requested explicitly with `-legacy_output`. Compatibility helpers are available in each binding layer:
 
 - Python: `g2s.schema_to_legacy(result)`
 - MATLAB: `g2sSchemaToLegacy(result)`

@@ -6,7 +6,8 @@
 
 ## 2026-05-16
 
-- Added a schema-first interface return mode behind `-returnFormat schema` across Python, MATLAB, and R. Schema mode returns one named result object with semantic output keys, top-level status/time/progress/job fields, flattened metadata, and logical artifact refs under `artifacts`.
+- Made schema-first interface output the default across Python, MATLAB, and R. Schema mode returns one named result object with semantic output keys, top-level status/time/progress/job fields, flattened metadata, and logical artifact refs under `artifacts`.
+- Added `-legacy_output` as an explicit cross-interface compatibility flag. It restores the old positional output contract and takes precedence over `-returnFormat schema`.
 - Added algorithm-published output descriptors (`result_output_<n>_name` / `result_output_<n>_artifact`) for the current multi-output producers so schema mode can name outputs without hardcoding per-algorithm rules in the bindings.
 - Added compatibility helpers to translate schema results back to the legacy positional contract in Python (`schema_to_legacy`), MATLAB (`g2sSchemaToLegacy`), and R (`g2s_schema_to_legacy`).
 - Reworked `errorTest` into a reusable `report_probe` utility algorithm that emits structured logs, warnings, progress, metadata, and fatal errors through the current reporting helpers instead of writing only the legacy ad hoc error file path.

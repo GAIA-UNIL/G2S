@@ -115,8 +115,9 @@ public:
 	}
 
 	static ReturnFormat parseReturnFormat(const std::multimap<std::string, std::any>& input){
+		if(input.count("-legacy_output")>0) return ReturnFormat::Legacy;
 		const auto it=input.find("-returnFormat");
-		if(it==input.end()) return ReturnFormat::Legacy;
+		if(it==input.end()) return ReturnFormat::Schema;
 		const std::string value=trimWhitespaceCopyStatic(valueToString(it->second));
 		if(equalsIgnoreCase(value, "schema")) return ReturnFormat::Schema;
 		return ReturnFormat::Legacy;
@@ -614,7 +615,7 @@ public:
 		bool requestServerStatus=false; // to check programmatically if the server is running
 		bool showLogs=false;
 		bool returnMeta=false;
-		ReturnFormat returnFormat=ReturnFormat::Legacy;
+		ReturnFormat returnFormat=ReturnFormat::Schema;
 
 		if(input.count("-noTO")>0)
 		{
@@ -652,9 +653,14 @@ public:
 			returnFormat=equalsIgnoreCase(trimWhitespaceCopy(toString(input.find("-returnFormat")->second)), "schema") ?
 				ReturnFormat::Schema : ReturnFormat::Legacy;
 		}
+		if(input.count("-legacy_output")>0)
+		{
+			returnFormat=ReturnFormat::Legacy;
+		}
 		input.erase("-showLogs");
 		input.erase("-returnMeta");
 		input.erase("-returnFormat");
+		input.erase("-legacy_output");
 
 		if(input.count("-statusOnly")>0){
 			statusOnly=true;

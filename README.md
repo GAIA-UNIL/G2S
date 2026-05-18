@@ -90,7 +90,7 @@ At startup, the server probes these runtime directories with a create/remove wri
 
 Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
 
-Interfaces now also support `-returnFormat schema` as the new named-result mode. In schema mode, callers receive one dictionary/struct/list object with stable keys such as `simulation`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. The current positional return contract remains available as the legacy default during the transition.
+Interfaces now use the schema named-result mode by default. Callers receive one dictionary/struct/list object with stable keys such as `simulation`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. The old positional return contract remains available by passing `-legacy_output`; it also takes precedence if other return-format options are present.
 
 The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
 
