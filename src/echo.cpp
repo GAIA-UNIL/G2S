@@ -27,7 +27,7 @@ int main(int argc, char const *argv[]) {
 
 	char logFileName[2048]={0};
 	char sourceFileName[2048];
-	char outputFilename[2048];
+	char outputFilename[2048]={0};
 	jobIdType uniqueID=-1;
 	bool run=true;
 
@@ -38,25 +38,8 @@ int main(int argc, char const *argv[]) {
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					snprintf(outputFilename,2048,"%u",logId);
-					//symlink(outputName, fullFilename);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -64,6 +47,13 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile==nullptr){
+		reportFile=stderr;
+	}
+	if(outputFilename[0]=='\0' && uniqueID!=jobIdType(-1)){
+		snprintf(outputFilename,2048,"%u",uniqueID);
+	}
+	g2s::reporting::markStarted(reportFile, "echo");
 	for (int i = 0; i < argc; ++i)
 	{
 		fprintf(reportFile,"%s ",argv[i]);
@@ -106,6 +96,8 @@ int main(int argc, char const *argv[]) {
 	// new filename 
 	srcInput.write(std::string("im_1_")+std::to_string(uniqueID));
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), srcInput);
+	g2s::reporting::markFinished(reportFile, 0.0);
 
 
 	return 0;

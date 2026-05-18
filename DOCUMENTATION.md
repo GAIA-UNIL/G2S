@@ -162,7 +162,7 @@ The repository includes a small reporting-only utility algorithm, `report_probe`
 - `-mode warning`: progress, plain log lines, one warning event, then success
 - `-mode error`: progress, plain log lines, one warning event, a fatal error payload, then nonzero exit
 
-The companion examples `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering and the new schema return mode. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+The companion examples `example/python/reporting/reporting_probe.py` and `example/matlab/reporting/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering and the new schema return mode. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
 
 Schema mode is designed for forward-compatible callers:
 
@@ -176,6 +176,28 @@ The legacy positional contract can be requested explicitly with `-legacy_output`
 - Python: `g2s.schema_to_legacy(result)`
 - MATLAB: `g2sSchemaToLegacy(result)`
 - R: `g2s_schema_to_legacy(result)`
+
+## Interface output examples
+
+Python now receives a dictionary by default:
+
+```python
+result = g2s("-a", "qs", "-ti", ti, "-di", di, "-dt", [0], "-k", 1.2, "-n", 50)
+simulation = result["simulation"]
+elapsed_seconds = result.get("time")
+job_id = result["job_id"]
+```
+
+MATLAB now receives a struct by default:
+
+```matlab
+result = g2s('-a', 'qs', '-ti', ti, '-di', di, '-dt', [0], '-k', 1.2, '-n', 50);
+simulation = result.simulation;
+elapsed_seconds = result.time;
+job_id = result.job_id;
+```
+
+Current examples are grouped by algorithm under `example/python/<algorithm>/` and `example/matlab/<algorithm>/`. Legacy tuple/multi-output examples are kept under `legacy_example/` and pass `-legacy_output` directly.
 
 ## Algorithm logging conventions
 
@@ -201,4 +223,4 @@ Transforms map original QS template offsets into simulation-space lookup offsets
 
 Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
 
-The Python example `example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+The legacy Python example `legacy_example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.

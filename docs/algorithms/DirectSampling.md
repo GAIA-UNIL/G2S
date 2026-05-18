@@ -68,9 +68,7 @@ For each simulated node, candidate order is a deterministic pseudo-random permut
 The following examples assume the G2S server is running.
 They are fully unconditional, create all-`NaN` destination images with the same shape as the loaded training image, and use `-j 1.00001` for path-level parallel execution.
 
-- Continuous stone examples: `example/python/DirectSamplingContinuous.py`, `example/matlab/DirectSamplingContinuous.m`
-- Categorical Strebelle examples: `example/python/DirectSamplingCategorical.py`, `example/matlab/DirectSamplingCategorical.m`
-- Local transform examples: `example/python/DirectSamplingTransform.py`, `example/matlab/DirectSamplingTransform.m`
-- Full mixed multivariate examples: `example/python/DirectSamplingMixedFull.py`, `example/matlab/DirectSamplingMixedFull.m`
+- Current schema examples: `example/python/ds/direct_sampling.py`, `example/matlab/ds/direct_sampling.m`
+- Legacy positional-output examples: `legacy_example/python/DirectSamplingContinuous.py`, `legacy_example/matlab/DirectSamplingContinuous.m`, plus the categorical, transform, and full mixed variants in the same legacy folders
 
 The Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`. The MATLAB examples use `imread` with a `websave` fallback for older MATLAB releases.

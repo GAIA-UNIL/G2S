@@ -78,54 +78,15 @@ This feature is CPU-only and is compatible with vector simulation and full simul
 
 
 ## Examples
-Below are several examples showcasing different applications of QS. For these examples the G2S server should be installed and running, either on your own machine or remotely. A Google Colab notebook with more examples and an automatic installation of G2S can be found [here](https://github.com/GAIA-UNIL/Short-course-MPS/blob/main/MPS_SC_with_QS_Online.ipynb).
+Below are schema-output QS examples. For these examples the G2S server should be installed and running, either on your own machine or remotely. A Google Colab notebook with more examples and an automatic installation of G2S can be found [here](https://github.com/GAIA-UNIL/Short-course-MPS/blob/main/MPS_SC_with_QS_Online.ipynb).
+
+Current examples are grouped under `example/python/qs/` and `example/matlab/qs/`. Older positional-output examples, including transform diagnostics, are kept under `legacy_example/` and pass `-legacy_output` directly.
 
 ### Unconditional simulation
-{% include include_code.md exampleName="unconditionalSimulation" %}
-
-### Conditional simulation
-{% include include_code.md exampleName="conditionalSimulation" %}
-
-### Simulation with multiple Training Images
-{% include include_code.md exampleName="Multiple_TI" %}
-
-### Multivariate simulation
-{% include include_code.md exampleName="multivariateSimulation" %}
-
-### Gap filling
-{% include include_code.md exampleName="gapFilling" %}
-
-### Downscaling
-{% include include_code.md exampleName="downscaling" %}
-
-### 3D simulation
-{% include include_code.md exampleName="3D" %}
-
-### 2D rotation map
-This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
-
-{% include include_code.md exampleName="qs_rotation_2d" %}
-
-### 2D constant rotation equivalence check
-This diagnostic compares a constant `+pi/2` rotation map with simulations using clockwise and counter-clockwise rotated training images. Exact pixel equality is not expected because the TI candidate order changes when the TI array is rotated, but structures should visibly turn and the closer comparison identifies the effective rotation sign convention.
-
-{% include include_code.md exampleName="qs_rotation_equivalence_2d" %}
-
-### 2D scale map
-This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
-
-{% include include_code.md exampleName="qs_scale_2d" %}
-
-### 3D quaternion rotation map
-{% include include_code.md exampleName="qs_quaternion_rotation_3d" %}
-
-### 2D scale and rotation maps
-This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform maps through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
-
-{% include include_code.md exampleName="qs_scale_rotation_2d" %}
+{% include include_code.md examplePath="qs/unconditional" %}
 
 ### Asynchronous mode 
-{% include include_code.md exampleName="async_mode" %}
+{% include include_code.md examplePath="qs/async_status" %}
 
 ## Publication
 

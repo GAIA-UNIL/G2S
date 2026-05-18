@@ -16,9 +16,9 @@ Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** 
 Native QS supports deterministic CPU-side search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. These maps transform simulation-side neighborhood lookups while leaving the training image unchanged and keeping TI/kernel scoring on the original template offsets. The Python 2D transform examples use 500x500 Strebelle simulations with `-j 1.0001`, stronger transform maps, saved baseline comparison figures, and a constant-rotation diagnostic that compares `-rmi +pi/2` against rotated training images.
 Native DS is available as `ds`, `DS`, or `DirectSampling`; the old DS-like implementation remains available as `ds-l`, `dsl`, `DirectSamplingLike`, and `DS-L`. Native DS honors `-ii` TI-selection maps in vector and full simulation, including initial nodes that have no informed neighbors yet. DS candidate scans now use an array-free deterministic pseudo-random permutation keyed by the global seed, local per-node seed, path order, and variable instead of a contiguous wrapped TI segment, path sorting and strict-informed parallel neighbor waits are deterministic for same-seed reproducibility, and the common continuous norms `1` and `2` avoid generic `pow` calls in the hot score loop.
 The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation.
-Concrete interface demos live under `example/matlab/` and `example/python/`, including fully unconditional native DS examples for continuous stone, categorical Strebelle, transform-controlled DS, and full mixed multivariate DS. The DS demos size their destination grids from the loaded training image and pass `-j 1.00001` for path-level parallel execution. SNESIM examples are also available as `snesim_example.m` / `snesim_example.py` using the public Strebelle training image.
+Current interface demos live under `example/<language>/<algorithm>/` and use the schema output interface by default. Legacy positional-output demos were moved to `legacy_example/<language>/` and pass `-legacy_output` directly in each interface call. Native DS examples are under `example/python/ds/` and `example/matlab/ds/`; SNESIM examples are under `example/python/snesim/` and `example/matlab/snesim/`.
 Distributed QS interface calls accept native matrix values for JSON-grid parameters such as `-jg`, `-eg`, and `-di_grid_json`; the shared interface layer converts them to JSON before upload and job serialization.
-For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, `-returnMeta`, and schema-first output through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
+For reporting-path checks, `example/python/reporting/reporting_probe.py` and `example/matlab/reporting/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and schema-first output through the real interface bindings. Both examples let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
@@ -95,6 +95,10 @@ Progress and final duration no longer have to be inferred from the plain log. In
 
 Interfaces now use the schema named-result mode by default. Callers receive one dictionary/struct/list object with stable keys such as `simulation`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. The old positional return contract remains available by passing `-legacy_output`; it also takes precedence if other return-format options are present.
 
+Server-registered algorithms publish schema descriptors for their conventional runtime outputs where applicable: QS, AS, DS, legacy DS-L, NDS, AutoQS, SNESIM, and Echo name their `im_<n>_<job>` artifacts so schema callers can use stable result keys instead of generic positional labels.
+
+Schema examples are organized by algorithm under `example/python/` and `example/matlab/`. The old flat examples are available under `legacy_example/` and pass `-legacy_output` directly.
+
 The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
 
 Human-readable algorithm logs are also being standardized around explicit sections:
@@ -147,7 +151,7 @@ Use one value to apply the same `p` to all continuous variables, or pass one val
 
 ## Python AS example note
 
-`example/python/AnchorSampling.py` is now a minimal synthetic AS demo (based on the larger `AnchorSamplingSyntheticExperiment.py` flow): one masked AS run, concise metrics, and a compact 4-panel visualization. It also keeps the safer Python interface call pattern with repeated `-ti` arguments and explicit `float32` arrays.
+`example/python/as/anchor_sampling.py` is now a minimal synthetic AS demo using schema output. The older richer AS diagnostic remains available as `legacy_example/python/AnchorSamplingSyntheticExperiment.py`.
 
 ## Online Demo (Back! but slow)
 

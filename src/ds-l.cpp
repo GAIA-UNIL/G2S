@@ -25,6 +25,7 @@
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
 
 #include "sharedMemoryManager.hpp"
 #include "CPUThreadDevice.hpp"
@@ -66,24 +67,8 @@ int main(int argc, char const *argv[]) {
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					std::to_string(logId);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -91,6 +76,10 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile==nullptr){
+		reportFile=stderr;
+	}
+	g2s::reporting::markStarted(reportFile, "ds-l");
 	for (int i = 0; i < argc; ++i)
 	{
 		fprintf(reportFile,"%s ",argv[i]);
@@ -821,6 +810,8 @@ int main(int argc, char const *argv[]) {
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	// free memory
 
@@ -854,6 +845,10 @@ int main(int argc, char const *argv[]) {
 	// new filename 
 	id.write(std::string("im_2_")+std::to_string(uniqueID));
 	DI.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 2, "indexmap", std::string("im_2_")+std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), id);
+	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), DI);
 
 	free(simulationPathIndex);
 	simulationPathIndex=nullptr;

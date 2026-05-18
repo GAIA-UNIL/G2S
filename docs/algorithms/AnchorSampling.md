@@ -62,13 +62,13 @@ Outputs: `sim` = simulation, `index` = selected TI id for each simulated value, 
 The following examples assume the G2S server is running.
 
 ### Minimal Python example
-{% include include_code.md exampleName="AnchorSampling" %}
+{% include include_code.md examplePath="as/anchor_sampling" %}
 
 ### Larger diagnostic example in Python
 
 For a richer diagnostic script with a rectangular synthetic case, `-mi` edge cases, exported TI-id checks, and a live figure window, see:
 
-- [example/python/AnchorSamplingSyntheticExperiment.py](https://github.com/GAIA-UNIL/G2S/blob/master/example/python/AnchorSamplingSyntheticExperiment.py)
+- [legacy_example/python/AnchorSamplingSyntheticExperiment.py](https://github.com/GAIA-UNIL/G2S/blob/master/legacy_example/python/AnchorSamplingSyntheticExperiment.py)
 
 ## When to use AS instead of QS
 
