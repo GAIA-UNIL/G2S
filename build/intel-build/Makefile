@@ -27,6 +27,16 @@ ifeq ($(doseNeedFS_Lib),1)
 	export LDFLAGS += -lstdc++fs
 endif
 
+doseNeedTBB:= $(shell echo '#include <execution>\n#include <algorithm>\n#include <vector>\nint main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 0 || echo 1)
+
+ifeq ($(doseNeedTBB),1)
+	doseSupportTBB:= $(shell echo '#include <execution>\n#include <algorithm>\n#include <vector>\nint main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' | $(CXX) -xc++ - -o /dev/null -std=c++17 -ltbb 2>/dev/null && echo 1 || echo 0)
+
+	ifeq ($(doseSupportTBB),1)
+		export LDFLAGS += -ltbb
+	endif
+endif
+
 export DEST_DIR_EXTENSION:=$(shell pwd)
 export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py qs_decentralized_slurm.py qs_decentralized_slurm_client.py
 
@@ -44,7 +54,7 @@ endif
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds-l snesim libg2s.a errorTest algoNames auto_qs distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -80,6 +90,9 @@ snesim: snesim.o snesimTree.o snesimCPUThreadDevice.o DataImage.o
 
 nds: nds.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
+
+ds: ds.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY)
 
 ds-l: ds-l.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
@@ -117,6 +130,7 @@ install:create_install_path all
 	@cp -f ./g2s_server $(INSTALL_DIR)/libexec
 	@cp -f ./qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs' is missing !!\e[0m\n"
 	@cp -f ./nds $(INSTALL_DIR)/libexec || printf "\e[31error: 'nds' is missing !!\e[0m\n"
+	@cp -f ./ds $(INSTALL_DIR)/libexec || printf "\e[31error: 'ds' is missing !!\e[0m\n"
 	@cp -f ./ds-l $(INSTALL_DIR)/libexec || printf "\e[31error: 'ds-l' is missing !!\e[0m\n"
 	@cp -f ./auto_qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'auto_qs' is missing !!\e[0m\n"
 	@cp -f ./snesim $(INSTALL_DIR)/libexec || printf "\e[31error: 'snesim' is missing !!\e[0m\n"

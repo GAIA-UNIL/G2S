@@ -58,7 +58,9 @@ public:
 	}
 
 	bool isDataMatrix(std::any val){
-		return mxIsNumeric(std::any_cast<mxArray const*>(val)) || mxIsLogical(std::any_cast<mxArray const*>(val));
+		if(val.type()!=typeid(mxArray const*)) return false;
+		mxArray const* matlabArray=std::any_cast<mxArray const*>(val);
+		return (mxIsNumeric(matlabArray) || mxIsLogical(matlabArray)) && !mxIsScalar(matlabArray);
 	}
 
 	std::string nativeToStandardString(std::any val){
@@ -279,13 +281,39 @@ public:
 	}
 
 	void sendWarning(std::string val){
-		mexErrMsgIdAndTxt("g2s:error", val.c_str());
+		mxArray *lhs[1];
+		mxArray *rhs[2];
+		rhs[0]=mxCreateString("g2s:warning");
+		rhs[1]=mxCreateString(val.c_str());
+		mexCallMATLAB(0, lhs, 2, rhs, "warning");
 	}
 
 	void eraseAndPrint(std::string val){
 		mxArray *arg[1];
 		arg[0]=mxCreateString(val.c_str());
 		mexCallMATLAB(0,NULL,1,arg,"disp");
+	}
+
+	void printMessage(std::string val) override{
+		mxArray *arg[1];
+		arg[0]=mxCreateString(val.c_str());
+		mexCallMATLAB(0,NULL,1,arg,"disp");
+	}
+
+	std::any keyValueMapToNative(const std::map<std::string,std::string>& values) override{
+		std::vector<const char*> fieldNames;
+		fieldNames.reserve(values.size());
+		for (auto it=values.begin(); it!=values.end(); ++it)
+		{
+			fieldNames.push_back(it->first.c_str());
+		}
+		mxArray* output=mxCreateStructMatrix(1,1,(int)fieldNames.size(),fieldNames.empty() ? nullptr : fieldNames.data());
+		int fieldIndex=0;
+		for (auto it=values.begin(); it!=values.end(); ++it, ++fieldIndex)
+		{
+			mxSetFieldByNumber(output, 0, fieldIndex, mxCreateString(it->second.c_str()));
+		}
+		return std::any(output);
 	}
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
@@ -532,6 +560,15 @@ public:
 
 		if(position<nlhs){
 			auto iter=outputs.find("t");
+			if(iter!=outputs.end())
+			{
+				plhs[position]=std::any_cast<mxArray *>(iter->second);
+				position++;
+			}
+		}
+
+		if(position<nlhs){
+			auto iter=outputs.find("meta");
 			if(iter!=outputs.end())
 			{
 				plhs[position]=std::any_cast<mxArray *>(iter->second);

@@ -16,6 +16,8 @@
 */
 
 #include "dataManagement.hpp"
+#include "jobReporting.hpp"
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
@@ -204,6 +206,57 @@ bool readNamedPayload(const char* hash, const char* extension, bool compressed, 
 	if(!fileExist(filename)) return false;
 	return compressed ? readCompressedFile(filename, data, maxSize) : readPlainFile(filename, data, maxSize);
 }
+
+bool readStructuredTextArtifact(const char* name, std::vector<char>& data, size_t maxSize){
+	if(!name) return false;
+	unsigned jobId=0;
+	char suffix[64]={0};
+	char filename[4096]={0};
+
+	if(sscanf(name, "warning_%u%63s", &jobId, suffix)==1){
+		snprintf(filename,sizeof(filename),"%s",g2s::reporting::warningPath(jobId).c_str());
+		return readPlainFile(filename, data, maxSize);
+	}
+	if(sscanf(name, "error_%u%63s", &jobId, suffix)==1){
+		snprintf(filename,sizeof(filename),"%s",g2s::reporting::errorPath(jobId).c_str());
+		return readPlainFile(filename, data, maxSize);
+	}
+	if(sscanf(name, "progress_%u%63s", &jobId, suffix)==1){
+		snprintf(filename,sizeof(filename),"%s",g2s::reporting::progressPath(jobId).c_str());
+		return readPlainFile(filename, data, maxSize);
+	}
+	if(sscanf(name, "meta_%u%63s", &jobId, suffix)==1){
+		snprintf(filename,sizeof(filename),"%s",g2s::reporting::metaPath(jobId).c_str());
+		return readPlainFile(filename, data, maxSize);
+	}
+	if(sscanf(name, "log_%u%63s", &jobId, suffix)==1){
+		snprintf(filename,sizeof(filename),"%s",g2s::reporting::logPath(jobId).c_str());
+		return readPlainFile(filename, data, maxSize);
+	}
+	return false;
+}
+
+int structuredTextArtifactPresent(const char* name){
+	if(!name) return 0;
+	unsigned jobId=0;
+	char suffix[64]={0};
+	if(sscanf(name, "warning_%u%63s", &jobId, suffix)==1){
+		return access(g2s::reporting::warningPath(jobId).c_str(), F_OK)==0 ? 3 : 0;
+	}
+	if(sscanf(name, "error_%u%63s", &jobId, suffix)==1){
+		return access(g2s::reporting::errorPath(jobId).c_str(), F_OK)==0 ? 3 : 0;
+	}
+	if(sscanf(name, "progress_%u%63s", &jobId, suffix)==1){
+		return access(g2s::reporting::progressPath(jobId).c_str(), F_OK)==0 ? 3 : 0;
+	}
+	if(sscanf(name, "meta_%u%63s", &jobId, suffix)==1){
+		return access(g2s::reporting::metaPath(jobId).c_str(), F_OK)==0 ? 3 : 0;
+	}
+	if(sscanf(name, "log_%u%63s", &jobId, suffix)==1){
+		return access(g2s::reporting::logPath(jobId).c_str(), F_OK)==0 ? 3 : 0;
+	}
+	return 0;
+}
 }
 
 inline bool fileExist (char* name) {
@@ -323,6 +376,7 @@ zmq::message_t sendText( char* dataName){
 
 	//fprintf(stderr, "look For File %s \n",hash);
 
+	if(readStructuredTextArtifact(hash, buffer, MaxPayloadSize)) return makeReply(buffer);
 	if(readNamedPayload(hash, "txt", true, buffer, MaxPayloadSize)) return makeReply(buffer);
 	if(readNamedPayload(hash, "txt", false, buffer, MaxPayloadSize)) return makeReply(buffer);
 	fprintf(stderr, "file not found or invalid\n");
@@ -342,6 +396,7 @@ int dataIsPresent(char* dataName){
 	if(fileExist(filename)) isPresent=2;
 	snprintf(filename,4096,"/tmp/G2S/data/%s.json",hash);
 	if(fileExist(filename)) isPresent=2;
+	isPresent=std::max(isPresent, structuredTextArtifactPresent(hash));
 	snprintf(filename,4096,"/tmp/G2S/data/%s.txt.gz",hash);
 	if(fileExist(filename)) isPresent=3;
 	snprintf(filename,4096,"/tmp/G2S/data/%s.txt",hash);

@@ -51,8 +51,10 @@
 #include "simulation.hpp"
 #include "simulationAugmentedDim.hpp"
 #include "quantileSamplingModule.hpp"
+#include "jobReporting.hpp"
 #include "qsDistributedUtils.hpp"
 #include "qsPaddingUtils.hpp"
+#include "qsTransformUtils.hpp"
 #ifdef G2S_QS_DISTRIBUTED
 #include <zmq.hpp>
 #endif
@@ -344,7 +346,14 @@ static void enqueueDistributedSimulationUpdate(g2s_simulation_update_kind kind,
 
 
 void printHelp(){
-	printf ("that is the help");
+	printf ("QuickSampling (qs)\n");
+	printf ("Required: -ti <training image> -di <destination image> -dt <types> -k <candidates> -n <neighbors>\n");
+	printf ("Common: -ki <kernel> -sp <path> -s <seed> -j <threads> -fs --forceSimulation -cti -csim\n");
+	printf ("Local controls: -ii <ti index map> -ni <neighbor-count map> -kii <kernel-index map> -kvi <candidate-count map>\n");
+	printf ("Deterministic search-pattern transforms, CPU only:\n");
+	printf ("  -rmi <rotation map>  2D: 1 channel angle in radians; 3D: 4 channels quaternion (qx,qy,qz,qw)\n");
+	printf ("  -smi <scale map>     1 channel strictly positive isotropic scale; invalid node values use identity scale\n");
+	printf ("Transforms are applied to neighborhood offsets before candidate search: scale, rotate, nearest-neighbor rounding.\n");
 }
 
 int main(int argc, char const *argv[]) {
@@ -361,6 +370,8 @@ int main(int argc, char const *argv[]) {
 	std::string numberOfNeigboursFileName;
 	std::string kernelIndexImageFileName;
 	std::string kValueImageFileName;
+	std::string rotationMapFileName;
+	std::string scaleMapFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -389,28 +400,12 @@ int main(int argc, char const *argv[]) {
 	FILE *reportFile=NULL;
 	if (arg.count("-r") > 1)
 	{
-		fprintf(reportFile,"only one rapport file is possible\n");
+		fprintf(stderr,"only one rapport file is possible\n");
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					std::to_string(logId);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -418,6 +413,15 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile==NULL){
+		reportFile=stderr;
+	}
+
+	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
+	{
+		printHelp();
+		return 0;
+	}
 
 	if (arg.count("-id") == 1)
 	{
@@ -427,6 +431,9 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-id");
+	if(reportFile!=nullptr){
+		g2s::reporting::markStarted(reportFile, "qs");
+	}
 
 	for (int i = 0; i < argc; ++i)
 	{
@@ -609,6 +616,34 @@ int main(int argc, char const *argv[]) {
 		kValueImageFileName=arg.find("-kvi")->second;
 	}
 	arg.erase("-kvi");
+
+	if (arg.count("-rmi") >1)
+	{
+		fprintf(reportFile,"only one rotation map input (-rmi) is possible\n");
+		run=false;
+	}else if (arg.count("-rmi") ==1)
+	{
+		rotationMapFileName=arg.find("-rmi")->second;
+		if(rotationMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -rmi requires a rotation map value\n");
+			run=false;
+		}
+	}
+	arg.erase("-rmi");
+
+	if (arg.count("-smi") >1)
+	{
+		fprintf(reportFile,"only one scale map input (-smi) is possible\n");
+		run=false;
+	}else if (arg.count("-smi") ==1)
+	{
+		scaleMapFileName=arg.find("-smi")->second;
+		if(scaleMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -smi requires a scale map value\n");
+			run=false;
+		}
+	}
+	arg.erase("-smi");
 	parseDistributedCliArgs(arg, distributedOptions);
 
 
@@ -819,6 +854,7 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-W_GPU");
 
 	bool withCUDA=false;
+	bool cudaRequested=(arg.count("-W_CUDA") >= 1);
 	std::vector<int> cudaDeviceList;
 
 	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
@@ -936,9 +972,11 @@ int main(int argc, char const *argv[]) {
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", sourceFileNameVector[i], TIs.back());
 	}
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	g2s::reporting::logInput(reportFile, "-di", targetFileName, DI);
 
 	if(DI._dims.size()<=TIs[0]._dims.size()) // auto desactivate of the dimension augmentation, if the dimension is not good
 		augmentedDimensionSimulation=false;
@@ -948,6 +986,8 @@ int main(int argc, char const *argv[]) {
 	g2s::DataImage numberOfNeigboursImage;
 	g2s::DataImage kernelIndexImage;
 	g2s::DataImage kValueImage;
+	g2s::DataImage rotationMapImage;
+	g2s::DataImage scaleMapImage;
 
 	std::vector<g2s::DataImage > kernels;
 
@@ -957,6 +997,7 @@ int main(int argc, char const *argv[]) {
 		if(kernels[i]._dims.size()-1==TIs[0]._dims.size()){
 			kernels[i].convertFirstDimInVariable();
 		}
+		g2s::reporting::logInput(reportFile, "-ki["+std::to_string(i)+"]", kernelFileName[i], kernels.back());
 	}
 
 	if(kernels.empty()) {
@@ -1153,6 +1194,7 @@ int main(int argc, char const *argv[]) {
 	}
 	else {
 		simulationPath=g2s::DataImage::createFromFile(simulationPathFileName);
+		g2s::reporting::logInput(reportFile, "-sp", simulationPathFileName, simulationPath);
 		simulationPathSize=simulationPath.dataSize();
 		bool dimAgree=true;
 		fullSimulation=false;
@@ -1193,7 +1235,9 @@ int main(int argc, char const *argv[]) {
 		id.setEncoding(g2s::DataImage::EncodingType::UInteger);
 		memset(id._data,0,sizeof(unsigned)*simulationPathSize);
 	}else{
+		g2s::reporting::logInput(reportFile, "resume-id", std::string("im_2_")+std::to_string(previousID)+std::string(".auto_bk"), id, "resumed");
 		DI=g2s::DataImage::createFromFile(std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"));
+		g2s::reporting::logInput(reportFile, "resume-di", std::string("im_1_")+std::to_string(previousID)+std::string(".auto_bk"), DI, "resumed");
 	}
 	
 	unsigned* importDataIndex=nullptr;
@@ -1212,21 +1256,25 @@ int main(int argc, char const *argv[]) {
 	if (!idImagePathFileName.empty())
 	{
 		idImage=g2s::DataImage::createFromFile(idImagePathFileName);
+		g2s::reporting::logInput(reportFile, "-ii", idImagePathFileName, idImage);
 	}
 
 	if (!numberOfNeigboursFileName.empty())
 	{
 		numberOfNeigboursImage=g2s::DataImage::createFromFile(numberOfNeigboursFileName);
+		g2s::reporting::logInput(reportFile, "-ni", numberOfNeigboursFileName, numberOfNeigboursImage);
 	}
 
 	if (!kernelIndexImageFileName.empty())
 	{
 		kernelIndexImage=g2s::DataImage::createFromFile(kernelIndexImageFileName);
+		g2s::reporting::logInput(reportFile, "-kii", kernelIndexImageFileName, kernelIndexImage);
 	}
 
 	if (!kValueImageFileName.empty())
 	{
 		kValueImage=g2s::DataImage::createFromFile(kValueImageFileName);
+		g2s::reporting::logInput(reportFile, "-kvi", kValueImageFileName, kValueImage);
 
 		if(std::isnan(nbCandidate))
 			nbCandidate=1.f;
@@ -1237,7 +1285,81 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	if (!rotationMapFileName.empty())
+	{
+		rotationMapImage=g2s::DataImage::createFromFile(rotationMapFileName);
+		g2s::reporting::logInput(reportFile, "-rmi", rotationMapFileName, rotationMapImage);
+	}
+
+	if (!scaleMapFileName.empty())
+	{
+		scaleMapImage=g2s::DataImage::createFromFile(scaleMapFileName);
+		g2s::reporting::logInput(reportFile, "-smi", scaleMapFileName, scaleMapImage);
+	}
+
 	outputDims=DI._dims;
+	auto normalizeLeadingTransformVariable=[&](g2s::DataImage& image){
+		if(!image.isEmpty() && image._nbVariable==1 && image._dims.size()==outputDims.size()+1){
+			image.convertFirstDimInVariable();
+		}
+	};
+	normalizeLeadingTransformVariable(rotationMapImage);
+	normalizeLeadingTransformVariable(scaleMapImage);
+
+	const bool useRotationMap=!rotationMapImage.isEmpty();
+	const bool useScaleMap=!scaleMapImage.isEmpty();
+	const bool useTransformMap=useRotationMap || useScaleMap;
+	if(!rotationMapFileName.empty() && !useRotationMap){
+		fprintf(reportFile, "transform map error: could not load -rmi rotation map\n");
+		run=false;
+	}
+	if(!scaleMapFileName.empty() && !useScaleMap){
+		fprintf(reportFile, "transform map error: could not load -smi scale map\n");
+		run=false;
+	}
+	if(useTransformMap){
+		const size_t simulationRank=outputDims.size();
+		if(simulationRank!=2 && simulationRank!=3){
+			fprintf(reportFile, "transform map error: -rmi/-smi are only supported for 2D and 3D simulations, got %zuD\n", simulationRank);
+			run=false;
+		}
+		if(augmentedDimensionSimulation){
+			fprintf(reportFile, "transform map error: -rmi/-smi are not supported with -adsim\n");
+			run=false;
+		}
+		if(withGPU || cudaRequested){
+			fprintf(reportFile, "transform map error: -rmi/-smi are CPU-only and cannot be combined with -W_GPU or -W_CUDA\n");
+			run=false;
+		}
+		if(useRotationMap){
+			if(rotationMapImage._dims!=outputDims){
+				fprintf(reportFile, "transform map error: -rmi dimensions must match -di dimensions\n");
+				run=false;
+			}
+			if(simulationRank==2 && rotationMapImage._nbVariable!=1){
+				fprintf(reportFile, "transform map error: 2D -rmi requires exactly 1 channel containing radians\n");
+				run=false;
+			}
+			if(simulationRank==3 && rotationMapImage._nbVariable!=4){
+				fprintf(reportFile, "transform map error: 3D -rmi requires exactly 4 channels containing quaternion (qx,qy,qz,qw)\n");
+				run=false;
+			}
+		}
+		if(useScaleMap){
+			if(scaleMapImage._dims!=outputDims){
+				fprintf(reportFile, "transform map error: -smi dimensions must match -di dimensions\n");
+				run=false;
+			}
+			if(scaleMapImage._nbVariable!=1){
+				fprintf(reportFile, "transform map error: -smi requires exactly 1 channel containing positive isotropic scale values\n");
+				run=false;
+			}
+		}
+	}
+	if(!run){
+		fprintf(reportFile, "simulation interrupted !!\n");
+		return 0;
+	}
 	if(usePaddedDomain){
 		fprintf(reportFile,"use padded simulation domain with halos:");
 		for (size_t dim = 0; dim < spatialPadding.size(); ++dim)
@@ -1265,9 +1387,35 @@ int main(int argc, char const *argv[]) {
 		{
 			kValueImage=qs_padding_utils::padDataImageWithValue(kValueImage,spatialPadding,std::nanf("0"));
 		}
+		if (!rotationMapImage.isEmpty())
+		{
+			rotationMapImage=qs_padding_utils::padDataImageWithValue(rotationMapImage,spatialPadding,std::nanf("0"));
+		}
+		if (!scaleMapImage.isEmpty())
+		{
+			scaleMapImage=qs_padding_utils::padDataImageWithValue(scaleMapImage,spatialPadding,std::nanf("0"));
+		}
 
 		qs_padding_utils::mapSimulationPathToPadded(simulationPathIndex,simulationPathSize,fullSimulation,DI._nbVariable,outputDims,spatialPadding);
 	}
+
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "threads_over_ti", std::to_string(nbThreadsOverTi));
+	g2s::reporting::logParameter(reportFile, "threads_last_level", std::to_string(nbThreadsLastLevel));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "simulation_mode", augmentedDimensionSimulation ? "augmented_dimension" : (fullSimulation ? "full" : "vector"));
+	g2s::reporting::logParameter(reportFile, "full_stationary", g2s::reporting::boolString(fullStationary));
+	g2s::reporting::logParameter(reportFile, "circular_simulation", g2s::reporting::boolString(circularSimulation));
+	g2s::reporting::logParameter(reportFile, "force_simulation", g2s::reporting::boolString(forceSimulation));
+	g2s::reporting::logParameter(reportFile, "path_optimization", g2s::reporting::boolString(withPathOptim));
+	g2s::reporting::logParameter(reportFile, "use_padded_domain", g2s::reporting::boolString(usePaddedDomain));
+	g2s::reporting::logParameter(reportFile, "rotation_map", g2s::reporting::boolString(useRotationMap));
+	g2s::reporting::logParameter(reportFile, "scale_map", g2s::reporting::boolString(useScaleMap));
+	g2s::reporting::logParameter(reportFile, "deterministic_transforms", g2s::reporting::boolString(useTransformMap));
+	g2s::reporting::logParameter(reportFile, "halo_dims", g2s::reporting::joinUnsignedVector(spatialPadding, ","));
+	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
+	g2s::reporting::logParameter(reportFile, "output_index", outputIndexFilename);
+	g2s::reporting::logParameter(reportFile, "simulation_path_size", std::to_string((unsigned long long)simulationPathSize));
 
 	importDataIndex=(unsigned *)id._data;
 
@@ -1497,13 +1645,14 @@ int main(int argc, char const *argv[]) {
 #ifdef G2S_QS_DISTRIBUTED
 	if(usePaddedDomain && !distributedOptions.jobGridPayload.empty()){
 		if(!simulationPathFileName.empty()){
-			fprintf(reportFile, "distributed mode warning: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors\n");
+			g2s::reporting::recordWarning(reportFile, "distributed mode: neighbor halo posterior import currently assumes random path generation; -sp is ignored for neighbors");
 		}else if(distributedOptions.gridDims.empty() ||
 			distributedOptions.localJobGridCoordinate.size()!=distributedOptions.gridDims.size()){
-			fprintf(reportFile, "distributed mode warning: missing decoded -jg grid metadata, neighbor halos are skipped\n");
+			g2s::reporting::recordWarning(reportFile, "distributed mode: missing decoded -jg grid metadata, neighbor halos are skipped");
 		}else if(distributedOptions.gridDims.size()>outputDims.size()){
-			fprintf(reportFile, "distributed mode warning: -jg rank (%zu) is larger than DI rank (%zu), neighbor halos are skipped\n",
-				distributedOptions.gridDims.size(),outputDims.size());
+			g2s::reporting::recordWarning(reportFile,
+				"distributed mode: -jg rank ("+std::to_string(distributedOptions.gridDims.size())+
+				") is larger than DI rank ("+std::to_string(outputDims.size())+"), neighbor halos are skipped");
 		}else{
 			auto buildPosteriorPathFromSeed=[&](g2s::DataImage& localDi, unsigned localSeed, g2s_path_index_t localOffset){
 				std::vector<g2s_path_index_t> localPosteriorPath;
@@ -1682,20 +1831,23 @@ int main(int argc, char const *argv[]) {
 				}else if(neighborRowMajorPosition<distributedOptions.flattenedJobIds.size()){
 					neighborDiName=std::string("input_di_")+std::to_string(distributedOptions.flattenedJobIds[neighborRowMajorPosition]);
 				}else{
-					fprintf(reportFile, "distributed mode warning: missing neighbor metadata for row-major position %zu\n",
-						neighborRowMajorPosition);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: missing neighbor metadata for row-major position "+std::to_string(neighborRowMajorPosition));
 					continue;
 				}
 
 				g2s::DataImage neighborDi=g2s::DataImage::createFromFile(neighborDiName);
 				if(neighborDi.isEmpty()){
-					fprintf(reportFile, "distributed mode warning: cannot load neighbor DI '%s' for row-major position %zu\n",
-						neighborDiName.c_str(),neighborRowMajorPosition);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: cannot load neighbor DI '"+neighborDiName+
+						"' for row-major position "+std::to_string(neighborRowMajorPosition));
 					continue;
 				}
 				if(neighborDi._dims!=outputDims || neighborDi._nbVariable!=DI._nbVariable){
-					fprintf(reportFile, "distributed mode warning: neighbor DI '%s' shape mismatch, expected rank=%zu variables=%u\n",
-						neighborDiName.c_str(),outputDims.size(),DI._nbVariable);
+					g2s::reporting::recordWarning(reportFile,
+						"distributed mode: neighbor DI '"+neighborDiName+
+						"' shape mismatch, expected rank="+std::to_string(outputDims.size())+
+						" variables="+std::to_string(DI._nbVariable));
 					continue;
 				}
 
@@ -1985,6 +2137,11 @@ int main(int argc, char const *argv[]) {
 	}
 
 	// run QS
+	qs_transform_utils::TransformContext transformContext;
+	transformContext.rotationMap=useRotationMap ? &rotationMapImage : nullptr;
+	transformContext.scaleMap=useScaleMap ? &scaleMapImage : nullptr;
+	transformContext.rank=DI._dims.size();
+	const qs_transform_utils::TransformContext* transformContextPtr=useTransformMap ? &transformContext : nullptr;
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
@@ -2033,12 +2190,12 @@ int main(int argc, char const *argv[]) {
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData, transformContextPtr);
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, maxNK, withPathOptim, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, maxNK, withPathOptim, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData, transformContextPtr);
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimension sim");
@@ -2052,9 +2209,13 @@ int main(int argc, char const *argv[]) {
 		distributedSendContext.progressTotal>0ULL &&
 		distributedSendContext.progressLastPrintedPercent.load(std::memory_order_relaxed)<100){
 		const unsigned long long completed=distributedSendContext.progressCompleted.load(std::memory_order_relaxed);
-		fprintf(distributedSendContext.reportFile, "progress : %.2f%%\n",
+		g2s::reporting::setProgress(distributedSendContext.reportFile,
 			100.0*static_cast<double>(std::min(completed,distributedSendContext.progressTotal))
-			/static_cast<double>(distributedSendContext.progressTotal));
+			/static_cast<double>(distributedSendContext.progressTotal),
+			"distributed_publish",
+			"published "+std::to_string(completed)+" of "+std::to_string(distributedSendContext.progressTotal),
+			static_cast<long long>(completed),
+			static_cast<long long>(distributedSendContext.progressTotal));
 	}
 	#endif
 
@@ -2063,6 +2224,8 @@ int main(int argc, char const *argv[]) {
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	// free memory
 
@@ -2098,6 +2261,10 @@ int main(int argc, char const *argv[]) {
 		// new filename
 		croppedId.write(std::string("im_2_")+std::to_string(uniqueID));
 		croppedDI.write(std::string("im_1_")+std::to_string(uniqueID));
+		g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, croppedId);
+		g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, croppedDI);
+		g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), croppedId);
+		g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), croppedDI);
 	}else{
 		// to remove later
 		id.write(outputIndexFilename);
@@ -2107,6 +2274,10 @@ int main(int argc, char const *argv[]) {
 		// new filename
 		id.write(std::string("im_2_")+std::to_string(uniqueID));
 		DI.write(std::string("im_1_")+std::to_string(uniqueID));
+		g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, id);
+		g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, DI);
+		g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), id);
+		g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), DI);
 	}
 
 	free(simulationPathIndex);

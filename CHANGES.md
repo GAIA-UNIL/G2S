@@ -4,12 +4,44 @@
 
 - Removed the short-lived SNESIM path-optimization CLI support, logging, and documentation. SNESIM now always uses the default per-level execution order built by its multigrid planner.
 
+## 2026-05-16
+
+- Added native CPU Direct Sampling as `ds`, `DS`, and `DirectSampling`, with legacy `ds-l` aliases preserved on the old implementation. Native DS reuses the shared simulation path, vector/full modes, per-node control maps, interface upload plumbing, and OpenMP path scheduling while providing DS-specific sequential TI scanning, threshold acceptance, kernel-weighted mixed mismatch, safe `-ii` handling, and stochastic local rotation/scale transforms.
+- Fixed shared interface matrix serialization so native matrices passed to distributed QS JSON parameters are converted before job serialization, any remaining matrix-valued parameter is uploaded as a binary payload before the job JSON is built, residual serialization errors include the offending flag name, MATLAB scalar numeric parameters such as `-k`, `-n`, and `-j` are no longer mistaken for uploadable matrices, and fallback upload checks no longer cast already-normalized string values as native matrices.
+- Changed native DS candidate scanning from a random-start contiguous TI segment to an array-free deterministic pseudo-random permutation keyed by global seed, local per-node seed, path order, and variable, and made the DS sample context thread-local for parallel runs.
+- Fixed native DS reproducibility for repeated same-seed runs by adding deterministic tie-breakers to explicit simulation-path sorting and `-wPO` dependency sorting.
+- Fixed the shared parallel simulation neighbor wait logic for strict-informed samplers such as native DS so a worker waits for earlier-path neighbors instead of dropping still-pending `NaN` values based on thread timing.
+- Short-circuited native DS continuous mismatch scoring for `-cn` / `-cnorm` values `1` and `2` so the common norm powers avoid generic `pow` calls in the candidate loop.
+- Fixed native DS edge cases where no-neighbor nodes ignored `-ii` TI-selection maps, full simulation indexed cell-level `-ii` maps by full variable slot, multi-kernel runs without `-kii` lost the default kernel weights, TI-border candidates could be accepted from partial data-event support, and categorical outputs could retain isolated one-cell islands.
+- Added native DS support for the QS-style `-wPO` path-optimization flag in vector simulation, with explicit `path_optimization=true|false` reporting.
+- Updated the native DS Python examples to be fully unconditional, to size destination images from the loaded training image instead of using sparse point conditioning on fixed 180x180 grids, and to pass `-j 1.00001`.
+- Added matching MATLAB native DS examples for continuous stone, categorical Strebelle, transform-controlled DS, and full mixed multivariate DS.
+- Added deterministic CPU-side QuickSampling search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. QS now transforms local neighborhood offsets before matching while leaving the training image unchanged, with support for 2D radians and 3D quaternions.
+- Adjusted QS transform matching so transformed offsets are used for simulation-side neighbor lookup while TI scoring keeps the original template/kernel offsets, allowing constant rotations to produce visibly rotated structures.
+- Expanded the 2D QS transform Python examples to 500x500 Strebelle simulations with same-seed baseline comparisons, stronger transform maps, `-j 1.0001` parallel execution, and saved comparison figures.
+- Added a 2D constant-rotation diagnostic example comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+- Hardened Python interface handling for `-rmi`/`-smi` so transform-map arrays are forced through the normal ZeroMQ upload path for local and remote servers, and added interface/server/QS validation to reject empty transform-map values.
+- Reworked `errorTest` into a reusable `report_probe` utility algorithm that emits structured logs, warnings, progress, metadata, and fatal errors through the current reporting helpers instead of writing only the legacy ad hoc error file path.
+- Added Python and MATLAB reporting-probe examples that exercise `-showLogs`, warning propagation, fatal error propagation, and `-returnMeta` through the real interface bindings.
+- Made the Python reporting-probe example accept interface builds that return extra trailing values beyond elapsed time and metadata, avoiding fixed-length tuple unpack failures during smoke tests.
+- Changed the Python and MATLAB reporting-probe examples so the fatal probe now propagates the native interface exception by default instead of catching it inside the demo script.
+
 ## 2026-05-10
 
+- Split server-side reporting into `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, and `/tmp/G2S/meta`, while keeping the server stateless and reusing the existing text-download protocol through conventional artifact names such as `progress_<job>` and `meta_<job>`.
+- Added a shared reporting helper for server-launched jobs so the main algorithms can publish structured progress, final timings, warnings, and generic failure metadata alongside the human-readable log.
+- Changed status polling to prefer structured progress and metadata files over regex scraping from the plain log, with log parsing kept only as a backward-compatible fallback.
+- Updated the Python interface to print warnings in orange and errors in red, keep fatal errors as exceptions, support live log/warning streaming with `-showLogs`, and optionally return final key/value metadata with `-returnMeta`.
+- Updated the MATLAB interface so warnings are non-fatal again, warnings use MATLAB's warning channel, fatal errors still abort the call, and `-returnMeta` can return the final key/value summary as a struct.
+- Added the same metadata-return and live-log plumbing in the shared interface template and the R binding so the C++ interface layer stays consistent across bindings.
+- Updated the main algorithm entrypoints to emit explicit `INPUT`, `PARAM`, and `OUTPUT` log lines so successful image loads, effective parameter values, resumed backups, and written result artifacts are visible in the chronological log instead of only appearing implicitly in raw argv or failure messages.
+- Updated `qs` and `snesim` logging for `-wPO`: QS now reports the effective `path_optimization` value in its `PARAM` block, and SNESIM records when `-wPO` was requested instead of letting the flag fall through as an ignored argument.
+- Expanded `README.md` and `DOCUMENTATION.md` to describe the stateless cursor-based polling model, `-showLogs` / `-returnMeta`, and the operator-facing meaning of `-wPO` log entries in QS and SNESIM.
 - Expanded the MATLAB SNESIM example to use the public Strebelle training image more robustly, with a fallback download path for MATLAB releases that cannot `imread()` HTTP URLs directly, plus elapsed-time reporting.
 - Corrected the MATLAB SNESIM example to follow the categorical MATLAB test pattern more closely by casting the Strebelle TIFF and destination grid to `single`, using a normal `-j 0.5` thread setting, and rendering categorical outputs with `imagesc`.
 - Updated the SNESIM algorithm page and top-level README to point to the MATLAB/Python Strebelle examples explicitly.
 - Fixed the SNESIM `simulation()` call to match the current callback-aware signature, preserving explicit `posteriorPath` tracking and progress callbacks when path optimization is disabled or enabled.
+
 
 ## 2026-05-01
 

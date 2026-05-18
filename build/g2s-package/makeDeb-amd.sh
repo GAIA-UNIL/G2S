@@ -6,6 +6,7 @@ objcopy --strip-debug --strip-unneeded ../intel-build/g2s_server  ./g2s-amd64/us
 objcopy --strip-debug --strip-unneeded ../intel-build/echo  ./g2s-amd64/usr/bin/g2s_bin/echo 
 objcopy --strip-debug --strip-unneeded ../intel-build/qs  ./g2s-amd64/usr/bin/g2s_bin/qs 
 objcopy --strip-debug --strip-unneeded ../intel-build/nds  ./g2s-amd64/usr/bin/g2s_bin/nds 
+objcopy --strip-debug --strip-unneeded ../intel-build/ds ./g2s-amd64/usr/bin/g2s_bin/ds
 objcopy --strip-debug --strip-unneeded ../intel-build/ds-l ./g2s-amd64/usr/bin/g2s_bin/ds-l 
 objcopy --strip-debug --strip-unneeded ../intel-build/errorTest  ./g2s-amd64/usr/bin/g2s_bin/errorTest 
 objcopy --strip-debug --strip-unneeded ../intel-build/auto_qs  ./g2s-amd64/usr/bin/g2s_bin/auto_qs 

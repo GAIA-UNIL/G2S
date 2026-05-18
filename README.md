@@ -12,9 +12,13 @@
 - the first one is a server that manages computations and can be compiled for each hardware to obtain optimal performance.
 - the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
 
-Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), and **NDS** (Narrow Distribution Selection).
+Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), native **DS** (Direct Sampling), and **NDS** (Narrow Distribution Selection).
+Native QS supports deterministic CPU-side search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. These maps transform simulation-side neighborhood lookups while leaving the training image unchanged and keeping TI/kernel scoring on the original template offsets. The Python 2D transform examples use 500x500 Strebelle simulations with `-j 1.0001`, stronger transform maps, saved baseline comparison figures, and a constant-rotation diagnostic that compares `-rmi +pi/2` against rotated training images.
+Native DS is available as `ds`, `DS`, or `DirectSampling`; the old DS-like implementation remains available as `ds-l`, `dsl`, `DirectSamplingLike`, and `DS-L`. Native DS honors `-ii` TI-selection maps in vector and full simulation, including initial nodes that have no informed neighbors yet. DS candidate scans now use an array-free deterministic pseudo-random permutation keyed by the global seed, local per-node seed, path order, and variable instead of a contiguous wrapped TI segment, path sorting and strict-informed parallel neighbor waits are deterministic for same-seed reproducibility, and the common continuous norms `1` and `2` avoid generic `pow` calls in the hot score loop.
 The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation.
-Concrete interface demos live under `example/matlab/` and `example/python/`, including `snesim_example.m` / `snesim_example.py` using the public Strebelle training image. The MATLAB SNESIM example follows the categorical MATLAB test pattern by casting the TIFF to `single` before calling `g2s`.
+Concrete interface demos live under `example/matlab/` and `example/python/`, including fully unconditional native DS examples for continuous stone, categorical Strebelle, transform-controlled DS, and full mixed multivariate DS. The DS demos size their destination grids from the loaded training image and pass `-j 1.00001` for path-level parallel execution. SNESIM examples are also available as `snesim_example.m` / `snesim_example.py` using the public Strebelle training image.
+Distributed QS interface calls accept native matrix values for JSON-grid parameters such as `-jg`, `-eg`, and `-di_grid_json`; the shared interface layer converts them to JSON before upload and job serialization.
+For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and `-returnMeta` through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
@@ -75,9 +79,36 @@ Server startup validates numeric values for `-p` and `-maxCJ`; missing, malforme
 
 ## Server runtime storage
 
-The server stores runtime data and logs under `/tmp/G2S/data` and `/tmp/G2S/logs` by default. These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
+The server stores runtime data under `/tmp/G2S/` by default. Binary payloads stay in `/tmp/G2S/data`, while per-job reporting is now split into:
 
-At startup, the server now also probes these runtime directories with a create/remove write test. If `/tmp/G2S/data` or `/tmp/G2S/logs` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload silently fails. Upload-time write, publish, and close failures now also print the failing path and operation to `stderr`.
+- `/tmp/G2S/logs`: chronological human-readable job logs
+- `/tmp/G2S/warnings`: warning event streams
+- `/tmp/G2S/errors`: fatal error payloads
+- `/tmp/G2S/progress`: machine-readable in-progress status snapshots
+- `/tmp/G2S/meta`: final key/value summaries read at job completion
+
+These directories are shared by jobs triggered through the server and use `0770` permissions, so operators should run the server with the service user and trusted group that are expected to access the shared job data.
+
+At startup, the server probes these runtime directories with a create/remove write test. If any of `/tmp/G2S/data`, `/tmp/G2S/logs`, `/tmp/G2S/warnings`, `/tmp/G2S/errors`, `/tmp/G2S/progress`, or `/tmp/G2S/meta` is not writable, startup fails with an explicit error on `stderr` instead of continuing until a later upload or report update silently fails.
+
+Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
+
+The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
+
+Human-readable algorithm logs are also being standardized around explicit sections:
+
+- `INPUT`: each successfully loaded image/grid and its resolved dimensions, variable count, encoding, and variable-type summary
+- `PARAM`: effective parameter values actually used after parsing and defaulting, including path-optimization flags when the algorithm accepts them
+- `OUTPUT`: each written result artifact and its final dimensions/encoding
+
+That keeps the chronological log useful for operators while the structured sidecars remain the source of truth for progress and final metadata.
+
+For quick end-to-end validation of that path, the built-in `report_probe` algorithm (served by `errorTest`) accepts `-mode log`, `-mode warning`, or `-mode error` and emits the corresponding structured artifacts through the same reporting helpers used by the main algorithms.
+
+The current `-wPO` logging convention is intentionally explicit:
+
+- `qs` and native `ds` log `path_optimization=true|false` because the flag is parsed and used by the vector simulation path logic
+- `snesim` logs `path_optimization_requested=true|false` so operators can see the requested CLI flag even though the current scaffold does not expose an effective path-optimization mode in the same way as QS
 
 ## Server data protocol hardening
 

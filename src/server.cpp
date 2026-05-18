@@ -294,8 +294,16 @@ int main(int argc, char const *argv[]) {
 	if(!ensureRuntimeDirectory("/tmp/G2S") ||
 	   !ensureRuntimeDirectory("/tmp/G2S/data") ||
 	   !ensureRuntimeDirectory("/tmp/G2S/logs") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/warnings") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/errors") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/progress") ||
+	   !ensureRuntimeDirectory("/tmp/G2S/meta") ||
 	   !ensureRuntimeDirectoryWritable("/tmp/G2S/data") ||
-	   !ensureRuntimeDirectoryWritable("/tmp/G2S/logs")) {
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/logs") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/warnings") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/errors") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/progress") ||
+	   !ensureRuntimeDirectoryWritable("/tmp/G2S/meta")) {
 		return 1;
 	}
 
@@ -304,12 +312,20 @@ int main(int argc, char const *argv[]) {
 		time(&last);
 		removeAllFile((char*)"/tmp/G2S/data",( keepOldData ? maxFileAge : 0));
 		removeAllFile((char*)"/tmp/G2S/logs",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/warnings",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/errors",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/progress",( keepOldData ? maxFileAge : 0));
+		removeAllFile((char*)"/tmp/G2S/meta",( keepOldData ? maxFileAge : 0));
 		while(!needToStop) {
 			time_t now;
 			time(&now);
 		    if(difftime(now,last)>std::max(maxFileAge/100,10.)){
 		    	removeAllFile((char*)"/tmp/G2S/data",maxFileAge);
 				removeAllFile((char*)"/tmp/G2S/logs",maxFileAge);
+				removeAllFile((char*)"/tmp/G2S/warnings",maxFileAge);
+				removeAllFile((char*)"/tmp/G2S/errors",maxFileAge);
+				removeAllFile((char*)"/tmp/G2S/progress",maxFileAge);
+				removeAllFile((char*)"/tmp/G2S/meta",maxFileAge);
 				last=now;
 		    }else{
 		    	std::this_thread::sleep_for(std::chrono::seconds(1));

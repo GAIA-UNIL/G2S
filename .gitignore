@@ -46,6 +46,11 @@ fKst_neon_regression*
 g2s_server*.log
 /tmp/G2S/
 # Local shared runtime root used by the default server storage path
+# Includes structured runtime sidecars under /tmp/G2S/{logs,warnings,errors,progress,meta}
+# Algorithm PARAM logging now covers runtime flags such as -wPO; logs remain disposable runtime artifacts.
+# README.md and DOCUMENTATION.md describe the stateless cursor-based log polling model; no runtime cursor files should be tracked in-repo.
+# Reporting-probe smoke tests are expected to create only disposable /tmp/G2S runtime artifacts.
+# The checked-in probe examples intentionally do not suppress fatal interface exceptions.
 
 # Generated local-only DataImage binary data files
 *.bgrid
@@ -65,6 +70,22 @@ build/matlab-build/*.mex*
 *.m~
 *.DS_Store
 *.npz
+example/python/reporting_probe_transcript.txt
+example/matlab/reporting_probe_transcript.txt
+qs_transform_smoke_*
+ds_smoke_*
+ds_full_ii_*
+ds_wpo_smoke_*
+ds_permutation_smoke_*
+ds_norm_smoke_*
+ds_repro_smoke_*
+qs_distributed_smoke_*
+qs_rotation_2d_*.png
+qs_rotation_equivalence_2d*.png
+qs_scale_2d_*.png
+qs_scale_rotation_2d_*.png
+DirectSampling*.png
+DirectSampling*.fig
 build/python-build/__pycache__
 build/python-build/G2S.egg-info
 build/python-build/build

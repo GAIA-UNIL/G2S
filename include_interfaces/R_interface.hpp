@@ -63,6 +63,7 @@ unsigned anyNativeToUnsigned(std::any val){
 	}
 
 	bool isDataMatrix(std::any val){
+		if(val.type()!=typeid(Rcpp::RObject)) return false;
 		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
 		if(!Rcpp::is<Rcpp::NumericVector>(obj)) return false;
 		Rcpp::NumericVector vec=Rcpp::as<Rcpp::NumericVector>(obj);
@@ -103,6 +104,23 @@ unsigned anyNativeToUnsigned(std::any val){
 
 	void eraseAndPrint(std::string val){
 		printf("\r%s\n",val.c_str());
+	}
+
+	void printMessage(std::string val) override{
+		printf("%s\n",val.c_str());
+	}
+
+	std::any keyValueMapToNative(const std::map<std::string,std::string>& values) override{
+		Rcpp::List result(values.size());
+		Rcpp::CharacterVector names(values.size());
+		int index=0;
+		for (auto it=values.begin(); it!=values.end(); ++it, ++index)
+		{
+			result[index]=it->second;
+			names[index]=it->first;
+		}
+		result.attr("names")=names;
+		return std::any(Rcpp::RObject(result));
 	}
 
 	std::any convert2NativeMatrix(g2s::DataImage &image){
@@ -287,6 +305,15 @@ unsigned anyNativeToUnsigned(std::any val){
 
 		if(position<nlhs){
 			auto iter=outputs.find("t");
+			if(iter!=outputs.end())
+			{
+				result.push_back(std::any_cast<Rcpp::RObject>(iter->second));
+				position++;
+			}
+		}
+
+		if(position<nlhs){
+			auto iter=outputs.find("meta");
 			if(iter!=outputs.end())
 			{
 				result.push_back(std::any_cast<Rcpp::RObject>(iter->second));

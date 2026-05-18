@@ -316,7 +316,7 @@ class DataImage{
 		return result;
 	}
 
-	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect, int* externalMemory=nullptr){
+	inline bool indexWithDelta(unsigned &location, unsigned position, const std::vector<int> &deltaVect, int* externalMemory=nullptr){
 		unsigned finalValue=0;
 
 		bool isOk=true;
@@ -332,8 +332,8 @@ class DataImage{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+deltaVect[i];
 			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
-			//val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
-			val[i] = (val[i] + int(_dims[i])) % int(_dims[i]);
+			const int dim=int(_dims[i]);
+			val[i] = ((val[i] % dim) + dim) % dim;
 			position/=_dims[i];
 		}
 
@@ -351,7 +351,7 @@ class DataImage{
 		return isOk;
 	}
 
-	inline bool indexWithDelta(unsigned &location, unsigned position, std::vector<int> &deltaVect, std::vector<int> combi){
+	inline bool indexWithDelta(unsigned &location, unsigned position, const std::vector<int> &deltaVect, std::vector<int> combi){
 		unsigned finalValue=0;
 
 		bool isOk=true;
@@ -363,8 +363,8 @@ class DataImage{
 			finalValue*=_dims[i];
 			val[i]=position%_dims[i]+( combi[i] ? deltaVect[deltaVectoridx++] : 0);
 			isOk &= (val[i]>=0) && (val[i] < int(_dims[i]));
-			//val[i] = ((val[i] % int(_dims[i])) + int(_dims[i])) % int(_dims[i]);
-			val[i] = (val[i] + int(_dims[i])) % int(_dims[i]);
+			const int dim=int(_dims[i]);
+			val[i] = ((val[i] % dim) + dim) % dim;
 			position/=_dims[i];
 		}
 

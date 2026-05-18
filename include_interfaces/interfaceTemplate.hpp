@@ -24,6 +24,7 @@
 #include <set>
 #include <thread>
 #include <cctype>
+#include <sstream>
 #include "DataImage.hpp"
 
 #ifdef WITH_WEB_SUPPORT
@@ -49,7 +50,7 @@ public:
 	}
 
 	static std::set<std::string> parametersUploadedWithoutDataType(){
-		return {"-ki","-sp","-ii","-mi","-ni","-kii","-kvi"};
+		return {"-ki","-sp","-ii","-mi","-ni","-kii","-kvi","-rmi","-rti","-smi","-sti"};
 	}
 
 	static std::set<std::string> jsonParametersUploaded(){
@@ -67,6 +68,10 @@ public:
 	virtual bool userRequestInteruption(){return false;}
 
 	virtual bool isDataMatrix(std::any val)=0;
+	virtual bool shouldUploadWithoutDataType(const std::string& key, std::any val){
+		(void)key;
+		return isDataMatrix(val);
+	}
 
 	virtual std::string nativeToStandardString(std::any val)=0;
 	virtual double nativeToScalar(std::any val)=0;
@@ -77,6 +82,8 @@ public:
 	virtual void sendError(std::string val)=0;
 	virtual void sendWarning(std::string val)=0;
 	virtual void eraseAndPrint(std::string val)=0;
+	virtual void printMessage(std::string val){ printf("%s\n", val.c_str()); }
+	virtual std::any keyValueMapToNative(const std::map<std::string,std::string>& values)=0;
 	virtual bool encodeJobGridMatrixToJsonString(std::any matrix, std::string &jsonValue){return false;}
 
 	std::string toString(std::any val){
@@ -84,6 +91,20 @@ public:
 			return "";
 		if(val.type()==typeid(std::string))
 			return std::any_cast<std::string>(val);
+		if(isDataMatrix(val)){
+			sendError("matrix argument was not uploaded before job serialization; check upload plumbing for this parameter");
+		}
+		return nativeToStandardString(val);
+	}
+
+	std::string toStringForParameter(const std::string &key, std::any val){
+		if(val.type()==typeid(nullptr))
+			return "";
+		if(val.type()==typeid(std::string))
+			return std::any_cast<std::string>(val);
+		if(isDataMatrix(val)){
+			sendError("matrix argument for "+key+" was not uploaded before job serialization; check upload plumbing for this parameter");
+		}
 		return nativeToStandardString(val);
 	}
 
@@ -93,33 +114,42 @@ public:
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
 
-	void normalizeJobGridParameter(std::multimap<std::string, std::any> &input){
-		std::vector<std::any> values;
+	void normalizeJsonGridParameter(std::multimap<std::string, std::any> &input,
+		const std::vector<std::string> &aliases,
+		const std::string &canonicalKey){
+		std::vector<std::pair<std::string,std::any> > values;
 		auto collectValues=[&](const std::string &key){
 			auto range=input.equal_range(key);
 			for (auto it=range.first; it!=range.second; ++it)
 			{
-				values.push_back(it->second);
+				values.push_back(std::make_pair(key,it->second));
 			}
 			input.erase(key);
 		};
 
-		collectValues("-jg");
-		collectValues("-job_grid_json");
-		collectValues("-job_grid");
+		for (size_t i = 0; i < aliases.size(); ++i)
+		{
+			collectValues(aliases[i]);
+		}
 
 		for (size_t i = 0; i < values.size(); ++i)
 		{
-			if(isDataMatrix(values[i])){
+			if(isDataMatrix(values[i].second)){
 				std::string jsonValue;
-				if(!encodeJobGridMatrixToJsonString(values[i],jsonValue)){
-					sendError("failed to encode -jg matrix into JSON");
+				if(!encodeJobGridMatrixToJsonString(values[i].second,jsonValue)){
+					sendError("failed to encode "+values[i].first+" matrix into JSON");
 				}
-				input.insert(std::pair<std::string,std::any>("-jg",jsonValue));
+				input.insert(std::pair<std::string,std::any>(canonicalKey,jsonValue));
 			}else{
-				input.insert(std::pair<std::string,std::any>("-jg",values[i]));
+				input.insert(std::pair<std::string,std::any>(canonicalKey,values[i].second));
 			}
 		}
+	}
+
+	void normalizeJsonGridParameters(std::multimap<std::string, std::any> &input){
+		normalizeJsonGridParameter(input, {"-jg","-job_grid_json","-job_grid"}, "-jg");
+		normalizeJsonGridParameter(input, {"-eg","-endpoint_grid_json"}, "-eg");
+		normalizeJsonGridParameter(input, {"-di_grid_json"}, "-di_grid_json");
 	}
 
 		//to improuve
@@ -308,13 +338,18 @@ public:
 						it->second=std::any(uploadData(socket, it->second,dataTypeVariable->second));
 					else
 						sendError("-dt is missing, impossible to uplaod a matrix without data type");
-					}
+			}
 			if(listOfParameterToUploadIfNeededWithoutdataTypeVariable.find(it->first) != listOfParameterToUploadIfNeededWithoutdataTypeVariable.end()){
-				if(isDataMatrix(it->second))
-					it->second=std::any(uploadData(socket, it->second));
+				if(shouldUploadWithoutDataType(it->first,it->second)){
+					const std::string uploadedName=uploadData(socket, it->second);
+					if(uploadedName.empty() && (it->first=="-rmi" || it->first=="-smi")){
+						sendError("failed to upload transform map for "+it->first);
+					}
+					it->second=std::any(uploadedName);
+				}
 			}
 			if(listOfJsonParameterToUploadIfNeeded.find(it->first) != listOfJsonParameterToUploadIfNeeded.end()){
-				const std::string payload=toString(it->second);
+				const std::string payload=toStringForParameter(it->first,it->second);
 				if(isInlineJsonPayload(payload)){
 					const std::string jsonHash=uploadJson(socket,payload);
 					it->second=std::any(std::string("/tmp/G2S/data/")+jsonHash+std::string(".json"));
@@ -322,6 +357,19 @@ public:
 			}
 		}
 		input.erase("-dt");
+	}
+
+	void uploadRemainingMatrices(zmq::socket_t &socket, std::multimap<std::string, std::any> &input){
+		for (auto it=input.begin(); it!=input.end(); ++it)
+		{
+			if(isDataMatrix(it->second)){
+				const std::string uploadedName=uploadData(socket,it->second);
+				if(uploadedName.empty()){
+					sendError("failed to upload matrix argument for "+it->first);
+				}
+				it->second=std::any(uploadedName);
+			}
+		}
 	}
 
 	inline void sendKill(zmq::socket_t &socket, jobIdType id, bool silent=false){
@@ -339,10 +387,83 @@ public:
 		//if(!silent)sendError("Ctrl C, user interrupted");
 	}
 
+	std::string downloadTextArtifact(zmq::socket_t &socket, const std::string& artifactName, bool withTimeout){
+		infoContainer task;
+		task.version=1;
+		task.task=DOWNLOAD_TEXT;
+		zmq::message_t request(sizeof(infoContainer)+64);
+		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
+		memcpy(request.data(), &task, sizeof(infoContainer));
+		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout asking for text artifact");
+		}
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving text artifact");
+		}
+		if(reply.size()==0) return "";
+		return std::string((char*)reply.data(), reply.size());
+	}
+
+	bool textArtifactExists(zmq::socket_t &socket, const std::string& artifactName, bool withTimeout){
+		infoContainer task;
+		task.version=1;
+		task.task=EXIST;
+		zmq::message_t request(sizeof(infoContainer)+64);
+		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
+		memcpy(request.data(), &task, sizeof(infoContainer));
+		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
+		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+			sendError("timeout checking text artifact");
+		}
+		zmq::message_t reply;
+		if(!socket.recv(reply) && withTimeout){
+			sendError("timeout receiving text artifact status");
+		}
+		return reply.size()==sizeof(int) && *((int*)reply.data())==3;
+	}
+
+	static std::map<std::string,std::string> parseKeyValueText(const std::string& text){
+		std::map<std::string,std::string> values;
+		std::istringstream stream(text);
+		std::string line;
+		while(std::getline(stream, line)){
+			if(line.empty()) continue;
+			const size_t pos=line.find('=');
+			if(pos==std::string::npos) continue;
+			values[line.substr(0,pos)]=line.substr(pos+1);
+		}
+		return values;
+	}
+
+	void printNewTextChunk(const std::string& content, size_t& offset, bool warningChannel){
+		if(content.size()<offset){
+			offset=0;
+		}
+		if(content.size()==offset) return;
+		std::string delta=content.substr(offset);
+		offset=content.size();
+		std::istringstream stream(delta);
+		std::string line;
+		while(std::getline(stream, line)){
+			if(line.empty()) continue;
+			if(warningChannel){
+				const size_t messagePos=line.find("message=");
+				if(messagePos!=std::string::npos){
+					line=line.substr(messagePos+8);
+				}
+				sendWarning(line);
+			}else{
+				printMessage(line);
+			}
+		}
+	}
+
 	void runStandardCommunication(std::multimap<std::string, std::any> input, std::multimap<std::string, std::any> &outputs, int maxOutput=INT_MAX){
 
 		std::atomic<bool> done(false);
-		normalizeJobGridParameter(input); // canonicalize job-grid keys to -jg
+		normalizeJsonGridParameters(input); // canonicalize JSON grid keys before upload/serialization
 
 		jobIdType id=0;
 		bool stop=false;
@@ -358,6 +479,8 @@ public:
 		bool serverShutdown=false;
 		bool silentMode=false;
 		bool requestServerStatus=false; // to check programmatically if the server is running
+		bool showLogs=false;
+		bool returnMeta=false;
 
 		if(input.count("-noTO")>0)
 		{
@@ -382,6 +505,16 @@ public:
 		{
 			silentMode=true;
 		}
+		if(input.count("-showLogs")>0)
+		{
+			showLogs=true;
+		}
+		if(input.count("-returnMeta")>0)
+		{
+			returnMeta=true;
+		}
+		input.erase("-showLogs");
+		input.erase("-returnMeta");
 
 		if(input.count("-statusOnly")>0){
 			statusOnly=true;
@@ -521,7 +654,10 @@ public:
 		}
 
 
-		if (submit) lookForUpload(socket, input);
+		if (submit) {
+			lookForUpload(socket, input);
+			uploadRemainingMatrices(socket, input);
+		}
 
 		// start the process
 		
@@ -561,7 +697,7 @@ public:
 					Json::Value jsonArray(Json::arrayValue);	
 					for (auto it=input.equal_range(*itKey).first; it!=input.equal_range(*itKey).second; ++it)
 					{
-						jsonArray.append(toString(it->second));
+						jsonArray.append(toStringForParameter(*itKey,it->second));
 					}
 					parameter[*itKey]=jsonArray;
 				}
@@ -619,6 +755,14 @@ public:
 
 		char nameFile[65]={0};
 		snprintf(nameFile,65,"%u",id);
+		const std::string progressArtifactName=std::string("progress_")+std::to_string(id);
+		const std::string warningArtifactName=std::string("warning_")+std::to_string(id);
+		const std::string errorArtifactName=std::string("error_")+std::to_string(id);
+		const std::string metaArtifactName=std::string("meta_")+std::to_string(id);
+		const std::string logArtifactName=std::string("log_")+std::to_string(id);
+		size_t logOffset=0;
+		size_t warningOffset=0;
+		std::map<std::string,std::string> finalMeta;
 
 		if(kill){
 			sendKill(socket, id, true);
@@ -649,6 +793,13 @@ public:
 				if(reply.size()!=sizeof(int)) sendWarning( "wrong answer !");
 				else{
 					int progress=*((int*)reply.data());
+					if(textArtifactExists(socket, progressArtifactName, withTimeout)){
+						std::map<std::string,std::string> progressValues=parseKeyValueText(downloadTextArtifact(socket, progressArtifactName, withTimeout));
+						auto progressIter=progressValues.find("progress_percent");
+						if(progressIter!=progressValues.end()){
+							progress=int(1000.0*atof(progressIter->second.c_str()));
+						}
+					}
 					if((progress>=0) && fabs(lastProgression-progress/1000.)>0.0001){
 						char buff[100];
 						snprintf(buff, sizeof(buff), "progress %.3f%%",progress/1000.);
@@ -658,6 +809,12 @@ public:
 						if(!silentMode)updateDisplay();
 					}
 					outputs.find("progression")->second=lastProgression;
+				}
+				if(showLogs && !statusOnly){
+					printNewTextChunk(downloadTextArtifact(socket, logArtifactName, withTimeout), logOffset, false);
+					if(textArtifactExists(socket, warningArtifactName, withTimeout)){
+						printNewTextChunk(downloadTextArtifact(socket, warningArtifactName, withTimeout), warningOffset, true);
+					}
 				}
 				if(statusOnly) break;
 			}
@@ -749,6 +906,10 @@ public:
 							
 							if(reply.size()!=0){
 								std::string errorText=std::string((char*)reply.data());
+								std::map<std::string,std::string> errorValues=parseKeyValueText(errorText);
+								if(errorValues.count("error_message")>0){
+									errorText=errorValues["error_message"];
+								}
 								sendError(errorText);
 							}
 						}
@@ -839,27 +1000,40 @@ public:
 		
 		if(waitAndDownload)
 		{
-			infoContainer task;
-			task.version=1;
-			task.task=DURATION;
-			
-			zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
-			memcpy(request.data (), &task, sizeof(infoContainer));
-			memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-			if(!socket.send (request,zmq::send_flags::none)){
-				sendError("timeout asking for data");
+			if(textArtifactExists(socket, metaArtifactName, withTimeout)){
+				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
 			}
-			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
-				sendError("timeout : get data dont answer");
-			}
+			auto durationIter=finalMeta.find("duration_ms");
+			if(durationIter!=finalMeta.end()){
+				outputs.insert({"t",ScalarToNative(atof(durationIter->second.c_str())/1000.0)});
+			}else{
+				infoContainer task;
+				task.version=1;
+				task.task=DURATION;
+				
+				zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
+				memcpy(request.data (), &task, sizeof(infoContainer));
+				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
+				if(!socket.send (request,zmq::send_flags::none)){
+					sendError("timeout asking for data");
+				}
+				zmq::message_t reply;
+				if(!socket.recv (reply) && withTimeout){
+					sendError("timeout : get data dont answer");
+				}
 
-			if(reply.size()!=sizeof(int))
-				printf( "%s\n", "wrong answer !");
-			else{
-				outputs.insert({"t",ScalarToNative(double(*((int*)reply.data()))/1000.)});				
-			}	
-			
+				if(reply.size()!=sizeof(int))
+					printf( "%s\n", "wrong answer !");
+				else{
+					outputs.insert({"t",ScalarToNative(double(*((int*)reply.data()))/1000.)});				
+				}
+			}
+		}
+		if(returnMeta){
+			if(finalMeta.empty() && textArtifactExists(socket, metaArtifactName, withTimeout)){
+				finalMeta=parseKeyValueText(downloadTextArtifact(socket, metaArtifactName, withTimeout));
+			}
+			outputs.insert({"meta", keyValueMapToNative(finalMeta)});
 		}
 		done=true;
 		

@@ -19,7 +19,9 @@
 #define SAMPLING_MODULE_HPP
 
 #include <functional>
+#include <cstddef>
 #include "typeDefine.hpp"
+#include "pathIndexType.hpp"
 
 class SamplingModule {
 public:
@@ -38,6 +40,15 @@ public:
 		std::vector<float> values;
 	};
 
+	struct SampleContext{
+		unsigned currentCell=0;
+		g2s_path_index_t pathIndex=0;
+		unsigned variableOfInterest=0;
+		unsigned globalSeed=0;
+		const std::vector<int>* kernelFlatIndexVector=nullptr;
+		bool fullSimulation=false;
+	};
+
 
 protected:
 	std::vector<ComputeDeviceModule*> *_cdmV;
@@ -52,6 +63,16 @@ public:
 
 	void setNarrownessFunction(std::function<float(float*, unsigned int *, unsigned int * , unsigned int )> narrownessFunction){
 		_narrownessFunction=narrownessFunction;
+	}
+
+	virtual bool useRawNeighborValues() const { return false; }
+	virtual bool strictInformedNeighbors() const { return false; }
+	virtual int resolveTiId(float rawValue, unsigned tiCount) const {
+		(void)tiCount;
+		return int(rawValue);
+	}
+	virtual void setSampleContext(const SampleContext& context){
+		(void)context;
 	}
 
 	virtual matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr)=0;

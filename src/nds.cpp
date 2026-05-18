@@ -25,6 +25,7 @@
 #include "utils.hpp"
 #include "DataImage.hpp"
 #include "jobManager.hpp"
+#include "jobReporting.hpp"
 
 #include "sharedMemoryManager.hpp"
 #include "CPUThreadDevice.hpp"
@@ -63,28 +64,12 @@ int main(int argc, char const *argv[]) {
 	FILE *reportFile=NULL;
 	if (arg.count("-r") > 1)
 	{
-		fprintf(reportFile,"only one rapport file is possible\n");
+		fprintf(stderr,"only one rapport file is possible\n");
 		run=false;
 	}else{
 		if(arg.count("-r") ==1){
-			if(!strcmp((arg.find("-r")->second).c_str(),"stderr")){
-				reportFile=stderr;
-			}
-			if(!strcmp((arg.find("-r")->second).c_str(),"stdout")){
-				reportFile=stdout;
-			}
-			if (reportFile==NULL) {
-				strcpy(logFileName,(arg.find("-r")->second).c_str());
-				reportFile=fopen((arg.find("-r")->second).c_str(),"a");
-				setvbuf ( reportFile , nullptr , _IOLBF , 0 ); // maybe  _IONBF
-
-
-				jobIdType logId;
-				if(sscanf(logFileName,"/tmp/G2S/logs/%u.log",&logId)==1){
-					std::to_string(logId);
-					uniqueID=logId;
-				}
-			}
+			strcpy(logFileName,(arg.find("-r")->second).c_str());
+			reportFile=g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
 			if (reportFile==NULL){
 				fprintf(stderr,"Impossible to open the rapport file\n");
 				run=false;
@@ -92,6 +77,9 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile!=nullptr){
+		g2s::reporting::markStarted(reportFile, "nds");
+	}
 	for (int i = 0; i < argc; ++i)
 	{
 		fprintf(reportFile,"%s ",argv[i]);
@@ -442,9 +430,11 @@ int main(int argc, char const *argv[]) {
 	for (size_t i = 0; i < sourceFileNameVector.size(); ++i)
 	{
 		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNameVector[i]));
+		g2s::reporting::logInput(reportFile, "-ti["+std::to_string(i)+"]", sourceFileNameVector[i], TIs.back());
 	}
 
 	g2s::DataImage DI=g2s::DataImage::createFromFile(targetFileName);
+	g2s::reporting::logInput(reportFile, "-di", targetFileName, DI);
 
 	g2s::DataImage kernel;
 	g2s::DataImage simulationPath;
@@ -487,6 +477,7 @@ int main(int argc, char const *argv[]) {
 		if(kernel._dims.size()-1==TIs[0]._dims.size()){
 			kernel.convertFirstDimInVariable();
 		}
+		g2s::reporting::logInput(reportFile, "-ki", kernelFileName, kernel);
 	}
 
 	std::vector<std::vector<int> > pathPosition;
@@ -740,6 +731,13 @@ int main(int argc, char const *argv[]) {
 	});
 	// run QS
 
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "threads_over_ti", std::to_string(nbThreadsOverTi));
+	g2s::reporting::logParameter(reportFile, "threads_last_level", std::to_string(nbThreadsLastLevel));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "kernel_size", std::to_string(kernelSize));
+	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
+	g2s::reporting::logParameter(reportFile, "output_index", outputIndexFilename);
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	narrowPathSimulation(reportFile, DI, NI, TIs, kernel, QSM, pathPosition, (unsigned*)simulationPath._data,
@@ -748,6 +746,8 @@ int main(int argc, char const *argv[]) {
 	double time = 1.0e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
 	fprintf(reportFile,"compuattion time: %7.2f s\n", time/1000);
 	fprintf(reportFile,"compuattion time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
 
 	// free memory
 
@@ -786,6 +786,14 @@ int main(int argc, char const *argv[]) {
 	NI.write(std::string("im_3_")+std::to_string(uniqueID));
 	simulationPath.write(std::string("im_4_")+std::to_string(uniqueID));
 	DI.write(std::string("im_1_")+std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "index_image", outputIndexFilename, id);
+	g2s::reporting::logOutput(reportFile, "narrowness_image", outputNarrownessFilename, NI);
+	g2s::reporting::logOutput(reportFile, "simulation_path", outputPathFilename, simulationPath);
+	g2s::reporting::logOutput(reportFile, "simulation_image", outputFilename, DI);
+	g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_")+std::to_string(uniqueID), id);
+	g2s::reporting::logOutput(reportFile, "narrowness_image_runtime", std::string("im_3_")+std::to_string(uniqueID), NI);
+	g2s::reporting::logOutput(reportFile, "simulation_path_runtime", std::string("im_4_")+std::to_string(uniqueID), simulationPath);
+	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_")+std::to_string(uniqueID), DI);
 
 	free(importDataIndex);
 	importDataIndex=nullptr;
