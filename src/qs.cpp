@@ -54,6 +54,7 @@
 #include "jobReporting.hpp"
 #include "qsDistributedUtils.hpp"
 #include "qsPaddingUtils.hpp"
+#include "qsTransformUtils.hpp"
 #ifdef G2S_QS_DISTRIBUTED
 #include <zmq.hpp>
 #endif
@@ -345,7 +346,14 @@ static void enqueueDistributedSimulationUpdate(g2s_simulation_update_kind kind,
 
 
 void printHelp(){
-	printf ("that is the help");
+	printf ("QuickSampling (qs)\n");
+	printf ("Required: -ti <training image> -di <destination image> -dt <types> -k <candidates> -n <neighbors>\n");
+	printf ("Common: -ki <kernel> -sp <path> -s <seed> -j <threads> -fs --forceSimulation -cti -csim\n");
+	printf ("Local controls: -ii <ti index map> -ni <neighbor-count map> -kii <kernel-index map> -kvi <candidate-count map>\n");
+	printf ("Deterministic search-pattern transforms, CPU only:\n");
+	printf ("  -rmi <rotation map>  2D: 1 channel angle in radians; 3D: 4 channels quaternion (qx,qy,qz,qw)\n");
+	printf ("  -smi <scale map>     1 channel strictly positive isotropic scale; invalid node values use identity scale\n");
+	printf ("Transforms are applied to neighborhood offsets before candidate search: scale, rotate, nearest-neighbor rounding.\n");
 }
 
 int main(int argc, char const *argv[]) {
@@ -362,6 +370,8 @@ int main(int argc, char const *argv[]) {
 	std::string numberOfNeigboursFileName;
 	std::string kernelIndexImageFileName;
 	std::string kValueImageFileName;
+	std::string rotationMapFileName;
+	std::string scaleMapFileName;
 
 	std::string outputFilename;
 	std::string outputIndexFilename;
@@ -403,6 +413,15 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	arg.erase("-r");
+	if(reportFile==NULL){
+		reportFile=stderr;
+	}
+
+	if ((arg.count("-h") == 1)|| (arg.count("--help") == 1))
+	{
+		printHelp();
+		return 0;
+	}
 
 	if (arg.count("-id") == 1)
 	{
@@ -597,6 +616,34 @@ int main(int argc, char const *argv[]) {
 		kValueImageFileName=arg.find("-kvi")->second;
 	}
 	arg.erase("-kvi");
+
+	if (arg.count("-rmi") >1)
+	{
+		fprintf(reportFile,"only one rotation map input (-rmi) is possible\n");
+		run=false;
+	}else if (arg.count("-rmi") ==1)
+	{
+		rotationMapFileName=arg.find("-rmi")->second;
+		if(rotationMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -rmi requires a rotation map value\n");
+			run=false;
+		}
+	}
+	arg.erase("-rmi");
+
+	if (arg.count("-smi") >1)
+	{
+		fprintf(reportFile,"only one scale map input (-smi) is possible\n");
+		run=false;
+	}else if (arg.count("-smi") ==1)
+	{
+		scaleMapFileName=arg.find("-smi")->second;
+		if(scaleMapFileName.empty()){
+			fprintf(reportFile,"transform map error: -smi requires a scale map value\n");
+			run=false;
+		}
+	}
+	arg.erase("-smi");
 	parseDistributedCliArgs(arg, distributedOptions);
 
 
@@ -807,6 +854,7 @@ int main(int argc, char const *argv[]) {
 	arg.erase("-W_GPU");
 
 	bool withCUDA=false;
+	bool cudaRequested=(arg.count("-W_CUDA") >= 1);
 	std::vector<int> cudaDeviceList;
 
 	typedef AcceleratorDevice* (*c_NvidiaGPUAcceleratorDevice_t)(int , SharedMemoryManager*, std::vector<g2s::OperationMatrix>, unsigned int, bool , bool );
@@ -938,6 +986,8 @@ int main(int argc, char const *argv[]) {
 	g2s::DataImage numberOfNeigboursImage;
 	g2s::DataImage kernelIndexImage;
 	g2s::DataImage kValueImage;
+	g2s::DataImage rotationMapImage;
+	g2s::DataImage scaleMapImage;
 
 	std::vector<g2s::DataImage > kernels;
 
@@ -1235,7 +1285,81 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	if (!rotationMapFileName.empty())
+	{
+		rotationMapImage=g2s::DataImage::createFromFile(rotationMapFileName);
+		g2s::reporting::logInput(reportFile, "-rmi", rotationMapFileName, rotationMapImage);
+	}
+
+	if (!scaleMapFileName.empty())
+	{
+		scaleMapImage=g2s::DataImage::createFromFile(scaleMapFileName);
+		g2s::reporting::logInput(reportFile, "-smi", scaleMapFileName, scaleMapImage);
+	}
+
 	outputDims=DI._dims;
+	auto normalizeLeadingTransformVariable=[&](g2s::DataImage& image){
+		if(!image.isEmpty() && image._nbVariable==1 && image._dims.size()==outputDims.size()+1){
+			image.convertFirstDimInVariable();
+		}
+	};
+	normalizeLeadingTransformVariable(rotationMapImage);
+	normalizeLeadingTransformVariable(scaleMapImage);
+
+	const bool useRotationMap=!rotationMapImage.isEmpty();
+	const bool useScaleMap=!scaleMapImage.isEmpty();
+	const bool useTransformMap=useRotationMap || useScaleMap;
+	if(!rotationMapFileName.empty() && !useRotationMap){
+		fprintf(reportFile, "transform map error: could not load -rmi rotation map\n");
+		run=false;
+	}
+	if(!scaleMapFileName.empty() && !useScaleMap){
+		fprintf(reportFile, "transform map error: could not load -smi scale map\n");
+		run=false;
+	}
+	if(useTransformMap){
+		const size_t simulationRank=outputDims.size();
+		if(simulationRank!=2 && simulationRank!=3){
+			fprintf(reportFile, "transform map error: -rmi/-smi are only supported for 2D and 3D simulations, got %zuD\n", simulationRank);
+			run=false;
+		}
+		if(augmentedDimensionSimulation){
+			fprintf(reportFile, "transform map error: -rmi/-smi are not supported with -adsim\n");
+			run=false;
+		}
+		if(withGPU || cudaRequested){
+			fprintf(reportFile, "transform map error: -rmi/-smi are CPU-only and cannot be combined with -W_GPU or -W_CUDA\n");
+			run=false;
+		}
+		if(useRotationMap){
+			if(rotationMapImage._dims!=outputDims){
+				fprintf(reportFile, "transform map error: -rmi dimensions must match -di dimensions\n");
+				run=false;
+			}
+			if(simulationRank==2 && rotationMapImage._nbVariable!=1){
+				fprintf(reportFile, "transform map error: 2D -rmi requires exactly 1 channel containing radians\n");
+				run=false;
+			}
+			if(simulationRank==3 && rotationMapImage._nbVariable!=4){
+				fprintf(reportFile, "transform map error: 3D -rmi requires exactly 4 channels containing quaternion (qx,qy,qz,qw)\n");
+				run=false;
+			}
+		}
+		if(useScaleMap){
+			if(scaleMapImage._dims!=outputDims){
+				fprintf(reportFile, "transform map error: -smi dimensions must match -di dimensions\n");
+				run=false;
+			}
+			if(scaleMapImage._nbVariable!=1){
+				fprintf(reportFile, "transform map error: -smi requires exactly 1 channel containing positive isotropic scale values\n");
+				run=false;
+			}
+		}
+	}
+	if(!run){
+		fprintf(reportFile, "simulation interrupted !!\n");
+		return 0;
+	}
 	if(usePaddedDomain){
 		fprintf(reportFile,"use padded simulation domain with halos:");
 		for (size_t dim = 0; dim < spatialPadding.size(); ++dim)
@@ -1263,6 +1387,14 @@ int main(int argc, char const *argv[]) {
 		{
 			kValueImage=qs_padding_utils::padDataImageWithValue(kValueImage,spatialPadding,std::nanf("0"));
 		}
+		if (!rotationMapImage.isEmpty())
+		{
+			rotationMapImage=qs_padding_utils::padDataImageWithValue(rotationMapImage,spatialPadding,std::nanf("0"));
+		}
+		if (!scaleMapImage.isEmpty())
+		{
+			scaleMapImage=qs_padding_utils::padDataImageWithValue(scaleMapImage,spatialPadding,std::nanf("0"));
+		}
 
 		qs_padding_utils::mapSimulationPathToPadded(simulationPathIndex,simulationPathSize,fullSimulation,DI._nbVariable,outputDims,spatialPadding);
 	}
@@ -1277,6 +1409,9 @@ int main(int argc, char const *argv[]) {
 	g2s::reporting::logParameter(reportFile, "force_simulation", g2s::reporting::boolString(forceSimulation));
 	g2s::reporting::logParameter(reportFile, "path_optimization", g2s::reporting::boolString(withPathOptim));
 	g2s::reporting::logParameter(reportFile, "use_padded_domain", g2s::reporting::boolString(usePaddedDomain));
+	g2s::reporting::logParameter(reportFile, "rotation_map", g2s::reporting::boolString(useRotationMap));
+	g2s::reporting::logParameter(reportFile, "scale_map", g2s::reporting::boolString(useScaleMap));
+	g2s::reporting::logParameter(reportFile, "deterministic_transforms", g2s::reporting::boolString(useTransformMap));
 	g2s::reporting::logParameter(reportFile, "halo_dims", g2s::reporting::joinUnsignedVector(spatialPadding, ","));
 	g2s::reporting::logParameter(reportFile, "output_image", outputFilename);
 	g2s::reporting::logParameter(reportFile, "output_index", outputIndexFilename);
@@ -2002,6 +2137,11 @@ int main(int argc, char const *argv[]) {
 	}
 
 	// run QS
+	qs_transform_utils::TransformContext transformContext;
+	transformContext.rotationMap=useRotationMap ? &rotationMapImage : nullptr;
+	transformContext.scaleMap=useScaleMap ? &scaleMapImage : nullptr;
+	transformContext.rank=DI._dims.size();
+	const qs_transform_utils::TransformContext* transformContextPtr=useTransformMap ? &transformContext : nullptr;
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
@@ -2050,12 +2190,12 @@ int main(int argc, char const *argv[]) {
 	case fullSim:
 		fprintf(reportFile, "%s\n", "full sim");
 		simulationFull(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors,(!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData, transformContextPtr);
 		break;
 	case vectorSim:
 		fprintf(reportFile, "%s\n", "vector sim");
 		simulation(reportFile, DI, TIs, kernels, QSM, pathPositionArray, simulationPathIndex+beginPath, simulationPathSize-beginPath, (useUniqueTI4Sampling ? &idImage : nullptr ),
-			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, maxNK, withPathOptim, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData);
+			(!kernelIndexImage.isEmpty() ? &kernelIndexImage : nullptr ), seedForIndex, importDataIndex, nbNeighbors, (!numberOfNeigboursImage.isEmpty() ? &numberOfNeigboursImage : nullptr ), (!kValueImage.isEmpty() ? &kValueImage : nullptr ), categoriesValues, nbThreads, fullStationary, circularSimulation, forceSimulation, maxNK, withPathOptim, posteriorPath.data(), simulationUpdateCallback, simulationUpdateCallbackUserData, transformContextPtr);
 		break;
 	case augmentedDimSim:
 		fprintf(reportFile, "%s\n", "augmented dimension sim");

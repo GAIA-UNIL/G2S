@@ -12,10 +12,13 @@
 - the first one is a server that manages computations and can be compiled for each hardware to obtain optimal performance.
 - the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
 
-Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), and **NDS** (Narrow Distribution Selection).
+Currently the **G2S** interface is available for *MATLAB* and *Python*. **G2S** is provided with **QS** (QuickSampling), **AS** (Anchor Sampling), native **DS** (Direct Sampling), and **NDS** (Narrow Distribution Selection).
+Native QS supports deterministic CPU-side search-pattern transforms through `-rmi` rotation maps and `-smi` isotropic scale maps. These maps transform simulation-side neighborhood lookups while leaving the training image unchanged and keeping TI/kernel scoring on the original template offsets. The Python 2D transform examples use 500x500 Strebelle simulations with `-j 1.0001`, stronger transform maps, saved baseline comparison figures, and a constant-rotation diagnostic that compares `-rmi +pi/2` against rotated training images.
+Native DS is available as `ds`, `DS`, or `DirectSampling`; the old DS-like implementation remains available as `ds-l`, `dsl`, `DirectSamplingLike`, and `DS-L`. Native DS honors `-ii` TI-selection maps in vector and full simulation, including initial nodes that have no informed neighbors yet. DS candidate scans now use an array-free deterministic pseudo-random permutation keyed by the global seed, local per-node seed, path order, and variable instead of a contiguous wrapped TI segment, path sorting and strict-informed parallel neighbor waits are deterministic for same-seed reproducibility, and the common continuous norms `1` and `2` avoid generic `pow` calls in the hot score loop.
 The repository also includes a dedicated **SNESIM** executable for categorical multigrid simulation.
-Concrete interface demos live under `example/matlab/` and `example/python/`, including `snesim_example.m` / `snesim_example.py` using the public Strebelle training image. The MATLAB SNESIM example follows the categorical MATLAB test pattern by casting the TIFF to `single` before calling `g2s`.
-For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, and the schema-first `-returnFormat schema` path through the real interface bindings. Both examples let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
+Concrete interface demos live under `example/matlab/` and `example/python/`, including fully unconditional native DS examples for continuous stone, categorical Strebelle, transform-controlled DS, and full mixed multivariate DS. The DS demos size their destination grids from the loaded training image and pass `-j 1.00001` for path-level parallel execution. SNESIM examples are also available as `snesim_example.m` / `snesim_example.py` using the public Strebelle training image.
+Distributed QS interface calls accept native matrix values for JSON-grid parameters such as `-jg`, `-eg`, and `-di_grid_json`; the shared interface layer converts them to JSON before upload and job serialization.
+For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, `-returnMeta`, and schema-first output through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
 **G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
 
@@ -106,7 +109,7 @@ For quick end-to-end validation of that path, the built-in `report_probe` algori
 
 The current `-wPO` logging convention is intentionally explicit:
 
-- `qs` logs `path_optimization=true|false` because the flag is parsed and used by the simulation path logic
+- `qs` and native `ds` log `path_optimization=true|false` because the flag is parsed and used by the vector simulation path logic
 - `snesim` logs `path_optimization_requested=true|false` so operators can see the requested CLI flag even though the current scaffold does not expose an effective path-optimization mode in the same way as QS
 
 ## Server data protocol hardening

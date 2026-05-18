@@ -432,6 +432,38 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 			}
 			result.push_back(localVector);
 		}
+		if(PyUnicode_Check(PyTuple_GetItem(args,i))&& 0==strcmp(PyUnicode_AsUTF8(PyTuple_GetItem(args, i)),"-rmi")){
+			std::vector<std::string> localVector;
+			localVector.push_back("-rmi");
+			for (int j=i+1; j < nrhs; ++j)
+			{
+				if(PyUnicode_Check(PyTuple_GetItem(args,j)) && PyUnicode_AsUTF8(PyTuple_GetItem(args, j))[0]=='-'){
+					break;
+				}
+				if(PyUnicode_Check(PyTuple_GetItem(args,j))){
+					localVector.push_back(std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args, j))));
+				}else{
+					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j)));
+				}
+			}
+			result.push_back(localVector);
+		}
+		if(PyUnicode_Check(PyTuple_GetItem(args,i))&& 0==strcmp(PyUnicode_AsUTF8(PyTuple_GetItem(args, i)),"-smi")){
+			std::vector<std::string> localVector;
+			localVector.push_back("-smi");
+			for (int j=i+1; j < nrhs; ++j)
+			{
+				if(PyUnicode_Check(PyTuple_GetItem(args,j)) && PyUnicode_AsUTF8(PyTuple_GetItem(args, j))[0]=='-'){
+					break;
+				}
+				if(PyUnicode_Check(PyTuple_GetItem(args,j))){
+					localVector.push_back(std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args, j))));
+				}else{
+					localVector.push_back(uploadData(socket, PyTuple_GetItem(args, j)));
+				}
+			}
+			result.push_back(localVector);
+		}
 	}
 
 	return result;

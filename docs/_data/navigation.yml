@@ -18,6 +18,8 @@
       url: /algorithms/QuickSampling.html
     - title: Anchor Sampling
       url: /algorithms/AnchorSampling.html
+    - title: Direct Sampling
+      url: /algorithms/DirectSampling.html
     - title: QS Calibration
       url: /algorithms/QSCalibration.html
     - title: Distributed QuickSampling

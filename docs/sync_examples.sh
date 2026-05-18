@@ -17,6 +17,11 @@ cp "${REPO_ROOT}/example/python/multivariateSimulation.py" "${TARGET_ROOT}/pytho
 cp "${REPO_ROOT}/example/python/gapFilling.py" "${TARGET_ROOT}/python/"
 cp "${REPO_ROOT}/example/python/downscaling.py" "${TARGET_ROOT}/python/"
 cp "${REPO_ROOT}/example/python/3D.py" "${TARGET_ROOT}/python/"
+cp "${REPO_ROOT}/example/python/qs_rotation_2d.py" "${TARGET_ROOT}/python/"
+cp "${REPO_ROOT}/example/python/qs_rotation_equivalence_2d.py" "${TARGET_ROOT}/python/"
+cp "${REPO_ROOT}/example/python/qs_scale_2d.py" "${TARGET_ROOT}/python/"
+cp "${REPO_ROOT}/example/python/qs_quaternion_rotation_3d.py" "${TARGET_ROOT}/python/"
+cp "${REPO_ROOT}/example/python/qs_scale_rotation_2d.py" "${TARGET_ROOT}/python/"
 cp "${REPO_ROOT}/example/python/async_mode.py" "${TARGET_ROOT}/python/"
 cp "${REPO_ROOT}/example/python/AnchorSampling.py" "${TARGET_ROOT}/python/"
 

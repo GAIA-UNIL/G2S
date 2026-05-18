@@ -8,6 +8,24 @@ Those copied directories are generated build inputs, not source of truth. They a
 
 When reviewing, debugging, or changing G2S code, use the repository-level source and header trees. Do not treat ignored files under `build/python-build/src`, `build/python-build/include`, `build/python-build/src_interfaces`, `build/python-build/include_interfaces`, or the local `build/python-build/jsoncpp` clone as canonical project source.
 
+## Native Direct Sampling
+
+Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It intentionally reuses the generic `simulation()` / `simulationFull()` orchestration and only opts into additional `SamplingModule` hooks for raw neighbor values, strict informed-neighbor filtering, safe TI-id resolution, per-node sample context, and kernel flat-index mapping. Legacy `ds-l` remains implemented by `src/ds-l.cpp` and should not be changed when working on native DS behavior.
+
+Native DS uses the first configured kernel as its default mismatch kernel and switches to a per-node kernel only when a valid `-kii` map selects one. `-ii` maps are interpreted per simulation cell in both vector and full simulation; multi-channel `-ii` maps may provide per-variable TI selection for full simulation. Candidate patterns that cannot support the full observed data event inside the selected TI are rejected instead of being scored on a partial neighborhood. After simulation, native DS applies a conservative categorical singleton cleanup that preserves conditioning values and only flips one-cell islands fully surrounded by another categorical value.
+
+Native DS visits TI candidates through a deterministic pseudo-random permutation over the allowed flattened TI candidates. The permutation is array-free, bounded by `-f` / `-mer`, and keyed by the global seed, local per-node seed, simulation path order, and variable. Per-node sample context is stored per thread so parallel path workers do not overwrite each other's candidate-order context.
+
+Explicit `-sp` path ordering and `-wPO` dependency ordering use deterministic tie-breakers. This is required for repeated same-seed DS runs because equal path priorities or dependency depths otherwise leave the visit order unspecified, especially when path optimization uses a parallel sort implementation.
+
+When a sampler requests strict informed neighbors, the parallel simulation loop waits until earlier-path neighbor values are written before adding them to the data event. Native DS depends on this behavior for reproducibility under `-j`; otherwise thread timing can decide whether a still-pending neighbor is skipped.
+
+Continuous DS mismatch keeps the generic `pow` path for custom `-cn` / `-cnorm` values, but shortcuts the common `1` and `2` powers with direct absolute-difference and multiplication/square-root operations in the candidate scoring loop.
+
+The Python and MATLAB native DS examples are intentionally fully unconditional: their destination images are all `NaN`, use the same spatial and variable shape as the loaded training image, and pass `-j 1.00001` to exercise path-level parallel execution. Do not add sparse demonstration conditioning points to those examples unless the example is explicitly renamed and documented as conditional.
+
+The transform helper in `include/qsTransformUtils.hpp` is shared by QS and native DS. Rotation and scale tolerance maps are inert unless provided by a caller; existing QS deterministic transform behavior should remain unchanged.
+
 ## Server protocol schema and validation
 
 G2S clients and the server communicate over ZeroMQ using one binary request frame. Every request starts with `infoContainer`, defined in `include/protocol.hpp`:
@@ -169,5 +187,18 @@ The human-readable log is now expected to show both setup and effective behavior
 
 For `-wPO`, the current conventions are:
 
-- `qs`: logs `path_optimization=true|false` because the flag is effective in QS simulation
+- `qs` and native `ds`: log `path_optimization=true|false` because the flag is effective in vector simulation
 - `snesim`: logs `path_optimization_requested=true|false` so the request is visible in the operator log, even though the current scaffold does not expose the same effective mode as QS
+
+## QS deterministic search-pattern transforms
+
+Native QS accepts deterministic CPU-only local search-pattern transforms:
+
+- `-rmi` supplies rotation per simulated node;
+- `-smi` supplies isotropic scale per simulated node.
+
+Transforms map original QS template offsets into simulation-space lookup offsets before candidate matching. The training image is not transformed. QS reads already simulated values at transformed offsets, then passes those values to the existing matcher with the original TI/kernel offsets so kernel weights keep their original flat-index mapping. This preserves vector/full simulation behavior while allowing constant rotations or scales to turn or resize TI structures in the simulation.
+
+Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
+
+The Python example `example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
