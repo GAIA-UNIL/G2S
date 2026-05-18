@@ -63,6 +63,7 @@ unsigned anyNativeToUnsigned(std::any val){
 	}
 
 	bool isDataMatrix(std::any val){
+		if(val.type()!=typeid(Rcpp::RObject)) return false;
 		Rcpp::RObject obj=std::any_cast<Rcpp::RObject>(val);
 		if(!Rcpp::is<Rcpp::NumericVector>(obj)) return false;
 		Rcpp::NumericVector vec=Rcpp::as<Rcpp::NumericVector>(obj);

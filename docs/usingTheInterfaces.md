@@ -73,7 +73,7 @@ An R interface is available in the repository. Please refer to the installation 
 | `-TO`           | Specify a custom communication timeout in milliseconds for the client side ZMQ socket. |
 | `-shutdown`     | Shutdown the server, useful at the end of scripts                                                          |
 
-For distributed QuickSampling, the Python and MATLAB interfaces also accept native `-jg` / `-job_grid` matrices. They automatically convert these matrices to the JSON payload expected by the distributed helpers, and the interface-side normalization prefers the short flag `-jg`.
+For distributed QuickSampling, the Python and MATLAB interfaces also accept native matrices for JSON-grid parameters. `-jg` / `-job_grid` / `-job_grid_json` are normalized to `-jg`, `-eg` / `-endpoint_grid_json` are normalized to `-eg`, and `-di_grid_json` is kept under its canonical name. Matrix values are converted to inline JSON before the normal JSON upload path, so they should not be passed through the binary image upload path.
 
 For Anchor Sampling continuous norms (`-cnorm` / `-cn`), Python and MATLAB can pass either a scalar (single `p` for all continuous variables) or a vector (one `p` per continuous variable).
 

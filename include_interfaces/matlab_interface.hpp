@@ -58,7 +58,9 @@ public:
 	}
 
 	bool isDataMatrix(std::any val){
-		return mxIsNumeric(std::any_cast<mxArray const*>(val)) || mxIsLogical(std::any_cast<mxArray const*>(val));
+		if(val.type()!=typeid(mxArray const*)) return false;
+		mxArray const* matlabArray=std::any_cast<mxArray const*>(val);
+		return (mxIsNumeric(matlabArray) || mxIsLogical(matlabArray)) && !mxIsScalar(matlabArray);
 	}
 
 	std::string nativeToStandardString(std::any val){
