@@ -15,6 +15,15 @@ ifeq ($(doseNeedFS_Lib),1)
 	export LDFLAGS += -lstdc++fs
 endif
 
+doseNeedTBB:= $(shell echo '#include <execution>\n#include <algorithm>\n#include <vector>\nint main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' | $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null && echo 0 || echo 1)
+
+ifeq ($(doseNeedTBB),1)
+	doseSupportTBB:= $(shell echo '#include <execution>\n#include <algorithm>\n#include <vector>\nint main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' | $(CXX) -xc++ - -o /dev/null -std=c++17 -ltbb 2>/dev/null && echo 1 || echo 0)
+
+	ifeq ($(doseSupportTBB),1)
+		export LDFLAGS += -ltbb
+	endif
+endif
 
 export DEST_DIR_EXTENSION:=$(shell pwd)
 export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py qs_decentralized_slurm.py qs_decentralized_slurm_client.py
