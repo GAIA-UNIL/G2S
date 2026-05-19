@@ -135,7 +135,7 @@ for job_id, (ti, di) in job_data.items():
     g2s('-a', 'qs_prep', '-id', job_id, '-ti', ti, '-di', di)
 
 # launch the distributed workflow
-distributed_job = g2s(
+submitted = g2s(
     '-a', 'qs_dm',
     '-jg', job_grid,
     '-dt', [0],
@@ -145,11 +145,13 @@ distributed_job = g2s(
     '-s', 100,
     '-submitOnly'
 )
+distributed_job = submitted["job_id"]
 
 # monitor the aggregate progress
 status = 0
 while status < 100:
-    status = g2s('-statusOnly', distributed_job)
+    status_result = g2s('-statusOnly', distributed_job)
+    status = status_result.get("progress", 0)
     print(f'distributed progress: {status}')
     time.sleep(1.0)
 
@@ -157,7 +159,8 @@ while status < 100:
 chunk_results = {}
 for row in job_grid:
     for job_id in row:
-        chunk_results[job_id], *_ = g2s('-waitAndDownload', job_id)
+        result = g2s('-waitAndDownload', job_id)
+        chunk_results[job_id] = result["simulation"]
 
 # for very large runs, adapt this loop to process one chunk at a time
 # instead of keeping all chunks in memory simultaneously
@@ -198,7 +201,7 @@ g2s('-a','qs_prep','-id',103,'-ti',ti_103,'-di',di_103);
 g2s('-a','qs_prep','-id',104,'-ti',ti_104,'-di',di_104);
 
 % launch the distributed workflow
-distributed_job=g2s('-a','qs_dm',...
+submitted=g2s('-a','qs_dm',...
                     '-jg',job_grid,...
                     '-dt',[0],...
                     '-k',1.2,...
@@ -206,11 +209,13 @@ distributed_job=g2s('-a','qs_dm',...
                     '-j',0.5,...
                     '-s',100,...
                     '-submitOnly');
+distributed_job=submitted.job_id;
 
 % monitor the aggregate progress
 status=0;
 while status<100
-    status=g2s('-statusOnly',distributed_job);
+    statusResult=g2s('-statusOnly',distributed_job);
+    status=statusResult.progress;
     fprintf('distributed progress: %g\n',status);
     pause(1);
 end
@@ -219,7 +224,8 @@ end
 chunk_results=cell(size(job_grid));
 for iy=1:size(job_grid,1)
     for ix=1:size(job_grid,2)
-        chunk_results{iy,ix}=g2s('-waitAndDownload',job_grid(iy,ix));
+        result=g2s('-waitAndDownload',job_grid(iy,ix));
+        chunk_results{iy,ix}=result.simulation;
     end
 end
 

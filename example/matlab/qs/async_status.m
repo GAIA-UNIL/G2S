@@ -15,5 +15,13 @@ status = g2s('-statusOnly', job_id);
 result = g2s('-waitAndDownload', job_id);
 
 disp(['submitted ', num2str(job_id)]);
-disp(['status ', status.status, ', progress ', num2str(status.progress)]);
+statusText = 'unknown';
+if isfield(status, 'status')
+    statusText = status.status;
+end
+progress = NaN;
+if isfield(status, 'progress')
+    progress = status.progress;
+end
+disp(['status ', statusText, ', progress ', num2str(progress)]);
 disp(size(result.simulation));

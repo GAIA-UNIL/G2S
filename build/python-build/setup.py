@@ -228,6 +228,12 @@ setup(
     url="https://github.com/GAIA-UNIL/G2S",
     packages=["g2s"],
     python_requires=">=3.9",
+    install_requires=[
+        "numpy>=2.0.0",
+        "pyzmq>=25.1.0",
+        "requests>=2.31.0",
+        "tifffile>=2024.8.30",
+    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",

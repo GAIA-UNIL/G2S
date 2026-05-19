@@ -18,8 +18,8 @@ For the aligned-stack, location-anchored variant of this workflow, see [Anchor S
 
 ## Parameters for QS
 
-Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
-Outputs: sim = simulation, index = index of the simulated values in the flattened TI, time = simulation time, finalprogress = final progression of the simulation (normally 100), jobid = job ID.
+Usage: `result = g2s(flag1, value1, flag2, value2, ...)`
+Schema outputs: `result["simulation"]` / `result.simulation`, `result["indexmap"]` / `result.indexmap`, `result["time"]` / `result.time`, `result["progress"]` / `result.progress`, and `result["job_id"]` / `result.job_id`.
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
@@ -80,13 +80,15 @@ This feature is CPU-only and is compatible with vector simulation and full simul
 ## Examples
 Below are schema-output QS examples. For these examples the G2S server should be installed and running, either on your own machine or remotely. A Google Colab notebook with more examples and an automatic installation of G2S can be found [here](https://github.com/GAIA-UNIL/Short-course-MPS/blob/main/MPS_SC_with_QS_Online.ipynb).
 
-Current examples are grouped under `example/python/qs/` and `example/matlab/qs/`. Older positional-output examples, including transform diagnostics, are kept under `legacy_example/` and pass `-legacy_output` directly.
+Current examples are grouped under `example/python/qs/` and `example/matlab/qs/`, including schema-output conversions of the old flat examples and transform diagnostics. Older positional-output versions remain under `legacy_example/` and pass `-legacy_output` directly.
 
 ### Unconditional simulation
 {% include include_code.md examplePath="qs/unconditional" %}
 
 ### Asynchronous mode 
 {% include include_code.md examplePath="qs/async_status" %}
+
+Additional schema examples in the same folder cover conditional simulation, gap filling, multivariate simulation, multiple TIs, downscaling, 3D simulation, calibration maps, auto-save, pixel-address index decoding, and deterministic rotation/scale transform maps.
 
 ## Publication
 
@@ -113,7 +115,8 @@ The simplest solution is to do a for-loop over the realizations. However, in eac
 ```python
 sims1=numpy.empty((250,250,numberOfSimulation));
 for i in range(numberOfSimulation):
-  sims1[:,:,i],*_=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5,'-s',100+i);
+  result=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5,'-s',100+i);
+  sims1[:,:,i]=result["simulation"];
 ```
 
 #### For-loop without overhead
@@ -123,11 +126,13 @@ By using the G2S submission queue, it's possible to remove most of the overhead.
 ```python
 ds=numpy.empty((numberOfSimulation,), dtype='long');
 for i in range(numberOfSimulation):
-  ids[i]=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5,'-s',100+i,'-submitOnly');
+  submitted=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5,'-s',100+i,'-submitOnly');
+  ids[i]=submitted["job_id"];
 
 sims2=numpy.empty((250,250,numberOfSimulation));
 for i in range(numberOfSimulation):
-  sims2[:,:,i],*_=g2s('-sa',computationServer,'-waitAndDownload',ids[i]);
+  result=g2s('-sa',computationServer,'-waitAndDownload',ids[i]);
+  sims2[:,:,i]=result["simulation"];
 ```
 
 #### Overdimensioning of the destination image
@@ -135,7 +140,8 @@ for i in range(numberOfSimulation):
 This is the third solution to get multiple simulations at once. Although this solution looks easier, it has more limitations (e.g., being limited same size, same parameters, etc.), and therefore it is ⚠️ **not guaranteed** to stay functional in the future. This last solution should only be considered in case of extremely parallelized simulations (number of threads >50) and/or extremely small simulations (less than 1e4 pixels per simulation)
 
 ```python
-sims3,*_=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((numberOfSimulation,250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5);
+result=g2s('-sa',computationServer,'-a','qs','-ti',ti,'-di',numpy.zeros((numberOfSimulation,250,250))*numpy.nan,'-dt',numpy.ones((1,)),'-k',1.2,'-n',50,'-j',0.5);
+sims3=result["simulation"];
 ```
 
 ### How to do a simulation by segment

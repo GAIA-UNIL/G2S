@@ -15,20 +15,15 @@ imshow(simulation);
 title('Simulation');
 
 subplot(3,2,3);
-imageIdx=mod(position,length(tis));
+imageIdx=mod(floor(double(position)),length(tis)) + 1;
 imagesc(imageIdx);
 title('image id');
 subplot(3,2,4);
-Lindex=idivide(position,length(tis));
+Lindex=floor(double(position) / length(tis)) + 1;
 imagesc(Lindex);
 title('linear index');
 
-tisSizes=nan(length(tis),2);
-for i=1:length(tis)
-    tisSizes(i,:)=size(tis{i});
-end
-
-[x,y]=ind2sub(tisSizes(imageIdx(:)+1,:),Lindex);
+[x,y]=ind2sub(size(tis{1}),Lindex);
 subplot(3,2,5);
 imagesc(x);
 title('x index');

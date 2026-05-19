@@ -90,6 +90,10 @@ The current interface returns one schema object by default. In Python this objec
 - `progress`: latest progress percentage
 - `artifacts`: logical artifact names such as `im_1_<job>`, `log_<job>`, and `meta_<job>`
 
+Schema mode downloads every available `im_<n>_<job>` result artifact into that one object, so MATLAB calls such as `result = g2s(...)` can still contain both `result.simulation` and `result.indexmap`. Positional output count only limits downloads when `-legacy_output` is used. When an older server does not publish semantic output descriptors, output 1 falls back to `simulation` and output 2 falls back to `indexmap`.
+
+For compatibility with older MATLAB mex builds that still use the left-hand-side count as a download hint, examples that need secondary schema outputs can write `[result, ~] = g2s(...)`. The ignored second output is not the legacy API; it only asks the binding to fetch `im_2_<job>` before building `result`.
+
 Algorithms can add named outputs. For example, AutoQS returns `mean_error`, `deviation_error`, and `sample_count`; NDS returns `narrowness` and `simulation_path`; SNESIM returns `simulation`.
 
 Use `-legacy_output` for old examples or old code that still unpacks positional outputs:

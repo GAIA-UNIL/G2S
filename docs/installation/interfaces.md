@@ -31,10 +31,11 @@ Simply use `pip install G2S`
 
 #### Manual compilation
 
-1. If needed Python and Numpy: `sudo apt install python3-distutils python3-dev python3-numpy -y`
+1. If needed Python and build dependencies: `sudo apt install python3-distutils python3-dev python3-numpy -y`
 2. (A C++ compiler with c++17 is required)
 3. Go to `build/python-build`
-4. Run `python3 setup.py install --user`
+4. Install the Python build/runtime dependencies: `python3 -m pip install -U build numpy pyzmq requests tifffile`
+5. Run `python3 setup.py install --user`
 
 #### Check proper interface installation
 

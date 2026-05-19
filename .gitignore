@@ -54,6 +54,7 @@ g2s_server*.log
 # Schema-mode helpers and examples are tracked; only generated runtime artifacts stay ignored.
 # Interface compatibility flags such as -legacy_output are source/documentation only.
 # Algorithm schema descriptors are source metadata; generated im_<n>_<job> artifacts stay in /tmp/G2S.
+# MATLAB run-all isolation handles invalid legacy filenames without generated tracked files.
 
 # Generated local-only DataImage binary data files
 *.bgrid
@@ -98,6 +99,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 example/.venv/
+# Example smoke runners should not require tracked local environments.
+# Python example dependencies such as requests/tifffile are installed into local virtualenvs, not tracked.
 .mypy_cache/
 
 # Local configuration/runtime files

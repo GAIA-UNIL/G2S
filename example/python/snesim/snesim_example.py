@@ -1,22 +1,39 @@
-import numpy as np
+import numpy
 from PIL import Image
 import requests
 from io import BytesIO
 from g2s import g2s
+import matplotlib.pyplot as plt
 
+# load example training image ('strebelle') from same repo path style
+url = "https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff"
+resp = requests.get(url, timeout=30)
+resp.raise_for_status()
+ti_raw = numpy.array(Image.open(BytesIO(resp.content)))
 
-ti = np.array(Image.open(BytesIO(requests.get(
-    "https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/Strebelle.tiff"
-).content)), dtype=np.float32)
-
-result = g2s(
-    "-a", "snesim",
-    "-ti", ti,
-    "-di", np.full(ti.shape, np.nan, dtype=np.float32),
-    "-dt", [1],
-    "-n", 24,
-    "-s", 100,
+# SNESIM call using G2S
+# 5 grid levels total: 4 -> 3 -> 2 -> 1 -> 0 (because -mg is the max level)
+_schema_result = g2s(
+    '-a', 'snesim',
+    '-ti', ti_raw,
+    '-di', numpy.zeros((1000, 1000)) * numpy.nan,
+    '-dt', [1],                   # 1 => categorical
+    '-j', 0.5,
+    '-mg', 4,
+    '-tpl', 3
 )
+simulation = _schema_result["simulation"]
+t = _schema_result.get("time")
 
-print("job", result["job_id"], "seconds", result.get("time"))
-print("simulation", result["simulation"].shape)
+print("SNESIM duration:", t)
+
+# display results
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 4))
+fig.suptitle('SNESIM Unconditional simulation', size='xx-large')
+ax1.imshow(ti_raw, cmap='tab20')
+ax1.set_title('Training image (categorical)')
+ax1.axis('off')
+ax2.imshow(simulation, cmap='tab20')
+ax2.set_title('Simulation')
+ax2.axis('off')
+plt.show()

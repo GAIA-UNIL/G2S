@@ -13,7 +13,7 @@ def run_warning_probe():
 
 
 def run_error_probe():
-    job_id, *_ = g2s(
+    job_id = g2s(
         "-a", "report_probe",
         "-mode", "error",
         "-steps", 5,

@@ -93,11 +93,13 @@ At startup, the server probes these runtime directories with a create/remove wri
 
 Progress and final duration no longer have to be inferred from the plain log. Interfaces can poll structured `progress_<job>` and `meta_<job>` text artifacts through the existing text-download protocol, while `-showLogs` can tail `log_<job>` and `warning_<job>` for live display without making the server stateful.
 
-Interfaces now use the schema named-result mode by default. Callers receive one dictionary/struct/list object with stable keys such as `simulation`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. The old positional return contract remains available by passing `-legacy_output`; it also takes precedence if other return-format options are present.
+Interfaces now use the schema named-result mode by default. Callers receive one dictionary/struct/list object with stable keys such as `simulation`, `indexmap`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. Schema mode downloads all available result artifacts into that single object even when the language binding receives only one return value. For compatibility with older servers that do not publish output descriptors, output 1 defaults to `simulation` and output 2 defaults to `indexmap`. The old positional return contract remains available by passing `-legacy_output`; it also takes precedence if other return-format options are present.
 
 Server-registered algorithms publish schema descriptors for their conventional runtime outputs where applicable: QS, AS, DS, legacy DS-L, NDS, AutoQS, SNESIM, and Echo name their `im_<n>_<job>` artifacts so schema callers can use stable result keys instead of generic positional labels.
 
-Schema examples are organized by algorithm under `example/python/` and `example/matlab/`. The old flat examples are available under `legacy_example/` and pass `-legacy_output` directly.
+Schema examples are organized by algorithm under `example/python/` and `example/matlab/`, including schema-output conversions of the old flat example set. The old positional examples remain available under `legacy_example/` and pass `-legacy_output` directly.
+To smoke-test all current and legacy examples, install the Python example dependencies from the local package metadata, then run `python3 example/python/run_all_examples.py` for Python or call `run_all_examples` from MATLAB after adding `example/matlab` to the path. The MATLAB runner executes each script in an isolated workspace, including legacy filenames such as `3D.m`. The reporting probes' fatal paths are counted as expected failures by both runners.
+MATLAB schema examples that read secondary outputs may use `[result, ~] = g2s(...)`; the first value is still the schema struct, and the ignored value keeps older mex builds fetching the second image artifact.
 
 The server remains stateless for reporting delivery. It only exposes current artifact contents; each interface keeps its own per-job read cursors such as `log_offset` and `warning_offset` so only newly appended text is displayed on each poll.
 
@@ -151,7 +153,7 @@ Use one value to apply the same `p` to all continuous variables, or pass one val
 
 ## Python AS example note
 
-`example/python/as/anchor_sampling.py` is now a minimal synthetic AS demo using schema output. The older richer AS diagnostic remains available as `legacy_example/python/AnchorSamplingSyntheticExperiment.py`.
+`example/python/as/anchor_sampling.py` is a minimal synthetic AS demo using schema output. The richer AS diagnostic is available as `example/python/as/AnchorSamplingSyntheticExperiment.py`, with the positional-output version kept under `legacy_example/python/AnchorSamplingSyntheticExperiment.py`.
 
 ## Online Demo (Back! but slow)
 

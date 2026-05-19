@@ -1,24 +1,32 @@
 from g2s import g2s
 
 
-warning_result = g2s(
-    "-a", "report_probe",
-    "-mode", "warning",
-    "-steps", 5,
-    "-sleepMs", 120,
-    "-showLogs",
-)
+def run_warning_probe():
+    _schema_result = g2s(
+        "-a", "report_probe",
+        "-mode", "warning",
+        "-steps", 5,
+        "-sleepMs", 120,
+        "-showLogs")
+    elapsed = _schema_result.get("time")
+    print("\nwarning probe completed")
+    print("elapsed seconds:", float(elapsed))
 
-print("warning probe", warning_result["job_id"], warning_result["status"])
-print("artifacts", warning_result["artifacts"])
 
-submitted = g2s(
-    "-a", "report_probe",
-    "-mode", "error",
-    "-steps", 5,
-    "-sleepMs", 120,
-    "-submitOnly",
-)
+def run_error_probe():
+    _schema_result = g2s(
+        "-a", "report_probe",
+        "-mode", "error",
+        "-steps", 5,
+        "-sleepMs", 120,
+        "-submitOnly")
+    job_id = _schema_result["job_id"]
+    print("\nerror probe submitted with job id:", int(job_id))
+    g2s(
+        "-waitAndDownload", job_id,
+        "-showLogs")
 
-print("submitted error probe", submitted["job_id"])
-g2s("-waitAndDownload", submitted["job_id"])
+
+if __name__ == "__main__":
+    run_warning_probe()
+    run_error_probe()

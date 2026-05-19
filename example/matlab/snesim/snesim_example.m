@@ -1,12 +1,38 @@
-ti = single(imread('https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/Strebelle.tiff'));
+% This code requires the G2S server to be running.
+% load example training image ('strebelle')
+url = 'https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff';
+try
+    ti = imread(url);
+catch
+    % Older MATLAB releases may not support direct HTTP reads with imread.
+    localTi = websave(fullfile(tempdir, 'strebelle.tiff'), url);
+    ti = imread(localTi);
+end
+ti = single(ti);
 
-result = g2s( ...
-    '-a', 'snesim', ...
-    '-ti', ti, ...
-    '-di', single(nan(size(ti))), ...
-    '-dt', [1], ...
-    '-n', 24, ...
-    '-s', 100);
+% SNESIM call using G2S
+% 5 grid levels total: 4 -> 3 -> 2 -> 1 -> 0 (because -mg is the max level)
+schemaResult = g2s('-a', 'snesim', ...
+                            '-ti', single(ti), ...
+                            '-di', single(nan(1000, 1000)), ...
+                            '-dt', [1], ...
+                            '-j', 1.001, ...
+                            '-mg', 4, ...
+                            '-tpl', 3);
+simulation = schemaResult.simulation;
+elapsed = schemaResult.time;
 
-disp(['job ', num2str(result.job_id), ', seconds ', num2str(result.time)]);
-disp(size(result.simulation));
+fprintf('SNESIM duration: %.3f s\n', elapsed);
+
+% Display results
+figure;
+sgtitle('SNESIM unconditional simulation');
+subplot(1, 2, 1);
+imagesc(ti);
+title('Training image (Strebelle)');
+axis image off;
+subplot(1, 2, 2);
+imagesc(simulation);
+title('Simulation');
+axis image off;
+colormap(parula);

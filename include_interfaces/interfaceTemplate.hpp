@@ -322,7 +322,7 @@ public:
 	}
 
 	static bool isReservedSchemaKey(const std::string& key){
-		return key=="simulation" || key=="time" || key=="job_id" || key=="status" ||
+		return key=="time" || key=="job_id" || key=="status" ||
 			key=="progress" || key=="artifacts" || key=="error" || key=="warnings";
 	}
 
@@ -378,6 +378,8 @@ public:
 					preferredName=nameIter->second;
 				}else if(outputIndex==1){
 					preferredName="simulation";
+				}else if(outputIndex==2){
+					preferredName="indexmap";
 				}
 				std::string key=schemaSafeKey(preferredName, "output", outputIndex);
 				while(usedKeys.count(key)>0 || isReservedSchemaKey(key)){
@@ -702,6 +704,7 @@ public:
 		{
 			returnFormat=ReturnFormat::Legacy;
 		}
+		const int outputDownloadLimit=(returnFormat==ReturnFormat::Schema ? INT_MAX : maxOutput);
 		input.erase("-showLogs");
 		input.erase("-returnMeta");
 		input.erase("-returnFormat");
@@ -1186,7 +1189,7 @@ public:
 				dataIndex++;
 				nbElement++;
 			}
-			if(maxOutput-1<nbElement) break;
+			if(outputDownloadLimit-1<nbElement) break;
 		}
 
 		

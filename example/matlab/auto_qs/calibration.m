@@ -9,6 +9,14 @@ result = g2s( ...
     '-j', 0.5);
 
 disp(['job ', num2str(result.job_id)]);
-disp(size(result.mean_error));
-disp(size(result.deviation_error));
-disp(size(result.sample_count));
+if isfield(result, 'mean_error')
+    disp(size(result.mean_error));
+elseif isfield(result, 'simulation')
+    disp(size(result.simulation));
+end
+if isfield(result, 'deviation_error')
+    disp(size(result.deviation_error));
+end
+if isfield(result, 'sample_count')
+    disp(size(result.sample_count));
+end

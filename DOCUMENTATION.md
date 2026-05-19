@@ -167,8 +167,10 @@ The companion examples `example/python/reporting/reporting_probe.py` and `exampl
 Schema mode is designed for forward-compatible callers:
 
 - outputs are named semantically when the algorithm publishes `result_output_<n>_name`
+- schema mode downloads every available `im_<n>_<job>` artifact into the returned object, independent of the caller's positional output count
+- descriptor-less servers keep the historical fallback names `simulation` for output 1 and `indexmap` for output 2
 - `artifacts` always contains logical refs for `log`, `warning`, `error`, `progress`, `meta`, and named output artifacts
-- top-level reserved interface keys are `simulation`, named outputs, `time`, `job_id`, `status`, `progress`, `artifacts`, `error`, and `warnings`
+- top-level reserved interface keys are `time`, `job_id`, `status`, `progress`, `artifacts`, `error`, and `warnings`
 - remaining progress/meta key-values are flattened at the top level unless they collide with reserved interface keys
 
 The legacy positional contract can be requested explicitly with `-legacy_output`. Compatibility helpers are available in each binding layer:
@@ -197,7 +199,11 @@ elapsed_seconds = result.time;
 job_id = result.job_id;
 ```
 
-Current examples are grouped by algorithm under `example/python/<algorithm>/` and `example/matlab/<algorithm>/`. Legacy tuple/multi-output examples are kept under `legacy_example/` and pass `-legacy_output` directly.
+Current examples are grouped by algorithm under `example/python/<algorithm>/` and `example/matlab/<algorithm>/`, including schema-output conversions of the old flat examples. Legacy tuple/multi-output examples are kept under `legacy_example/` and pass `-legacy_output` directly.
+
+Run all current and legacy examples with `python3 example/python/run_all_examples.py` or, from MATLAB, `run('example/matlab/run_all_examples.m')`. Python examples that download public training images or read TIFF training images rely on the package dependency set, including `requests` and `tifffile`; reinstall the local package or install its dependencies before running the smoke script. The reporting probes are expected to fail on their fatal-error branch and are counted separately by both runners.
+
+MATLAB schema examples that read secondary outputs such as `result.indexmap` may use `[result, ~] = g2s(...)`. The schema struct is still the first return value; the ignored second output keeps older mex builds downloading the second image artifact.
 
 ## Algorithm logging conventions
 
@@ -223,4 +229,4 @@ Transforms map original QS template offsets into simulation-space lookup offsets
 
 Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
 
-The legacy Python example `legacy_example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+The schema Python example `example/python/qs/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images. The positional-output version remains under `legacy_example/python/qs_rotation_equivalence_2d.py`.

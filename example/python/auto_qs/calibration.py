@@ -19,6 +19,10 @@ result = g2s(
 )
 
 print("job", result["job_id"])
-print("mean error", result["mean_error"].shape)
-print("deviation error", result["deviation_error"].shape)
-print("sample count", result["sample_count"].shape)
+mean_error = result.get("mean_error", result.get("simulation"))
+if mean_error is not None:
+    print("mean error", mean_error.shape)
+if "deviation_error" in result:
+    print("deviation error", result["deviation_error"].shape)
+if "sample_count" in result:
+    print("sample count", result["sample_count"].shape)
