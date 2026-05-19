@@ -660,6 +660,7 @@ public:
 		bool serverShutdown=false;
 		bool silentMode=false;
 		bool requestServerStatus=false; // to check programmatically if the server is running
+		bool requestServerVersion=false;
 		bool showLogs=false;
 		bool returnMeta=false;
 		ReturnFormat returnFormat=ReturnFormat::Schema;
@@ -728,6 +729,9 @@ public:
 
 		if(input.count("-serverStatus")>0){
 			requestServerStatus=true;
+		}
+		if(input.count("-serverVersion")>0){
+			requestServerVersion=true;
 		}
 
 		std::atomic<bool> serverRun;
@@ -798,6 +802,38 @@ public:
 			if(serverStatus==0 && reply.size()==sizeof(int))
 				serverStatus=*((int*)reply.data());
 			outputs.insert({"1",ScalarToNative(double(serverStatus))});
+			done=true;
+			return;
+		}
+
+		if (requestServerVersion){
+
+			std::string serverVersion;
+
+			infoContainer task;
+			task.version=1;
+			task.task=SERVER_VERSION;
+
+			zmq::message_t request (sizeof(infoContainer));
+			memcpy(request.data (), &task, sizeof(infoContainer));
+			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+				done=true;
+				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
+			}
+			zmq::message_t reply;
+			if(!socket.recv (reply) && withTimeout){
+				done=true;
+				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
+			}
+			if(reply.size()==sizeof(int)){
+				int serverReply=*((int*)reply.data());
+				if(serverReply<0){
+					done=true;
+					sendError("The connected server does not support -serverVersion. Rebuild or update the server first.");
+				}
+			}
+			serverVersion=std::string((char*)reply.data(), reply.size());
+			outputs.insert({"1",StringToNative(serverVersion)});
 			done=true;
 			return;
 		}

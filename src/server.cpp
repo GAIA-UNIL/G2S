@@ -24,6 +24,7 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 #include <thread>
+#include <cstring>
 #if __has_include(<filesystem>)
   #include <filesystem>
   namespace fs = std::filesystem;
@@ -58,6 +59,14 @@
 
 #ifndef SERVER_TYPE
 #define SERVER_TYPE 0
+#endif
+
+#ifndef VERSION
+#ifdef CURRENT_VERSION
+#define VERSION CURRENT_VERSION
+#else
+#define VERSION "unknown"
+#endif
 #endif
 
 bool ensureRuntimeDirectory(const char* path)
@@ -369,6 +378,13 @@ int main(int argc, char const *argv[]) {
 		receiver.send(reply,zmq::send_flags::none);
 	};
 
+	auto sendStringReply = [&](const char* value) {
+		const size_t length=strlen(value);
+		zmq::message_t reply(length);
+		memcpy(reply.data(), value, length);
+		receiver.send(reply,zmq::send_flags::none);
+	};
+
 	auto payloadSizeIs = [&](size_t requestSize, size_t expected) {
 		return requestSize == sizeof(infoContainer)+expected;
 	};
@@ -527,6 +543,11 @@ int main(int argc, char const *argv[]) {
 						{
 							int status=SERVER_TYPE+1; // (1 everything is ok)
 							sendIntReply(status);
+							break;
+						}
+					case SERVER_VERSION :
+						{
+							sendStringReply(VERSION);
 							break;
 						}
 					default:

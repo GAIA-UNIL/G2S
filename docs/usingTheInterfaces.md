@@ -66,6 +66,7 @@ An R interface is available in the repository. Please refer to the installation 
 | Flag          | Description                                                                                                 |
 |---------------|-------------------------------------------------------------------------------------------------------------|
 | `--version`     | Return the version and compilation date of the interface                                                   |
+| `-serverVersion` | Query the connected server's compiled G2S version without submitting a job. Accepts normal connection flags such as `-sa` and `-p`. |
 | `-a`            | The simulation algorithm to be used. Common values are `qs`, `as`, native `ds`, `nds`, and `snesim`. Legacy DS-like aliases remain available as `ds-l`, `dsl`, `DirectSamplingLike`, and `DS-L`. |
 | `-sa`           | Server address (default: localhost (the server is local), otherwise provide IP address). Nice when we have a powerful machine dedicated for computation                     |
 | `-p`            | Port where to look for the server (default: 8128). Should be passed as an integer.                          |

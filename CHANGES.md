@@ -6,6 +6,8 @@
 
 ## 2026-05-16
 
+- Bumped the project version to `1.0.0`.
+- Added a remote server-version control request exposed through `-serverVersion`, so interfaces can compare their local `--version` with the connected server build.
 - Made schema-first interface output the default across Python, MATLAB, and R. Schema mode returns one named result object with semantic output keys, top-level status/time/progress/job fields, flattened metadata, and logical artifact refs under `artifacts`.
 - Added `-legacy_output` as an explicit cross-interface compatibility flag. It restores the old positional output contract and takes precedence over `-returnFormat schema`.
 - Added algorithm-published output descriptors (`result_output_<n>_name` / `result_output_<n>_artifact`) for the current multi-output producers so schema mode can name outputs without hardcoding per-algorithm rules in the bindings.

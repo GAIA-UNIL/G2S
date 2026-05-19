@@ -53,6 +53,7 @@ g2s_server*.log
 # The checked-in probe examples intentionally do not suppress fatal interface exceptions.
 # Schema-mode helpers and examples are tracked; only generated runtime artifacts stay ignored.
 # Interface compatibility flags such as -legacy_output are source/documentation only.
+# Version control requests such as -serverVersion do not create tracked artifacts.
 # Algorithm schema descriptors are source metadata; generated im_<n>_<job> artifacts stay in /tmp/G2S.
 # MATLAB run-all isolation handles invalid legacy filenames without generated tracked files.
 

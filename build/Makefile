@@ -5,7 +5,7 @@ export GIT_URL=$(shell sh -c 'git config --get remote.origin.url || echo "https:
 export SRCS=$(BUILD_DIR)/../src
 G2S_PATH_INDEX_TYPE ?= unsigned
 G2S_QS_DISTRIBUTED ?= 0
-export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE)
+export CFLAGS=-fPIC -O3 -std=c++11 -Wno-deprecated -Wno-unused -Wno-deprecated-declarations -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE) -DVERSION=\"$(shell cat ../version)\"
 export CXXFLAGS= -Wno-vla-extension -DG2S_PATH_INDEX_TYPE=$(G2S_PATH_INDEX_TYPE) #-flto
 export QS_DISTRIBUTED_LIBS=
 export INC=-I$(BUILD_DIR)/../include

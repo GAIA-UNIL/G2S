@@ -205,6 +205,8 @@ Run all current and legacy examples with `python3 example/python/run_all_example
 
 MATLAB schema examples that read secondary outputs such as `result.indexmap` may use `[result, ~] = g2s(...)`. The schema struct is still the first return value; the ignored second output keeps older mex builds downloading the second image artifact.
 
+The local interface version is still reported by `--version`. Remote/server version checks use the ZeroMQ control task behind `-serverVersion`, which returns the connected server's compiled `VERSION` string and respects normal `-sa` and `-p` connection parameters.
+
 ## Algorithm logging conventions
 
 The human-readable log is now expected to show both setup and effective behavior, not just raw argv. In practice this means:

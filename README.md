@@ -95,6 +95,8 @@ Progress and final duration no longer have to be inferred from the plain log. In
 
 Interfaces now use the schema named-result mode by default. Callers receive one dictionary/struct/list object with stable keys such as `simulation`, `indexmap`, `time`, `job_id`, `status`, `progress`, flattened metadata fields, and an `artifacts` sub-object containing logical refs like `log_<job>` and `im_1_<job>`. Schema mode downloads all available result artifacts into that single object even when the language binding receives only one return value. For compatibility with older servers that do not publish output descriptors, output 1 defaults to `simulation` and output 2 defaults to `indexmap`. The old positional return contract remains available by passing `-legacy_output`; it also takes precedence if other return-format options are present.
 
+Use `--version` to check the local interface build and `-serverVersion` to ask the connected server for its compiled G2S version. `-serverVersion` accepts the normal connection options such as `-sa` and `-p`, for example `g2s("-serverVersion", "-sa", "remote.host")` in Python.
+
 Server-registered algorithms publish schema descriptors for their conventional runtime outputs where applicable: QS, AS, DS, legacy DS-L, NDS, AutoQS, SNESIM, and Echo name their `im_<n>_<job>` artifacts so schema callers can use stable result keys instead of generic positional labels.
 
 Schema examples are organized by algorithm under `example/python/` and `example/matlab/`, including schema-output conversions of the old flat example set. The old positional examples remain available under `legacy_example/` and pass `-legacy_output` directly.
