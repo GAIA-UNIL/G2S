@@ -91,14 +91,10 @@ bool resolveRegisteredAlgorithm(const char* algo, std::string* exeName, std::vec
 
 
 void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, const char* functionName, int index, char** argv){
-#ifndef EMSCRIPTEN
 	try{
-#endif
 		std::vector<std::string> argvV(argv, argv + index);
 		std::string functionNameStr(functionName);
-#ifndef EMSCRIPTEN
 		std::thread myThread([argvV,functionNameStr]()
-#endif
 		{
 			int index=argvV.size();
 			
@@ -130,7 +126,6 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 				dlclose(handle);
 			}
 		}
-#ifndef EMSCRIPTEN
 		);
 
 		if(singleTask) {
@@ -139,18 +134,15 @@ void call_functionMode(jobArray &jobIds, bool singleTask, jobIdType uniqueId, co
 		else {
 			myThread.detach();
 		}
-#endif
 
 		//jobIds.threads[uniqueId]=&myThread;
 		
 		//jobIds.threads[uniqueId];
 		//std::swap(myThread,jobIds.threads[uniqueId]);
 		
-#ifndef EMSCRIPTEN
 	} catch (const std::exception& e) {
 		fprintf(stderr, "qs crash: %s\n", e.what());
 	}
-#endif
 }
 
 jobIdType general_call(jobTask theJobTask, jobArray &jobIds, bool singleTask, bool functionMode, bool allowUnregisteredAlgorithm)

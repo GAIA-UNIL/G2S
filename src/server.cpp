@@ -42,9 +42,6 @@
 
 
 #include <zmq.hpp>
-#if __EMSCRIPTEN__
-#include "wsZmq.hpp"
-#endif
 
 #include "protocol.hpp"
 
@@ -334,12 +331,8 @@ int main(int argc, char const *argv[]) {
 	});
 
 	//  Prepare our context and socket
-#if __EMSCRIPTEN__
-	wsZmq::socket_t receiver(ZMQ_REP);
-#else
 	zmq::context_t context (1);
 	zmq::socket_t receiver(context,ZMQ_REP);
-#endif
 	
 	char address[1024];
 	snprintf(address,1024,"tcp://*:%d",port);
@@ -352,14 +345,12 @@ int main(int argc, char const *argv[]) {
 		needToStop=true;
 	}
 
-#ifndef __EMSCRIPTEN__
 	if(!std::isnan(timeoutDuration)) {
 		int timeout=int(timeoutDuration*1000);
 		receiver.set(zmq::sockopt::linger, timeout);
 		receiver.set(zmq::sockopt::rcvtimeo, timeout);
 		receiver.set(zmq::sockopt::sndtimeo, timeout);
 	}
-#endif
 
 	jobQueue jobQueue;
 

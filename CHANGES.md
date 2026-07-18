@@ -1,5 +1,9 @@
 # Changes
 
+## 2026-07-18
+
+- Removed the obsolete Emscripten build target, WebSocket bridge, browser-only server and tasking branches, interface shims, and stale online-demo link. Native C++, Intel, MATLAB, Python, and R paths remain unchanged.
+
 ## 2026-05-12
 
 - Removed the short-lived SNESIM path-optimization CLI support, logging, and documentation. SNESIM now always uses the default per-level execution order built by its multigrid planner.

@@ -27,18 +27,7 @@
 #include <sstream>
 #include "DataImage.hpp"
 
-#ifdef WITH_WEB_SUPPORT
-#include "cvtZMQ2WS.hpp"
-#endif 
-
 typedef unsigned jobIdType;
-
-#ifdef WITH_WEB_SUPPORT
-void cvtServerCall(std::string from, std::string to, std::atomic<bool> &serverRun, std::atomic<bool> &done){
-	cvtServer((char*)from.c_str(),(char*)to.c_str(),serverRun, done);
-}
-
-#endif
 
 //template <class T>
 class InterfaceTemplate
@@ -536,31 +525,10 @@ public:
 			requestServerStatus=true;
 		}
 
-		std::atomic<bool> serverRun;
-		serverRun=true;
-
 		std::string serverAddress="localhost";
 		if(input.count("-sa")>0)serverAddress=nativeToStandardString(input.find("-sa")->second);
 		input.erase("-sa");
 		std::transform(serverAddress.begin(), serverAddress.end(), serverAddress.begin(),::tolower);
-		#ifdef WITH_WEB_SUPPORT
-		if(!serverAddress.compare("web")||!serverAddress.compare("browser")){
-			//printf("use browser server\n");
-			serverRun=false;
-			std::string from="tcp://*:8128";
-			std::string to="ws://localhsot:8129";
-
-			std::thread serverThread(cvtServerCall,from,to,std::ref(serverRun),std::ref(done));
-			serverThread.detach();
-			while (!serverRun){
-				std::this_thread::sleep_for(std::chrono::milliseconds(300));
-			}
-
-			printf("server run now\n");
-			updateDisplay();
-
-		}
-		#endif
 
 		zmq::context_t context (1);
 		zmq::socket_t socket (context, ZMQ_REQ);

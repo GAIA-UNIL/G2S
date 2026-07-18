@@ -32,10 +32,6 @@
 #include "DataImage.hpp"
 #include "mexInterrupt.hpp"
 
-#ifdef WITH_WEB_SUPPORT
-#include "cvtZMQ2WS.hpp"
-#endif 
-
 #include "matrix.h"
 
 typedef unsigned jobIdType;
@@ -421,13 +417,6 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 	}
 	return result;
 }
-#ifdef WITH_WEB_SUPPORT
-void cvtServerCall(std::string from, std::string to, std::atomic<bool> &serverRun, std::atomic<bool> &done){
-	cvtServer((char*)from.c_str(),(char*)to.c_str(),serverRun, done);
-}
-
-#endif 
-
 void mexFunctionWork(int nlhs, mxArray *plhs[],
 				 int nrhs, const mxArray *prhs[],std::atomic<bool> &done){
 
@@ -519,34 +508,6 @@ void mexFunctionWork(int nlhs, mxArray *plhs[],
 		if(!inputArray[i].compare("-silent")){
 			silentMode=true;
 		}
-	}
-
-	std::atomic<bool> serverRun;
-	serverRun=true;
-
-	if((saP1_Index!=-1)){
-		std::string address=mxArrayToString(prhs[saP1_Index]);
-		std::transform(address.begin(), address.end(), address.begin(),::tolower);
-		#ifdef WITH_WEB_SUPPORT
-		if(!address.compare("web")||!address.compare("browser")){
-			//printf("use browser server\n");
-			serverRun=false;
-			std::string from="tcp://*:8128";
-			std::string to="ws://localhsot:8129";
-
-			std::thread serverThread(cvtServerCall,from,to,std::ref(serverRun),std::ref(done));
-			serverThread.detach();
-			saP1_Index=-1;
-			while (!serverRun){
-				std::this_thread::sleep_for(std::chrono::milliseconds(300));
-			}
-
-			printf("server run now\n");
-			mexEvalString("drawnow");
-
-		}
-		#endif
-
 	}
 
 	int dim=2;
