@@ -124,3 +124,10 @@ change_odc.md
 /build/python-build/src
 /build/python-build/src_interfaces
 /build/python-build/jsoncpp
+
+# Browser/Wasm generated dependencies, outputs, and test binaries
+/build/wasm-build/cache/
+/build/wasm-build/out/
+/browser/dist/*
+!/browser/dist/.gitkeep
+/browser/test/out/

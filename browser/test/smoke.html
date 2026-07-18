@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>G2S Wasm smoke test</title></head>
+<body>
+  <h1>G2S Wasm smoke test</h1>
+  <output id="result">running</output>
+  <script type="module">
+    import { G2S } from "../src/g2s-api.js";
+    try {
+      const engine = await G2S.create();
+      const createJob = (seed) => {
+        const job = engine.createJob();
+        job.loadArray("trainingImage", new Float32Array([
+          0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0,
+        ]), { shape: [4, 4], variableTypes: ["categorical"] });
+        job.loadArray("destination", new Float32Array([NaN, NaN, NaN, NaN]), {
+          shape: [2, 2], variableTypes: ["categorical"],
+        });
+        job.configure("qs", { candidates: 1, neighbors: [1], seed });
+        return job;
+      };
+
+      const cancelledJob = createJob(122);
+      const cancelledRun = cancelledJob.run();
+      cancelledJob.cancel();
+      let cancellation = "failed";
+      try { await cancelledRun; } catch (error) { cancellation = error.name === "AbortError" ? "passed" : error.name; }
+
+      const invalidJob = createJob(121);
+      invalidJob.configure("qs", { neighbors: [1], seed: 121 });
+      let structuredError = "failed";
+      try { await invalidJob.run(); } catch (error) { structuredError = error.message.includes("expected") ? "passed" : error.message; }
+
+      let result;
+      for (let index = 0; index < 10; index += 1) result = await createJob(123 + index).run();
+      const simulation = result.getArray("simulation");
+      const index = result.getArray("index");
+      document.querySelector("#result").textContent = JSON.stringify({
+        status: "passed", cancellation, structuredError, sequentialRuns: 10, simulationSize: simulation.data.length,
+        indexSize: index.data.length, durationMs: result.durationMs,
+      });
+    } catch (error) {
+      document.querySelector("#result").textContent = JSON.stringify({ status: "failed", message: error.message });
+    }
+  </script>
+</body>
+</html>

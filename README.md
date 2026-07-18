@@ -55,6 +55,24 @@ Some build and packaging helpers fetch third-party source files from upstream de
 
 The Python packaging preprocess step creates ignored local copies of repository source and header trees under `build/python-build/`. These generated copies are removed before each preprocess run and should be treated as ephemeral build inputs, not source of truth.
 
+## QS in the browser
+
+The first browser target runs single-threaded CPU QS and FFTW entirely in a Web Worker. It shares the QS implementation with the native executable, exposes a typed Promise-based JavaScript API, and adds an on-demand loopback HTTP transport to the shared Python/MATLAB interface. Existing ZeroMQ, native, GPU, R, distributed, and asynchronous behavior remains the default; the browser path is selected explicitly with `-sa browser`.
+
+Build the browser bundle with the pinned emsdk 6.0.3 toolchain:
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+make -C build wasm
+python3 -m http.server 8000 --bind 127.0.0.1 --directory browser
+```
+
+Open `http://localhost:8000/` in Chrome/Chromium or Firefox and keep the page open. A synchronous Python or MATLAB call can then use the normal QS flags plus `-sa browser`. The page polls only while idle; each command owns a temporary listener on `127.0.0.1:8129`, and the listener closes when the command returns.
+
+Browser communication has a finite 30-second connection/heartbeat timeout. `-TO` overrides that communication timeout in milliseconds, but does not limit a simulation that continues to send heartbeats. The default allowed page origin is exactly `http://localhost:8000`; use `-browserOrigin` for an explicit development or production origin and `-browserPort` only when changing the loopback port. Origins include scheme and port, wildcard CORS is never used, and a production HTTPS page must include `http://127.0.0.1:8129` in its `connect-src` CSP.
+
+The browser slice is CPU-only and forces one thread. It rejects GPU/OpenCL/CUDA, distributed grids, augmented dimensions, autosave/resume, and asynchronous submit/status/wait operations. Arrays cross the bridge as validated little-endian float32 bodies with JSON metadata; native-width `.bgrid` files are not used as the browser wire format. See `DOCUMENTATION.md` for the API, protocol, build pins, and deployment checklist.
+
 ## Server protocol schema
 
 The ZeroMQ server protocol starts each request with `infoContainer` from `include/protocol.hpp`, then appends a task-specific payload. The current schema and validation expectations are documented in `DOCUMENTATION.md`.

@@ -1,5 +1,75 @@
 # G2S Maintenance Documentation
 
+## QS WebAssembly architecture
+
+The browser target is intentionally a small QS-only layer rather than a second server implementation. `src/qs.cpp` keeps the existing native CLI and adapters; `include/qsCore.hpp` and `src/qsCore.cpp` provide the reusable in-memory request/result entry point; `src/qsWasmBindings.cpp` translates typed JavaScript values into that entry point. `G2S_BROWSER_BUILD` isolates MEMFS cleanup and single-thread FFTW planning changes from native builds.
+
+`browser/src/g2s-api.js` exposes `G2S.create()`, jobs, typed array loading, typed configuration, Promise-based execution, progress callbacks, cancellation, and result access. `browser/src/g2s-worker.js` owns the Emscripten module and all simulation work. Cancellation terminates that worker; a later run creates a clean worker. `browser/src/g2s-bridge.js` keeps the page available between commands and translates interface manifests into the typed API.
+
+The initial supported browser set is current Chrome/Chromium and Firefox. Safari is not a release gate. The Wasm target is CPU-only, single-threaded, and excludes ZeroMQ, OpenMP, CUDA, OpenCL, distributed execution, autosave, and server tasking. Pthreads are deferred because they require `SharedArrayBuffer` and deployment-specific cross-origin isolation headers.
+
+### Reproducible browser build
+
+The build requires emsdk 6.0.3. `build/wasm-build/Makefile` rejects another `emcc` version. `build/wasm-build/fetch_fftw.sh` downloads FFTW 3.3.11 and verifies SHA-256 `5630c24cdeb33b131612f7eb4b1a9934234754f9f388ff8617458d0be6f239a1` before building float/static FFTW without Fortran, OpenMP, or FFTW threads. The loopback listener vendors cpp-httplib v0.50.1 under `include_interfaces/third_party/cpp-httplib/` with its MIT license.
+
+Run:
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+make -C build wasm
+make -C browser/test transport
+python3 -m http.server 8000 --bind 127.0.0.1 --directory browser
+```
+
+Then open `/test/smoke.html` from that server to exercise cancellation, worker recreation, and ten sequential simulations. `browser/dist`, downloaded FFTW sources, intermediate libraries, and native test binaries are generated and ignored.
+
+### JavaScript API
+
+Inputs must be `Float32Array` objects with positive `shape` values and one variable type (`"continuous"` / `0` or `"categorical"` / `1`) per interleaved variable:
+
+```js
+const engine = await G2S.create();
+const job = engine.createJob();
+job.loadArray("trainingImage", trainingData, {
+  shape: [width, height], variableTypes: ["categorical"]
+});
+job.loadArray("destination", destinationData, {
+  shape: [width, height], variableTypes: ["categorical"]
+});
+job.configure("qs", { candidates: 2, neighbors: [40], seed: 123 });
+job.onProgress(({ percent, message }) => updateProgress(percent, message));
+const result = await job.run();
+const simulation = result.getArray("simulation").data;
+const index = result.getArray("index").data;
+```
+
+Calling `job.cancel()` rejects the current Promise with `AbortError`. The engine remains reusable and creates a clean worker for the next run.
+
+### On-demand loopback protocol
+
+`include_interfaces/interfaceTemplate.hpp` branches to `src_interfaces/browserTransport.cpp` only for `-sa browser` (or `web`). Python wheels and MATLAB MEX builds compile this same source. The listener binds only `127.0.0.1`, fails when its port is already occupied, and exists only for the duration of one synchronous command. The preloaded page continues polling after the listener disappears, so later commands require no page reload or click.
+
+The default listener is `http://127.0.0.1:8129`; the exact default page origin is `http://localhost:8000`. Each command creates a random session ID and 192-bit nonce. After session discovery, every request must provide protocol version 1, that session ID, and that nonce. The server accepts only the configured `Origin`, includes scheme and port in comparison, never reflects an origin, and never returns wildcard CORS. It answers preflight and Chromium Local Network Access negotiation; the browser requests `targetAddressSpace: "loopback"` where supported and otherwise uses ordinary CORS for Firefox.
+
+Protocol v1 uses these endpoints:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/session` | discover protocol, session, nonce, and algorithm |
+| `GET` | `/v1/job` | retrieve the typed job manifest |
+| `GET` | `/v1/arrays/{id}` | retrieve one float32 input body |
+| `GET` | `/v1/control` | heartbeat and cancellation state |
+| `POST` | `/v1/progress` | deliver throttled progress |
+| `POST` | `/v1/results/{id}` | upload one validated result body |
+| `POST` | `/v1/complete` | finish with duration and metadata |
+| `POST` | `/v1/error` | finish with a structured browser error |
+
+Array dimensions, variable counts, element counts, encodings, and byte lengths are checked before allocation or conversion. Bodies are canonical cell-major, interleaved-variable, little-endian 32-bit values. Integer result maps retain their `uint32` or `int32` encoding while using the same four-byte transport body. `.bgrid` is not a bridge format because it contains native-width fields.
+
+The default connection and heartbeat timeout is 30 seconds. `-TO` replaces it; `-noTO` cannot disable the finite browser timeout. A missing page, denied local-network request, wrong origin/session/nonce, browser error, or lost heartbeat returns an interface error rather than waiting indefinitely. A running simulation may exceed the timeout as long as the page continues its one-second control heartbeat.
+
+For production HTTPS hosting, replace the allowed origin with the exact `https://host[:port]` value and include `http://127.0.0.1:8129` in `connect-src`. Retest the exact origin in both Chrome and Firefox because local-network permission policies are browser-controlled and may change. Do not add wildcard CORS or broaden the listener bind address.
+
 ## Generated Python build tree
 
 `build/python-build/preprocess` creates a local packaging mirror by copying the repository `src`, `include`, `src_interfaces`, and `include_interfaces` trees into `build/python-build/`.

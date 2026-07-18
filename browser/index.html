@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' http://127.0.0.1:8129">
+  <title>G2S Browser Engine</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 42rem; margin: 12vh auto; padding: 2rem; }
+    code { background: color-mix(in srgb, CanvasText 8%, Canvas); padding: .15rem .35rem; border-radius: .25rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>G2S browser engine</h1>
+    <p id="status">Starting the local bridge…</p>
+    <p>Keep this page open, then run QS with <code>-sa browser</code> from Python or MATLAB.</p>
+  </main>
+  <script type="module" src="./src/bridge-page.js"></script>
+</body>
+</html>
