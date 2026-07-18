@@ -146,7 +146,3 @@ Use one value to apply the same `p` to all continuous variables, or pass one val
 ## Python AS example note
 
 `example/python/AnchorSampling.py` is now a minimal synthetic AS demo (based on the larger `AnchorSamplingSyntheticExperiment.py` flow): one masked AS run, concise metrics, and a compact 4-panel visualization. It also keeps the safer Python interface call pattern with repeated `-ti` arguments and explicit `float32` arrays.
-
-## Online Demo (Back! but slow)
-
-An interactive online version is available [here](https://www.mgravey.com/mps.online/), to experiment with small unconditional simulations.
