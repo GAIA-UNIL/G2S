@@ -7,16 +7,32 @@
   <title>G2S Browser Engine</title>
   <style>
     :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
-    main { max-width: 42rem; margin: 12vh auto; padding: 2rem; }
+    main { max-width: 42rem; margin: 10vh auto; padding: 2rem; }
     code { background: color-mix(in srgb, CanvasText 8%, Canvas); padding: .15rem .35rem; border-radius: .25rem; }
+    .engine-panel { display: grid; gap: 1rem; margin: 1.5rem 0; padding: 1.25rem; border: 1px solid color-mix(in srgb, CanvasText 20%, Canvas); border-radius: .75rem; }
+    .thread-control { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    input[type="number"] { width: 5rem; padding: .4rem; font: inherit; }
+    progress { width: 100%; height: 1.25rem; }
+    #progress-label, #thread-details { display: block; color: color-mix(in srgb, CanvasText 72%, Canvas); }
   </style>
 </head>
 <body>
   <main>
     <h1>G2S browser engine</h1>
     <p id="status">Starting the local bridge…</p>
+    <section class="engine-panel" aria-label="Browser computation controls">
+      <label class="thread-control" for="max-threads">
+        <span>Maximum QS threads</span>
+        <input id="max-threads" type="number" min="1" max="8" step="1" value="4">
+      </label>
+      <small id="thread-details">Checking browser thread support…</small>
+      <div>
+        <progress id="progress" max="100"></progress>
+        <output id="progress-label" for="progress">Waiting for a command</output>
+      </div>
+    </section>
     <p>Keep this page open, then run QS with <code>-sa browser</code> from Python or MATLAB.</p>
   </main>
-  <script type="module" src="./src/bridge-page.js"></script>
+  <script type="module" src="./src/bridge-page.js?v=20260723"></script>
 </body>
 </html>

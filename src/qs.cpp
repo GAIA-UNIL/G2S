@@ -963,7 +963,9 @@ int g2sQsProgramMain(int argc, char const *argv[]) {
 #if _OPENMP
 	//omp_set_num_threads(nbThreads);
 	//omp_set_nested(true);
+	#ifndef G2S_BROWSER_BUILD
 	fftwf_init_threads();
+	#endif
 	omp_set_max_active_levels(3);
 	#ifdef WITH_MKL
 	mkl_set_num_threads(nbThreadsLastLevel);
@@ -2289,7 +2291,9 @@ int g2sQsProgramMain(int argc, char const *argv[]) {
 	simulationPathIndex=nullptr;
 
 #if _OPENMP
+	#ifndef G2S_BROWSER_BUILD
 	fftwf_cleanup_threads();
+	#endif
 #endif
 
 	#ifdef WITH_CUDA

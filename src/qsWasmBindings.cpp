@@ -78,6 +78,14 @@ val runQs(val request, val progressCallback){
 		coreRequest.arguments.push_back("-s");
 		coreRequest.arguments.push_back(std::to_string(options["seed"].as<unsigned>()));
 	}
+	if(has(options,"threads")){
+		const double threads=options["threads"].as<double>();
+		if(!std::isfinite(threads) || threads<1.0 || std::floor(threads)!=threads){
+			throw std::invalid_argument("Effective browser thread count must be a positive integer");
+		}
+		coreRequest.arguments.push_back("-j");
+		coreRequest.arguments.push_back(std::to_string(static_cast<unsigned>(threads)));
+	}
 	if(has(options,"mode") && options["mode"].as<std::string>()=="full") coreRequest.arguments.push_back("-fs");
 	appendFlag(coreRequest.arguments,options,"forceSimulation","--forceSimulation");
 	appendFlag(coreRequest.arguments,options,"circularTrainingImage","-cti");

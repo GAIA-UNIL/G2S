@@ -1,5 +1,13 @@
 # Changes
 
+## 2026-07-23
+
+- Added a documented 200×200 Python stone example for exercising the on-demand browser QS bridge, including configurable size, seed, timeout, interactive plotting, and optional figure export.
+- Added a separate eight-worker OpenMP/pthread QS WebAssembly artifact while retaining the single-thread compatibility artifact; FFTW remains internally single-threaded.
+- Preserved normal `-j` semantics across Python/MATLAB and JavaScript, added a browser-owned maximum-thread spinner defaulting to four, and report requested/effective limits and clamping warnings in result metadata.
+- Added live browser progress and stage display driven by the existing QS reporting callback, plus a local COOP/COEP development server and threaded smoke coverage for cancellation and ten sequential runs.
+- Documented the required Python wheel rebuild/reinstall step and made the browser example report the imported G2S location, preventing an older wheel from being mistaken for a browser-bridge failure.
+
 ## 2026-07-18
 
 - Removed the obsolete Emscripten build target, WebSocket bridge, browser-only server and tasking branches, interface shims, and stale online-demo link. Native C++, Intel, MATLAB, Python, and R paths remain unchanged.

@@ -6,7 +6,9 @@ The browser target is intentionally a small QS-only layer rather than a second s
 
 `browser/src/g2s-api.js` exposes `G2S.create()`, jobs, typed array loading, typed configuration, Promise-based execution, progress callbacks, cancellation, and result access. `browser/src/g2s-worker.js` owns the Emscripten module and all simulation work. Cancellation terminates that worker; a later run creates a clean worker. `browser/src/g2s-bridge.js` keeps the page available between commands and translates interface manifests into the typed API.
 
-The initial supported browser set is current Chrome/Chromium and Firefox. Safari is not a release gate. The Wasm target is CPU-only, single-threaded, and excludes ZeroMQ, OpenMP, CUDA, OpenCL, distributed execution, autosave, and server tasking. Pthreads are deferred because they require `SharedArrayBuffer` and deployment-specific cross-origin isolation headers.
+The initial supported browser set is current Chrome/Chromium and Firefox. Safari is not a release gate. The Wasm target is CPU-only and excludes ZeroMQ, CUDA, OpenCL, distributed execution, autosave, and server tasking. It emits a single-thread compatibility artifact and a separate OpenMP/pthread artifact because Emscripten cannot provide runtime thread fallback in one binary.
+
+The pthread artifact uses an eight-worker pool and the existing QS path-level OpenMP regions. FFTW planning and execution remain internally single-threaded to avoid nested parallelism. `src/wasmOpenMpMicrotask.cpp` is linked only into this artifact and extends the pinned Emscripten OpenMP dispatcher for QS regions that capture more than its stock 15-argument WebAssembly limit. Native builds do not compile this file.
 
 ### Reproducible browser build
 
@@ -18,17 +20,31 @@ Run:
 source /path/to/emsdk/emsdk_env.sh
 make -C build wasm
 make -C browser/test transport
-python3 -m http.server 8000 --bind 127.0.0.1 --directory browser
+python3 browser/serve.py
 ```
 
-Then open `/test/smoke.html` from that server to exercise cancellation, worker recreation, and ten sequential simulations. `browser/dist`, downloaded FFTW sources, intermediate libraries, and native test binaries are generated and ignored.
+`make -C build wasm-single` and `make -C build wasm-threaded` build either artifact independently. `browser/serve.py` supplies `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`; the pthread artifact cannot run without a cross-origin-isolated page and `SharedArrayBuffer`.
+
+The Python interface must also be rebuilt and reinstalled from this checkout before using `-sa browser`:
+
+```sh
+make -C build python
+python3 -m pip install --force-reinstall build/python-build/dist/g2s-*.whl
+```
+
+If an example reports that the ordinary G2S server is offline, first confirm that Python is not importing an older wheel.
+
+Then open `/test/smoke.html?threaded=1` from that server to exercise four-thread execution, progress, cancellation, worker recreation, and ten sequential simulations. `browser/dist`, downloaded FFTW sources, intermediate libraries, and native test binaries are generated and ignored.
 
 ### JavaScript API
 
 Inputs must be `Float32Array` objects with positive `shape` values and one variable type (`"continuous"` / `0` or `"categorical"` / `1`) per interleaved variable:
 
 ```js
-const engine = await G2S.create();
+const engine = await G2S.create({
+  workerUrl: new URL("./g2s-worker.js?threaded=1", import.meta.url),
+  maxThreads: 4
+});
 const job = engine.createJob();
 job.loadArray("trainingImage", trainingData, {
   shape: [width, height], variableTypes: ["categorical"]
@@ -36,7 +52,7 @@ job.loadArray("trainingImage", trainingData, {
 job.loadArray("destination", destinationData, {
   shape: [width, height], variableTypes: ["categorical"]
 });
-job.configure("qs", { candidates: 2, neighbors: [40], seed: 123 });
+job.configure("qs", { candidates: 2, neighbors: [40], seed: 123, threads: 4 });
 job.onProgress(({ percent, message }) => updateProgress(percent, message));
 const result = await job.run();
 const simulation = result.getArray("simulation").data;
@@ -44,6 +60,12 @@ const index = result.getArray("index").data;
 ```
 
 Calling `job.cancel()` rejects the current Promise with `AbortError`. The engine remains reusable and creates a clean worker for the next run.
+
+Direct consumers that omit `workerUrl` receive the single-thread compatibility worker. The supplied bridge page performs the cross-origin-isolation check and threaded worker selection automatically.
+
+The bridge page chooses `g2s-qs-pthreads.mjs` when `crossOriginIsolated` is true and otherwise uses `g2s-qs.mjs`. Its spinner defaults to four, is bounded by `navigator.hardwareConcurrency` and the eight-worker build pool, and can be changed between jobs. Python/MATLAB `-j` values retain their native interpretation: an integer requests that count, a non-integer scales the browser capacity, and a non-positive value requests the maximum. Results include `requested_threads`, `effective_threads`, and `browser_max_threads`; a clamped request also includes `thread_warning`.
+
+Progress comes from the existing QS simulation reporting callback. The browser shows it immediately and forwards updates to the loopback listener at a throttled rate, so the page and Python/MATLAB observe the same measured simulation progress without flooding HTTP.
 
 ### On-demand loopback protocol
 
@@ -68,7 +90,7 @@ Array dimensions, variable counts, element counts, encodings, and byte lengths a
 
 The default connection and heartbeat timeout is 30 seconds. `-TO` replaces it; `-noTO` cannot disable the finite browser timeout. A missing page, denied local-network request, wrong origin/session/nonce, browser error, or lost heartbeat returns an interface error rather than waiting indefinitely. A running simulation may exceed the timeout as long as the page continues its one-second control heartbeat.
 
-For production HTTPS hosting, replace the allowed origin with the exact `https://host[:port]` value and include `http://127.0.0.1:8129` in `connect-src`. Retest the exact origin in both Chrome and Firefox because local-network permission policies are browser-controlled and may change. Do not add wildcard CORS or broaden the listener bind address.
+For production HTTPS hosting, replace the allowed origin with the exact `https://host[:port]` value, include `http://127.0.0.1:8129` in `connect-src`, and configure the production host to return the same COOP/COEP headers as `browser/serve.py`. Retest the exact origin in both Chrome and Firefox because local-network permission policies are browser-controlled and may change. Do not add wildcard CORS or broaden the listener bind address.
 
 ## Generated Python build tree
 

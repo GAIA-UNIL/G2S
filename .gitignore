@@ -125,9 +125,12 @@ change_odc.md
 /build/python-build/src_interfaces
 /build/python-build/jsoncpp
 
-# Browser/Wasm generated dependencies, outputs, and test binaries
+# Browser/Wasm generated dependencies, single/pthread bundles, and test binaries
 /build/wasm-build/cache/
 /build/wasm-build/out/
 /browser/dist/*
 !/browser/dist/.gitkeep
 /browser/test/out/
+
+# Optional output from the browser QS Python example
+/example/python/browser_unconditional_simulation.png

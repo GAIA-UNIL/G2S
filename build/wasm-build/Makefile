@@ -1,5 +1,6 @@
 REPO_ROOT := $(abspath ../..)
 EMSDK_VERSION := 6.0.3
+PTHREAD_POOL_SIZE := 8
 BUILD_DIR := $(CURDIR)/out
 FFTW_PREFIX := $(BUILD_DIR)/fftw
 DIST_DIR := $(REPO_ROOT)/browser/dist
@@ -18,6 +19,8 @@ SOURCES := \
 	$(REPO_ROOT)/src/sharedMemoryManager.cpp \
 	$(REPO_ROOT)/src/CPUThreadDevice.cpp \
 	$(REPO_ROOT)/src/AcceleratorDevice.cpp
+PTHREAD_SOURCES := $(SOURCES) $(REPO_ROOT)/src/wasmOpenMpMicrotask.cpp
+HEADERS := $(wildcard $(REPO_ROOT)/include/*.h) $(wildcard $(REPO_ROOT)/include/*.hpp)
 
 CPPFLAGS := -I$(REPO_ROOT)/include -I$(FFTW_PREFIX)/include \
 	-DG2S_BROWSER_BUILD=1 -DG2S_QS_NO_MAIN=1 -DG2S_PATH_INDEX_TYPE=unsigned
@@ -26,10 +29,16 @@ EMFLAGS := -sUSE_ZLIB=1 -sFILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1 \
 	-sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createG2SModule \
 	-sENVIRONMENT=worker -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sASSERTIONS=1 \
 	-lembind
+PTHREAD_FLAGS := -pthread -fopenmp
+PTHREAD_EMFLAGS := -sPTHREAD_POOL_SIZE=$(PTHREAD_POOL_SIZE) -sPTHREAD_POOL_SIZE_STRICT=2
 
-.PHONY: all clean check-toolchain
+.PHONY: all single threaded clean check-toolchain
 
-all: check-toolchain $(DIST_DIR)/g2s-qs.mjs
+all: single threaded
+
+single: check-toolchain $(DIST_DIR)/g2s-qs.mjs
+
+threaded: check-toolchain $(DIST_DIR)/g2s-qs-pthreads.mjs
 
 check-toolchain:
 	@command -v $(EMCC) >/dev/null || (echo "emcc is required; activate the pinned emsdk toolchain first" >&2; exit 1)
@@ -47,10 +56,18 @@ $(FFTW_PREFIX)/lib/libfftw3f.a: $(FFTW_SOURCE)/configure | check-toolchain
 	$(EMMAKE) $(MAKE) -C $(FFTW_SOURCE) -j2
 	$(EMMAKE) $(MAKE) -C $(FFTW_SOURCE) install
 
-$(DIST_DIR)/g2s-qs.mjs: $(SOURCES) $(FFTW_PREFIX)/lib/libfftw3f.a
+$(DIST_DIR)/g2s-qs.mjs: $(SOURCES) $(HEADERS) $(FFTW_PREFIX)/lib/libfftw3f.a
 	@mkdir -p $(DIST_DIR)
 	$(EMXX) $(CPPFLAGS) $(CXXFLAGS) $(SOURCES) $(FFTW_PREFIX)/lib/libfftw3f.a \
 		-o $@ $(EMFLAGS)
 
+$(DIST_DIR)/g2s-qs-pthreads.mjs: $(PTHREAD_SOURCES) $(HEADERS) $(FFTW_PREFIX)/lib/libfftw3f.a
+	@mkdir -p $(DIST_DIR)
+	$(EMXX) $(CPPFLAGS) $(CXXFLAGS) $(PTHREAD_FLAGS) $(PTHREAD_SOURCES) $(FFTW_PREFIX)/lib/libfftw3f.a \
+		-o $@ $(EMFLAGS) $(PTHREAD_FLAGS) $(PTHREAD_EMFLAGS)
+
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)/g2s-qs.mjs $(DIST_DIR)/g2s-qs.wasm
+	rm -rf $(BUILD_DIR) \
+		$(DIST_DIR)/g2s-qs.mjs $(DIST_DIR)/g2s-qs.wasm \
+		$(DIST_DIR)/g2s-qs-pthreads.mjs $(DIST_DIR)/g2s-qs-pthreads.wasm \
+		$(DIST_DIR)/g2s-qs-pthreads.worker.js

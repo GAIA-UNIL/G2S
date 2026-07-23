@@ -1,6 +1,32 @@
 /* G2S browser API - SPDX-License-Identifier: GPL-3.0-or-later */
 
-const DEFAULT_WORKER_URL = new URL("./g2s-worker.js", import.meta.url);
+const DEFAULT_WORKER_URL = new URL("./g2s-worker.js?v=20260723", import.meta.url);
+
+function positiveInteger(value, fallback = 1) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? Math.floor(number) : fallback;
+}
+
+function resolveThreads(requestedValue, capacity) {
+  const maximum = positiveInteger(capacity);
+  const requested = Number(requestedValue);
+  let resolved;
+  if (!Number.isFinite(requested) || requested === 1) {
+    resolved = 1;
+  } else if (requested <= 0) {
+    resolved = maximum;
+  } else if (!Number.isInteger(requested)) {
+    resolved = Math.max(1, Math.floor(requested * maximum));
+  } else {
+    resolved = requested;
+  }
+  return {
+    requested: Number.isFinite(requested) ? requested : 1,
+    effective: Math.min(maximum, resolved),
+    maximum,
+    clamped: resolved > maximum,
+  };
+}
 
 function assertArrayDescriptor(data, descriptor) {
   if (!(data instanceof Float32Array)) {
@@ -68,7 +94,7 @@ export class G2SJob {
       throw new RangeError("The browser build currently supports only QS");
     }
     this.algorithm = "qs";
-    this.options = { ...options, threads: 1 };
+    this.options = { ...options };
     return this;
   }
 
@@ -86,7 +112,7 @@ export class G2SJob {
 
     const request = {
       algorithm: this.algorithm,
-      options: this.options,
+      options: this.engine.withEffectiveThreads(this.options),
       arrays: this.arrays.map(({ name, data, shape, variableTypes }) => ({
         name, shape, variableTypes, buffer: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
       })),
@@ -105,8 +131,10 @@ export class G2SJob {
 }
 
 export class G2SEngine {
-  constructor(workerUrl = DEFAULT_WORKER_URL) {
+  constructor(workerUrl = DEFAULT_WORKER_URL, options = {}) {
     this.workerUrl = workerUrl;
+    this.requestedMaximumThreads = positiveInteger(options.maxThreads);
+    this.workerCapabilities = Object.freeze({ threaded: false, threadPoolSize: 1 });
     this.worker = null;
     this.pending = null;
     this.workerReadyReject = null;
@@ -114,12 +142,37 @@ export class G2SEngine {
   }
 
   static async create(options = {}) {
-    const engine = new G2SEngine(options.workerUrl || DEFAULT_WORKER_URL);
+    const engine = new G2SEngine(options.workerUrl || DEFAULT_WORKER_URL, options);
     await engine.ensureWorker();
     return engine;
   }
 
   createJob() { return new G2SJob(this); }
+
+  get maximumThreads() {
+    const hardwareThreads = positiveInteger(globalThis.navigator?.hardwareConcurrency, 1);
+    return Math.max(1, Math.min(
+      this.requestedMaximumThreads,
+      hardwareThreads,
+      positiveInteger(this.workerCapabilities.threadPoolSize),
+    ));
+  }
+
+  setMaxThreads(value) {
+    this.requestedMaximumThreads = positiveInteger(value);
+    return this.maximumThreads;
+  }
+
+  withEffectiveThreads(options) {
+    const policy = resolveThreads(options.threads, this.maximumThreads);
+    return {
+      ...options,
+      threads: policy.effective,
+      requestedThreads: policy.requested,
+      maximumThreads: policy.maximum,
+      threadRequestClamped: policy.clamped,
+    };
+  }
 
   ensureWorker() {
     if (this.worker) return Promise.resolve();
@@ -130,6 +183,10 @@ export class G2SEngine {
         if (event.data?.type === "ready") {
           this.worker.removeEventListener("message", ready);
           this.workerReadyReject = null;
+          this.workerCapabilities = Object.freeze({
+            threaded: Boolean(event.data.capabilities?.threaded),
+            threadPoolSize: positiveInteger(event.data.capabilities?.threadPoolSize),
+          });
           resolve();
         } else if (event.data?.type === "fatal") {
           this.worker.removeEventListener("message", ready);
@@ -154,6 +211,10 @@ export class G2SEngine {
     return new Promise((resolve, reject) => {
       this.pending = { resolve, reject, progressHandler };
       this.worker.onmessage = (event) => {
+        if (event.data?.type === "diagnostic") {
+          console.debug(`[G2S Wasm] ${event.data.message}`);
+          return;
+        }
         if (event.data?.type === "progress") {
           progressHandler?.(event.data.progress);
           return;

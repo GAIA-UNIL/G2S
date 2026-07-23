@@ -150,10 +150,6 @@ public:
 		configuration.timeout=std::chrono::milliseconds(timeoutWasSpecified ? configuredTimeout : 30000);
 		if(configuration.timeout.count()<1) sendError("browser communication timeout must be positive");
 
-		if(input.count("-j")>0 && !silentMode){
-			sendWarning("browser QS is single-threaded; -j is forced to 1");
-		}
-
 		g2s::browser::Job job;
 		Json::Value manifest(Json::objectValue);
 		manifest["protocolVersion"]=1;
@@ -173,11 +169,6 @@ public:
 		for(auto iterator=input.begin();iterator!=input.end();++iterator){
 			const std::string& key=iterator->first;
 			if(controlParameters.count(key)>0) continue;
-			if(key=="-j"){
-				if(!parameters.isMember(key)) parameters[key]=Json::Value(Json::arrayValue);
-				parameters[key].append("1");
-				continue;
-			}
 			if(isDataMatrix(iterator->second)){
 				std::any dataTypes=nullptr;
 				if(typedParameters.count(key)>0){
@@ -239,6 +230,8 @@ public:
 		const bool ok=transport.run(job,configuration,callbacks,browserResult,error);
 		lockThread();
 		if(!ok) sendError(error);
+		auto threadWarning=browserResult.metadata.find("thread_warning");
+		if(threadWarning!=browserResult.metadata.end() && !silentMode) sendWarning(threadWarning->second);
 		if(browserResult.arrays.count("simulation")==0 || browserResult.arrays.count("index")==0){
 			sendError("browser QS response is missing simulation or index output");
 		}
