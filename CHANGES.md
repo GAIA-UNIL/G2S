@@ -15,6 +15,7 @@
 - Replaced the synthetic browser demo with selectable Stone and Strebelle training images, randomized seeds, and simulations matching each source image's original dimensions.
 - Documented direct Git deployment through Cloudflare Workers Builds using a static asset directory.
 - Made browser transport origin handling permissive by default for hosted preview pages while retaining `-browserOrigin` as an exact-origin restriction.
+- Added a contextual link from compatibility mode to the Cloudflare-hosted multithreaded browser preview.
 
 ## 2026-07-18
 

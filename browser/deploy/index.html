@@ -43,6 +43,9 @@
     input[type=number] { width:5rem; }
     select { width:min(14rem, 55vw); }
     .hint { color:var(--muted); font-size:.9rem; }
+    .thread-status { display:flex; align-items:center; flex-wrap:wrap; gap:.7rem; margin:.7rem 0 0; }
+    .thread-status .hint { margin:0; flex:1 1 18rem; }
+    .thread-status .button { padding:.48rem .8rem; font-size:.86rem; white-space:nowrap; }
     .training-preview { display:block; width:100%; aspect-ratio:1; object-fit:contain; border-radius:12px; background:#071719; margin:1rem 0; }
     canvas { display:block; width:100%; max-height:420px; object-fit:contain; image-rendering:auto; border-radius:12px; background:#071719; margin-top:1rem; }
     pre { padding:1rem; overflow:auto; border-radius:12px; background:#061416; border:1px solid #173a3d; color:#c9fffa; }
@@ -82,7 +85,10 @@
         <img class="training-preview" id="training-preview" src="./assets/Stone.png" alt="Stone training image" width="200" height="200">
         <p class="hint" id="training-description">Stone · continuous · the simulation will use the original image dimensions</p>
         <div class="control-row"><label for="demo-threads">Maximum threads</label><input id="demo-threads" type="number" min="1" max="8" step="1" value="4"></div>
-        <p class="hint" id="thread-note">Checking browser thread support…</p>
+        <div class="thread-status">
+          <p class="hint" id="thread-note">Checking browser thread support…</p>
+          <a class="button secondary" id="threaded-version-link" href="https://mps-online.mathieu-1cc.workers.dev/" target="_blank" rel="noreferrer" hidden>Open multithreaded version ↗</a>
+        </div>
         <div class="actions"><button class="primary" id="run-demo">Run local demo</button><button class="secondary" id="cancel-demo" disabled>Cancel</button></div>
         <p class="status" id="demo-status" aria-live="polite">Ready.</p>
       </article>
@@ -111,6 +117,6 @@ simulation, index_map, duration, meta = g2s(
     <footer>G2S QS experimental browser preview · CPU WebAssembly · local server remains the recommended high-performance path</footer>
   </main>
   <script src="./vendor/lottie.min.js"></script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=20260724h"></script>
 </body>
 </html>

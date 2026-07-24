@@ -94,7 +94,7 @@ The browser slice is CPU-only. It rejects GPU/OpenCL/CUDA, distributed grids, au
 
 ### Static deployment package
 
-`browser/deploy/` is a self-contained experimental preview bundle for trying QS before installing the local server. The local server remains the recommended production path and is expected to be roughly 5–10× faster for current workloads. After `make -C build wasm`, copy the contents of that folder to the document root of a static host. It includes the QS Lottie progress logo, local Lottie runtime, both Wasm variants, the worker/API files, full-size Stone and Strebelle in-page simulations, Python/MATLAB connection instructions, and a Cloudflare Pages `_headers` file for cross-origin-isolated threads. See [`browser/deploy/README.md`](browser/deploy/README.md) for the exact headers and CSP required by a production host.
+`browser/deploy/` is a self-contained experimental preview bundle for trying QS before installing the local server. The local server remains the recommended production path and is expected to be roughly 5–10× faster for current workloads. After `make -C build wasm`, copy the contents of that folder to the document root of a static host. It includes the QS Lottie progress logo, local Lottie runtime, both Wasm variants, the worker/API files, full-size Stone and Strebelle in-page simulations, Python/MATLAB connection instructions, and a Cloudflare Pages `_headers` file for cross-origin-isolated threads. When isolation is unavailable, compatibility mode links users to the Cloudflare-hosted multithreaded preview. See [`browser/deploy/README.md`](browser/deploy/README.md) for the exact headers and CSP required by a production host.
 
 ## Server protocol schema
 

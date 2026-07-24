@@ -26,6 +26,7 @@ threadInput.value = String(Math.min(4, available));
 $("#thread-note").textContent = threaded
   ? `Multithreaded Wasm available · ${available} worker maximum`
   : "Compatibility mode · serve with COOP/COEP headers to enable browser threads";
+$("#threaded-version-link").hidden = threaded;
 
 let bridge = null;
 let lastBridgeError = "";

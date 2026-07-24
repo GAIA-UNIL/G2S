@@ -28,6 +28,8 @@ The page CSP must allow `http://127.0.0.1:8129` in `connect-src`. Browser mode a
 
 The in-page simulation uses the bundled Stone (200×200 continuous) or Strebelle (250×250 categorical) training image and the compiled QS Wasm worker. Each run generates a new random seed and creates a destination with the selected training image's original dimensions. It does not contact the G2S server.
 
+When a host does not provide cross-origin isolation, the page runs the single-thread compatibility bundle and displays a button linking to `https://mps-online.mathieu-1cc.workers.dev/` for the multithreaded version.
+
 ## Cloudflare Pages
 
 Connect the static-site repository to Cloudflare Pages and publish the directory containing this README as the site root. Use no framework preset, no build command, and `.` as the output directory. The included `_headers` file enables the COOP/COEP headers required by the threaded Wasm bundle. No Pages Function, Worker, API token, environment variable, or service-worker workaround is required.
