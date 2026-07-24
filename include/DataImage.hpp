@@ -432,6 +432,7 @@ class DataImage{
 
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
+		constexpr double pi=3.14159265358979323846;
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
 		
 		for (size_t j = 0; j < variableWeight.size(); ++j)
@@ -454,7 +455,7 @@ class DataImage{
 					for (unsigned int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
 					{
 						float dist2=kernel.distance2ToCenter(i)*alphas[j]*alphas[j];
-						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*M_PI)*exp(-dist2/2.f);
+						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*pi)*exp(-dist2/2.f);
 					}
 					break;
 						

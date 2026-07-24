@@ -3,7 +3,7 @@
 ## 2026-07-24
 
 - Bumped the package version to 0.99.3 for the repaired Python wheel publication pipeline.
-- Fixed all native Windows Python wheel jobs by building wheels directly from the prepared package tree, resolving the compiled libzmq tree through an absolute build-isolation path, explicitly linking its MSVC import library, and bundling the matching DLL in the wheel.
+- Fixed native Windows Python wheel packaging by building wheels directly from the prepared package tree, resolving the compiled libzmq tree through an absolute build-isolation path, explicitly linking its MSVC import library, bundling the matching DLL in the wheel, and replacing the MSVC-incompatible `M_PI` macro in the shared Gaussian-kernel code.
 - Removed the Windows workflow's unnecessary MSBuild setup action and Unix-style top-level Make probing; the libzmq helper now uses CMake's portable build command and the wheel step invokes the Python sub-Makefile directly.
 - Updated Python publication workflows to Node 24-based `actions/checkout@v6` and `actions/setup-python@v6`, eliminating the attached Node 20 action warnings.
 - Added production CPython 3.14 wheels on Linux, Apple Silicon macOS, and Windows, plus non-blocking `3.15-dev` preview builds in the TestPyPI workflow.
