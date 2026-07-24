@@ -25,7 +25,15 @@
 #include <thread>
 #include <cctype>
 #include <sstream>
+#include <iomanip>
 #include "DataImage.hpp"
+#ifdef G2S_ENABLE_BROWSER_TRANSPORT
+#include "browserTransport.hpp"
+
+#ifndef G2S_BROWSER_ORIGIN
+	#define G2S_BROWSER_ORIGIN "*"
+#endif
+#endif
 
 typedef unsigned jobIdType;
 
@@ -102,6 +110,151 @@ public:
 
 	virtual std::any convert2NativeMatrix(g2s::DataImage &im)=0;
 	virtual g2s::DataImage convertNativeMatrix2DataImage(std::any matrix, std::any dataTypeVariable=nullptr)=0;
+
+#ifdef G2S_ENABLE_BROWSER_TRANSPORT
+	void runBrowserCommunication(std::multimap<std::string, std::any> input,
+		std::multimap<std::string, std::any> &outputs,
+		int maxOutput,
+		bool returnMeta,
+		bool silentMode,
+		int configuredTimeout,
+		bool timeoutWasSpecified){
+		std::string algorithm;
+		if(input.count("-a")>0) algorithm=nativeToStandardString(input.find("-a")->second);
+		std::transform(algorithm.begin(),algorithm.end(),algorithm.begin(),::tolower);
+		if(algorithm!="qs" && algorithm!="quicksampling"){
+			sendError("browser mode currently supports only the QS algorithm");
+		}
+
+		const std::set<std::string> unsupported={
+			"-W_GPU","-W_CUDA","-jg","-job_grid_json","-eg","-endpoint_grid_json","-di_grid_json",
+			"-adsim","-as","-submitOnly","-statusOnly","-waitAndDownload","-kill","-after"
+		};
+		for(const std::string& key:unsupported){
+			if(input.count(key)>0) sendError("browser mode does not support "+key);
+		}
+		if(input.count("-ti")==0 || input.count("-di")!=1){
+			sendError("browser QS requires at least one -ti array and exactly one -di array");
+		}
+
+		g2s::browser::Configuration configuration;
+		configuration.allowedOrigin=G2S_BROWSER_ORIGIN;
+		if(input.count("-browserOrigin")>0){
+			configuration.allowedOrigin=nativeToStandardString(input.find("-browserOrigin")->second);
+		}
+		if(input.count("-browserPort")>0){
+			const double requestedPort=nativeToScalar(input.find("-browserPort")->second);
+			if(requestedPort<1 || requestedPort>65535) sendError("-browserPort must be between 1 and 65535");
+			configuration.port=static_cast<unsigned short>(requestedPort);
+		}
+		configuration.timeout=std::chrono::milliseconds(timeoutWasSpecified ? configuredTimeout : 30000);
+		if(configuration.timeout.count()<1) sendError("browser communication timeout must be positive");
+
+		g2s::browser::Job job;
+		Json::Value manifest(Json::objectValue);
+		manifest["protocolVersion"]=1;
+		manifest["algorithm"]="qs";
+		manifest["parameters"]=Json::Value(Json::objectValue);
+		manifest["arrays"]=Json::Value(Json::arrayValue);
+		Json::Value& parameters=manifest["parameters"];
+		Json::Value& arrayManifest=manifest["arrays"];
+		const auto dataTypeIterator=input.find("-dt");
+		const std::set<std::string> typedParameters=parametersUploadedWithDataType();
+		const std::set<std::string> untypedParameters=parametersUploadedWithoutDataType();
+		const std::set<std::string> controlParameters={
+			"-a","-sa","-TO","-noTO","-browserOrigin","-browserPort","-returnMeta","-showLogs","-silent","-dt"
+		};
+
+		unsigned arrayIndex=0;
+		for(auto iterator=input.begin();iterator!=input.end();++iterator){
+			const std::string& key=iterator->first;
+			if(controlParameters.count(key)>0) continue;
+			if(isDataMatrix(iterator->second)){
+				std::any dataTypes=nullptr;
+				if(typedParameters.count(key)>0){
+					if(dataTypeIterator==input.end()) sendError("-dt is required for browser array "+key);
+					dataTypes=dataTypeIterator->second;
+				}
+				g2s::DataImage image=convertNativeMatrix2DataImage(iterator->second,dataTypes);
+				g2s::browser::ArrayPayload payload;
+				payload.id="array_"+std::to_string(arrayIndex++);
+				payload.parameter=key;
+				payload.dimensions=image._dims;
+				payload.variableTypes.reserve(image._types.size());
+				for(g2s::DataImage::VariableType type:image._types) payload.variableTypes.push_back(static_cast<unsigned>(type));
+				payload.values.assign(image._data,image._data+image.dataSize());
+
+				Json::Value description(Json::objectValue);
+				description["id"]=payload.id;
+				description["parameter"]=payload.parameter;
+				description["encoding"]="float32";
+				description["elementCount"]=Json::UInt64(payload.values.size());
+				description["dimensions"]=Json::Value(Json::arrayValue);
+				for(unsigned dimension:payload.dimensions) description["dimensions"].append(dimension);
+				description["variableTypes"]=Json::Value(Json::arrayValue);
+				for(unsigned type:payload.variableTypes) description["variableTypes"].append(type);
+				arrayManifest.append(description);
+				if(!parameters.isMember(key)) parameters[key]=Json::Value(Json::arrayValue);
+				Json::Value reference(Json::objectValue);
+				reference["arrayId"]=payload.id;
+				parameters[key].append(reference);
+				job.arrays.push_back(std::move(payload));
+			}else{
+				if((typedParameters.count(key)>0 || untypedParameters.count(key)>0) && key!="-nl"){
+					sendError("browser mode requires an in-memory array for "+key);
+				}
+				if(!parameters.isMember(key)) parameters[key]=Json::Value(Json::arrayValue);
+				parameters[key].append(toStringForParameter(key,iterator->second));
+			}
+		}
+
+		Json::StreamWriterBuilder builder;
+		builder["indentation"]="";
+		job.manifestJson=Json::writeString(builder,manifest);
+
+		g2s::browser::Transport transport;
+		g2s::browser::Callbacks callbacks;
+		callbacks.interrupted=[this](){ return userRequestInteruption(); };
+		callbacks.updateDisplay=[this](){ updateDisplay(); };
+		callbacks.progress=[this,silentMode](float percent,const std::string& message){
+			if(silentMode) return;
+			std::ostringstream stream;
+			stream << "browser QS: " << std::fixed << std::setprecision(1) << percent << "%";
+			if(!message.empty()) stream << " " << message;
+			eraseAndPrint(stream.str());
+		};
+
+		g2s::browser::Result browserResult;
+		std::string error;
+		unlockThread();
+		const bool ok=transport.run(job,configuration,callbacks,browserResult,error);
+		lockThread();
+		if(!ok) sendError(error);
+		auto threadWarning=browserResult.metadata.find("thread_warning");
+		if(threadWarning!=browserResult.metadata.end() && !silentMode) sendWarning(threadWarning->second);
+		if(browserResult.arrays.count("simulation")==0 || browserResult.arrays.count("index")==0){
+			sendError("browser QS response is missing simulation or index output");
+		}
+
+		auto addOutput=[&](const std::string& name,const std::string& outputKey){
+			auto found=browserResult.arrays.find(name);
+			if(found==browserResult.arrays.end()) return;
+			const g2s::browser::ArrayPayload& payload=found->second;
+			g2s::DataImage image(payload.dimensions.size(),const_cast<unsigned*>(payload.dimensions.data()),payload.variableTypes.size());
+			for(size_t index=0;index<payload.variableTypes.size();++index){
+				image._types[index]=payload.variableTypes[index]==1 ? g2s::DataImage::Categorical : g2s::DataImage::Continuous;
+			}
+			if(payload.encoding=="uint32") image.setEncoding(g2s::DataImage::UInteger);
+			if(payload.encoding=="int32") image.setEncoding(g2s::DataImage::Integer);
+			std::memcpy(image._data,payload.values.data(),payload.values.size()*sizeof(float));
+			outputs.insert({outputKey,convert2NativeMatrix(image)});
+		};
+		if(maxOutput>0) addOutput("simulation","1");
+		if(maxOutput>1) addOutput("index","2");
+		outputs.insert({"t",ScalarToNative(browserResult.durationMs/1000.0)});
+		if(returnMeta) outputs.insert({"meta",keyValueMapToNative(browserResult.metadata)});
+	}
+#endif
 
 	void normalizeJsonGridParameter(std::multimap<std::string, std::any> &input,
 		const std::vector<std::string> &aliases,
@@ -529,6 +682,19 @@ public:
 		if(input.count("-sa")>0)serverAddress=nativeToStandardString(input.find("-sa")->second);
 		input.erase("-sa");
 		std::transform(serverAddress.begin(), serverAddress.end(), serverAddress.begin(),::tolower);
+		if(serverAddress=="browser" || serverAddress=="web"){
+		#ifdef G2S_ENABLE_BROWSER_TRANSPORT
+			if(!submit || !waitAndDownload || kill || serverShutdown || requestServerStatus){
+				sendError("browser mode supports synchronous submissions only");
+			}
+			runBrowserCommunication(input,outputs,maxOutput,returnMeta,silentMode,timeout,spectifiedTimeout);
+			done=true;
+			return;
+		#else
+			sendError("this interface build does not include browser transport support");
+			return;
+		#endif
+		}
 
 		zmq::context_t context (1);
 		zmq::socket_t socket (context, ZMQ_REQ);

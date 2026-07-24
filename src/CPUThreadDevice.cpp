@@ -98,10 +98,14 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::v
 	std::reverse(reverseFftSize.begin(),reverseFftSize.end());
 	#pragma omp critical (initPlan)
 	{
+	#ifndef G2S_BROWSER_BUILD
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
+	#endif
 		_pInv=FFTW_PRECISION(plan_dft_c2r)(reverseFftSize.size(), reverseFftSize.data(),  _frenquencySpaceOutputArray[0], _realSpaceArray[0], FFTW_PLAN_OPTION);
 
+	#ifndef G2S_BROWSER_BUILD
 		FFTW_PRECISION(plan_with_nthreads)(threadRatio);
+	#endif
 		_p=FFTW_PRECISION(plan_dft_r2c)( reverseFftSize.size(), reverseFftSize.data(), _realSpaceArray[0], _frenquencySpaceInput, FFTW_PLAN_OPTION);
 
 		if(_fftSize.size()>1){
@@ -117,11 +121,15 @@ CPUThreadDevice::CPUThreadDevice(SharedMemoryManager* sharedMemoryManager,std::v
 
 			for (unsigned int i = 0; i < _fftSize.back(); ++i)
 			{
+			#ifndef G2S_BROWSER_BUILD
 				FFTW_PRECISION(plan_with_nthreads)(1);
+			#endif
 				_pPatchL[i]=FFTW_PRECISION(plan_dft_r2c)(reverseFftSize.size()-1, reverseFftSize.data()+1, _realSpaceArray[0]+i*reducedRealSize, _frenquencySpaceInput+i*reducedFftSize, FFTW_PLAN_OPTION);
 			}
 
+		#ifndef G2S_BROWSER_BUILD
 			FFTW_PRECISION(plan_with_nthreads)(threadRatio);
+		#endif
 			_pPatchM=FFTW_PRECISION(plan_many_dft)(1, reverseFftSize.data(),reducedFftSize,
 				_frenquencySpaceInput, reverseFftSize.data(),
 				reducedFftSize, 1,
@@ -514,4 +522,3 @@ void CPUThreadDevice::maskLayerWithVariable(unsigned layer, unsigned variable){
 		//-((1.f-[j])*1.1f)*FLT_MAX);
 	}
 }
-

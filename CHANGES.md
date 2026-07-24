@@ -1,8 +1,28 @@
 # Changes
 
+## 2026-07-23
+
+- Added a documented 200×200 Python stone example for exercising the on-demand browser QS bridge, including configurable size, seed, timeout, interactive plotting, and optional figure export.
+- Added a separate eight-worker OpenMP/pthread QS WebAssembly artifact while retaining the single-thread compatibility artifact; FFTW remains internally single-threaded.
+- Preserved normal `-j` semantics across Python/MATLAB and JavaScript, added a browser-owned maximum-thread spinner defaulting to four, and report requested/effective limits and clamping warnings in result metadata.
+- Added live browser progress and stage display driven by the existing QS reporting callback, plus a local COOP/COEP development server and threaded smoke coverage for cancellation and ten sequential runs.
+- Documented the required Python wheel rebuild/reinstall step and made the browser example report the imported G2S location, preventing an older wheel from being mistaken for a browser-bridge failure.
+- Added a copy-ready `browser/deploy/` static site with the supplied QS Lottie progress animation, local Lottie runtime, browser-only demo simulation, bundled Wasm assets, and deployment instructions.
+- Clarified that the browser package is an experimental try-before-installing preview; the local G2S server remains the recommended high-performance path and is expected to be 5–10× faster for current workloads.
+- Hardened the preview bridge against transient heartbeat failures, serialized progress uploads, and prevented duplicate preview tabs from claiming the same interface session.
+- Made the local development server serve both IPv4 and IPv6 localhost addresses so generic HTTP servers cannot silently remove the required isolation headers.
+- Added Cloudflare Pages `_headers` configuration to the browser deployment package for cross-origin-isolated WebAssembly threads.
+- Replaced the synthetic browser demo with selectable Stone and Strebelle training images, randomized seeds, and simulations matching each source image's original dimensions.
+- Documented direct Git deployment through Cloudflare Workers Builds using a static asset directory.
+- Made browser transport origin handling permissive by default for hosted preview pages while retaining `-browserOrigin` as an exact-origin restriction.
+- Added a contextual link from compatibility mode to the Cloudflare-hosted multithreaded browser preview.
+
 ## 2026-07-18
 
 - Removed the obsolete Emscripten build target, WebSocket bridge, browser-only server and tasking branches, interface shims, and stale online-demo link. Native C++, Intel, MATLAB, Python, and R paths remain unchanged.
+- Added a replacement QS-only browser architecture that compiles the reusable CPU QS path and float FFTW to WebAssembly, executes jobs in a Web Worker, and exposes a typed Promise-based JavaScript API with progress, cancellation, result retrieval, and worker recreation.
+- Added one shared Python/MATLAB `-sa browser` transport using a pinned vendored cpp-httplib listener bound to `127.0.0.1`, exact-origin CORS, per-command nonce/session authentication, Local Network Access response headers, validated JSON/float32 protocol messages, a 30-second default connection/heartbeat timeout, and immediate port-conflict errors.
+- Added pinned emsdk 6.0.3 and checksum-pinned FFTW 3.3.11 browser build flow, Chrome/Chromium and Firefox smoke fixtures, and native transport tests covering timeout, authentication, binary results, and port conflicts. Generated Wasm, FFTW, and test artifacts remain ignored.
 
 ## 2026-05-12
 

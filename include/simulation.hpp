@@ -25,9 +25,20 @@
 #include "simulationUpdateCallback.hpp"
 #include "jobReporting.hpp"
 #include "qsTransformUtils.hpp"
+#ifdef G2S_BROWSER_BUILD
+#include <atomic>
+#endif
 #include <thread>
 #include <execution>
 
+#ifdef G2S_BROWSER_BUILD
+namespace g2s_browser_progress_detail {
+	inline std::atomic<unsigned long long> vectorCompleted(0);
+	inline std::atomic<int> vectorReported(-1);
+	inline std::atomic<unsigned long long> fullCompleted(0);
+	inline std::atomic<int> fullReported(-1);
+}
+#endif
 
 void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &TIs, std::vector<g2s::DataImage> &kernels, SamplingModule &samplingModule,
 	std::vector<std::vector<std::vector<int> > > &pathPositionArray, g2s_path_index_t* solvingPath, g2s_path_index_t numberOfPointToSimulate, g2s::DataImage *ii, g2s::DataImage *kii, float* seedArray, unsigned* importDataIndex, std::vector<unsigned> numberNeighbor, g2s::DataImage *nii, g2s::DataImage *kvi,
@@ -37,6 +48,10 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 
 
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
+#ifdef G2S_BROWSER_BUILD
+	g2s_browser_progress_detail::vectorCompleted.store(0,std::memory_order_relaxed);
+	g2s_browser_progress_detail::vectorReported.store(-1,std::memory_order_relaxed);
+#endif
 	bool localPosteriorPathAllocated=false;
 	g2s_path_index_t* posteriorPath=inputPosteriorPath;
 	if(posteriorPath==nullptr){
@@ -279,8 +294,13 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		maxDpendencePath=nullptr;
 	}
 
+	#ifdef G2S_BROWSER_BUILD
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(adjustedPath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches, g2s_browser_progress_detail::vectorCompleted, g2s_browser_progress_detail::vectorReported)
+	#else
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(adjustedPath,kernelAutoSelection,forceSimulation, kvi, nii, kii, displayRatio, circularSim, fullStationary, numberOfVariable,categoriesValues,numberOfPointToSimulate, \
 		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, withPathOptim, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
+	#endif
 	for (g2s_path_index_t optimIndexPath = 0; optimIndexPath < numberOfPointToSimulate; ++optimIndexPath){
 		
 		// if(indexPath<TIs[0].dataSize()/TIs[0]._nbVariable-1000){
@@ -647,6 +667,26 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		if(updateCallback){
 			updateCallback(g2s_simulation_update_kind::Vector, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);
 		}
+		#ifdef G2S_BROWSER_BUILD
+		const unsigned long long browserCompleted=g2s_browser_progress_detail::vectorCompleted.fetch_add(1,std::memory_order_relaxed)+1;
+		bool reportBrowserProgress=true;
+		#if _OPENMP
+		reportBrowserProgress=omp_get_thread_num()==0;
+		#endif
+		const int browserPercent=static_cast<int>(
+			100.0*static_cast<double>(browserCompleted)/static_cast<double>(numberOfPointToSimulate)
+		);
+		int browserPrevious=g2s_browser_progress_detail::vectorReported.load(std::memory_order_relaxed);
+		if(updateCallback==nullptr && reportBrowserProgress && browserPercent>browserPrevious &&
+			g2s_browser_progress_detail::vectorReported.compare_exchange_strong(browserPrevious,browserPercent,std::memory_order_relaxed)){
+			g2s::reporting::setProgress(logFile,
+				100.0*static_cast<double>(browserCompleted)/static_cast<double>(numberOfPointToSimulate),
+				"simulation_vector",
+				"cell "+std::to_string(browserCompleted)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+				static_cast<long long>(browserCompleted),
+				static_cast<long long>(numberOfPointToSimulate));
+		}
+		#else
 		if(updateCallback==nullptr && indexPath%(displayRatio)==0)
 			g2s::reporting::setProgress(logFile,
 				float(indexPath)/numberOfPointToSimulate*100.f,
@@ -654,6 +694,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
 				static_cast<long long>(indexPath),
 				static_cast<long long>(numberOfPointToSimulate));
+		#endif
 	}
 
 	for (int i = 0; i < nbThreads; ++i)
@@ -675,6 +716,10 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	const std::vector<std::vector<int> >* kernelFlatIndexArray=nullptr, unsigned globalSeed=0){
 	
 	g2s_path_index_t displayRatio=std::max(numberOfPointToSimulate/g2s_path_index_t(100),g2s_path_index_t(1));
+#ifdef G2S_BROWSER_BUILD
+	g2s_browser_progress_detail::fullCompleted.store(0,std::memory_order_relaxed);
+	g2s_browser_progress_detail::fullReported.store(-1,std::memory_order_relaxed);
+#endif
 	bool localPosteriorPathAllocated=false;
 	g2s_path_index_t* posteriorPath=inputPosteriorPath;
 	if(posteriorPath==nullptr){
@@ -719,8 +764,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 	const bool rawNeighborValues=samplingModule.useRawNeighborValues();
 	const bool strictInformedNeighbors=samplingModule.strictInformedNeighbors();
 
+	#ifdef G2S_BROWSER_BUILD
+	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
+		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches, g2s_browser_progress_detail::fullCompleted, g2s_browser_progress_detail::fullReported)
+	#else
 	#pragma omp parallel for num_threads(nbThreads) schedule(monotonic:dynamic,1) default(none) firstprivate(forceSimulation, kvi, nii, kii, displayRatio,circularSim, fullStationary, numberOfVariable, categoriesValues, numberOfPointToSimulate, \
 		posteriorPath, solvingPath, seedArray, numberNeighbor, importDataIndex, logFile, ii, externalMemory4IndexComputation, useExternalPosteriorPath, updateCallback, updateCallbackUserData, transformContext, kernelFlatIndexArray, rawNeighborValues, strictInformedNeighbors, globalSeed) shared( pathPositionArray, di, samplingModule, TIs, kernels, transformCaches)
+	#endif
 	for (g2s_path_index_t indexPath = 0; indexPath < numberOfPointToSimulate; ++indexPath){
 		
 
@@ -975,12 +1025,33 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), currentVariable, updateCallbackUserData);
 			}
 		}
+		#ifdef G2S_BROWSER_BUILD
+		const unsigned long long browserCompleted=g2s_browser_progress_detail::fullCompleted.fetch_add(1,std::memory_order_relaxed)+1;
+		bool reportBrowserProgress=true;
+		#if _OPENMP
+		reportBrowserProgress=omp_get_thread_num()==0;
+		#endif
+		const int browserPercent=static_cast<int>(
+			100.0*static_cast<double>(browserCompleted)/static_cast<double>(numberOfPointToSimulate)
+		);
+		int browserPrevious=g2s_browser_progress_detail::fullReported.load(std::memory_order_relaxed);
+		if(updateCallback==nullptr && reportBrowserProgress && browserPercent>browserPrevious &&
+			g2s_browser_progress_detail::fullReported.compare_exchange_strong(browserPrevious,browserPercent,std::memory_order_relaxed)){
+			g2s::reporting::setProgress(logFile,
+				100.0*static_cast<double>(browserCompleted)/static_cast<double>(numberOfPointToSimulate),
+				"simulation_full",
+				"cell "+std::to_string(browserCompleted)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
+				static_cast<long long>(browserCompleted),
+				static_cast<long long>(numberOfPointToSimulate));
+		}
+		#else
 		if(updateCallback==nullptr && indexPath%(displayRatio)==0)g2s::reporting::setProgress(logFile,
 			float(indexPath)/numberOfPointToSimulate*100.f,
 			"simulation_full",
 			"cell "+std::to_string((unsigned long long)indexPath)+" of "+std::to_string((unsigned long long)numberOfPointToSimulate),
 			static_cast<long long>(indexPath),
 			static_cast<long long>(numberOfPointToSimulate));
+		#endif
 	}
 
 	for (int i = 0; i < nbThreads; ++i)

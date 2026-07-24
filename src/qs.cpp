@@ -32,7 +32,12 @@
 
 #include "utils.hpp"
 #include "DataImage.hpp"
+#ifndef G2S_BROWSER_BUILD
 #include "jobManager.hpp"
+#else
+typedef unsigned jobIdType;
+#endif
+#include "qsCore.hpp"
 
 #include "sharedMemoryManager.hpp"
 #include "CPUThreadDevice.hpp"
@@ -356,7 +361,7 @@ void printHelp(){
 	printf ("Transforms are applied to neighborhood offsets before candidate search: scale, rotate, nearest-neighbor rounding.\n");
 }
 
-int main(int argc, char const *argv[]) {
+int g2sQsProgramMain(int argc, char const *argv[]) {
 
 	std::multimap<std::string, std::string> arg=g2s::argumentReader(argc,argv);
 
@@ -958,7 +963,9 @@ int main(int argc, char const *argv[]) {
 #if _OPENMP
 	//omp_set_num_threads(nbThreads);
 	//omp_set_nested(true);
+	#ifndef G2S_BROWSER_BUILD
 	fftwf_init_threads();
+	#endif
 	omp_set_max_active_levels(3);
 	#ifdef WITH_MKL
 	mkl_set_num_threads(nbThreadsLastLevel);
@@ -2284,7 +2291,9 @@ int main(int argc, char const *argv[]) {
 	simulationPathIndex=nullptr;
 
 #if _OPENMP
+	#ifndef G2S_BROWSER_BUILD
 	fftwf_cleanup_threads();
+	#endif
 #endif
 
 	#ifdef WITH_CUDA
@@ -2321,3 +2330,9 @@ int main(int argc, char const *argv[]) {
 
 	return 0;
 }
+
+#ifndef G2S_QS_NO_MAIN
+int main(int argc, char const *argv[]) {
+	return g2sQsProgramMain(argc,argv);
+}
+#endif

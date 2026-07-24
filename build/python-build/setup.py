@@ -55,6 +55,7 @@ if system in ("Linux", "Darwin"):
 # -----------------------------------------------------------------------------
 sources = [
     "src_interfaces/python3_interface.cpp",
+    "src_interfaces/browserTransport.cpp",
     "src/DataImage.cpp",
 ] + extra_cpp
 
@@ -147,6 +148,7 @@ class build_ext(_build_ext):
             if system == "Windows":
                 ext.extra_compile_args += [
                     cxxflag,
+                    "/DG2S_ENABLE_BROWSER_TRANSPORT=1",
                     "-DNOMINMAX",
                     f'/DVERSION="{PACKAGE_VERSION}"',
                     f'/DPYTHON_VERSION="{pyver}"',
@@ -158,6 +160,7 @@ class build_ext(_build_ext):
             else:
                 ext.extra_compile_args += [
                     cxxflag,
+                    "-DG2S_ENABLE_BROWSER_TRANSPORT=1",
                     f'-DVERSION="{PACKAGE_VERSION}"',
                     f'-DPYTHON_VERSION="{pyver}"',
                 ]
@@ -170,6 +173,8 @@ class build_ext(_build_ext):
                 ext.extra_link_args += ["-arch", "arm64"]
 
             if system == "Windows":
+                if "ws2_32" not in ext.libraries:
+                    ext.libraries.append("ws2_32")
                 libzmq_root = Path("libzmq") / "build"
                 libdir = libzmq_root / "lib" / "Release"
                 dlldir = libzmq_root / "bin" / "Release"
