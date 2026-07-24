@@ -3,7 +3,6 @@
 
 import os
 import platform
-import subprocess
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -14,9 +13,8 @@ system = platform.system()
 # -----------------------------------------------------------------------------
 # Basic relative paths
 # -----------------------------------------------------------------------------
-ROOT = Path(__file__).parent            # e.g. .../python/interface/python3
-REPO = Path(".")                # go back to repo root relatively
-REPO = REPO.resolve()                   # only resolve once for reading files
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT
 
 # -----------------------------------------------------------------------------
 # Version handling
@@ -105,12 +103,15 @@ class build_ext(_build_ext):
 
         # Copy DLLs after extension build (Windows only)
         if system == "Windows":
-            dlldir = Path("libzmq") / "build" / "bin" / "Release"
-            if dlldir.exists():
-                for dll in dlldir.glob("libzmq*.dll"):
-                    dest = Path(self.build_lib) / "g2s" / dll.name
-                    self.copy_file(dll, dest)
-                    print(f"Copied {dll.name} to {dest}")
+            dlls = getattr(self, "_g2s_zmq_dlls", [])
+            if not dlls:
+                raise RuntimeError("The Windows build produced no ZeroMQ DLL to bundle.")
+            package_dir = Path(self.build_lib) / "g2s"
+            package_dir.mkdir(parents=True, exist_ok=True)
+            for dll in dlls:
+                dest = package_dir / dll.name
+                self.copy_file(str(dll), str(dest))
+                print(f"Copied {dll.name} to {dest}")
 
     def build_extensions(self):
         import numpy as np
@@ -149,13 +150,11 @@ class build_ext(_build_ext):
                 ext.extra_compile_args += [
                     cxxflag,
                     "/DG2S_ENABLE_BROWSER_TRANSPORT=1",
-                    "-DNOMINMAX",
+                    "/DNOMINMAX",
                     f'/DVERSION="{PACKAGE_VERSION}"',
                     f'/DPYTHON_VERSION="{pyver}"',
                     "/D_CRT_SECURE_NO_WARNINGS",
-                    "/D_USE_MATH_DEFINES",  # 👈 Add this line
-                    "/D_CRT_SECURE_NO_WARNINGS",  # 👈 Optional: silence fopen/fscanf warnings
-                    "/DZMQ_NO_PRAGMA_LIB"
+                    "/DZMQ_NO_PRAGMA_LIB",
                 ]
             else:
                 ext.extra_compile_args += [
@@ -169,37 +168,35 @@ class build_ext(_build_ext):
             # macOS: arm64 only
             if system == "Darwin":
                 os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", "11.0")
-                ext.extra_compile_args += ["-arch", "arm64"]
-                ext.extra_link_args += ["-arch", "arm64"]
 
             if system == "Windows":
                 if "ws2_32" not in ext.libraries:
                     ext.libraries.append("ws2_32")
-                libzmq_root = Path("libzmq") / "build"
+                libzmq_source = Path(
+                    os.environ.get("G2S_LIBZMQ_ROOT", str(ROOT / "libzmq"))
+                ).resolve()
+                libzmq_root = libzmq_source / "build"
                 libdir = libzmq_root / "lib" / "Release"
                 dlldir = libzmq_root / "bin" / "Release"
 
-                # detect actual library name (MSVC adds version tags)
-                candidates = list(libdir.glob("libzmq*.lib"))
-                if candidates:
-                    libfile = candidates[0]
-                    libname = libfile.stem
-                    print(f"Found ZeroMQ lib: {libfile.name}")
+                # MSVC adds toolset and version information to these filenames.
+                candidates = sorted(libdir.glob("libzmq*.lib"))
+                dlls = sorted(dlldir.glob("libzmq*.dll"))
+                if not candidates:
+                    raise RuntimeError(
+                        f"No libzmq*.lib found under {libdir}. "
+                        "Run setup_Win_compile_all.bat before building the wheel."
+                    )
+                if not dlls:
+                    raise RuntimeError(f"No libzmq*.dll found under {dlldir}.")
 
-                    for ext in self.extensions:
-                        ext.include_dirs += [str(Path("libzmq") / "include")]
-                        ext.library_dirs += [str(libdir)]
-                        ext.libraries += [libname]
-                else:
-                    print("No libzmq*.lib found under libzmq/build/lib/Release — build likely incomplete.")
-
-                # copy DLLs for wheel packaging
-                if dlldir.exists():
-                    self.copy_dlls = list(dlldir.glob("libzmq*.dll"))
-                    if self.copy_dlls:
-                        print(f"Bundling {len(self.copy_dlls)} ZeroMQ DLL(s) into wheel.")
-                else:
-                    print("No bin/Release folder found — DLL will not be packaged.")
+                libfile = candidates[0]
+                print(f"Found ZeroMQ import library: {libfile}")
+                print(f"Bundling ZeroMQ DLL: {dlls[0]}")
+                ext.include_dirs.append(str(libzmq_source / "include"))
+                ext.library_dirs.append(str(libdir))
+                ext.libraries.append(libfile.stem)
+                self._g2s_zmq_dlls = dlls
 
             if not any((Path(include_dir) / "zmq.h").is_file() for include_dir in ext.include_dirs):
                 raise RuntimeError(
@@ -239,12 +236,16 @@ setup(
         "Intended Audience :: Education",
         "Programming Language :: C++",
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
     ],
     ext_package="g2s",
     ext_modules=[ext],
     cmdclass={"build_ext": build_ext},
     include_dirs=[],
-    data_files=[
-        ("g2s", [str(p) for p in getattr(build_ext, "copy_dlls", [])])
-    ],
+    package_data={"g2s": ["*.dll"]},
 )

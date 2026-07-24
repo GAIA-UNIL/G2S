@@ -104,6 +104,10 @@ Those copied directories are generated build inputs, not source of truth. They a
 
 When reviewing, debugging, or changing G2S code, use the repository-level source and header trees. Do not treat ignored files under `build/python-build/src`, `build/python-build/include`, `build/python-build/src_interfaces`, `build/python-build/include_interfaces`, or the local `build/python-build/jsoncpp` clone as canonical project source.
 
+The `wheel` target builds directly from this prepared tree with `python -m build --wheel`. This is important on Windows: the separately compiled `build/python-build/libzmq` directory is not copied into an intermediate source distribution, so the direct build can link its import library and bundle its DLL. `setup_Win_compile_all.bat` publishes the absolute dependency location through `G2S_LIBZMQ_ROOT` when it runs in GitHub Actions.
+
+The production wheel matrix covers CPython 3.9–3.14. The TestPyPI matrix additionally probes `3.15-dev` with pre-release dependencies and `continue-on-error`; this preview job does not imply production support before Python 3.15 reaches its final release. Apple Silicon jobs force an `arm64` compile and an honest `macosx_11_0_arm64` wheel tag rather than the previous `universal2` tag on an arm64-only extension.
+
 ## Native Direct Sampling
 
 Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It intentionally reuses the generic `simulation()` / `simulationFull()` orchestration and only opts into additional `SamplingModule` hooks for raw neighbor values, strict informed-neighbor filtering, safe TI-id resolution, per-node sample context, and kernel flat-index mapping. Legacy `ds-l` remains implemented by `src/ds-l.cpp` and should not be changed when working on native DS behavior.

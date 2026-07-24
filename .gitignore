@@ -124,6 +124,8 @@ change_odc.md
 /build/python-build/src
 /build/python-build/src_interfaces
 /build/python-build/jsoncpp
+/build/python-build/libzmq/
+/build/python-build/wheelhouse/
 
 # Browser/Wasm generated dependencies, single/pthread bundles, and test binaries
 /build/wasm-build/cache/

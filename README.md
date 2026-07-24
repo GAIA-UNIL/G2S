@@ -20,7 +20,7 @@ Concrete interface demos live under `example/matlab/` and `example/python/`, inc
 Distributed QS interface calls accept native matrix values for JSON-grid parameters such as `-jg`, `-eg`, and `-di_grid_json`; the shared interface layer converts them to JSON before upload and job serialization.
 For reporting-path checks, `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and `-returnMeta` through the real interface bindings. The Python example tolerates interface builds that return extra trailing status/id fields in addition to elapsed time and metadata. Both examples now let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
-**G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
+The native G2S server is currently supported on *UNIX*-based systems, *Linux* and *macOS*. Windows 10+ users can run the server through WSL (Windows Subsystem for Linux), while the Python client interface is also published as a native Windows wheel.
 
 
 ## Documentation
@@ -49,7 +49,11 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
 For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
-Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
+Release wheels are built and import-tested for CPython 3.9 through 3.14 on Linux, Apple Silicon macOS, and 64-bit Windows. CPython 3.15 is exercised as a non-blocking preview in the TestPyPI workflow and is not part of the production release matrix until Python 3.15 is final.
+
+Windows wheel builds compile a shared libzmq first, link its MSVC import library explicitly, and bundle the matching DLL inside the `g2s` package. Run `build/python-build/setup_Win_compile_all.bat` before a local Windows wheel build; in GitHub Actions it also exports `G2S_LIBZMQ_ROOT` for PEP 517 build isolation. Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
+
+The macOS jobs currently publish native Apple Silicon wheels tagged `macosx_11_0_arm64`. They must not be relabelled as `universal2` unless both arm64 and x86_64 slices are actually compiled and verified.
 
 Some build and packaging helpers fetch third-party source files from upstream default branches, including `cppzmq`'s `zmq.hpp` and JsonCpp for Python packaging. This is an accepted project tradeoff: if an upstream change breaks the build, the local build scripts or package inputs must be updated at that time. For fully reproducible or audited release builds, use pinned package-manager dependencies or a reviewed local dependency snapshot.
 
