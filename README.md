@@ -69,7 +69,7 @@ make -C build wasm
 python3 browser/serve.py
 ```
 
-Open `http://localhost:8000/` in Chrome/Chromium or Firefox and keep the page open. `browser/serve.py` supplies the COOP/COEP headers required for `SharedArrayBuffer`. A synchronous Python or MATLAB call can then use the normal QS flags plus `-sa browser`. The page polls only while idle; each command owns a temporary listener on `127.0.0.1:8129`, and the listener closes when the command returns.
+Open `http://localhost:8000/` in Chrome/Chromium or Firefox and keep the page open. `browser/serve.py` supplies the COOP/COEP headers required for `SharedArrayBuffer` on both localhost address families. Stop any older `python -m http.server` process using port 8000 before starting it. A synchronous Python or MATLAB call can then use the normal QS flags plus `-sa browser`. The page polls only while idle; each command owns a temporary listener on `127.0.0.1:8129`, and the listener closes when the command returns.
 
 When testing from a source checkout, rebuild and reinstall the Python wheel after changing the shared interface; an older installed wheel does not know about `-sa browser` and will try the normal ZeroMQ server:
 
@@ -88,9 +88,13 @@ python3 example/python/browser_unconditional_simulation.py
 
 It downloads the public stone training image, requests four threads, runs a 200×200 unconditional QS simulation inside the browser, and displays the training image, simulation, and returned index map. Use `--size 64` for a faster first experiment, `--threads 2` to change the `-j` request, or `--output example/python/browser_unconditional_simulation.png --no-show` to save the figure without opening a window.
 
-Browser communication has a finite 30-second connection/heartbeat timeout. `-TO` overrides that communication timeout in milliseconds, but does not limit a simulation that continues to send heartbeats. The default allowed page origin is exactly `http://localhost:8000`; use `-browserOrigin` for an explicit development or production origin and `-browserPort` only when changing the loopback port. Origins include scheme and port, wildcard CORS is never used, and a production HTTPS page must include `http://127.0.0.1:8129` in its `connect-src` CSP.
+Browser communication has a finite 30-second connection/heartbeat timeout. `-TO` overrides that communication timeout in milliseconds, but does not limit a simulation that continues to send heartbeats. Browser mode accepts any page origin by default and echoes the requesting origin in CORS responses; use `-browserOrigin` to restrict a command to one exact development or production origin, and `-browserPort` only when changing the loopback port. The supported public pages include `https://www.mgravey.com/mps.online/` (origin `https://www.mgravey.com`) and `https://mps-online.mathieu-1cc.workers.dev/`. A production HTTPS page must include `http://127.0.0.1:8129` in its `connect-src` CSP.
 
 The browser slice is CPU-only. It rejects GPU/OpenCL/CUDA, distributed grids, augmented dimensions, autosave/resume, and asynchronous submit/status/wait operations. Arrays cross the bridge as validated little-endian float32 bodies with JSON metadata; native-width `.bgrid` files are not used as the browser wire format. See `DOCUMENTATION.md` for the API, protocol, build pins, thread policy, and deployment checklist.
+
+### Static deployment package
+
+`browser/deploy/` is a self-contained experimental preview bundle for trying QS before installing the local server. The local server remains the recommended production path and is expected to be roughly 5–10× faster for current workloads. After `make -C build wasm`, copy the contents of that folder to the document root of a static host. It includes the QS Lottie progress logo, local Lottie runtime, both Wasm variants, the worker/API files, full-size Stone and Strebelle in-page simulations, Python/MATLAB connection instructions, and a Cloudflare Pages `_headers` file for cross-origin-isolated threads. See [`browser/deploy/README.md`](browser/deploy/README.md) for the exact headers and CSP required by a production host.
 
 ## Server protocol schema
 

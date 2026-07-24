@@ -131,6 +131,8 @@ change_odc.md
 /browser/dist/*
 !/browser/dist/.gitkeep
 /browser/test/out/
+/browser/deploy/.DS_Store
+/browser/g2s-browser-deploy.zip
 
 # Optional output from the browser QS Python example
 /example/python/browser_unconditional_simulation.png

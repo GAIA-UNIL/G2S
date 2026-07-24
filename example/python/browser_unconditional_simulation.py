@@ -67,8 +67,10 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--browser-origin",
-        default="http://localhost:8000",
-        help="Exact origin hosting the open browser page.",
+        help=(
+            "Optional exact origin restriction for the open browser page. "
+            "Omit it to accept the active hosted preview."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -85,7 +87,9 @@ def parse_arguments() -> argparse.Namespace:
         parser.error("--size must be positive")
     if arguments.timeout_ms <= 0:
         parser.error("--timeout-ms must be positive")
-    if not arguments.browser_origin.startswith(("http://", "https://")):
+    if arguments.browser_origin and not arguments.browser_origin.startswith(
+        ("http://", "https://")
+    ):
         parser.error("--browser-origin must be an http:// or https:// origin")
     return arguments
 
@@ -117,7 +121,7 @@ def run_browser_qs(
     seed: int,
     timeout_ms: int,
     threads: float,
-    browser_origin: str,
+    browser_origin: Optional[str],
 ) -> tuple[np.ndarray, np.ndarray, float, dict[str, str]]:
     """Send one job to the preloaded browser page and return its results."""
     try:
@@ -135,14 +139,16 @@ def run_browser_qs(
         f"Starting {size}x{size} browser QS simulation "
         f"(requested threads: {threads:g})..."
     )
+    browser_options: list[object] = []
+    if browser_origin:
+        browser_options.extend(("-browserOrigin", browser_origin))
     try:
         simulation, index_map, duration, metadata, *_ = g2s(
             "-a",
             "qs",
             "-sa",
             "browser",
-            "-browserOrigin",
-            browser_origin,
+            *browser_options,
             "-ti",
             training_image,
             "-di",
@@ -162,8 +168,9 @@ def run_browser_qs(
             "-returnMeta",
         )
     except Exception as error:
+        page_description = browser_origin or "the open browser preview"
         raise RuntimeError(
-            f"Browser QS failed. Confirm that {browser_origin}/ is open, "
+            f"Browser QS failed. Confirm that {page_description} is open, "
             "the page says it is waiting for a local command, and port 8129 "
             "is available. If the original error refers to the ordinary G2S "
             "server, rebuild and reinstall the Python wheel from this checkout. "

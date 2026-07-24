@@ -87,7 +87,7 @@ bool Transport::run(const Job& job,
 	Result& result,
 	std::string& error){
 	if(configuration.allowedOrigin.empty()){
-		error="browser origin is empty; configure an exact localhost or HTTPS origin";
+		error="browser origin is empty; use '*' for permissive browser access or configure an exact origin";
 		return false;
 	}
 	if(configuration.port==0){
@@ -121,8 +121,17 @@ bool Transport::run(const Job& job,
 		(void)httplib::set_socket_opt(socket,SOL_SOCKET,SO_REUSEADDR,1);
 	});
 
-	auto applyCors=[&](httplib::Response& response){
-		response.set_header("Access-Control-Allow-Origin",configuration.allowedOrigin);
+	auto originAllowed=[&](const httplib::Request& request){
+		if(!request.has_header("Origin")) return false;
+		return configuration.allowedOrigin=="*" ||
+			request.get_header_value("Origin")==configuration.allowedOrigin;
+	};
+	auto applyCors=[&](const httplib::Request& request,httplib::Response& response){
+		if(originAllowed(request)){
+			// Echoing the requesting origin is more compatible with browser
+			// loopback/private-network checks than a literal wildcard.
+			response.set_header("Access-Control-Allow-Origin",request.get_header_value("Origin"));
+		}
 		response.set_header("Vary","Origin");
 		response.set_header("Access-Control-Allow-Methods","GET, POST, OPTIONS");
 		response.set_header("Access-Control-Allow-Headers","Content-Type, X-G2S-Protocol-Version, X-G2S-Session-Id, X-G2S-Nonce, X-G2S-Dimensions, X-G2S-Variable-Types, X-G2S-Encoding");
@@ -130,11 +139,8 @@ bool Transport::run(const Job& job,
 		response.set_header("Cache-Control","no-store");
 	};
 
-	auto originAllowed=[&](const httplib::Request& request){
-		return request.has_header("Origin") && request.get_header_value("Origin")==configuration.allowedOrigin;
-	};
 	auto authorize=[&](const httplib::Request& request, httplib::Response& response){
-		applyCors(response);
+		applyCors(request,response);
 		if(!originAllowed(request)){
 			response.status=403;
 			response.set_content("origin not allowed","text/plain");
@@ -162,11 +168,11 @@ bool Transport::run(const Job& job,
 	};
 
 	server.Options(R"(.*)",[&](const httplib::Request& request, httplib::Response& response){
-		applyCors(response);
+		applyCors(request,response);
 		response.status=originAllowed(request) ? 204 : 403;
 	});
 	server.Get("/v1/session",[&](const httplib::Request& request, httplib::Response& response){
-		applyCors(response);
+		applyCors(request,response);
 		if(!originAllowed(request)){
 			response.status=403;
 			response.set_content("origin not allowed","text/plain");

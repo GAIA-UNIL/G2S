@@ -31,7 +31,7 @@
 #include "browserTransport.hpp"
 
 #ifndef G2S_BROWSER_ORIGIN
-	#define G2S_BROWSER_ORIGIN "http://localhost:8000"
+	#define G2S_BROWSER_ORIGIN "*"
 #endif
 #endif
 

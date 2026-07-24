@@ -51,6 +51,36 @@ void testTimeout(){
 	require(elapsed<std::chrono::seconds(2),"missing browser timeout was not bounded");
 }
 
+void testPermissiveOrigin(){
+	g2s::browser::Transport transport;
+	g2s::browser::Job job{"{\"protocolVersion\":1,\"arrays\":[]}",{}};
+	g2s::browser::Configuration configuration{"*",18132,std::chrono::milliseconds(2000)};
+	g2s::browser::Result result;
+	std::string error;
+	auto run=std::async(std::launch::async,[&](){ return transport.run(job,configuration,{},result,error); });
+
+	const std::string cloudflareOrigin="https://mps-online.mathieu-1cc.workers.dev";
+	httplib::Client client("127.0.0.1",18132);
+	httplib::Result sessionResponse;
+	for(unsigned attempt=0;attempt<100 && !sessionResponse;++attempt){
+		httplib::Headers headers{{"Origin",cloudflareOrigin}};
+		sessionResponse=client.Get("/v1/session",headers);
+		if(!sessionResponse) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+	require(sessionResponse && sessionResponse->status==200,"permissive origin session was unavailable");
+	require(sessionResponse->get_header_value("Access-Control-Allow-Origin")==cloudflareOrigin,
+		"permissive origin was not echoed in CORS response");
+	const Json::Value session=parseJson(sessionResponse->body);
+
+	httplib::Headers headers{{"Origin",cloudflareOrigin}};
+	headers.emplace("X-G2S-Nonce",session["nonce"].asString());
+	headers.emplace("X-G2S-Protocol-Version","1");
+	headers.emplace("X-G2S-Session-Id",session["sessionId"].asString());
+	auto complete=client.Post("/v1/complete",headers,"{\"durationMs\":1}","application/json");
+	require(complete && complete->status==204,"permissive origin completion failed");
+	require(run.get(),"permissive origin transport failed: "+error);
+}
+
 void testExchange(){
 	g2s::browser::Transport transport;
 	g2s::browser::Job job{"{\"protocolVersion\":1,\"arrays\":[]}",{}};
@@ -127,6 +157,7 @@ void testPortConflict(){
 int main(){
 	try {
 		testTimeout();
+		testPermissiveOrigin();
 		testExchange();
 		testPortConflict();
 		std::cout << "browser transport tests passed\n";

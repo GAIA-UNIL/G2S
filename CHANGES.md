@@ -7,6 +7,14 @@
 - Preserved normal `-j` semantics across Python/MATLAB and JavaScript, added a browser-owned maximum-thread spinner defaulting to four, and report requested/effective limits and clamping warnings in result metadata.
 - Added live browser progress and stage display driven by the existing QS reporting callback, plus a local COOP/COEP development server and threaded smoke coverage for cancellation and ten sequential runs.
 - Documented the required Python wheel rebuild/reinstall step and made the browser example report the imported G2S location, preventing an older wheel from being mistaken for a browser-bridge failure.
+- Added a copy-ready `browser/deploy/` static site with the supplied QS Lottie progress animation, local Lottie runtime, browser-only demo simulation, bundled Wasm assets, and deployment instructions.
+- Clarified that the browser package is an experimental try-before-installing preview; the local G2S server remains the recommended high-performance path and is expected to be 5–10× faster for current workloads.
+- Hardened the preview bridge against transient heartbeat failures, serialized progress uploads, and prevented duplicate preview tabs from claiming the same interface session.
+- Made the local development server serve both IPv4 and IPv6 localhost addresses so generic HTTP servers cannot silently remove the required isolation headers.
+- Added Cloudflare Pages `_headers` configuration to the browser deployment package for cross-origin-isolated WebAssembly threads.
+- Replaced the synthetic browser demo with selectable Stone and Strebelle training images, randomized seeds, and simulations matching each source image's original dimensions.
+- Documented direct Git deployment through Cloudflare Workers Builds using a static asset directory.
+- Made browser transport origin handling permissive by default for hosted preview pages while retaining `-browserOrigin` as an exact-origin restriction.
 
 ## 2026-07-18
 

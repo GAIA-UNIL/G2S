@@ -71,7 +71,7 @@ Progress comes from the existing QS simulation reporting callback. The browser s
 
 `include_interfaces/interfaceTemplate.hpp` branches to `src_interfaces/browserTransport.cpp` only for `-sa browser` (or `web`). Python wheels and MATLAB MEX builds compile this same source. The listener binds only `127.0.0.1`, fails when its port is already occupied, and exists only for the duration of one synchronous command. The preloaded page continues polling after the listener disappears, so later commands require no page reload or click.
 
-The default listener is `http://127.0.0.1:8129`; the exact default page origin is `http://localhost:8000`. Each command creates a random session ID and 192-bit nonce. After session discovery, every request must provide protocol version 1, that session ID, and that nonce. The server accepts only the configured `Origin`, includes scheme and port in comparison, never reflects an origin, and never returns wildcard CORS. It answers preflight and Chromium Local Network Access negotiation; the browser requests `targetAddressSpace: "loopback"` where supported and otherwise uses ordinary CORS for Firefox.
+The default listener is `http://127.0.0.1:8129`; browser mode accepts any page origin by default and echoes the requesting origin in CORS responses. `-browserOrigin` can restrict an individual command to one exact origin. Each command creates a random session ID and 192-bit nonce. After session discovery, every request must provide protocol version 1, that session ID, and that nonce. The listener answers preflight and Chromium Local Network Access negotiation; the browser requests `targetAddressSpace: "loopback"` where supported and otherwise uses ordinary CORS for Firefox. Known public page origins include `https://www.mgravey.com` and `https://mps-online.mathieu-1cc.workers.dev`.
 
 Protocol v1 uses these endpoints:
 
@@ -90,7 +90,11 @@ Array dimensions, variable counts, element counts, encodings, and byte lengths a
 
 The default connection and heartbeat timeout is 30 seconds. `-TO` replaces it; `-noTO` cannot disable the finite browser timeout. A missing page, denied local-network request, wrong origin/session/nonce, browser error, or lost heartbeat returns an interface error rather than waiting indefinitely. A running simulation may exceed the timeout as long as the page continues its one-second control heartbeat.
 
-For production HTTPS hosting, replace the allowed origin with the exact `https://host[:port]` value, include `http://127.0.0.1:8129` in `connect-src`, and configure the production host to return the same COOP/COEP headers as `browser/serve.py`. Retest the exact origin in both Chrome and Firefox because local-network permission policies are browser-controlled and may change. Do not add wildcard CORS or broaden the listener bind address.
+For production HTTPS hosting, include `http://127.0.0.1:8129` in `connect-src` and configure the production host to return the same COOP/COEP headers as `browser/serve.py`. Retest in both Chrome and Firefox because local-network permission policies are browser-controlled and may change. Use `-browserOrigin https://host[:port]` only when an exact-origin restriction is desired; do not broaden the listener bind address.
+
+## Static deployment package
+
+`browser/deploy/` is intentionally copyable as a complete static preview site. It is a try-before-installing experience, not a replacement for the local G2S server: the local server remains recommended and is expected to be roughly 5–10× faster for current workloads. The package contains `index.html`, `app.js`, the local Lottie runtime and `assets/qs_logo.json`, Stone and Strebelle training images, the browser engine files, and both compiled Wasm variants. Its in-page demo runs full-size QS simulations with a new seed on every run, and the optional Python/MATLAB bridge does not use server-side simulation. Run `make -C build wasm` before copying the folder so the Wasm files match the current source. The deployment host must return COOP/COEP/CORP headers and allow `http://127.0.0.1:8129` in `connect-src`; see `browser/deploy/README.md`.
 
 ## Generated Python build tree
 
@@ -278,3 +282,6 @@ Transforms map original QS template offsets into simulation-space lookup offsets
 Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
 
 The Python example `example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+The static package also includes `browser/deploy/_headers`. Keep this file at the deployment root when using Cloudflare Pages; it enables COOP/COEP for the threaded Wasm build.
+
+For Cloudflare Workers Builds, deploy the directory that contains `index.html` and `_headers`, for example `npx wrangler deploy --assets ./public/ --compatibility-date 2026-07-24` when the package is under `public/`. Workers Static Assets parses the `_headers` file inside that asset directory.
