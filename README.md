@@ -48,7 +48,7 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
-For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
+For Python wheels, `zmq.h` must also be available. The packaging Makefile fetches the header from the same pinned libzmq 4.3.5 release used by the Windows build; `setup.py` additionally checks pyzmq and system include paths for source builds outside that helper.
 Release wheels are built and import-tested for CPython 3.9 through 3.14 on Linux, Apple Silicon macOS, and 64-bit Windows. CPython 3.15 is exercised as a non-blocking preview in the TestPyPI workflow and is not part of the production release matrix until Python 3.15 is final.
 
 Windows wheel builds compile a shared libzmq first, link its MSVC import library explicitly, and bundle the matching DLL inside the `g2s` package. Run `build/python-build/setup_Win_compile_all.bat` before a local Windows wheel build; in GitHub Actions it also exports `G2S_LIBZMQ_ROOT` for PEP 517 build isolation. Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.

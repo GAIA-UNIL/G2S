@@ -6,7 +6,7 @@ import platform
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
-from importlib.util import spec_from_file_location
+from importlib.util import module_from_spec, spec_from_file_location
 
 system = platform.system()
 
@@ -22,7 +22,10 @@ REPO = ROOT
 # --- dynamic version from g2s/_version.py ---
 VERSION_PATH = Path(__file__).resolve().parent / "g2s" / "_version.py"
 spec = spec_from_file_location("g2s._version", VERSION_PATH)
-version_module = spec.loader.load_module()
+if spec is None or spec.loader is None:
+    raise RuntimeError(f"Unable to load package version from {VERSION_PATH}")
+version_module = module_from_spec(spec)
+spec.loader.exec_module(version_module)
 PACKAGE_VERSION = version_module.__version__
 
 if "Test" in os.environ.get("GITHUB_WORKFLOW", ""):

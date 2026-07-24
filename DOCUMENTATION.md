@@ -108,6 +108,8 @@ The `wheel` target builds directly from this prepared tree with `python -m build
 
 The production wheel matrix covers CPython 3.9–3.14. The TestPyPI matrix additionally probes `3.15-dev` with pre-release dependencies and `continue-on-error`; this preview job does not imply production support before Python 3.15 reaches its final release. Apple Silicon jobs force an `arm64` compile and an honest `macosx_11_0_arm64` wheel tag rather than the previous `universal2` tag on an arm64-only extension.
 
+Wheel preprocessing downloads `zmq.h` from libzmq 4.3.5 because pyzmq's installed include directories are not guaranteed to contain the C header. The Windows libzmq configuration supplies CMake's 3.5 compatibility policy floor for CMake 4 runners. Package version loading uses `module_from_spec()` plus `exec_module()`, which remains available on Python 3.15.
+
 ## Native Direct Sampling
 
 Native `ds` is implemented by `src/ds.cpp` and `include/directSampling.hpp`. It intentionally reuses the generic `simulation()` / `simulationFull()` orchestration and only opts into additional `SamplingModule` hooks for raw neighbor values, strict informed-neighbor filtering, safe TI-id resolution, per-node sample context, and kernel flat-index mapping. Legacy `ds-l` remains implemented by `src/ds-l.cpp` and should not be changed when working on native DS behavior.

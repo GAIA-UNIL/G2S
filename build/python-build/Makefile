@@ -17,6 +17,10 @@ include/zmq.hpp:
 	mkdir -p include
 	curl -L "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -o include/zmq.hpp
 
+include/zmq.h:
+	mkdir -p include
+	curl -L "https://raw.githubusercontent.com/zeromq/libzmq/v4.3.5/include/zmq.h" -o include/zmq.h
+
 jsoncpp:
 	@if [ ! -f jsoncpp/dist/jsoncpp.cpp ] || [ ! -d jsoncpp/dist/json ]; then \
 		rm -rf jsoncpp; \
@@ -39,16 +43,16 @@ version:
 	echo "__version__ = \"$(shell cat $(VERSION_FILE))\"" > g2s/_version.py
 
 # Build both artifacts when explicitly requested.
-build:preprocess version include/zmq.hpp
+build:preprocess version include/zmq.hpp include/zmq.h
 	$(PYTHON) -m build
 
 # Build wheels directly from the prepared source tree. Building a wheel through
 # an intermediate sdist hides the separately compiled Windows libzmq tree.
-wheel:preprocess version include/zmq.hpp
+wheel:preprocess version include/zmq.hpp include/zmq.h
 	$(PYTHON) -m build --wheel
 	@echo "✅ Wheel built."
 
-sdist: version preprocess include/zmq.hpp
+sdist: version preprocess include/zmq.hpp include/zmq.h
 	$(PYTHON) -m build --sdist
 	@echo "✅ Source distribution created."
 

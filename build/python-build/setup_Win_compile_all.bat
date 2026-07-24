@@ -10,6 +10,7 @@ if NOT exist "libzmq\CMakeLists.txt" (
 
 cmake -S libzmq -B libzmq\build -A x64 ^
 	-DCMAKE_BUILD_TYPE=Release ^
+	-DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
 	-DBUILD_SHARED=ON ^
 	-DBUILD_STATIC=OFF ^
 	-DBUILD_TESTS=OFF ^

@@ -9,6 +9,7 @@
 - Added production CPython 3.14 wheels on Linux, Apple Silicon macOS, and Windows, plus non-blocking `3.15-dev` preview builds in the TestPyPI workflow.
 - Corrected Apple Silicon wheel metadata from `universal2` to `macosx_11_0_arm64`, matching the extension's actual compiled architecture.
 - Disabled the deprecated NumPy C API in the Python interface build and removed redundant Windows preprocessor definitions.
+- Restored the pinned libzmq `zmq.h` packaging input required on Linux and macOS, added the CMake 4 compatibility policy needed to configure libzmq 4.3.5 on Windows runners, and replaced the removed `load_module()` API so Python 3.15 can read package metadata.
 
 ## 2026-07-23
 
