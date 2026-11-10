@@ -49,7 +49,7 @@ all: g2s_server echo qs as nds ds ds-l snesim libg2s.a errorTest test auto_qs al
 
 depend: .depend Makefile
 
-.depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(wildcard $(SRCS)/*.cpp))))
+.depend: $(subst $(SRCS)/pyDev.cpp,,$(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(wildcard $(SRCS)/*.cpp)))))
 	rm -f ./.depend
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) -MM $^ > ./.depend;
 
@@ -100,6 +100,16 @@ errorTest: errorTest.o
 test: test.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
 
+# Optional: pyDev embeds Python (>= 3.14, with numpy) to prototype algorithms in Python.
+# Not part of `all`. Build with `make pydev PYDEV_PYTHON=/path/to/python3.14t` from build/.
+PYDEV_PYTHON ?= python3
+
+pyDev.o: $(SRCS)/pyDev.cpp $(SRCS)/../include/pyDevAlgorithm.hpp $(SRCS)/../include/pyDevSimulation.hpp ../pydev_config.py
+	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(shell $(PYDEV_PYTHON) ../pydev_config.py --cflags)
+
+pyDev: pyDev.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(shell $(PYDEV_PYTHON) ../pydev_config.py --ldflags)
+
 libg2s.a: DataImage.o
 	$(AR) $(ARFLAGS) $@ $^
 
@@ -146,7 +156,7 @@ install:create_install_path all
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf g2s_server echo test qs as nds ds ds-l errorTest auto_qs snesim
+	rm -rf g2s_server echo test qs as nds ds ds-l errorTest auto_qs snesim pyDev
 	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend

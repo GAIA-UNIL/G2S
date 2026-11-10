@@ -1,0 +1,419 @@
+/*
+ * G2S - pyDev: prototype sequential-simulation algorithms in Python.
+ * Copyright (C) 2018-2026, Mathieu Gravey (gravey.mathieu@gmail.com) and UNIL (University of Lausanne)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// pyDev: C++ handles the path, neighbour search, threading and I/O; a Python
+// class (selected with -pa) predicts each node. Requires Python >= 3.14; use a
+// free-threaded build (python3.14t) to run sample() calls in parallel.
+
+#include "pyDevSimulation.hpp" // includes Python.h first
+
+#include <algorithm>
+#include <chrono>
+#include <climits>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <map>
+#include <numeric>
+#include <random>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <unistd.h>
+
+#include "utils.hpp"
+#include "DataImage.hpp"
+#include "jobManager.hpp"
+#include "jobReporting.hpp"
+
+#ifndef G2S_PYDEV_DEFAULT_PYTHON
+#define G2S_PYDEV_DEFAULT_PYTHON ""
+#endif
+
+namespace {
+
+void printHelp() {
+	printf("pyDev: prototype a sequential simulation in Python.\n"
+	       "  -pa  file[:Class]  Python algorithm (file relative to the PyDevAlgo folder, or absolute path)\n"
+	       "  -di  destination image (mandatory)\n"
+	       "  -n   number of informed neighbours (one value, or one per variable)\n"
+	       "  -ti  training image(s), passed to the Python class\n"
+	       "  -ki  kernel image (neighbourhood); -ks kernel size when -ki is omitted\n"
+	       "  -sp  simulation path; -ii training-image index map; -s seed; -j threads; -csim circular simulation\n"
+	       "  -wd  order neighbours by kernel weight instead of Euclidean distance\n"
+	       "Environment: G2S_PYDEV_PYTHON (interpreter or venv python to use), G2S_PYDEV_ALGO_DIR (PyDevAlgo folder)\n");
+}
+
+std::string directoryOf(const std::string& path) {
+	const size_t slash = path.find_last_of('/');
+	return slash == std::string::npos ? std::string(".") : path.substr(0, slash);
+}
+
+std::string executableDirectory(const char* argv0) {
+	if (!argv0) return ".";
+	char resolved[PATH_MAX];
+	if (realpath(argv0, resolved)) return directoryOf(resolved);
+	return directoryOf(argv0);
+}
+
+bool fileExists(const std::string& path) { return access(path.c_str(), R_OK) == 0; }
+
+// "-pa" value: "file", "file:Class", "dir/file.py:Class", "/abs/file.py".
+// The class defaults to the file name without extension.
+bool resolveAlgorithm(const std::string& spec, const std::string& algoDirectory, std::string& filePath, std::string& className, std::string& error) {
+	std::string filePart = spec;
+	const size_t colon = spec.find_last_of(':');
+	const size_t slash = spec.find_last_of('/');
+	if (colon != std::string::npos && (slash == std::string::npos || colon > slash)) {
+		filePart = spec.substr(0, colon);
+		className = spec.substr(colon + 1);
+	}
+	if (filePart.empty()) { error = "-pa: missing file name"; return false; }
+	if (filePart.size() < 3 || filePart.compare(filePart.size() - 3, 3, ".py") != 0) filePart += ".py";
+	const size_t stemStart = filePart.find_last_of('/') == std::string::npos ? 0 : filePart.find_last_of('/') + 1;
+	if (className.empty()) className = filePart.substr(stemStart, filePart.size() - 3 - stemStart);
+	filePath = (filePart[0] == '/') ? filePart : algoDirectory + "/" + filePart;
+	if (!fileExists(filePath)) { error = "-pa: Python algorithm not found: " + filePath; return false; }
+	return true;
+}
+
+void buildOffsets(g2s::DataImage& kernel, g2s::DistanceType searchDistance, std::vector<std::vector<int> >& offsets) {
+	std::vector<std::vector<int> > all(1);
+	for (size_t dim = 0; dim < kernel._dims.size(); ++dim) {
+		const int radius = int(kernel._dims[dim] / 2);
+		std::vector<std::vector<int> > next;
+		next.reserve(all.size() * size_t(2 * radius + 1));
+		for (const std::vector<int>& prefix : all) {
+			for (int delta = -radius; delta <= radius; ++delta) {
+				next.push_back(prefix);
+				next.back().push_back(delta);
+			}
+		}
+		all.swap(next);
+	}
+	unsigned center = 0;
+	for (int dim = int(kernel._dims.size()) - 1; dim >= 0; --dim) center = center * kernel._dims[dim] + kernel._dims[dim] / 2;
+
+	struct Entry { size_t index; float priority; };
+	std::vector<Entry> entries;
+	entries.reserve(all.size());
+	for (size_t i = 0; i < all.size(); ++i) {
+		bool zero = true;
+		for (int value : all[i]) zero &= (value == 0);
+		if (zero) continue; // the node itself is always row 0
+		unsigned flat = 0;
+		if (!kernel.indexWithDelta(flat, center, all[i])) continue;
+		float priority = 0.f;
+		bool usable = false;
+		for (unsigned v = 0; v < kernel._nbVariable; ++v) {
+			const float weight = kernel._data[flat * kernel._nbVariable + v];
+			if (std::isfinite(weight) && weight != 0.f) usable = true;
+			if (std::isfinite(weight)) priority = std::max(priority, std::fabs(weight));
+		}
+		if (!usable) continue; // zero/NaN weight: outside the neighbourhood
+		if (searchDistance != g2s::KERNEL) {
+			float distance2 = 0.f;
+			for (int value : all[i]) distance2 += float(value * value);
+			priority = -distance2;
+		}
+		entries.push_back({ i, priority });
+	}
+	std::stable_sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.priority > b.priority; });
+	offsets.clear();
+	offsets.reserve(entries.size());
+	for (const Entry& entry : entries) offsets.push_back(all[entry.index]);
+}
+
+} // namespace
+
+int main(int argc, char const* argv[]) {
+	std::multimap<std::string, std::string> arg = g2s::argumentReader(argc, argv);
+
+	jobIdType uniqueID = -1;
+	FILE* reportFile = nullptr;
+	bool run = true;
+	if (arg.count("-r") > 1) {
+		fprintf(stderr, "only one report file is possible\n");
+		run = false;
+	} else if (arg.count("-r") == 1) {
+		reportFile = g2s::reporting::openReportFile((arg.find("-r")->second).c_str(), uniqueID);
+		if (!reportFile) { fprintf(stderr, "Impossible to open the report file\n"); run = false; }
+	}
+	arg.erase("-r");
+	if (!reportFile) reportFile = stderr;
+	if (arg.count("-id") == 1) {
+		const long parsedId = atol((arg.find("-id")->second).c_str());
+		if (parsedId >= 0) uniqueID = jobIdType(parsedId);
+	}
+	arg.erase("-id");
+	g2s::reporting::markStarted(reportFile, "pyDev");
+
+	// Full message (Python traceback included) goes to the log; the error
+	// record is single-line: first line + the exception line.
+	auto failWith = [&](const std::string& message, int code) {
+		fprintf(reportFile, "error: %s\n", message.c_str());
+		std::string summary = message.substr(0, message.find('\n'));
+		const size_t lastBreak = message.find_last_of('\n');
+		if (lastBreak != std::string::npos && lastBreak + 1 < message.size()) {
+			if (!summary.empty() && summary.back() == ':') summary.pop_back();
+			summary += ": " + message.substr(lastBreak + 1);
+		}
+		g2s::reporting::recordError(reportFile, summary, code);
+		return code;
+	};
+
+	if (arg.count("-h") >= 1 || arg.count("--help") >= 1) { printHelp(); return 0; }
+	for (int i = 0; i < argc; ++i) fprintf(reportFile, "%s ", argv[i]);
+	fprintf(reportFile, "\n");
+
+	unsigned nbThreads = 1;
+	{
+		unsigned available = std::max(1u, std::thread::hardware_concurrency());
+		for (const char* flag : { "-j", "--jobs" }) {
+			auto it = arg.lower_bound(flag);
+			if (it != arg.upper_bound(flag)) {
+				float value = float(atof(it->second.c_str()));
+				if (std::roundf(value) != value) value = std::max(std::floor(value * float(available)), 1.f);
+				nbThreads = unsigned(std::max(1.f, value));
+			}
+			arg.erase(flag);
+		}
+	}
+
+	std::string algorithmSpec;
+	if (arg.count("-pa") == 1) algorithmSpec = arg.find("-pa")->second;
+	else { fprintf(reportFile, "error: -pa (Python algorithm) is mandatory\n"); run = false; }
+	arg.erase("-pa");
+
+	std::vector<std::string> sourceFileNames;
+	for (auto it = arg.lower_bound("-ti"); it != arg.upper_bound("-ti"); ++it) sourceFileNames.push_back(it->second);
+	arg.erase("-ti");
+
+	std::string targetFileName, kernelFileName, simulationPathFileName, idImageFileName;
+	if (arg.count("-di") == 1) targetFileName = arg.find("-di")->second;
+	else { fprintf(reportFile, "error: -di is mandatory\n"); run = false; }
+	arg.erase("-di");
+	if (arg.count("-ki") == 1) kernelFileName = arg.find("-ki")->second;
+	arg.erase("-ki");
+	if (arg.count("-sp") == 1) simulationPathFileName = arg.find("-sp")->second;
+	arg.erase("-sp");
+	if (arg.count("-ii") == 1) idImageFileName = arg.find("-ii")->second;
+	arg.erase("-ii");
+
+	std::string outputFilename = std::to_string(uniqueID);
+	std::string outputIndexFilename = std::string("id_") + std::to_string(uniqueID);
+	if (arg.count("-o") == 1) outputFilename = arg.find("-o")->second;
+	arg.erase("-o");
+	if (arg.count("-oi") == 1) outputIndexFilename = arg.find("-oi")->second;
+	arg.erase("-oi");
+
+	std::vector<unsigned> nbNeighbors;
+	for (auto it = arg.lower_bound("-n"); it != arg.upper_bound("-n"); ++it) {
+		const long value = atol(it->second.c_str());
+		if (value <= 0) { fprintf(reportFile, "error: -n expects positive integers\n"); run = false; }
+		else nbNeighbors.push_back(unsigned(value));
+	}
+	arg.erase("-n");
+	if (nbNeighbors.empty()) { fprintf(reportFile, "error: -n is mandatory\n"); run = false; }
+
+	unsigned seed = unsigned(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+	if (arg.count("-s") == 1) seed = unsigned(atol(arg.find("-s")->second.c_str()));
+	arg.erase("-s");
+
+	g2s::DistanceType searchDistance = g2s::EUCLIDIEN;
+	if (arg.count("-wd") >= 1) searchDistance = g2s::KERNEL;
+	arg.erase("-wd");
+	arg.erase("-ed");
+	const bool circularSimulation = arg.count("-csim") >= 1;
+	arg.erase("-csim");
+	int kernelSize = -1;
+	if (arg.count("-ks") == 1) kernelSize = atoi(arg.find("-ks")->second.c_str());
+	arg.erase("-ks");
+
+	std::vector<g2s::DataImage::VariableType> requestedTypes;
+	for (auto it = arg.lower_bound("-dt"); it != arg.upper_bound("-dt"); ++it) {
+		std::string normalized = it->second;
+		for (char& c : normalized) if (c == ',' || c == ';') c = ' ';
+		std::stringstream stream(normalized);
+		float value = 0.f;
+		while (stream >> value) requestedTypes.push_back(value == 0.f ? g2s::DataImage::Continuous : g2s::DataImage::Categorical);
+	}
+	arg.erase("-dt");
+
+	for (auto it = arg.begin(); it != arg.end(); ++it)
+		fprintf(reportFile, "%s %s <== ignored !\n", it->first.c_str(), it->second.c_str());
+
+	if (!run) return failWith("invalid parameters, simulation interrupted", 2);
+
+	const char* algoDirectoryEnv = getenv("G2S_PYDEV_ALGO_DIR");
+	const std::string algoDirectory = (algoDirectoryEnv && *algoDirectoryEnv) ? std::string(algoDirectoryEnv) : executableDirectory(argv[0]) + "/../PyDevAlgo";
+	std::string algorithmFile, algorithmClass, error;
+	if (!resolveAlgorithm(algorithmSpec, algoDirectory, algorithmFile, algorithmClass, error)) return failWith(error, 2);
+
+	// ---- load data
+	std::vector<g2s::DataImage> TIs;
+	for (size_t i = 0; i < sourceFileNames.size(); ++i) {
+		TIs.push_back(g2s::DataImage::createFromFile(sourceFileNames[i]));
+		g2s::reporting::logInput(reportFile, "-ti[" + std::to_string(i) + "]", sourceFileNames[i], TIs.back());
+		if (TIs.back().isEmpty()) return failWith("failed to load -ti " + sourceFileNames[i], 3);
+	}
+	g2s::DataImage DI = g2s::DataImage::createFromFile(targetFileName);
+	g2s::reporting::logInput(reportFile, "-di", targetFileName, DI);
+	if (DI.isEmpty()) return failWith("failed to load -di " + targetFileName, 3);
+	if (!requestedTypes.empty()) {
+		if (requestedTypes.size() != DI._nbVariable) return failWith("-dt must provide one value per variable", 2);
+		DI._types = requestedTypes;
+	}
+
+	g2s::DataImage kernel;
+	if (!kernelFileName.empty()) {
+		kernel = g2s::DataImage::createFromFile(kernelFileName);
+		g2s::reporting::logInput(reportFile, "-ki", kernelFileName, kernel);
+		if (kernel.isEmpty()) return failWith("failed to load -ki " + kernelFileName, 3);
+		if (kernel._dims.size() == DI._dims.size() + 1) kernel.convertFirstDimInVariable();
+		if (kernel._dims.size() != DI._dims.size()) return failWith("-ki must have the same number of dimensions as -di", 2);
+	} else {
+		std::vector<unsigned> size = DI._dims;
+		if (kernelSize > 0) {
+			std::fill(size.begin(), size.end(), unsigned(kernelSize));
+		} else {
+			for (g2s::DataImage& ti : TIs) {
+				if (ti._dims.size() != size.size()) continue;
+				for (size_t d = 0; d < size.size(); ++d) size[d] = std::min(size[d], ti._dims[d] / 2 + 1);
+			}
+		}
+		for (unsigned& s : size) s = std::max(1u, s) | 1u; // odd, so the node is centred
+		kernel = g2s::DataImage::genearteKernel(std::vector<g2s::KernelType>(DI._nbVariable, g2s::UNIFORM), size,
+		                                        std::vector<float>(DI._nbVariable, 1.f), std::vector<float>(DI._nbVariable, 0.f));
+	}
+	std::vector<std::vector<int> > offsets;
+	buildOffsets(kernel, searchDistance, offsets);
+
+	// ---- path
+	std::mt19937 randomGenerator(seed);
+	g2s::DataImage simulationPath;
+	std::vector<g2s_path_index_t> path;
+	const g2s_path_index_t cellCount = DI.dataSize() / DI._nbVariable;
+	if (simulationPathFileName.empty()) {
+		for (g2s_path_index_t cell = 0; cell < cellCount; ++cell) {
+			bool complete = true;
+			for (unsigned v = 0; v < DI._nbVariable; ++v) complete &= !std::isnan(DI._data[cell * DI._nbVariable + v]);
+			if (!complete) path.push_back(cell);
+		}
+		std::shuffle(path.begin(), path.end(), randomGenerator);
+	} else {
+		simulationPath = g2s::DataImage::createFromFile(simulationPathFileName);
+		g2s::reporting::logInput(reportFile, "-sp", simulationPathFileName, simulationPath);
+		if (simulationPath.isEmpty()) return failWith("failed to load -sp " + simulationPathFileName, 3);
+		if (simulationPath._dims != DI._dims || simulationPath._nbVariable != 1)
+			return failWith("-sp must have the same grid as -di with one value per cell (pyDev only supports vector simulation)", 2);
+		std::vector<g2s_path_index_t> order(cellCount);
+		std::iota(order.begin(), order.end(), g2s_path_index_t(0));
+		const float* priority = simulationPath._data;
+		std::stable_sort(order.begin(), order.end(), [priority](g2s_path_index_t a, g2s_path_index_t b) {
+			const bool nanA = std::isnan(priority[a]), nanB = std::isnan(priority[b]);
+			if (nanA != nanB) return !nanA;
+			return priority[a] < priority[b];
+		});
+		for (g2s_path_index_t cell : order) {
+			const float value = priority[cell];
+			if (std::isinf(value) && value < 0) continue; // -inf: not simulated
+			path.push_back(cell);
+		}
+	}
+
+	std::vector<float> uniformSeeds(path.size());
+	std::uniform_real_distribution<float> uniform(0.f, 1.f);
+	for (float& value : uniformSeeds) {
+		do { value = uniform(randomGenerator); } while (value >= 1.f);
+	}
+
+	g2s::DataImage idImage;
+	if (!idImageFileName.empty()) {
+		idImage = g2s::DataImage::createFromFile(idImageFileName);
+		g2s::reporting::logInput(reportFile, "-ii", idImageFileName, idImage);
+		if (idImage.isEmpty() || idImage._dims != DI._dims) return failWith("-ii must have the same grid as -di", 2);
+	}
+
+	g2s::DataImage indexImage = DI.emptyCopy(true);
+	indexImage.setEncoding(g2s::DataImage::UInteger);
+	memset(indexImage._data, 0, sizeof(unsigned) * indexImage.dataSize());
+
+	// ---- Python
+	const char* pythonEnv = getenv("G2S_PYDEV_PYTHON");
+	const std::string pythonExecutable = (pythonEnv && *pythonEnv) ? std::string(pythonEnv) : std::string(G2S_PYDEV_DEFAULT_PYTHON);
+	g2s::pydev::Runtime runtime;
+	g2s::pydev::Algorithm algorithm;
+	auto shutdownPython = [&]() {
+		runtime.attachMainThread();
+		algorithm.release();
+		runtime.finalize();
+	};
+	if (!runtime.initialize(pythonExecutable, error)) return failWith(error, 4);
+	if (!algorithm.load(algorithmFile, algorithmClass, TIs, kernel, DI, simulationPathFileName.empty() ? nullptr : &simulationPath, error)
+	    || !algorithm.build(nbNeighbors, error)) {
+		shutdownPython();
+		return failWith(error, 4);
+	}
+	const bool gil = runtime.gilEnabled();
+	g2s::reporting::logParameter(reportFile, "python_version", runtime.version());
+	g2s::reporting::logParameter(reportFile, "python_gil", gil ? "enabled" : "disabled");
+	g2s::reporting::logParameter(reportFile, "python_algorithm", algorithmFile + ":" + algorithmClass);
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "neighbor_offsets", std::to_string(offsets.size()));
+	g2s::reporting::logParameter(reportFile, "simulation_path_size", std::to_string((unsigned long long)path.size()));
+	if (gil && nbThreads > 1)
+		g2s::reporting::recordWarning(reportFile, "the Python GIL is enabled: only one thread at a time runs Python code in sample(); build pyDev with a free-threaded Python (3.14t) to run sample() in parallel");
+
+	g2s::pydev::SimulationSetup setup;
+	setup.nbThreads = nbThreads;
+	setup.circularSimulation = circularSimulation;
+	setup.nbNeighbors = nbNeighbors;
+	setup.offsets = offsets;
+	setup.path = path.data();
+	setup.pathLength = g2s_path_index_t(path.size());
+	setup.uniformSeeds = uniformSeeds.data();
+	setup.trainingIndexImage = idImage.isEmpty() ? nullptr : &idImage;
+
+	runtime.detachMainThread();
+	const auto begin = std::chrono::high_resolution_clock::now();
+	bool ok = g2s::pydev::simulate(reportFile, DI, algorithm, setup, reinterpret_cast<unsigned*>(indexImage._data), error);
+	const auto end = std::chrono::high_resolution_clock::now();
+	runtime.attachMainThread();
+	if (ok) ok = algorithm.finalize(error);
+	shutdownPython();
+	if (!ok) return failWith(error, 5);
+
+	const double time = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+	fprintf(reportFile, "computation time: %7.2f s\n", time / 1000);
+	fprintf(reportFile, "computation time: %.0f ms\n", time);
+	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::markFinished(reportFile, time);
+
+	indexImage.write(outputIndexFilename);
+	DI.write(outputFilename);
+	indexImage.write(std::string("im_2_") + std::to_string(uniqueID));
+	DI.write(std::string("im_1_") + std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
+	g2s::reporting::recordOutputDescriptor(reportFile, 2, "indexmap", std::string("im_2_") + std::to_string(uniqueID));
+	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), DI);
+	g2s::reporting::logOutput(reportFile, "index_image_runtime", std::string("im_2_") + std::to_string(uniqueID), indexImage);
+	return 0;
+}
