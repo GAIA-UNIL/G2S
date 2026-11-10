@@ -2,6 +2,11 @@
 
 ## 2026-11-10
 
+- Bumped the project and Python package version to `1.0.1`.
+- Pinned Linux Python 3.9 publication jobs to Ubuntu 22.04 while retaining the manylinux 2.28 wheel build.
+- Added CPython 3.14t wheels on Linux, Apple Silicon macOS, and Windows, with the free-threaded Windows build macro and an explicit native-module declaration that importing G2S does not require the GIL.
+- Released the Python interpreter thread around all ZeroMQ sends and receives, preserving per-call connections and allowing concurrent uploads, job submissions, and downloads. Made thread-state restoration exception-safe, retained input references for each call, fixed `-dt` reference ownership and temporary array/frame leaks, and preserved detached polling after warnings.
+- Added installed-wheel regression coverage using a concurrent loopback protocol fixture, including request gates, result isolation, asynchronous controls, legacy results, worker errors, and the disabled-GIL import check.
 - Added `docs/migration-1.0.md`, a guide for updating scripts to the G2S 1.0 result object (named fields, `-legacy_output`, asynchronous calls, `-returnMeta`, per-algorithm field names), linked from the interface page and the docs navigation.
 - Added a 1.0 migration notice to the docs home page (`docs/briefOverview.md`) and to `README.md`. **These two notices are temporary**: remove them once most users have moved to 1.0 (for example at the next minor release). The links from `docs/usingTheInterfaces.md` and the navigation entry are permanent.
 - Merged `master` into `new-interfaces`: browser runs (`-sa browser`) now return the same result object as server runs, and the browser Python example uses it (positional copy in `legacy_example/python/`).

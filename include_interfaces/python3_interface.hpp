@@ -49,12 +49,55 @@
 class InterfaceTemplatePython3 : public InterfaceTemplate {
 private:
     PyThreadState* _save = nullptr;
+    std::vector<PyObject*> _ownedInputs;
+
+    PyObject* ownInput(PyObject* value) {
+        if (!value) throw std::runtime_error("Unable to prepare Python input");
+        _ownedInputs.push_back(value);
+        return value;
+    }
+
+    void addInput(std::multimap<std::string, std::any>& inputs,
+                  const std::string& key, PyObject* value) {
+        Py_INCREF(value);
+        inputs.emplace(key, ownInput(value));
+    }
+
+    // Polling already detaches the thread. Nested socket operations must leave
+    // that state unchanged, including when ZeroMQ throws a C++ exception.
+    class SocketThreadGuard {
+        InterfaceTemplatePython3& interface;
+        bool detachedHere;
+    public:
+        explicit SocketThreadGuard(InterfaceTemplatePython3& value)
+            : interface(value), detachedHere(value._save == nullptr) {
+            if (detachedHere) interface.unlockThread();
+        }
+        ~SocketThreadGuard() {
+            if (detachedHere) interface.lockThread();
+        }
+    };
 
 public:
+    ~InterfaceTemplatePython3() {
+        lockThread();
+        for (PyObject* value : _ownedInputs) Py_DECREF(value);
+    }
+
     /* ------------ threading ------------ */
-    void unlockThread() override { _save = PyEval_SaveThread(); }
+    void unlockThread() override { if (!_save) _save = PyEval_SaveThread(); }
     void lockThread()override  {
         if (_save) { PyEval_RestoreThread(_save); _save = nullptr; }
+    }
+
+    bool sendMessage(zmq::socket_t& socket, zmq::message_t& message) override {
+        SocketThreadGuard guard(*this);
+        return bool(socket.send(message, zmq::send_flags::none));
+    }
+
+    bool receiveMessage(zmq::socket_t& socket, zmq::message_t& message) override {
+        SocketThreadGuard guard(*this);
+        return bool(socket.recv(message));
     }
 
     bool userRequestInteruption() override{
@@ -245,11 +288,13 @@ public:
     }
 
     void sendWarning(std::string val) override {
-        if (_save) lockThread();
+        const bool wasDetached = _save != nullptr;
+        if (wasDetached) lockThread();
         fprintf(stderr, "\033[38;5;208m%s\033[0m\n", val.c_str());
         fflush(stderr);
-        PyErr_WarnFormat(PyExc_Warning, 2, "g2s:warning ==> %s", val.c_str());
-        if (_save) unlockThread();
+        if (PyErr_WarnFormat(PyExc_Warning, 2, "g2s:warning ==> %s", val.c_str()) < 0)
+            throw std::runtime_error("G2S warning promoted to exception");
+        if (wasDetached) unlockThread();
     }
 
     void eraseAndPrint(std::string val) override {
@@ -337,8 +382,10 @@ public:
         int dimData = PyArray_NDIM_SAFE(prh) - (nbVar > 1);
         const npy_intp* dims = PyArray_DIMS_SAFE(prh);
 
-        if (nbVar > 1 && dims[dimData] != nbVar)
+        if (nbVar > 1 && (dimData < 0 || dims[dimData] != nbVar)) {
+            Py_DECREF(prh);
             sendError("Last dimension of input matrix does not match -dt size");
+        }
 
         std::vector<unsigned> dimArray(dimData);
         for (int i = 0; i < dimData; ++i) dimArray[i] = dims[i];
@@ -380,6 +427,7 @@ public:
         COPY_TYPED(int64_t, NPY_INT64)
         COPY_TYPED(bool, NPY_BOOL)
 #undef COPY_TYPED
+        Py_DECREF(prh);
         return image;
     }
 
@@ -391,41 +439,42 @@ public:
     void addInputsToInputsMap(std::multimap<std::string, std::any>& inputs,
                               const std::string& key, PyObject* value) {
         if (isSingleMatrixUploadParameter(key) && !PyUnicode_Check(value)) {
-            inputs.emplace(key, value);
+            addInput(inputs, key, value);
             return;
         }
         if (PyTuple_Check(value)) {
             for (Py_ssize_t i = 0; i < PyTuple_Size(value); ++i)
-                inputs.emplace(key, PyTuple_GetItem(value, i));
+                addInput(inputs, key, PyTuple_GetItem(value, i));
             return;
         }
         if (PyList_Check(value)) {
-            for (Py_ssize_t i = 0; i < PyList_Size(value); ++i)
-                inputs.emplace(key, PyList_GetItem(value, i));
+            // Take an immutable snapshot before retaining individual items.
+            PyObject* snapshot = ownInput(PySequence_Tuple(value));
+            for (Py_ssize_t i = 0; i < PyTuple_Size(snapshot); ++i)
+                addInput(inputs, key, PyTuple_GetItem(snapshot, i));
             return;
         }
         if (PySet_Check(value)) {
             if (PyObject* it = PyObject_GetIter(value)) {
                 while (PyObject* obj = PyIter_Next(it)) {
-                    inputs.emplace(key, obj);
-                    Py_DECREF(obj);
+                    inputs.emplace(key, ownInput(obj));
                 }
                 Py_DECREF(it);
             }
+            if (PyErr_Occurred()) throw std::runtime_error("Unable to iterate Python input");
             return;
         }
         if (PyArray_Check(value) && PyArray_ISOBJECT_SAFE(value)) {
             for (Py_ssize_t p = 0; p < PyArray_SIZE_SAFE(value); ++p) {
                 auto ptr = PyArray_GETPTR1_SAFE(value, p);
-                inputs.emplace(key, PyArray_GETITEM_SAFE(value, ptr));
+                inputs.emplace(key, ownInput(PyArray_GETITEM_SAFE(value, ptr)));
             }
             return;
         }
-        inputs.emplace(key, value);
+        addInput(inputs, key, value);
     }
 
     inline PyObject * runStandardCommunicationPython(PyObject *self, PyObject *args, PyObject *keywds, int numberOfOutput=INT_MAX){
-        setbuf(stdout, NULL);
         std::multimap<std::string, std::any> inputs;
         std::multimap<std::string, std::any> outputs;
 
@@ -446,7 +495,7 @@ public:
                         std::string buffAsStdStr = buff;
                         printf("%s\n",buffAsStdStr.c_str());
                     }
-                    return Py_None;
+                    Py_RETURN_NONE;
                 }
             }
             std::vector<int> listOfIndex;
@@ -494,15 +543,18 @@ public:
                 int i=0;
                 for (auto it=inputs.equal_range("-dt").first; it!=inputs.equal_range("-dt").second; ++it)
                 {
+                    Py_INCREF(std::any_cast<PyObject*>(it->second));
                     PyList_SetItem(list,i,std::any_cast<PyObject*>(it->second));
                     i++;
                 }
                 inputs.erase("-dt");
-                addInputsToInputsMap(inputs,"-dt",PyArray_FromAny(list,PyArray_DescrFromType(NPY_FLOAT), 1,1, 0, NULL));
+                PyObject* dt=PyArray_FromAny(list,PyArray_DescrFromType(NPY_FLOAT), 1,1, 0, NULL);
+                Py_DECREF(list);
+                addInputsToInputsMap(inputs,"-dt",ownInput(dt));
             }else{ // it's a numpy array
                 PyArrayObject* dt=(PyArrayObject*)std::any_cast<PyObject*>(inputs.find("-dt")->second);
                 inputs.erase("-dt");
-                addInputsToInputsMap(inputs,"-dt",PyArray_CastToType(dt,PyArray_DescrFromType(NPY_FLOAT),0));
+                addInputsToInputsMap(inputs,"-dt",ownInput(PyArray_CastToType(dt,PyArray_DescrFromType(NPY_FLOAT),0)));
             }
         }
 
@@ -553,6 +605,12 @@ public:
         try{
             runStandardCommunication(inputs, outputs, numberOfOutput);
         }catch(const std::exception& e){
+            lockThread();
+            if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError, e.what());
+            for (const auto& output : outputs) {
+                if (output.second.type() == typeid(PyObject*))
+                    Py_DECREF(std::any_cast<PyObject*>(output.second));
+            }
             return nullptr;
         }
 
@@ -569,7 +627,7 @@ public:
         }
 
         if(outputs.size()==0){
-            return Py_None;
+            Py_RETURN_NONE;
         }
 
         int nlhs=std::min(numberOfOutput,std::max(int(outputs.size()),1));
@@ -641,7 +699,7 @@ public:
         }
         if(nlhs==0){
             Py_DECREF(pyResult);
-            return Py_None;
+            Py_RETURN_NONE;
         }
 
 
