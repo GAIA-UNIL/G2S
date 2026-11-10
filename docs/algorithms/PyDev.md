@@ -112,6 +112,8 @@ When the class defines `sample_batch()`, pyDev predicts several nodes per Python
 
 Each node still sees exactly the neighbours it would see in per-node mode, so for a given seed the result is the same as with `sample()` (up to floating-point differences between your two implementations). The job log reports `python_calls` and `batch_average_size`.
 
+Batching pays off when each Python call is expensive (neural networks, GPUs). For a cheap model, per-node `sample()` calls running in parallel on a free-threaded Python can be as fast or faster.
+
 How full batches can be depends on the path: early in a random path most nodes depend on recently simulated ones, so batches are small; later they fill up. Large grids allow larger batches. As an indication, on a 150 &times; 150 grid with `-n 30`, batches of 8, 32, 64 and 256 averaged 7.9, 28, 48 and 81 nodes.
 
 ## Examples
@@ -122,6 +124,7 @@ The PyDevAlgo folder contains three sequential Gaussian simulation (ordinary kri
 |---|---|
 | `sgs` | Exponential covariance. The index map stores the number of informed neighbours. Defines both `sample()` and a batched `sample_batch()` (one linear solve per batch), a template for ML models. |
 | `sgsCP` | Same model with a constant path (`-sp`). The kriging weights of each path index are stored on the first run and replayed afterwards (index map: 1 computed, 2 replayed). |
+| `mlpTemplate` | Batch-mode template for machine learning: a small neural network (NumPy only) trained on a categorical 2D TI in `build()` (weights cached), predicting a whole batch per forward pass in `sample_batch()`. A starting point to plug in PyTorch or JAX, not a tuned simulator. |
 | `sgsTiCP` | Covariance maps given as `-ti` (lag 0 at the centre), optionally one per region with `-ii`. Weights are cached as in `sgsCP`. |
 
 Client-side scripts are in `example/python/pydev/`:
