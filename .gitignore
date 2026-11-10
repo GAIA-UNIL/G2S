@@ -97,6 +97,8 @@ build/python-build/dist
 __pycache__/
 .pytest_cache/
 .venv/
+.venv-*/
+# Optional local environments for regular and free-threaded Python regression tests.
 example/.venv/
 # Example smoke runners should not require tracked local environments.
 # Python example dependencies such as requests/tifffile are installed into local virtualenvs, not tracked.

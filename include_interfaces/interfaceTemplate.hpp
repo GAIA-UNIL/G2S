@@ -63,6 +63,13 @@ public:
 
 	virtual void unlockThread(){}
 	virtual void lockThread(){}
+	// Bindings may detach their interpreter thread around blocking socket I/O.
+	virtual bool sendMessage(zmq::socket_t& socket, zmq::message_t& message){
+		return bool(socket.send(message, zmq::send_flags::none));
+	}
+	virtual bool receiveMessage(zmq::socket_t& socket, zmq::message_t& message){
+		return bool(socket.recv(message));
+	}
 	virtual void updateDisplay(){};
 	virtual bool userRequestInteruption(){return false;}
 
@@ -421,12 +428,12 @@ public:
 		memcpy (positionInTheStream, hashInHexa, 64 * sizeof(unsigned char));
 		positionInTheStream+=64 * sizeof(unsigned char);
 
-		if(!socket.send (request,zmq::send_flags::none) && withTimeout){
+		if(!sendMessage(socket, request) && withTimeout){
 			sendError("timeout sending data");
 		}
 
 		zmq::message_t reply;
-		if(!socket.recv (reply) && withTimeout){
+		if(!receiveMessage(socket, reply) && withTimeout){
 			sendError("timeout receive data");
 		}
 		if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -449,12 +456,12 @@ public:
 			positionInTheStream+=fullsize;
 			
 
-			if(!socket.send (request,zmq::send_flags::none) && withTimeout){
+			if(!sendMessage(socket, request) && withTimeout){
 				sendError("timeout sending data");
 			}
 
 			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
+			if(!receiveMessage(socket, reply) && withTimeout){
 				sendError("timeout receive data");
 			}
 			if(reply.size()!=sizeof(int)) printf( "%s\n", "wrong answer in upload!");
@@ -628,12 +635,12 @@ public:
 		memcpy(positionInTheStream,hashInHexa,64*sizeof(unsigned char));
 		positionInTheStream+=64*sizeof(unsigned char);
 
-		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+		if(!sendMessage(socket, request) && withTimeout){
 			sendError("timeout sending json existence request");
 		}
 
 		zmq::message_t reply;
-		if(!socket.recv(reply) && withTimeout){
+		if(!receiveMessage(socket, reply) && withTimeout){
 			sendError("timeout receiving json existence response");
 		}
 		if(reply.size()!=sizeof(int)) sendError("wrong answer if json data exist!");
@@ -655,12 +662,12 @@ public:
 				uploadPos+=payloadSize;
 			}
 
-			if(!socket.send(uploadRequest,zmq::send_flags::none) && withTimeout){
+			if(!sendMessage(socket, uploadRequest) && withTimeout){
 				sendError("timeout sending json upload");
 			}
 
 			zmq::message_t uploadReply;
-			if(!socket.recv(uploadReply) && withTimeout){
+			if(!receiveMessage(socket, uploadReply) && withTimeout){
 				sendError("timeout receive json upload");
 			}
 			if(uploadReply.size()!=sizeof(int)) sendError("wrong answer in json upload");
@@ -726,9 +733,9 @@ public:
 		zmq::message_t request (sizeof(infoContainer)+sizeof(jobIdType));
 		memcpy(request.data (), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof(jobIdType));
-		socket.send (request,zmq::send_flags::none);
+		sendMessage(socket, request);
 		zmq::message_t reply;
-		socket.recv (reply);
+		receiveMessage(socket, reply);
 		
 		//if(!silent)sendError("Ctrl C, user interrupted");
 	}
@@ -741,11 +748,11 @@ public:
 		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
 		memcpy(request.data(), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
-		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+		if(!sendMessage(socket, request) && withTimeout){
 			sendError("timeout asking for text artifact");
 		}
 		zmq::message_t reply;
-		if(!socket.recv(reply) && withTimeout){
+		if(!receiveMessage(socket, reply) && withTimeout){
 			sendError("timeout receiving text artifact");
 		}
 		if(reply.size()==0) return "";
@@ -760,11 +767,11 @@ public:
 		memset((char*)request.data()+sizeof(infoContainer), 0, 64);
 		memcpy(request.data(), &task, sizeof(infoContainer));
 		memcpy((char*)request.data()+sizeof(infoContainer), artifactName.c_str(), std::min<size_t>(artifactName.size(), 63));
-		if(!socket.send(request,zmq::send_flags::none) && withTimeout){
+		if(!sendMessage(socket, request) && withTimeout){
 			sendError("timeout checking text artifact");
 		}
 		zmq::message_t reply;
-		if(!socket.recv(reply) && withTimeout){
+		if(!receiveMessage(socket, reply) && withTimeout){
 			sendError("timeout receiving text artifact status");
 		}
 		return reply.size()==sizeof(int) && *((int*)reply.data())==3;
@@ -949,11 +956,11 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request,zmq::send_flags::none) ){
+			if(!sendMessage(socket, request) ){
 				serverStatus=-1;
 			}
 			zmq::message_t reply;
-			if(serverStatus==0 && !socket.recv (reply) ){
+			if(serverStatus==0 && !receiveMessage(socket, reply) ){
 				serverStatus=-2;
 			}
 			if(serverStatus==0 && reply.size()==sizeof(int))
@@ -973,12 +980,12 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+			if(!sendMessage(socket, request) && withTimeout ){
 				done=true;
 				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
 			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
+			if(!receiveMessage(socket, reply) && withTimeout){
 				done=true;
 				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
@@ -1003,12 +1010,12 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+			if(!sendMessage(socket, request) && withTimeout ){
 				done=true;
 				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
 			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
+			if(!receiveMessage(socket, reply) && withTimeout){
 				done=true;
 				sendError("The server is probably off-line, please execute first ./server. If you try to connect to a remote server maybe the network connection  ");
 			}
@@ -1030,7 +1037,7 @@ public:
 
 			zmq::message_t request (sizeof(infoContainer));
 			memcpy(request.data (), &task, sizeof(infoContainer));
-			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+			if(!sendMessage(socket, request) && withTimeout ){
 				{
 					done=true;
 					sendError("fail to shutdown the server");
@@ -1108,12 +1115,12 @@ public:
 			zmq::message_t request (sizeof(infoContainer)+strlen(jsonJob_c));
 			memcpy(request.data (), &task, sizeof(infoContainer));
 			memcpy((char*)request.data()+sizeof(infoContainer),jsonJob_c,strlen(jsonJob_c));
-			if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+			if(!sendMessage(socket, request) && withTimeout ){
 				sendError("timeout sending job");
 			}
 
 			zmq::message_t reply;
-			if(!socket.recv (reply) && withTimeout){
+			if(!receiveMessage(socket, reply) && withTimeout){
 				sendError("timeout starting job, maybe job run on server !!");
 			}
 			if(reply.size()!=sizeof(jobIdType) && !silentMode) printf( "%s\n", "wrong answer !");
@@ -1170,11 +1177,11 @@ public:
 				zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
 				memcpy(request.data (), &task, sizeof(infoContainer));
 				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-				if(!socket.send (request,zmq::send_flags::none)){
+				if(!sendMessage(socket, request)){
 					continue;
 				}
 				zmq::message_t reply;
-				if(!socket.recv (reply) && withTimeout){
+				if(!receiveMessage(socket, reply) && withTimeout){
 					continue;
 				}
 
@@ -1220,11 +1227,11 @@ public:
 				zmq::message_t request(sizeof(infoContainer)+sizeof( jobIdType ));
 				memcpy(request.data(), &task, sizeof(infoContainer));
 				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-				if(!socket.send (request,zmq::send_flags::none)){
+				if(!sendMessage(socket, request)){
 					continue;
 				}
 				zmq::message_t reply;
-				if(!socket.recv (reply) && withTimeout){
+				if(!receiveMessage(socket, reply) && withTimeout){
 					continue;
 				}
 
@@ -1261,12 +1268,12 @@ public:
 							memcpy (positionInTheStream, nameFile_local, 64 * sizeof(unsigned char));
 							positionInTheStream+=64 * sizeof(unsigned char);
 
-							if(!socket.send (request,zmq::send_flags::none) && withTimeout){
+							if(!sendMessage(socket, request) && withTimeout){
 								sendError("timeout sending data");
 							}
 
 							zmq::message_t reply;
-							if(!socket.recv (reply) && withTimeout){
+							if(!receiveMessage(socket, reply) && withTimeout){
 								sendError("timeout receive data");
 							}
 							if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -1284,11 +1291,11 @@ public:
 							memcpy (request.data(), &task, sizeof(infoContainer));
 							memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_local, 64);
 							//std::cout << "ask for data" << std::endl;
-							if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+							if(!sendMessage(socket, request) && withTimeout ){
 								sendError("timeout asking for data");
 							}
 							zmq::message_t reply;
-							if(!socket.recv (reply) && withTimeout){
+							if(!receiveMessage(socket, reply) && withTimeout){
 								sendError("timeout : get data dont answer");
 							}
 							
@@ -1344,12 +1351,12 @@ public:
 				memcpy (positionInTheStream, nameFile_local, 64 * sizeof(unsigned char));
 				positionInTheStream+=64 * sizeof(unsigned char);
 
-				if(!socket.send (request,zmq::send_flags::none) && withTimeout){
+				if(!sendMessage(socket, request) && withTimeout){
 					sendError("timeout sending data");
 				}
 
 				zmq::message_t reply;
-				if(!socket.recv (reply) && withTimeout){
+				if(!receiveMessage(socket, reply) && withTimeout){
 					sendError("timeout receive data");
 				}
 				if(reply.size()!=sizeof(int)) sendError("wrong answer if data exist!");
@@ -1367,11 +1374,11 @@ public:
 				memcpy (request.data(), &task, sizeof(infoContainer));
 				memcpy ((char*)request.data()+sizeof(infoContainer), nameFile_local, 64);
 				//std::cout << "ask for data" << std::endl;
-				if(!socket.send (request,zmq::send_flags::none) && withTimeout ){
+				if(!sendMessage(socket, request) && withTimeout ){
 					sendError("timeout asking for data");
 				}
 				zmq::message_t reply;
-				if(!socket.recv (reply) && withTimeout){
+				if(!receiveMessage(socket, reply) && withTimeout){
 					sendError("timeout : get data dont answer");
 				}
 				
@@ -1402,11 +1409,11 @@ public:
 				zmq::message_t request (sizeof(infoContainer)+sizeof( jobIdType ));
 				memcpy(request.data (), &task, sizeof(infoContainer));
 				memcpy((char*)request.data()+sizeof(infoContainer),&id,sizeof( jobIdType ));
-				if(!socket.send (request,zmq::send_flags::none)){
+				if(!sendMessage(socket, request)){
 					sendError("timeout asking for data");
 				}
 				zmq::message_t reply;
-				if(!socket.recv (reply) && withTimeout){
+				if(!receiveMessage(socket, reply) && withTimeout){
 					sendError("timeout : get data dont answer");
 				}
 
