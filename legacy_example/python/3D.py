@@ -4,7 +4,7 @@ from io import BytesIO
 from g2s import g2s
 import matplotlib.pyplot as plt
 import tifffile as tf
-from matplotlib import cm
+import matplotlib
 
 #Load example boolean training image "Damier 3D" and crop it to reduce computational requirements
 dim = 30
@@ -31,7 +31,7 @@ ax2.view_init(azim=45)
 ax2.set_title('QS 3D simulation')
 
 #Display the indices of the ti-values found in the di-image
-viridis = cm.get_cmap('viridis',index.max())
+viridis = matplotlib.colormaps['viridis'].resampled(int(index.max()))
 colormap = viridis(index)
 fig = plt.figure(figsize=(10,10))
 ax1=fig.add_subplot(111,projection='3d')
