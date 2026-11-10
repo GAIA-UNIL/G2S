@@ -1,6 +1,5 @@
 #include "python3_interface.hpp"
 #include <frameobject.h>
-// C++20 is enabled via build flags; no changes to the interface template header.
 
 typedef unsigned jobIdType;
 
@@ -22,9 +21,6 @@ static PyMethodDef module_methods[] = {
 
 PyMODINIT_FUNC PyInit_g2s(void)
 {
-#ifndef PYPY_VERSION
-    Py_Initialize();
-#endif
     PyObject *module;
     static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
@@ -40,20 +36,29 @@ PyMODINIT_FUNC PyInit_g2s(void)
     module = PyModule_Create(&moduledef);
     if (!module) return NULL;
     /* Load `numpy` functionality. */
-    import_array();
+    if (_import_array() < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
+#ifdef Py_GIL_DISABLED
+    if (PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
+#endif
     return module;
 }
 
-// --- unchanged logic below; kept for PyPy best-effort and CPython 3.12/3.13 ---
-// (We rely on your existing bytecode inspection with version guards.)
+// Best-effort legacy output-count inference; schema results ignore this hint.
 
-int pythonNumberOfOutputParameterDecoder(const char* s){
+int pythonNumberOfOutputParameterDecoder(const char* s, Py_ssize_t remaining){
+    if (remaining < 2) return 0;
     switch(s[0]){
         case 1: return 0;             // any output
         case 90: return -1;           // single output
         case 92: return int(s[1]);    // tuple output
-        case 4:  return std::max(pythonNumberOfOutputParameterDecoder(s+2),
-                                 pythonNumberOfOutputParameterDecoder(s+4)); // many output
+        case 4:  return std::max(pythonNumberOfOutputParameterDecoder(s+2, remaining-2),
+                                 remaining >= 4 ? pythonNumberOfOutputParameterDecoder(s+4, remaining-4) : 0); // many output
         case 94: return INT_MAX;      // output with star: a,b,*c
         default: return 0;
     }
@@ -66,15 +71,24 @@ int pythonNumberOfOutputParameter(){
 #else
 int pythonNumberOfOutputParameter(){
     PyFrameObject* frame = PyEval_GetFrame();
+    if (!frame) return INT_MAX;
 #if PY_VERSION_HEX < 0x030B0000
-    const char* s  = PyBytes_AS_STRING(frame->f_code->co_code);
+    PyObject* bytecode = frame->f_code->co_code;
+    Py_INCREF(bytecode);
     int start = frame->f_lasti;
 #else
-    const char* s  = PyBytes_AS_STRING(PyCode_GetCode(PyFrame_GetCode(frame)));
+    PyCodeObject* code = PyFrame_GetCode(frame);
+    if (!code) { PyErr_Clear(); return INT_MAX; }
+    PyObject* bytecode = PyCode_GetCode(code);
+    Py_DECREF(code);
     int start = PyFrame_GetLasti(frame);
 #endif
+    if (!bytecode) { PyErr_Clear(); return INT_MAX; }
     start+=2;
-    int expected=pythonNumberOfOutputParameterDecoder(s+start);
+    const Py_ssize_t size = PyBytes_Size(bytecode);
+    int expected = start >= 0 && start < size
+        ? pythonNumberOfOutputParameterDecoder(PyBytes_AS_STRING(bytecode)+start, size-start) : 0;
+    Py_DECREF(bytecode);
     return (expected>0 ? expected : INT_MAX);
 }
 #endif
@@ -82,7 +96,13 @@ int pythonNumberOfOutputParameter(){
 static PyObject *g2s_run(PyObject *self, PyObject *args, PyObject *keywds)
 {
     InterfaceTemplatePython3 interfaceTemplatePython3;
-    return interfaceTemplatePython3.runStandardCommunicationPython(self, args, keywds, pythonNumberOfOutputParameter() );
+    try {
+        return interfaceTemplatePython3.runStandardCommunicationPython(self, args, keywds, pythonNumberOfOutputParameter());
+    } catch (const std::exception& error) {
+        interfaceTemplatePython3.lockThread();
+        if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError, error.what());
+        return nullptr;
+    }
 }
 
 static PyObject *g2s_loadData(PyObject *self, PyObject *args, PyObject *keywds)
