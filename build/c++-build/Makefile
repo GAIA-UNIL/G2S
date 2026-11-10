@@ -101,14 +101,19 @@ test: test.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
 
 # Optional: pyDev embeds Python (>= 3.14, with numpy) to prototype algorithms in Python.
-# Not part of `all`. Build with `make pydev PYDEV_PYTHON=/path/to/python3.14t` from build/.
-PYDEV_PYTHON ?= python3
+# Not part of `all`: run `make pydev` from build/. The Python is PYDEV_PYTHON if
+# given, otherwise the first python3.Xt / python3.X (>= 3.14, with numpy) on PATH.
+PYDEV_PYTHON ?=
 
-pyDev.o: $(SRCS)/pyDev.cpp $(SRCS)/../include/pyDevAlgorithm.hpp $(SRCS)/../include/pyDevSimulation.hpp ../pydev_config.py
-	$(CXX) -c -o $@ $< $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) $(shell $(PYDEV_PYTHON) ../pydev_config.py --cflags)
-
-pyDev: pyDev.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(shell $(PYDEV_PYTHON) ../pydev_config.py --ldflags)
+pyDev: $(SRCS)/pyDev.cpp $(SRCS)/../include/pyDevAlgorithm.hpp $(SRCS)/../include/pyDevSimulation.hpp DataImage.o ../pydev_config.py ../pydev_find_python.sh
+	@set -e; \
+	python="$(PYDEV_PYTHON)"; \
+	if [ -z "$$python" ]; then python=$$(sh ../pydev_find_python.sh); fi; \
+	"$$python" ../pydev_config.py --check; \
+	"$$python" ../pydev_config.py --header pyDevBuildConfig.h; \
+	echo "$(CXX) -c -o pyDev.o $(SRCS)/pyDev.cpp (+ Python flags)"; \
+	$(CXX) -c -o pyDev.o $(SRCS)/pyDev.cpp $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) -I. $$("$$python" ../pydev_config.py --cflags); \
+	$(CXX) -o $@ pyDev.o DataImage.o $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $$("$$python" ../pydev_config.py --ldflags)
 
 libg2s.a: DataImage.o
 	$(AR) $(ARFLAGS) $@ $^
@@ -150,13 +155,21 @@ install:create_install_path all
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm_client.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm_client.py' is missing !!\e[0m\n"
 	@cp -f ../algosName.config $(INSTALL_DIR)/libexec
+	@if [ -f ./pyDev ]; then \
+		cp -f ./pyDev $(INSTALL_DIR)/libexec && \
+		mkdir -p $(INSTALL_DIR)/libexec/PyDevAlgo && \
+		cp -f ../PyDevAlgo/*.py $(INSTALL_DIR)/libexec/PyDevAlgo/ && \
+		printf "\e[32mpyDev installed, algorithms in $(INSTALL_DIR)/libexec/PyDevAlgo\e[0m\n"; \
+	else \
+		printf "\e[33mnote: pyDev is not built and was skipped (run 'make pydev' before 'make install' to include it)\e[0m\n"; \
+	fi
 	@cp -f ./g2s_cuda.so $(INSTALL_DIR)/libexec || printf "\e[33mwarning: 'g2s_cuda.so' is missing, this is probably due to the absence of CUDA compiler.\e[0m\n"
 	@printf "\e[32mInstallation c++ finished!\e[0m\n"
 
 
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf g2s_server echo test qs as nds ds ds-l errorTest auto_qs snesim pyDev
+	rm -rf g2s_server echo test qs as nds ds ds-l errorTest auto_qs snesim pyDev pyDevBuildConfig.h
 	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend

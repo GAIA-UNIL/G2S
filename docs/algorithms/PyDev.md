@@ -14,32 +14,51 @@ pyDev lets you try a new sequential-simulation idea in Python without writing C+
 
 It is available as `pyDev`, `PyDev`, or `pydev`. For machine-learning models, a batch mode predicts many nodes in one Python call.
 
-## Build
+## Build and install
 
-pyDev embeds Python, so it is not part of the default build. It needs **Python 3.14 or later** with **numpy**, built as a shared library (the usual case for python.org, Homebrew, conda and uv interpreters).
+pyDev embeds Python, so it is not part of the default build, and it is not included in the Homebrew package. Build it from source, after the usual server build (see the [server installation guide]({{ site.baseurl }}/installation/server.html)):
 
 ```bash
 cd build
-make pydev PYDEV_PYTHON=/path/to/python3.14t
+make c++ -j
+make pydev            # or: make pydev PYDEV_PYTHON=/path/to/python3.14t
+make install          # optional: installs pyDev and the PyDevAlgo folder with the other algorithms
 ```
 
-`PYDEV_PYTHON` defaults to `python3`. Use a **free-threaded** interpreter (`python3.14t`) to run `sample()` on several threads at once. With a regular build the GIL lets only one thread run Python code at a time; results are the same, it is only slower (the job log then contains a warning). If `PYDEV_PYTHON` is the `python` of a virtual environment, that environment's packages are available to your algorithm.
+`make pydev` needs **Python 3.14 or later** with **numpy**, providing `libpython` (the usual case for python.org, Homebrew, conda and uv interpreters). Without `PYDEV_PYTHON` it takes the first of `python3.16t`, `python3.15t`, `python3.14t`, `python3.16`, `python3.15`, `python3.14`, `python3` on `PATH` that is recent enough and has numpy, and prints its choice. Prefer a **free-threaded** Python (`python3.14t`): it runs `sample()` on several threads at once. With a regular build the GIL lets only one thread run Python code at a time; results are the same, it is only slower (the job log then contains a warning).
 
-At run time:
+If `PYDEV_PYTHON` is the `python` of a virtual environment, pyDev is built against the Python that environment was created from; the environment itself is not recorded, so removing it later does not affect pyDev. To use another Python version or build, run `make pydev` again (delete `build/c++-build/pyDev` first).
+
+## Choosing the Python environment
+
+Each algorithm chooses its environment with a **shebang line** at the top of its file:
+
+```python
+#!/path/to/myenv/bin/python
+```
+
+or, resolved through the `PATH` of the G2S server:
+
+```python
+#!/usr/bin/env python3.14t
+```
+
+The packages of that environment (PyTorch, JAX, scikit-learn, …) are then available to the algorithm. Without a shebang, pyDev uses the Python it was built against, which then needs numpy.
+
+The environment must come from the **same Python version and build** (with or without GIL) as pyDev, for example a venv created with `python3.14t -m venv myenv` when pyDev was built against `python3.14t`. pyDev checks this before starting Python and stops the job with a clear message when the environment does not exist anymore or does not match. The job log records the environment used (`python_environment`).
+
+Optional variables, read by the pyDev process (set them in the environment of the G2S server):
 
 | Variable | Meaning |
 |---|---|
-| `G2S_PYDEV_PYTHON` | Interpreter (or venv `python`) to use instead of the one pyDev was built with. It must be the same Python version and build (with or without GIL). |
-| `G2S_PYDEV_ALGO_DIR` | Folder searched for `-pa` names. Default: `build/PyDevAlgo`. |
-| `G2S_PYDEV_CACHE` | Folder for the weight cache of `sgsCP` and `sgsTiCP`. Default: `<tmp>/g2s_pydev_cache`. |
-
-These are read by the pyDev process, so set them in the environment of the G2S server.
+| `G2S_PYDEV_ALGO_DIR` | Folder searched for `-pa` names. Default: the `PyDevAlgo` folder installed next to pyDev, or `build/PyDevAlgo` in a source tree. |
+| `G2S_PYDEV_CACHE` | Folder for the caches of `sgsCP`, `sgsTiCP` and `mlpTemplate`. Default: `<tmp>/g2s_pydev_cache`. |
 
 ## Parameters
 
 | Flag | Description | Mandatory |
 |---|---|---|
-| `-pa` | Python algorithm: `file`, `file:Class`, `folder/file.py:Class` or an absolute path. Relative names are looked up in the PyDevAlgo folder; the class name defaults to the file name. | &#x2714; |
+| `-pa` | Python algorithm: `file`, `file:Class`, `folder/file.py:Class` or an absolute path. Relative names are looked up in the PyDevAlgo folder; the class name defaults to the file name. The file's shebang line selects the Python environment. | &#x2714; |
 | `-di` | Destination image. NaN values are simulated, other values are hard data. | &#x2714; |
 | `-n` | Number of informed neighbours per node; one value, or one per variable. | &#x2714; |
 | `-dt` | Data type per variable (0 continuous, 1 categorical), passed to the Python class. | |
@@ -58,9 +77,10 @@ pyDev runs a vector simulation: all variables of a node are simulated together.
 
 ## Writing an algorithm
 
-Put a Python file in `build/PyDevAlgo` (or anywhere, and pass its absolute path to `-pa`):
+Put a Python file in the PyDevAlgo folder (or anywhere, and pass its absolute path to `-pa`):
 
 ```python
+#!/path/to/myenv/bin/python      (optional: the environment to use)
 import numpy
 
 class myAlgorithm:
