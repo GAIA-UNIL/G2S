@@ -20,6 +20,7 @@
 
 #include <cmath>
 #include <cctype>
+#include <cstdio>
 #include <iostream>
 #include <cstring>
 #include <limits>
@@ -278,6 +279,28 @@ class DataImage{
 	}
 
 	inline void write(std::string filename, bool compresed=true){
+		if(!isSafeDataImageName(filename)){
+			fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filename.c_str());
+			return;
+		}
+#ifdef G2S_BROWSER_BUILD
+		// MEMFS is private to the Web Worker. Write an uncompressed temporary
+		// bgrid so repeated jobs can remove it instead of retaining hashed copies.
+		(void)compresed;
+		char* raw=serialize();
+		const size_t fullSize=*reinterpret_cast<size_t*>(raw);
+		char fullFilename[2048];
+		snprintf(fullFilename,sizeof(fullFilename),"/tmp/G2S/data/%s.bgrid",filename.c_str());
+		FILE* output=fopen(fullFilename,"wb");
+		if(output){
+			(void)fwrite(raw,1,fullSize,output);
+			fclose(output);
+		}else{
+			fprintf(stderr,"unable to write DataImage '%s'\n",fullFilename);
+		}
+		free(raw);
+		return;
+#else
 		char* raw=serialize();
 		char* outputName=writeRawData(raw,compresed);
 		free(raw);
@@ -297,6 +320,7 @@ class DataImage{
 		snprintf(outputFullFilename,2048,"/tmp/G2S/data/%s.bgrid%s",outputName,extra);
 		createLink(outputFullFilename, fullFilename);
 		free(outputName);
+#endif
 	}
 
 	inline DataImage emptyCopy(bool singleVariableOnly=false){
@@ -408,6 +432,7 @@ class DataImage{
 
 	static inline DataImage genearteKernel(std::vector<g2s::KernelType> kernelsTypeForGeneration,std::vector<unsigned> maxSize, std::vector<float> variableWeight, std::vector<float> alphas){
 
+		constexpr double pi=3.14159265358979323846;
 		DataImage kernel(maxSize.size(), maxSize.data(), variableWeight.size());
 		
 		for (size_t j = 0; j < variableWeight.size(); ++j)
@@ -430,7 +455,7 @@ class DataImage{
 					for (unsigned int i = 0; i < kernel.dataSize()/kernel._nbVariable; ++i)
 					{
 						float dist2=kernel.distance2ToCenter(i)*alphas[j]*alphas[j];
-						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*M_PI)*exp(-dist2/2.f);
+						kernel._data[i*kernel._nbVariable+j]=1/sqrt(2*pi)*exp(-dist2/2.f);
 					}
 					break;
 						

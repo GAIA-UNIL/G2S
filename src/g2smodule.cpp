@@ -33,10 +33,6 @@
 #include <algorithm>
 #include "DataImage.hpp"
 
-#ifdef WITH_WEB_SUPPORT
-#include "cvtZMQ2WS.hpp"
-#endif 
-
 typedef unsigned jobIdType;
 
 static char module_docstring[] =
@@ -468,14 +464,6 @@ inline std::vector<std::vector<std::string> > lookForUpload(zmq::socket_t &socke
 
 	return result;
 }
-#ifdef WITH_WEB_SUPPORT
-void cvtServerCall(std::string from, std::string to, std::atomic<bool> &serverRun, std::atomic<bool> &done){
-	cvtServer((char*)from.c_str(),(char*)to.c_str(),serverRun, done);
-}
-
-#endif 
-
-
 void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std::vector<PyObject*> &plhs){
 
 	jobIdType id=0;
@@ -571,33 +559,6 @@ void pyFunctionWork(PyObject *self, PyObject *args, std::atomic<bool> &done, std
 			silentMode=true;
 		}
 	}
-
-	std::atomic<bool> serverRun;
-	serverRun=true;
-
-	if((saP1_Index!=-1)){
-		std::string address=std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,saP1_Index)));
-		std::transform(address.begin(), address.end(), address.begin(),::tolower);
-		#ifdef WITH_WEB_SUPPORT
-		if(!address.compare("web")||!address.compare("browser")){
-			//printf("use browser server\n");
-			serverRun=false;
-			std::string from="tcp://*:8128";
-			std::string to="ws://localhsot:8129";
-
-			std::thread serverThread(cvtServerCall,from,to,std::ref(serverRun),std::ref(done));
-			serverThread.detach();
-			saP1_Index=-1;
-			while (!serverRun){
-				std::this_thread::sleep_for(std::chrono::milliseconds(300));
-			}
-
-			printf("server run now\n");
-		}
-		#endif
-
-	}
-
 
 	zmq::context_t context (1);
 	zmq::socket_t socket (context, ZMQ_REQ);

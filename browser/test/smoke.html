@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>G2S Wasm smoke test</title></head>
+<body>
+  <h1>G2S Wasm smoke test</h1>
+  <output id="result">running</output>
+  <script type="module">
+    import { G2S } from "../src/g2s-api.js";
+    try {
+      const threaded = new URL(location.href).searchParams.get("threaded") === "1";
+      const testCancellation = new URL(location.href).searchParams.get("cancel") !== "0";
+      const workerUrl = threaded
+        ? new URL("../src/g2s-worker.js?threaded=1", import.meta.url)
+        : new URL("../src/g2s-worker.js", import.meta.url);
+      const engine = await G2S.create({ workerUrl, maxThreads: threaded ? 4 : 1 });
+      let progressEvents = 0;
+      const createJob = (seed) => {
+        const job = engine.createJob();
+        job.loadArray("trainingImage", new Float32Array([
+          0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0,
+        ]), { shape: [4, 4], variableTypes: ["categorical"] });
+        job.loadArray("destination", new Float32Array([NaN, NaN, NaN, NaN]), {
+          shape: [2, 2], variableTypes: ["categorical"],
+        });
+        job.configure("qs", { candidates: 1, neighbors: [1], seed, threads: threaded ? 4 : 1 });
+        job.onProgress(() => { progressEvents += 1; });
+        return job;
+      };
+
+      let cancellation = "skipped";
+      if (testCancellation) {
+        const cancelledJob = createJob(122);
+        const cancelledRun = cancelledJob.run();
+        cancelledJob.cancel();
+        cancellation = "failed";
+        try { await cancelledRun; } catch (error) { cancellation = error.name === "AbortError" ? "passed" : error.name; }
+      }
+
+      const invalidJob = createJob(121);
+      invalidJob.configure("qs", { neighbors: [1], seed: 121 });
+      let structuredError = "failed";
+      try { await invalidJob.run(); } catch (error) { structuredError = error.message.includes("expected") ? "passed" : error.message; }
+
+      let result;
+      for (let index = 0; index < 10; index += 1) result = await createJob(123 + index).run();
+      const simulation = result.getArray("simulation");
+      const index = result.getArray("index");
+      document.querySelector("#result").textContent = JSON.stringify({
+        status: "passed", cancellation, structuredError, sequentialRuns: 10, simulationSize: simulation.data.length,
+        indexSize: index.data.length, durationMs: result.durationMs, progressEvents,
+        requestedThreads: result.metadata.requested_threads,
+        effectiveThreads: result.metadata.effective_threads,
+        browserMaxThreads: result.metadata.browser_max_threads,
+      });
+    } catch (error) {
+      document.querySelector("#result").textContent = JSON.stringify({ status: "failed", message: error.message });
+    }
+  </script>
+</body>
+</html>

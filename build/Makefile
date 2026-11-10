@@ -134,7 +134,7 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ em intel update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
+.PHONY: c++ intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
@@ -142,11 +142,17 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 c++:
 	$(MAKE) -C c++-build
 
-em:
-	emmake make -C em-build
-
 intel:
 	$(MAKE) -C intel-build
+
+wasm:
+	$(MAKE) -C wasm-build
+
+wasm-single:
+	$(MAKE) -C wasm-build single
+
+wasm-threaded:
+	$(MAKE) -C wasm-build threaded
 
 c++-server:
 	$(MAKE) g2s_server -C c++-build

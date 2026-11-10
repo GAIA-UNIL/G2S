@@ -15,19 +15,21 @@ ifeq ($(doseNeedFS_Lib),1)
 	export LDFLAGS += -lstdc++fs
 endif
 
+HASH := \#
+
 doseNeedTBB := $(shell printf '%s\n' \
-	'\#include <execution>' \
-	'\#include <algorithm>' \
-	'\#include <vector>' \
+	'$(HASH)include <execution>' \
+	'$(HASH)include <algorithm>' \
+	'$(HASH)include <vector>' \
 	'int main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' \
 	| $(CXX) -xc++ - -o /dev/null -std=c++17 2>/dev/null \
 	&& echo 0 || echo 1)
 
 ifeq ($(doseNeedTBB),1)
 	doseSupportTBB := $(shell printf '%s\n' \
-		'\#include <execution>' \
-		'\#include <algorithm>' \
-		'\#include <vector>' \
+		'$(HASH)include <execution>' \
+		'$(HASH)include <algorithm>' \
+		'$(HASH)include <vector>' \
 		'int main(){std::vector<int> v(10);std::sort(std::execution::par,v.begin(),v.end());}' \
 		| $(CXX) -xc++ - -o /dev/null -std=c++17 -ltbb 2>/dev/null \
 		&& echo 1 || echo 0)
@@ -36,6 +38,7 @@ ifeq ($(doseNeedTBB),1)
 		export LDFLAGS += -ltbb
 	endif
 endif
+
 
 export DEST_DIR_EXTENSION:=$(shell pwd)
 export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py qs_decentralized_slurm.py qs_decentralized_slurm_client.py
@@ -46,7 +49,7 @@ all: g2s_server echo qs as nds ds ds-l snesim libg2s.a errorTest test auto_qs al
 
 depend: .depend Makefile
 
-.depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(subst $(SRCS)/cvtZMQ2WS.cpp,,$(wildcard $(SRCS)/*.cpp)))))
+.depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(wildcard $(SRCS)/*.cpp))))
 	rm -f ./.depend
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(INC) $(LIBINC) -MM $^ > ./.depend;
 
@@ -67,7 +70,7 @@ echo: echo.o DataImage.o
 g2s_cuda.so:  NvidiaGPUAcceleratorDevice.o
 	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) 
 
-qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
+qs: qs.o qsCore.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(QS_DISTRIBUTED_LIBS) $(OPENCL_LIB)
 
 as: as.o DataImage.o

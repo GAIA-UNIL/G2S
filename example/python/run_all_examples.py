@@ -22,6 +22,12 @@ EXPECTED_FAILURES = {
     Path("example") / "python" / "reporting" / "reporting_probe.py",
     Path("legacy_example") / "python" / "reporting_probe.py",
 }
+# These examples need the QS browser page open (python3 browser/serve.py), so
+# they cannot run unattended.
+REQUIRES_BROWSER_PAGE = {
+    Path("example") / "python" / "qs" / "browser_unconditional_simulation.py",
+    Path("legacy_example") / "python" / "browser_unconditional_simulation.py",
+}
 EXPECTED_FAILURE_MARKERS = {
     Path("example") / "python" / "reporting" / "reporting_probe.py": "error probe submitted with job id",
     Path("legacy_example") / "python" / "reporting_probe.py": "error probe submitted with job id",
@@ -78,6 +84,9 @@ def discover_examples(
             if "__pycache__" in path.parts:
                 continue
             relative = path.relative_to(REPO_ROOT)
+            if relative in REQUIRES_BROWSER_PAGE:
+                print(f"[SKIP] {relative} (requires the QS browser page)", flush=True)
+                continue
             if only and only not in relative.as_posix():
                 continue
             examples.append(path)
