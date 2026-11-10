@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'version'
       - 'src_interfaces/**'
       - 'include_interfaces/**'
       - 'build/python-build/**'
@@ -30,11 +31,12 @@ jobs:
 
   build-linux:
     name: 🐧 Linux wheels (manylinux)
-    runs-on: ubuntu-latest
+    # Python 3.9 is unavailable on newer Ubuntu runner images.
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-22.04' || 'ubuntu-latest' }}
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - python: 3.15-dev
             experimental: true
@@ -51,8 +53,11 @@ jobs:
         run: |
           PYTHON_SERIES="${{ matrix.python }}"
           PYTHON_SERIES="${PYTHON_SERIES%%-*}"
-          PYVER=$(echo "$PYTHON_SERIES" | tr -d .)
+          PYVER=$(echo "${PYTHON_SERIES%t}" | tr -d .)
           PYTAG="cp${PYVER}-cp${PYVER}"
+          if [[ "$PYTHON_SERIES" == *t ]]; then
+            PYTAG="${PYTAG}t"
+          fi
           echo "🧱 Building for $PYTAG using manylinux_2_28"
 
           docker run --rm -e PIP_PRE -v "$PWD:/io" quay.io/pypa/manylinux_2_28_x86_64 bash -c "
@@ -72,10 +77,10 @@ jobs:
             echo '✅ Listing final wheels:'
             ls -lh
           "
-      - name: Test import
+      - name: Test concurrency and GIL state
         run: |
           pip install build/python-build/dist/*.whl
-          python -c "import g2s; print('✅ g2s import OK')"
+          python build/python-build/tests/test_concurrency.py
       - name: Upload to TestPyPI
         env:
           TWINE_USERNAME: __token__
@@ -91,7 +96,7 @@ jobs:
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - python: 3.15-dev
             experimental: true
@@ -114,10 +119,10 @@ jobs:
         run: |
           cd build
           make python-wheel
-      - name: Test import
+      - name: Test concurrency and GIL state
         run: |
           pip install build/python-build/dist/*.whl
-          python -c "import g2s; print('✅ g2s import OK')"
+          python build/python-build/tests/test_concurrency.py
       - name: Upload to TestPyPI
         env:
           TWINE_USERNAME: __token__
@@ -132,7 +137,7 @@ jobs:
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - python: 3.15-dev
             experimental: true
@@ -158,13 +163,13 @@ jobs:
         shell: bash
         run: |
           make -C build/python-build PYTHON=python wheel
-      - name: Test import
+      - name: Test concurrency and GIL state
         shell: pwsh
         run: |
           $wheel = Get-ChildItem build/python-build/dist/*.whl | Select-Object -First 1
           Write-Host "Installing wheel: $($wheel.FullName)"
           pip install "$($wheel.FullName)"
-          python -c "import g2s; print('g2s import OK')"
+          python build/python-build/tests/test_concurrency.py
       - name: Upload to TestPyPI
         env:
           TWINE_USERNAME: __token__
