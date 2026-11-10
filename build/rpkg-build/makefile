@@ -55,6 +55,7 @@ $(PKG_DIR)/NAMESPACE: | dirs
 	@echo "useDynLib($(PKG_NAME), .registration=TRUE)" > $@
 	@echo "importFrom(Rcpp, evalCpp)" >> $@
 	@echo "export(g2s)" >> $@
+	@echo "export(g2s_schema_to_legacy)" >> $@
 	@echo "✅ Created NAMESPACE"
 
 $(PKG_SRC_DIR)/Makevars: | dirs

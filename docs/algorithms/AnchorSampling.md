@@ -21,8 +21,8 @@ This makes AS suitable when you have many realizations, scenarios, priors, or hi
 
 ## Parameters for AS
 
-Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
-Outputs: `sim` = simulation, `index` = selected TI id for each simulated value, `time` = simulation time, `finalprogress` = final progression of the simulation (normally 100), `jobid` = job ID.
+Usage: `result = g2s(flag1, value1, flag2, value2, ...)`
+Schema outputs: `result["simulation"]` / `result.simulation`, `result["indexmap"]` / `result.indexmap` for selected TI ids, `result["time"]` / `result.time`, `result["progress"]` / `result.progress`, and `result["job_id"]` / `result.job_id`.
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
@@ -62,13 +62,11 @@ Outputs: `sim` = simulation, `index` = selected TI id for each simulated value, 
 The following examples assume the G2S server is running.
 
 ### Minimal Python example
-{% include include_code.md exampleName="AnchorSampling" %}
+{% include include_code.md examplePath="as/anchor_sampling" %}
 
 ### Larger diagnostic example in Python
 
-For a richer diagnostic script with a rectangular synthetic case, `-mi` edge cases, exported TI-id checks, and a live figure window, see:
-
-- [example/python/AnchorSamplingSyntheticExperiment.py](https://github.com/GAIA-UNIL/G2S/blob/master/example/python/AnchorSamplingSyntheticExperiment.py)
+For richer schema-output scripts with rectangular synthetic cases, `-mi` edge cases, exported TI-id checks, and live figure windows, see `example/python/as/AnchorSampling.py` and `example/python/as/AnchorSamplingSyntheticExperiment.py`. Legacy positional-output versions remain under `legacy_example/`.
 
 ## When to use AS instead of QS
 

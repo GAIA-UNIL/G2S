@@ -51,6 +51,11 @@ g2s_server*.log
 # README.md and DOCUMENTATION.md describe the stateless cursor-based log polling model; no runtime cursor files should be tracked in-repo.
 # Reporting-probe smoke tests are expected to create only disposable /tmp/G2S runtime artifacts.
 # The checked-in probe examples intentionally do not suppress fatal interface exceptions.
+# Schema-mode helpers and examples are tracked; only generated runtime artifacts stay ignored.
+# Interface compatibility flags such as -legacy_output are source/documentation only.
+# Version control requests such as -serverVersion do not create tracked artifacts.
+# Algorithm schema descriptors are source metadata; generated im_<n>_<job> artifacts stay in /tmp/G2S.
+# MATLAB run-all isolation handles invalid legacy filenames without generated tracked files.
 
 # Generated local-only DataImage binary data files
 *.bgrid
@@ -93,6 +98,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 example/.venv/
+# Example smoke runners should not require tracked local environments.
+# Python example dependencies such as requests/tifffile are installed into local virtualenvs, not tracked.
 .mypy_cache/
 
 # Local configuration/runtime files
@@ -137,4 +144,5 @@ change_odc.md
 /browser/g2s-browser-deploy.zip
 
 # Optional output from the browser QS Python example
-/example/python/browser_unconditional_simulation.png
+/example/python/qs/browser_unconditional_simulation.png
+/legacy_example/python/browser_unconditional_simulation.png

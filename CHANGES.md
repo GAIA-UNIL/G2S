@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-11-10
+
+- Added `docs/migration-1.0.md`, a guide for updating scripts to the G2S 1.0 result object (named fields, `-legacy_output`, asynchronous calls, `-returnMeta`, per-algorithm field names), linked from the interface page and the docs navigation.
+- Added a 1.0 migration notice to the docs home page (`docs/briefOverview.md`) and to `README.md`. **These two notices are temporary**: remove them once most users have moved to 1.0 (for example at the next minor release). The links from `docs/usingTheInterfaces.md` and the navigation entry are permanent.
+- Merged `master` into `new-interfaces`: browser runs (`-sa browser`) now return the same result object as server runs, and the browser Python example uses it (positional copy in `legacy_example/python/`).
+
 ## 2026-07-24
 
 - Bumped the package version to 0.99.3 for the repaired Python wheel publication pipeline.
@@ -41,6 +47,21 @@
 
 ## 2026-05-16
 
+- Bumped the project version to `1.0.0`.
+- Added a remote server-version control request exposed through `-serverVersion`, so interfaces can compare their local `--version` with the connected server build.
+- Made schema-first interface output the default across Python, MATLAB, and R. Schema mode returns one named result object with semantic output keys, top-level status/time/progress/job fields, flattened metadata, and logical artifact refs under `artifacts`.
+- Added `-legacy_output` as an explicit cross-interface compatibility flag. It restores the old positional output contract and takes precedence over `-returnFormat schema`.
+- Added algorithm-published output descriptors (`result_output_<n>_name` / `result_output_<n>_artifact`) for the current multi-output producers so schema mode can name outputs without hardcoding per-algorithm rules in the bindings.
+- Added compatibility helpers to translate schema results back to the legacy positional contract in Python (`schema_to_legacy`), MATLAB (`g2sSchemaToLegacy`), and R (`g2s_schema_to_legacy`).
+- Audited server-registered algorithms for schema-output metadata and added missing descriptors/report registration for native DS, legacy DS-L, and Echo.
+- Moved old flat Python/MATLAB examples to `legacy_example/`, added `-legacy_output` directly to their interface calls, and added new schema-output examples under `example/<language>/<algorithm>/`.
+- Converted the full old flat Python/MATLAB example set into grouped schema-output examples for the website-facing `example/` tree.
+- Added Python and MATLAB run-all smoke scripts for current and legacy examples, with the reporting probes' intentional fatal paths counted as expected failures.
+- Fixed schema result key generation so semantic output names such as `simulation` remain available as top-level schema fields, and isolated MATLAB smoke runs so examples cannot leak variables into each other or fail on legacy names such as `3D.m`.
+- Fixed schema-mode downloads so a single returned schema object still receives all image outputs, including secondary outputs such as `indexmap`; positional output-count limits now apply only to `-legacy_output`.
+- Added descriptor-less schema fallback naming for older servers: output 1 is `simulation` and output 2 is `indexmap` unless server-published descriptors override those names.
+- Updated MATLAB schema examples that read `indexmap` to request an ignored second MATLAB output, keeping them compatible with older mex builds that still use the left-hand-side count as a result download hint.
+- Declared `requests` and `tifffile` as Python interface dependencies for examples that download/read public training images, and fixed the legacy Python reporting probe to accept the scalar job id returned by `-submitOnly`.
 - Added native CPU Direct Sampling as `ds`, `DS`, and `DirectSampling`, with legacy `ds-l` aliases preserved on the old implementation. Native DS reuses the shared simulation path, vector/full modes, per-node control maps, interface upload plumbing, and OpenMP path scheduling while providing DS-specific sequential TI scanning, threshold acceptance, kernel-weighted mixed mismatch, safe `-ii` handling, and stochastic local rotation/scale transforms.
 - Fixed shared interface matrix serialization so native matrices passed to distributed QS JSON parameters are converted before job serialization, any remaining matrix-valued parameter is uploaded as a binary payload before the job JSON is built, residual serialization errors include the offending flag name, MATLAB scalar numeric parameters such as `-k`, `-n`, and `-j` are no longer mistaken for uploadable matrices, and fallback upload checks no longer cast already-normalized string values as native matrices.
 - Changed native DS candidate scanning from a random-start contiguous TI segment to an array-free deterministic pseudo-random permutation keyed by global seed, local per-node seed, path order, and variable, and made the DS sample context thread-local for parallel runs.

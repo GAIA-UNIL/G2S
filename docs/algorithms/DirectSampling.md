@@ -16,7 +16,9 @@ The old DS-like implementation remains available as `ds-l`, `dsl`, `DirectSampli
 
 ## Parameters
 
-Usage: `[sim,index,time,finalprogress,jobid] = g2s(flag1,value1, flag2,value2, ...)`
+Usage: `result = g2s(flag1, value1, flag2, value2, ...)`
+
+Schema outputs include `result["simulation"]` / `result.simulation`, `result["indexmap"]` / `result.indexmap`, `result["time"]` / `result.time`, `result["progress"]` / `result.progress`, and `result["job_id"]` / `result.job_id`.
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
@@ -68,9 +70,7 @@ For each simulated node, candidate order is a deterministic pseudo-random permut
 The following examples assume the G2S server is running.
 They are fully unconditional, create all-`NaN` destination images with the same shape as the loaded training image, and use `-j 1.00001` for path-level parallel execution.
 
-- Continuous stone examples: `example/python/DirectSamplingContinuous.py`, `example/matlab/DirectSamplingContinuous.m`
-- Categorical Strebelle examples: `example/python/DirectSamplingCategorical.py`, `example/matlab/DirectSamplingCategorical.m`
-- Local transform examples: `example/python/DirectSamplingTransform.py`, `example/matlab/DirectSamplingTransform.m`
-- Full mixed multivariate examples: `example/python/DirectSamplingMixedFull.py`, `example/matlab/DirectSamplingMixedFull.m`
+- Current schema examples: `example/python/ds/` and `example/matlab/ds/`, including continuous, categorical, transform, and full mixed variants.
+- Legacy positional-output examples remain under `legacy_example/` and pass `-legacy_output` directly.
 
 The Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`. The MATLAB examples use `imread` with a `websave` fallback for older MATLAB releases.

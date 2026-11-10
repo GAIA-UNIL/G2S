@@ -12,7 +12,9 @@ SNESIM is a categorical multiple-point simulation algorithm based on a search-tr
 
 ## Parameters for SNESIM
 
-Usage: `[sim,time,...] = g2s(flag1,value1, flag2,value2, ...)`
+Usage: `result = g2s(flag1, value1, flag2, value2, ...)`
+
+Schema outputs include `result["simulation"]` / `result.simulation`, `result["time"]` / `result.time`, `result["progress"]` / `result.progress`, and `result["job_id"]` / `result.job_id`.
 
 | Flag | Description | Mandatory |
 | ---- | ----------- | --------- |
@@ -30,99 +32,7 @@ Usage: `[sim,time,...] = g2s(flag1,value1, flag2,value2, ...)`
 
 ## Examples
 
-<div class="tab code">
-  <button class="tablinks python" onclick="openTab(event, 'python', 'interface')">
-    <img src="{{ site.baseurl }}/assets/images/Python.svg" alt="Python">
-  </button>
-  <button class="tablinks matlab" onclick="openTab(event, 'matlab', 'interface')">
-    <img src="{{ site.baseurl }}/assets/images/Matlab.png" alt="Matlab">
-  </button>
-</div>
-
-<div class="langcontent code interface python">
-
-```python
-#This code requires the G2S server to be running
-import numpy
-from PIL import Image
-import requests
-from io import BytesIO
-from g2s import g2s
-import matplotlib.pyplot as plt
-
-# load example training image ('strebelle') from same repo path style
-url = "https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff"
-resp = requests.get(url, timeout=30)
-resp.raise_for_status()
-ti_raw = numpy.array(Image.open(BytesIO(resp.content)))
-
-# SNESIM call using G2S
-simulation, *_ = g2s(
-    '-a', 'snesim',
-    '-ti', ti_raw,
-    '-di', numpy.zeros((1000, 1000)) * numpy.nan,
-    '-dt', [1],
-    '-j', 0.5,
-    '-mg', 4,
-    '-tpl', 3
-)
-
-# display results
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 4))
-fig.suptitle('SNESIM Unconditional simulation', size='xx-large')
-ax1.imshow(ti_raw, cmap='tab20')
-ax1.set_title('Training image (categorical)')
-ax1.axis('off')
-ax2.imshow(simulation, cmap='tab20')
-ax2.set_title('Simulation')
-ax2.axis('off')
-plt.show()
-```
-
-</div>
-
-<div class="langcontent code interface matlab">
-
-```matlab
-%This code requires the G2S server to be running
-% load example training image ('strebelle')
-url = 'https://raw.githubusercontent.com/GAIA-UNIL/TrainingImagesTIFF/master/strebelle.tiff';
-try
-    ti = imread(url);
-catch
-    % Older MATLAB releases may not support direct HTTP reads with imread.
-    localTi = websave(fullfile(tempdir, 'strebelle.tiff'), url);
-    ti = imread(localTi);
-end
-ti = single(ti);
-
-% SNESIM call using G2S
-% 5 grid levels total: 4 -> 3 -> 2 -> 1 -> 0 (because -mg is the max level)
-[simulation, elapsed] = g2s('-a', 'snesim', ...
-                            '-ti', ti, ...
-                            '-di', single(nan(200, 200)), ...
-                            '-dt', [1], ...
-                            '-j', 0.5, ...
-                            '-mg', 4, ...
-                            '-tpl', 3);
-
-fprintf('SNESIM duration: %.3f s\n', elapsed);
-
-% Display results
-figure;
-sgtitle('SNESIM unconditional simulation');
-subplot(1, 2, 1);
-imagesc(ti);
-title('Training image (Strebelle)');
-axis image off;
-colormap(parula);
-subplot(1, 2, 2);
-imagesc(simulation);
-title('Simulation');
-axis image off;
-```
-
-</div>
+{% include include_code.md examplePath="snesim/snesim_example" %}
 
 ## Notes
 

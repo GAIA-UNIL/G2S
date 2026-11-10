@@ -11,6 +11,9 @@
   url: /runTheServer.html
 - title: Using the interfaces
   url: /usingTheInterfaces.html
+  sublinks:
+    - title: Migrating to G2S 1.0
+      url: /migration-1.0.html
 - title: Algorithms
   url: /algorithms.html
   sublinks:
