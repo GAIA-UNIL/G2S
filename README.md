@@ -52,7 +52,7 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
 For Python wheels, `zmq.h` must also be available. The packaging Makefile fetches the header from the same pinned libzmq 4.3.5 release used by the Windows build; `setup.py` additionally checks pyzmq and system include paths for source builds outside that helper.
-Release wheels are built and import-tested for CPython 3.9 through 3.14 on Linux, Apple Silicon macOS, and 64-bit Windows. CPython 3.15 is exercised as a non-blocking preview in the TestPyPI workflow and is not part of the production release matrix until Python 3.15 is final.
+Release 1.0.1 wheels are built and tested for CPython 3.9 through 3.14, including free-threaded CPython 3.14 (`3.14t`), on Linux, Apple Silicon macOS, and 64-bit Windows. Linux Python 3.9 jobs use Ubuntu 22.04 because newer Ubuntu runner images do not provide that interpreter; the wheels still build inside manylinux 2.28. CPython 3.15 is exercised as a non-blocking preview in the TestPyPI workflow and is not part of the production release matrix until Python 3.15 is final.
 
 Windows wheel builds compile a shared libzmq first, link its MSVC import library explicitly, and bundle the matching DLL inside the `g2s` package. Run `build/python-build/setup_Win_compile_all.bat` before a local Windows wheel build; in GitHub Actions it also exports `G2S_LIBZMQ_ROOT` for PEP 517 build isolation. Shared C++ headers avoid non-standard math macros such as `M_PI`, which MSVC does not expose by default. Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
 
@@ -61,6 +61,26 @@ The macOS jobs currently publish native Apple Silicon wheels tagged `macosx_11_0
 Some build and packaging helpers fetch third-party source files from upstream default branches, including `cppzmq`'s `zmq.hpp` and JsonCpp for Python packaging. This is an accepted project tradeoff: if an upstream change breaks the build, the local build scripts or package inputs must be updated at that time. For fully reproducible or audited release builds, use pinned package-manager dependencies or a reviewed local dependency snapshot.
 
 The Python packaging preprocess step creates ignored local copies of repository source and header trees under `build/python-build/`. These generated copies are removed before each preprocess run and should be treated as ephemeral build inputs, not source of truth.
+
+### Concurrent Python calls
+
+Python threads can call `g2s.run` concurrently. Each call owns its connection and sends its own uploads and job to the server; socket I/O and simulation waits release the interpreter thread so other calls can proceed on both regular Python and free-threaded Python 3.14. Install the matching `cp314t` wheel when using `python3.14t`; importing G2S preserves the disabled GIL.
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import g2s
+
+def simulate(seed):
+    return g2s.run("-a", "qs", "-ti", training_image, "-di", destination,
+                   "-dt", [0], "-s", seed, "-silent")
+
+with ThreadPoolExecutor(max_workers=4) as pool:
+    results = list(pool.map(simulate, [10, 20, 30, 40]))
+```
+
+Here `training_image` and `destination` are NumPy arrays prepared before starting the pool. Shared input arrays must remain unchanged until the calls finish, and each returned result belongs to its own call. The server controls how many submitted jobs execute at once. The on-demand browser transport still requires a distinct `-browserPort` per simultaneous call.
+
+After installing a locally rebuilt wheel, run `python build/python-build/tests/test_concurrency.py` to check simultaneous uploads, submissions, downloads, asynchronous controls, and worker error handling. The test starts its own loopback ZeroMQ protocol fixture and also verifies that a free-threaded interpreter keeps the GIL disabled.
 
 ## QS in the browser
 
