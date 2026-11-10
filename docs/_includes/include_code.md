@@ -13,14 +13,16 @@
 <div class="langcontent code interface python">
 ```python
 #This code requires the G2S server to be running
-{% assign local_path="example/python/" | append: include.exampleName | append: ".py" %}
+{% assign example_path = include.examplePath | default: include.exampleName %}
+{% assign local_path="example/python/" | append: example_path | append: ".py" %}
 {% include_relative {{ local_path }} %}
 ```
 </div>
 <div class="langcontent code interface matlab">
 ```matlab
 %This code requires the G2S server to be running
-{% assign local_path="example/matlab/" | append: include.exampleName | append: ".m" %}
+{% assign example_path = include.examplePath | default: include.exampleName %}
+{% assign local_path="example/matlab/" | append: example_path | append: ".m" %}
 {% include_relative {{ local_path }} %}
 ```
 </div>

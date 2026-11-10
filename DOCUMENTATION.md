@@ -252,6 +252,9 @@ Bindings now separate transport/state from display:
 
 - `-showLogs` enables live display of newly appended `log_<job>` and `warning_<job>` text while the job runs
 - `-returnMeta` returns the final parsed `meta_<job>` key/value payload to the caller
+- schema named-result output is the default dictionary/struct/list envelope returned instead of the legacy positional tuple/multi-output contract
+- `-returnFormat schema` keeps requesting the schema output explicitly for callers that already adopted that spelling
+- `-legacy_output` explicitly forces the legacy positional tuple/multi-output contract; if both it and `-returnFormat schema` are supplied, legacy output wins
 - Python displays warnings in orange/yellow-ish ANSI text and errors in red before warning/exception propagation
 - MATLAB warnings are non-fatal again, while fatal errors still abort the call
 
@@ -261,7 +264,50 @@ The repository includes a small reporting-only utility algorithm, `report_probe`
 - `-mode warning`: progress, plain log lines, one warning event, then success
 - `-mode error`: progress, plain log lines, one warning event, a fatal error payload, then nonzero exit
 
-The companion examples `example/python/reporting_probe.py` and `example/matlab/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+The companion examples `example/python/reporting/reporting_probe.py` and `example/matlab/reporting/reporting_probe.m` are the intended smoke tests for interface-side warning/error/log rendering and the new schema return mode. Their error-path probe intentionally does not catch the fatal interface exception, so the default behavior matches ordinary caller expectations in Python and MATLAB. Users who want to recover from that failure path should add their own `try`/`except` or `try`/`catch` around the probe call.
+
+Schema mode is designed for forward-compatible callers:
+
+- outputs are named semantically when the algorithm publishes `result_output_<n>_name`
+- schema mode downloads every available `im_<n>_<job>` artifact into the returned object, independent of the caller's positional output count
+- descriptor-less servers keep the historical fallback names `simulation` for output 1 and `indexmap` for output 2
+- `artifacts` always contains logical refs for `log`, `warning`, `error`, `progress`, `meta`, and named output artifacts
+- top-level reserved interface keys are `time`, `job_id`, `status`, `progress`, `artifacts`, `error`, and `warnings`
+- remaining progress/meta key-values are flattened at the top level unless they collide with reserved interface keys
+
+The legacy positional contract can be requested explicitly with `-legacy_output`. Compatibility helpers are available in each binding layer:
+
+- Python: `g2s.schema_to_legacy(result)`
+- MATLAB: `g2sSchemaToLegacy(result)`
+- R: `g2s_schema_to_legacy(result)`
+
+## Interface output examples
+
+Python now receives a dictionary by default:
+
+```python
+result = g2s("-a", "qs", "-ti", ti, "-di", di, "-dt", [0], "-k", 1.2, "-n", 50)
+simulation = result["simulation"]
+elapsed_seconds = result.get("time")
+job_id = result["job_id"]
+```
+
+MATLAB now receives a struct by default:
+
+```matlab
+result = g2s('-a', 'qs', '-ti', ti, '-di', di, '-dt', [0], '-k', 1.2, '-n', 50);
+simulation = result.simulation;
+elapsed_seconds = result.time;
+job_id = result.job_id;
+```
+
+Current examples are grouped by algorithm under `example/python/<algorithm>/` and `example/matlab/<algorithm>/`, including schema-output conversions of the old flat examples. Legacy tuple/multi-output examples are kept under `legacy_example/` and pass `-legacy_output` directly.
+
+Run all current and legacy examples with `python3 example/python/run_all_examples.py` or, from MATLAB, `run('example/matlab/run_all_examples.m')`. Python examples that download public training images or read TIFF training images rely on the package dependency set, including `requests` and `tifffile`; reinstall the local package or install its dependencies before running the smoke script. The reporting probes are expected to fail on their fatal-error branch and are counted separately by both runners.
+
+MATLAB schema examples that read secondary outputs such as `result.indexmap` may use `[result, ~] = g2s(...)`. The schema struct is still the first return value; the ignored second output keeps older mex builds downloading the second image artifact.
+
+The local interface version is still reported by `--version`. Remote/server version checks use the ZeroMQ control task behind `-serverVersion`, which returns the connected server's compiled `VERSION` string and respects normal `-sa` and `-p` connection parameters.
 
 ## Algorithm logging conventions
 
@@ -287,7 +333,8 @@ Transforms map original QS template offsets into simulation-space lookup offsets
 
 Supported geometries are 2D and 3D only. 2D rotation maps use one channel containing radians in the XY plane. 3D rotation maps use four channels containing quaternion values in `(qx, qy, qz, qw)` order; invalid or near-zero node quaternions fall back to identity rotation. Scale maps use one channel; invalid node scale values fall back to identity scale.
 
-The Python example `example/python/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images.
+The schema Python example `example/python/qs/qs_rotation_equivalence_2d.py` checks the constant-rotation sign convention by comparing `-rmi +pi/2` with clockwise and counter-clockwise rotated training images. The positional-output version remains under `legacy_example/python/qs_rotation_equivalence_2d.py`.
+
 The static package also includes `browser/deploy/_headers`. Keep this file at the deployment root when using Cloudflare Pages; it enables COOP/COEP for the threaded Wasm build.
 
 For Cloudflare Workers Builds, deploy the directory that contains `index.html` and `_headers`, for example `npx wrangler deploy --assets ./public/ --compatibility-date 2026-07-24` when the package is under `public/`. Workers Static Assets parses the `_headers` file inside that asset directory.

@@ -28,7 +28,8 @@ enum taskType{
     SHUTDOWN=10,
     SERVER_STATUS=11,
     JOB_STATUS=12,
-    DOWNLOAD_TEXT=13
+    DOWNLOAD_TEXT=13,
+    SERVER_VERSION=14
 };
 
 struct infoContainer{
