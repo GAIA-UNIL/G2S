@@ -112,7 +112,7 @@ example/.venv/
 *.depend
 .depend
 compile_commands.json
-build/PyDevAlgo
+build/PyDevAlgo/__pycache__/
 build/algosName.config
 *.asv
 
