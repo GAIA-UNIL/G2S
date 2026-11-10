@@ -4,6 +4,9 @@
 ![](https://github.com/GAIA-UNIL/G2S//workflows/C/C++%20CI/badge.svg)
 ![](https://github.com/GAIA-UNIL/G2S/actions/workflows/pythonPublish.yml/badge.svg)
 
+<!-- Temporary 1.0 migration notice: remove once most users have upgraded (see CHANGES.md). -->
+> **G2S 1.0 changes what `g2s` returns.** Calls now return one result object (`result["simulation"]`, `result.simulation`, `result$simulation`) instead of several outputs. Existing scripts can add `-legacy_output` to keep the old behaviour. See the [migration guide](https://gaia-unil.github.io/G2S/migration-1.0.html) ([source](docs/migration-1.0.md)).
+
 
 
 ## Brief overview

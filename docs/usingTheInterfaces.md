@@ -9,6 +9,8 @@ toc-depth: 2
 
 # Using the interfaces {#userInterface}
 
+> **Upgrading from an earlier version?** Since G2S 1.0, a call to **g2s** returns one result object with named fields instead of several separate outputs. See [Migrating to G2S 1.0]({{ site.baseurl }}/migration-1.0.html) to update your scripts.
+
 A call to **g2s** is needed to launch any computation. Each call to **g2s** is composed of parameters of G2S and of the name of the algorithm used. Flags do **NOT** have a specific order.
 
 <!--Tab Buttons-->
@@ -80,6 +82,8 @@ An R interface is available in the repository. Please refer to the installation 
 For distributed QuickSampling, the Python and MATLAB interfaces also accept native matrices for JSON-grid parameters. `-jg` / `-job_grid` / `-job_grid_json` are normalized to `-jg`, `-eg` / `-endpoint_grid_json` are normalized to `-eg`, and `-di_grid_json` is kept under its canonical name. Matrix values are converted to inline JSON before the normal JSON upload path, so they should not be passed through the binary image upload path.
 
 ## Interface output syntax
+
+To update scripts written for versions before 1.0, see [Migrating to G2S 1.0]({{ site.baseurl }}/migration-1.0.html).
 
 The current interface returns one schema object by default. In Python this object is a dictionary; in MATLAB it is a struct; in R it is a named list. Common keys are:
 
