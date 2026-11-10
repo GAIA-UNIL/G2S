@@ -84,10 +84,10 @@ def discover_examples(
             if "__pycache__" in path.parts:
                 continue
             relative = path.relative_to(REPO_ROOT)
+            if only and only not in relative.as_posix():
+                continue
             if relative in REQUIRES_BROWSER_PAGE:
                 print(f"[SKIP] {relative} (requires the QS browser page)", flush=True)
-                continue
-            if only and only not in relative.as_posix():
                 continue
             examples.append(path)
     return sorted(examples)
