@@ -3,6 +3,7 @@
 
 import os
 import platform
+import sysconfig
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -122,6 +123,9 @@ class build_ext(_build_ext):
         pyzmq_include_dirs, pyzmq_library_dirs = _collect_pyzmq_paths()
 
         for ext in self.extensions:
+            # Windows does not define this automatically for free-threaded builds.
+            if sysconfig.get_config_var("Py_GIL_DISABLED"):
+                ext.define_macros.append(("Py_GIL_DISABLED", "1"))
             ext.include_dirs.append(np.get_include())
 
             # Prefer pyzmq-provided headers first (contains zmq.h in isolated builds).
