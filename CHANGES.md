@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-11-10
+
+- Added `docs/migration-1.0.md`, a guide for updating scripts to the G2S 1.0 result object (named fields, `-legacy_output`, asynchronous calls, `-returnMeta`, per-algorithm field names), linked from the interface page and the docs navigation.
+- Added a 1.0 migration notice to the docs home page (`docs/briefOverview.md`) and to `README.md`. **These two notices are temporary**: remove them once most users have moved to 1.0 (for example at the next minor release). The links from `docs/usingTheInterfaces.md` and the navigation entry are permanent.
+- Merged `master` into `new-interfaces`: browser runs (`-sa browser`) now return the same result object as server runs, and the browser Python example uses it (positional copy in `legacy_example/python/`).
+
 ## 2026-07-24
 
 - Bumped the package version to 0.99.3 for the repaired Python wheel publication pipeline.
