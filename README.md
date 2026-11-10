@@ -20,7 +20,7 @@ Current interface demos live under `example/<language>/<algorithm>/` and use the
 Distributed QS interface calls accept native matrix values for JSON-grid parameters such as `-jg`, `-eg`, and `-di_grid_json`; the shared interface layer converts them to JSON before upload and job serialization.
 For reporting-path checks, `example/python/reporting/reporting_probe.py` and `example/matlab/reporting/reporting_probe.m` call the server-side `report_probe` utility algorithm and exercise plain logs, warnings, fatal errors, `-showLogs`, and schema-first output through the real interface bindings. Both examples let the fatal error propagate by default so callers only suppress it when they explicitly wrap the call in `try`/`except` or `try`/`catch`.
 
-**G2S** is currently only available for *UNIX*-based systems, *Linux* and *macOS*. A solution for *Windows 10+* is provided using *WSL* (Windows Subsystem for Linux). However, for previous *Windows* versions, the only solution currently available is to install a *Linux* system manually inside a virtual machine. 
+The native G2S server is currently supported on *UNIX*-based systems, *Linux* and *macOS*. Windows 10+ users can run the server through WSL (Windows Subsystem for Linux), while the Python client interface is also published as a native Windows wheel.
 
 
 ## Documentation
@@ -48,12 +48,57 @@ Because this format uses native in-memory sizes and encodings, compatibility acr
 
 `make` in `build/Makefile` checks whether `include/zmq.hpp` exists. If missing, it auto-downloads `zmq.hpp` from `cppzmq` using `curl` (preferred), then `wget`, then `python`.
 
-For Python wheels, `zmq.h` must also be available. The Python build first tries `pyzmq` include paths (PEP 517 isolated builds), then system include paths. If not found, install ZeroMQ development headers (for example `libzmq3-dev` on Debian/Ubuntu or `zeromq-devel` on RHEL/Fedora).
-Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
+For Python wheels, `zmq.h` must also be available. The packaging Makefile fetches the header from the same pinned libzmq 4.3.5 release used by the Windows build; `setup.py` additionally checks pyzmq and system include paths for source builds outside that helper.
+Release wheels are built and import-tested for CPython 3.9 through 3.14 on Linux, Apple Silicon macOS, and 64-bit Windows. CPython 3.15 is exercised as a non-blocking preview in the TestPyPI workflow and is not part of the production release matrix until Python 3.15 is final.
+
+Windows wheel builds compile a shared libzmq first, link its MSVC import library explicitly, and bundle the matching DLL inside the `g2s` package. Run `build/python-build/setup_Win_compile_all.bat` before a local Windows wheel build; in GitHub Actions it also exports `G2S_LIBZMQ_ROOT` for PEP 517 build isolation. Shared C++ headers avoid non-standard math macros such as `M_PI`, which MSVC does not expose by default. Windows Python wheels build without zlib linkage, so gzip `.bgrid.gz` helpers are disabled there and plain `.bgrid` payloads remain the supported path.
+
+The macOS jobs currently publish native Apple Silicon wheels tagged `macosx_11_0_arm64`. They must not be relabelled as `universal2` unless both arm64 and x86_64 slices are actually compiled and verified.
 
 Some build and packaging helpers fetch third-party source files from upstream default branches, including `cppzmq`'s `zmq.hpp` and JsonCpp for Python packaging. This is an accepted project tradeoff: if an upstream change breaks the build, the local build scripts or package inputs must be updated at that time. For fully reproducible or audited release builds, use pinned package-manager dependencies or a reviewed local dependency snapshot.
 
 The Python packaging preprocess step creates ignored local copies of repository source and header trees under `build/python-build/`. These generated copies are removed before each preprocess run and should be treated as ephemeral build inputs, not source of truth.
+
+## QS in the browser
+
+The browser target runs CPU QS and FFTW entirely in a Web Worker. It shares the QS implementation with the native executable, exposes a typed Promise-based JavaScript API, and adds an on-demand loopback HTTP transport to the shared Python/MATLAB interface. Existing ZeroMQ, native, GPU, R, distributed, and asynchronous behavior remains the default; the browser path is selected explicitly with `-sa browser`.
+
+The build emits both a compatibility single-thread bundle and an OpenMP/pthread bundle with an eight-worker hard pool. QS path-level work can use browser threads; FFTW remains internally single-threaded to avoid nested worker pools. The page selects the pthread bundle only when it is cross-origin isolated and otherwise disables the thread control and uses the compatibility bundle.
+
+Build the browser bundle with the pinned emsdk 6.0.3 toolchain:
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+make -C build wasm
+python3 browser/serve.py
+```
+
+Open `http://localhost:8000/` in Chrome/Chromium or Firefox and keep the page open. `browser/serve.py` supplies the COOP/COEP headers required for `SharedArrayBuffer` on both localhost address families. Stop any older `python -m http.server` process using port 8000 before starting it. A synchronous Python or MATLAB call can then use the normal QS flags plus `-sa browser`. The page polls only while idle; each command owns a temporary listener on `127.0.0.1:8129`, and the listener closes when the command returns.
+
+When testing from a source checkout, rebuild and reinstall the Python wheel after changing the shared interface; an older installed wheel does not know about `-sa browser` and will try the normal ZeroMQ server:
+
+```sh
+make -C build python
+python3 -m pip install --force-reinstall build/python-build/dist/g2s-*.whl
+```
+
+The page has a maximum-thread spinner that defaults to four and never exceeds the browser-reported hardware or the eight-worker Wasm pool. Python and MATLAB continue to request concurrency with the normal `-j` flag. Integer values request that count, non-integers preserve the native proportional behavior, and `-j 0` requests the page maximum. The effective count is the smaller of that request and the page policy; clamping is returned in metadata and displayed as an interface warning. The page also displays the real QS simulation percentage and stage text forwarded to Python/MATLAB.
+
+With the page open, run the larger continuous stone example:
+
+```sh
+python3 example/python/qs/browser_unconditional_simulation.py
+```
+
+It downloads the public stone training image, requests four threads, runs a 200×200 unconditional QS simulation inside the browser, and displays the training image, simulation, and returned index map. Use `--size 64` for a faster first experiment, `--threads 2` to change the `-j` request, or `--output example/python/qs/browser_unconditional_simulation.png --no-show` to save the figure without opening a window. The example reads the default schema output; a positional-output version is kept under `legacy_example/python/browser_unconditional_simulation.py`.
+
+Browser communication has a finite 30-second connection/heartbeat timeout. `-TO` overrides that communication timeout in milliseconds, but does not limit a simulation that continues to send heartbeats. Browser mode accepts any page origin by default and echoes the requesting origin in CORS responses; use `-browserOrigin` to restrict a command to one exact development or production origin, and `-browserPort` only when changing the loopback port. The supported public pages include `https://www.mgravey.com/mps.online/` (origin `https://www.mgravey.com`) and `https://mps-online.mathieu-1cc.workers.dev/`. A production HTTPS page must include `http://127.0.0.1:8129` in its `connect-src` CSP.
+
+The browser slice is CPU-only. It rejects GPU/OpenCL/CUDA, distributed grids, augmented dimensions, autosave/resume, and asynchronous submit/status/wait operations. Arrays cross the bridge as validated little-endian float32 bodies with JSON metadata; native-width `.bgrid` files are not used as the browser wire format. See `DOCUMENTATION.md` for the API, protocol, build pins, thread policy, and deployment checklist.
+
+### Static deployment package
+
+`browser/deploy/` is a self-contained experimental preview bundle for trying QS before installing the local server. The local server remains the recommended production path and is expected to be roughly 5–10× faster for current workloads. After `make -C build wasm`, copy the contents of that folder to the document root of a static host. It includes the QS Lottie progress logo, local Lottie runtime, both Wasm variants, the worker/API files, full-size Stone and Strebelle in-page simulations, Python/MATLAB connection instructions, and a Cloudflare Pages `_headers` file for cross-origin-isolated threads. When isolation is unavailable, compatibility mode links users to the Cloudflare-hosted multithreaded preview. See [`browser/deploy/README.md`](browser/deploy/README.md) for the exact headers and CSP required by a production host.
 
 ## Server protocol schema
 
@@ -156,7 +201,3 @@ Use one value to apply the same `p` to all continuous variables, or pass one val
 ## Python AS example note
 
 `example/python/as/anchor_sampling.py` is a minimal synthetic AS demo using schema output. The richer AS diagnostic is available as `example/python/as/AnchorSamplingSyntheticExperiment.py`, with the positional-output version kept under `legacy_example/python/AnchorSamplingSyntheticExperiment.py`.
-
-## Online Demo (Back! but slow)
-
-An interactive online version is available [here](https://www.mgravey.com/mps.online/), to experiment with small unconditional simulations.

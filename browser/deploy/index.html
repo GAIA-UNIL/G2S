@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'; connect-src 'self' http://127.0.0.1:8129">
+  <title>QS browser preview — Try before installing G2S</title>
+  <style>
+    :root { color-scheme: dark; --ink:#eaf4f3; --muted:#9bb5b3; --bg:#071719; --panel:#102a2c; --line:#275356; --teal:#00c9bd; --orange:#ffb86b; font:16px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:radial-gradient(circle at 85% 0%, #164346 0, transparent 36rem), var(--bg); }
+    main { width:min(1120px, calc(100% - 2rem)); margin:auto; padding:2rem 0 4rem; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:3rem; }
+    .brand { display:flex; align-items:center; gap:.7rem; font-weight:800; letter-spacing:.08em; }
+    .brand-mark { width:2.25rem; height:2.25rem; border-radius:12px; background:var(--teal); display:grid; place-items:center; color:#052122; font-weight:900; }
+    nav a { color:var(--muted); text-decoration:none; margin-left:1.25rem; }
+    nav a:hover { color:var(--ink); }
+    .hero { display:grid; grid-template-columns:1.05fr .95fr; gap:3rem; align-items:center; }
+    h1 { font-size:clamp(2.5rem, 6vw, 5.5rem); line-height:.98; letter-spacing:-.06em; margin:0 0 1.25rem; max-width:9ch; }
+    h2 { font-size:1.5rem; margin:0 0 .5rem; }
+    p { color:var(--muted); max-width:65ch; }
+    .eyebrow { color:var(--teal); text-transform:uppercase; letter-spacing:.16em; font-size:.78rem; font-weight:800; }
+    .hero-copy .lead { font-size:1.15rem; }
+    .actions { display:flex; flex-wrap:wrap; gap:.8rem; margin-top:1.5rem; }
+    button, .button { border:0; border-radius:999px; padding:.75rem 1.1rem; font:inherit; font-weight:750; cursor:pointer; text-decoration:none; }
+    button.primary, .button.primary { color:#032120; background:var(--teal); }
+    button.secondary, .button.secondary { color:var(--ink); background:transparent; border:1px solid var(--line); }
+    button:disabled { opacity:.55; cursor:wait; }
+    .logo-card { position:relative; min-height:360px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg, #123739, #091e20); display:grid; place-items:center; overflow:hidden; box-shadow:0 24px 70px #00101199; }
+    .logo-card::before { content:""; position:absolute; width:22rem; height:22rem; border-radius:50%; background:#00c9bd20; filter:blur(12px); }
+    #qs-logo { width:min(75%, 340px); aspect-ratio:1; position:relative; z-index:1; }
+    .progress-readout { position:absolute; z-index:2; bottom:1.2rem; left:1.4rem; right:1.4rem; }
+    .progress-line { display:flex; justify-content:space-between; color:var(--muted); font-size:.85rem; }
+    .track { height:7px; margin-top:.45rem; background:#071719; border-radius:99px; overflow:hidden; }
+    #progress-fill { height:100%; width:0%; background:linear-gradient(90deg, var(--teal), #a1fff6); transition:width .18s ease; }
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:3rem; }
+    .card { background:#0c2325d9; border:1px solid var(--line); border-radius:20px; padding:1.4rem; }
+    .card-wide { grid-column:1 / -1; }
+    .status { min-height:1.5rem; color:var(--muted); }
+    .status strong { color:var(--ink); }
+    .control-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+    input[type=number], select { padding:.55rem .65rem; border:1px solid var(--line); border-radius:10px; background:#071719; color:var(--ink); font:inherit; }
+    input[type=number] { width:5rem; }
+    select { width:min(14rem, 55vw); }
+    .hint { color:var(--muted); font-size:.9rem; }
+    .thread-status { display:flex; align-items:center; flex-wrap:wrap; gap:.7rem; margin:.7rem 0 0; }
+    .thread-status .hint { margin:0; flex:1 1 18rem; }
+    .thread-status .button { padding:.48rem .8rem; font-size:.86rem; white-space:nowrap; }
+    .training-preview { display:block; width:100%; aspect-ratio:1; object-fit:contain; border-radius:12px; background:#071719; margin:1rem 0; }
+    canvas { display:block; width:100%; max-height:420px; object-fit:contain; image-rendering:auto; border-radius:12px; background:#071719; margin-top:1rem; }
+    pre { padding:1rem; overflow:auto; border-radius:12px; background:#061416; border:1px solid #173a3d; color:#c9fffa; }
+    code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .steps { display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; counter-reset:step; }
+    .step::before { counter-increment:step; content:counter(step); display:grid; place-items:center; width:2rem; height:2rem; border-radius:50%; background:var(--teal); color:#052122; font-weight:900; margin-bottom:.75rem; }
+    footer { margin-top:3rem; color:var(--muted); font-size:.9rem; }
+    @media (max-width:760px) { header { margin-bottom:2rem; } nav { display:none; } .hero, .grid { grid-template-columns:1fr; } .logo-card { min-height:300px; } .steps { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand"><span class="brand-mark">QS</span><span>G2S / QUICKSAMPLING</span></div>
+      <nav><a href="#demo">Demo</a><a href="#connect">Python &amp; MATLAB</a><a href="https://gaia-unil.github.io/G2S/briefOverview.html" target="_blank" rel="noreferrer">Install G2S</a></nav>
+    </header>
+
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Experimental browser preview · WebAssembly</div>
+        <h1 id="hero-title">Try QS before installing the server.</h1>
+        <p class="lead">This page is a lightweight preview for exploring QS before installing G2S locally. The local G2S server remains the recommended path for serious work and is typically 5–10× faster in the current setup.</p>
+        <div class="actions"><a class="button primary" href="#demo">Try a browser simulation</a><a class="button secondary" href="#connect">Connect Python / MATLAB</a></div>
+      </div>
+      <div class="logo-card" aria-label="QS simulation progress animation">
+        <div id="qs-logo"></div>
+        <div class="progress-readout"><div class="progress-line"><span id="stage">Ready for a simulation</span><strong id="percent">0%</strong></div><div class="track"><div id="progress-fill"></div></div></div>
+      </div>
+    </section>
+
+    <section class="grid" id="demo">
+      <article class="card">
+        <div class="eyebrow">Browser-only preview</div>
+        <h2>Run QS with a real training image</h2>
+        <p>Choose Stone or Strebelle and run an unconditional QS simulation inside a Web Worker. Every run uses a new random seed and produces a result with the same dimensions as the selected training image.</p>
+        <div class="control-row"><label for="training-image">Training image</label><select id="training-image"><option value="stone">Stone (continuous)</option><option value="strebelle">Strebelle (categorical)</option></select></div>
+        <img class="training-preview" id="training-preview" src="./assets/Stone.png" alt="Stone training image" width="200" height="200">
+        <p class="hint" id="training-description">Stone · continuous · the simulation will use the original image dimensions</p>
+        <div class="control-row"><label for="demo-threads">Maximum threads</label><input id="demo-threads" type="number" min="1" max="8" step="1" value="4"></div>
+        <div class="thread-status">
+          <p class="hint" id="thread-note">Checking browser thread support…</p>
+          <a class="button secondary" id="threaded-version-link" href="https://mps-online.mathieu-1cc.workers.dev/" target="_blank" rel="noreferrer" hidden>Open multithreaded version ↗</a>
+        </div>
+        <div class="actions"><button class="primary" id="run-demo">Run local demo</button><button class="secondary" id="cancel-demo" disabled>Cancel</button></div>
+        <p class="status" id="demo-status" aria-live="polite">Ready.</p>
+      </article>
+      <article class="card"><div class="eyebrow">Result</div><h2>Simulation image</h2><p class="hint" id="result-note">The full-size result will appear here after the simulation completes.</p><canvas id="result-canvas" width="200" height="200" aria-label="QS simulation result"></canvas></article>
+    </section>
+
+    <section class="card card-wide" id="connect" style="margin-top:1rem">
+      <div class="eyebrow">Optional bridge</div><h2>Try your Python or MATLAB workflow</h2>
+      <p>Leave this preview open and use <code>-sa browser</code> to test the interface without installing the local server. For repeated or large simulations, use the normal local-server address: it remains the faster and recommended route.</p>
+      <pre><code># Python
+simulation, index_map, duration, meta = g2s(
+    "-a", "qs", "-sa", "browser", "-ti", ti,
+    "-di", np.full((200, 200), np.nan, dtype=np.float32),
+    "-dt", [0], "-k", 1.2, "-n", 50, "-j", 4,
+    "-TO", 30000, "-returnMeta"
+)</code></pre>
+      <p class="status" id="bridge-status" aria-live="polite">Bridge ready; waiting for a local QS command.</p>
+      <p class="hint">MATLAB uses the same QS flags and <code>'-sa','browser'</code>. The page’s maximum-thread spinner caps the effective <code>-j</code> value. GPU, distributed, and asynchronous server operations are intentionally not part of browser mode.</p>
+    </section>
+
+    <section class="card card-wide" id="install" style="margin-top:1rem">
+      <div class="eyebrow">Recommended next step</div><h2>Install the local G2S server for real work</h2>
+      <p>The browser preview is useful for trying QS before installation. The local server remains the faster, full-featured path for production simulations, larger grids, GPU/distributed workflows, and repeated runs.</p>
+      <a class="button primary" href="https://gaia-unil.github.io/G2S/briefOverview.html" target="_blank" rel="noreferrer">Read the G2S installation overview ↗</a>
+    </section>
+    <footer>G2S QS experimental browser preview · CPU WebAssembly · local server remains the recommended high-performance path</footer>
+  </main>
+  <script src="./vendor/lottie.min.js"></script>
+  <script type="module" src="./app.js?v=20260724h"></script>
+</body>
+</html>

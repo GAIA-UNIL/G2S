@@ -14,10 +14,10 @@ jobs:
     name: 📦 Source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - run: |
           pip install --upgrade pip build twine
           cd build
@@ -31,22 +31,31 @@ jobs:
   build-linux:
     name: 🐧 Linux wheels (manylinux)
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python: 3.15-dev
+            experimental: true
       fail-fast: false
+    env:
+      PIP_PRE: ${{ matrix.experimental == true }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
+          check-latest: ${{ matrix.experimental == true }}
       - name: Build inside manylinux
         run: |
-          PYVER=$(echo ${{ matrix.python }} | tr -d .)
+          PYTHON_SERIES="${{ matrix.python }}"
+          PYTHON_SERIES="${PYTHON_SERIES%%-*}"
+          PYVER=$(echo "$PYTHON_SERIES" | tr -d .)
           PYTAG="cp${PYVER}-cp${PYVER}"
           echo "🧱 Building for $PYTAG using manylinux_2_28"
 
-          docker run --rm -v $PWD:/io quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+          docker run --rm -e PIP_PRE -v "$PWD:/io" quay.io/pypa/manylinux_2_28_x86_64 bash -c "
             set -e
             echo '🐍 Installing build dependencies...'
             /opt/python/${PYTAG}/bin/python -m pip install --upgrade pip build wheel numpy pyzmq twine auditwheel
@@ -79,15 +88,25 @@ jobs:
   build-macos:
     name: 🍎 macOS wheels
     runs-on: macos-latest
+    continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python: 3.15-dev
+            experimental: true
       fail-fast: false
+    env:
+      ARCHFLAGS: -arch arm64
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      PIP_PRE: ${{ matrix.experimental == true }}
+      _PYTHON_HOST_PLATFORM: macosx-11.0-arm64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
+          check-latest: ${{ matrix.experimental == true }}
       - name: Install dependencies
         run: |
           pip install --upgrade pip build wheel numpy pyzmq twine
@@ -110,30 +129,35 @@ jobs:
   build-windows:
     name: 🪟 Windows wheels
     runs-on: windows-latest
+    continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python: 3.15-dev
+            experimental: true
       fail-fast: false
+    env:
+      PIP_PRE: ${{ matrix.experimental == true }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
+          check-latest: ${{ matrix.experimental == true }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip build wheel numpy pyzmq twine
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
       - name: Install Windows dependencies
         run: |
           cd build/python-build
           cmd.exe /c setup_Win_compile_all.bat
+      - name: Install GNU Make
+        run: choco install make --no-progress -y
       - name: Build wheel
+        shell: bash
         run: |
-          choco install make
-          refreshenv
-          cd build
-          make python-wheel
+          make -C build/python-build PYTHON=python wheel
       - name: Test import
         shell: pwsh
         run: |

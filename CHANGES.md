@@ -1,5 +1,40 @@
 # Changes
 
+## 2026-07-24
+
+- Bumped the package version to 0.99.3 for the repaired Python wheel publication pipeline.
+- Fixed native Windows Python wheel packaging by building wheels directly from the prepared package tree, resolving the compiled libzmq tree through an absolute build-isolation path, explicitly linking its MSVC import library, bundling the matching DLL in the wheel, and replacing the MSVC-incompatible `M_PI` macro in the shared Gaussian-kernel code.
+- Removed the Windows workflow's unnecessary MSBuild setup action and Unix-style top-level Make probing; the libzmq helper now uses CMake's portable build command and the wheel step invokes the Python sub-Makefile directly.
+- Updated Python publication workflows to Node 24-based `actions/checkout@v6` and `actions/setup-python@v6`, eliminating the attached Node 20 action warnings.
+- Added production CPython 3.14 wheels on Linux, Apple Silicon macOS, and Windows, plus non-blocking `3.15-dev` preview builds in the TestPyPI workflow.
+- Corrected Apple Silicon wheel metadata from `universal2` to `macosx_11_0_arm64`, matching the extension's actual compiled architecture.
+- Disabled the deprecated NumPy C API in the Python interface build and removed redundant Windows preprocessor definitions.
+- Restored the pinned libzmq `zmq.h` packaging input required on Linux and macOS, added the CMake 4 compatibility policy needed to configure libzmq 4.3.5 on Windows runners, and replaced the removed `load_module()` API so Python 3.15 can read package metadata.
+
+## 2026-07-23
+
+- Added a documented 200×200 Python stone example for exercising the on-demand browser QS bridge, including configurable size, seed, timeout, interactive plotting, and optional figure export.
+- Added a separate eight-worker OpenMP/pthread QS WebAssembly artifact while retaining the single-thread compatibility artifact; FFTW remains internally single-threaded.
+- Preserved normal `-j` semantics across Python/MATLAB and JavaScript, added a browser-owned maximum-thread spinner defaulting to four, and report requested/effective limits and clamping warnings in result metadata.
+- Added live browser progress and stage display driven by the existing QS reporting callback, plus a local COOP/COEP development server and threaded smoke coverage for cancellation and ten sequential runs.
+- Documented the required Python wheel rebuild/reinstall step and made the browser example report the imported G2S location, preventing an older wheel from being mistaken for a browser-bridge failure.
+- Added a copy-ready `browser/deploy/` static site with the supplied QS Lottie progress animation, local Lottie runtime, browser-only demo simulation, bundled Wasm assets, and deployment instructions.
+- Clarified that the browser package is an experimental try-before-installing preview; the local G2S server remains the recommended high-performance path and is expected to be 5–10× faster for current workloads.
+- Hardened the preview bridge against transient heartbeat failures, serialized progress uploads, and prevented duplicate preview tabs from claiming the same interface session.
+- Made the local development server serve both IPv4 and IPv6 localhost addresses so generic HTTP servers cannot silently remove the required isolation headers.
+- Added Cloudflare Pages `_headers` configuration to the browser deployment package for cross-origin-isolated WebAssembly threads.
+- Replaced the synthetic browser demo with selectable Stone and Strebelle training images, randomized seeds, and simulations matching each source image's original dimensions.
+- Documented direct Git deployment through Cloudflare Workers Builds using a static asset directory.
+- Made browser transport origin handling permissive by default for hosted preview pages while retaining `-browserOrigin` as an exact-origin restriction.
+- Added a contextual link from compatibility mode to the Cloudflare-hosted multithreaded browser preview.
+
+## 2026-07-18
+
+- Removed the obsolete Emscripten build target, WebSocket bridge, browser-only server and tasking branches, interface shims, and stale online-demo link. Native C++, Intel, MATLAB, Python, and R paths remain unchanged.
+- Added a replacement QS-only browser architecture that compiles the reusable CPU QS path and float FFTW to WebAssembly, executes jobs in a Web Worker, and exposes a typed Promise-based JavaScript API with progress, cancellation, result retrieval, and worker recreation.
+- Added one shared Python/MATLAB `-sa browser` transport using a pinned vendored cpp-httplib listener bound to `127.0.0.1`, exact-origin CORS, per-command nonce/session authentication, Local Network Access response headers, validated JSON/float32 protocol messages, a 30-second default connection/heartbeat timeout, and immediate port-conflict errors.
+- Added pinned emsdk 6.0.3 and checksum-pinned FFTW 3.3.11 browser build flow, Chrome/Chromium and Firefox smoke fixtures, and native transport tests covering timeout, authentication, binary results, and port conflicts. Generated Wasm, FFTW, and test artifacts remain ignored.
+
 ## 2026-05-12
 
 - Removed the short-lived SNESIM path-optimization CLI support, logging, and documentation. SNESIM now always uses the default per-level execution order built by its multigrid planner.

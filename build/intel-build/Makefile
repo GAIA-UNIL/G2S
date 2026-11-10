@@ -70,7 +70,7 @@ all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs 
 
 depend: .depend Makefile
 
-.depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(subst $(SRCS)/cvtZMQ2WS.cpp,,$(wildcard $(SRCS)/*.cpp)))))
+.depend: $(subst $(SRCS)/g2sRExtension.cpp,,$(subst $(SRCS)/g2smodule.cpp,,$(subst $(SRCS)/g2s.cpp,,$(wildcard $(SRCS)/*.cpp))))
 	rm -f ./.depend
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(CXX_FLAGS) $(INC) $(LIBINC) -MM $^ > ./.depend;
 
@@ -91,7 +91,7 @@ echo: echo.o DataImage.o
 g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
 	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) --compiler-options -fuse-ld=lld
 
-qs: qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
+qs: qs.o qsCore.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(QS_DISTRIBUTED_LIBS) $(OPENCL_LIB)
 
 auto_qs: auto_qs.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)

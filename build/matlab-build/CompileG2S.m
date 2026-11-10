@@ -1,6 +1,6 @@
 clc; clear all;
 
-communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
+communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
     '/usr/local/lib/libzmq.a','/opt/local/lib/libjsoncpp.a','/usr/local/lib/libsodium.a','-lut',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
 
 if ismac
@@ -8,7 +8,7 @@ if ismac
         mex(communMacLinux{:},'-L/opt/local/lib/','-L/usr/local/lib/','CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=10.14', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=10.14');
     end
     if computer('arch')=="maca64"
-        communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
+        communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
     '/opt/homebrew/lib/libzmq.a','-ljsoncpp','/opt/homebrew/lib/libsodium.a','-lut','-ld_classic',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
         mex(communMacLinux{:},"-L/opt/homebrew/lib/",'CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=13.0', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=13.0');
     end
@@ -40,9 +40,9 @@ elseif ispc
     end
     libsVal=cellstr(ls(strcat(zmqBuilDir,'lib/Release')));
     libName=libsVal(contains(libsVal,'.lib')&contains(libsVal,'libzmq')&(~contains(libsVal,'mt-s')));
-    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','jsoncpp-master/dist/jsoncpp.cpp','-I../../include_interfaces','-I../../include','-I./libzmq-master/include',...
+    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','jsoncpp-master/dist/jsoncpp.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I./libzmq-master/include',...
         '-I"cppzmq-master"',strcat('-L',zmqBuilDir,'lib/Release'),strcat('-l',libName{1}(4:end-4)),'-I"jsoncpp-master\dist"',strcat('-L',matlabroot,'\extern\lib\win64\microsoft'),...
-        '-lut','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
+        '-lut','-lws2_32','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
     path=getenv('PATH');
     newpath=strcat(path,strcat('-I',zmqBuilDir,'bin/Release'));
     setenv('PATH',newpath);

@@ -13,8 +13,13 @@
 #include <cerrno>
 #include <chrono>
 
+#ifndef G2S_BROWSER_BUILD
 #include "jobManager.hpp"
+#else
+typedef unsigned jobIdType;
+#endif
 #include "DataImage.hpp"
+#include "qsCore.hpp"
 
 namespace g2s {
 namespace reporting {
@@ -184,6 +189,7 @@ inline void setProgressValue(JobReportContext& context, const std::string& key, 
 }
 
 inline void setProgress(FILE* reportFile, double progressPercent, const std::string& stage, const std::string& detail, long long currentStep=-1, long long totalSteps=-1){
+	g2s::qs::notifyProgress(progressPercent,detail);
 	std::lock_guard<std::mutex> lock(registryMutex());
 	auto it=registry().find(reportFile);
 	if(it==registry().end()) return;
