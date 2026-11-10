@@ -56,6 +56,33 @@ def ordinary_kriging(lags, covariance):
     return solution[:count], numpy.sqrt(max(variance, 0.0))
 
 
+def batch_ordinary_kriging(lags, valid, covariance):
+    """Ordinary kriging for a batch of padded neighbourhoods in one solve.
+
+    lags: (B, K, ndim) offsets, valid: (B, K) mask of informed neighbours.
+    Padded/invalid neighbours get weight 0; a node without any informed
+    neighbour gets weights 0 and the sill as variance (mean 0).
+    Returns weights (B, K) and standard deviations (B,).
+    """
+    batch, count, ndim = lags.shape
+    mask = valid.astype(numpy.float64)
+    system = numpy.zeros((batch, count + 1, count + 1))
+    system[:, :count, :count] = covariance(lags[:, :, None, :] - lags[:, None, :, :]) * mask[:, :, None] * mask[:, None, :]
+    diagonal = numpy.arange(count)
+    system[:, diagonal, diagonal] = numpy.where(valid, system[:, diagonal, diagonal], 1.0)
+    system[:, :count, count] = mask
+    system[:, count, :count] = mask
+    empty = ~valid.any(axis=1)
+    system[empty, count, count] = 1.0
+    right = numpy.zeros((batch, count + 1))
+    right[:, :count] = covariance(lags) * mask
+    right[:, count] = numpy.where(empty, 0.0, 1.0)
+    solution = numpy.linalg.solve(system, right[..., None])[..., 0]
+    sill = float(covariance(numpy.zeros((1, ndim)))[0])
+    variance = sill - numpy.einsum("bk,bk->b", right, solution)
+    return solution[:, :count], numpy.sqrt(numpy.maximum(variance, 0.0))
+
+
 class OrdinaryKrigingSGS:
     """Sequential Gaussian simulation: ordinary kriging + Gaussian noise."""
 
@@ -85,6 +112,17 @@ class OrdinaryKrigingSGS:
                fullStationary, variableOfInterest, idTI4Sampling):
         _, mean, deviation, data = self.predict(coordinates, values, idTI4Sampling)
         return mean + gaussian_quantile(randUniform) * deviation, int(data.size)
+
+    def sample_batch_kriging(self, coordinates, values, randUniform, indexInThePath, idTI4Sampling):
+        """Batched version of sample() for a covariance that does not depend
+        on idTI4Sampling: one linear solve for the whole batch."""
+        data = values[:, :, 0]
+        valid = ~numpy.isnan(data)
+        weights, deviation = batch_ordinary_kriging(coordinates.astype(numpy.float64), valid,
+                                                    lambda lags: self.covariance(lags, -1))
+        mean = numpy.einsum("bk,bk->b", weights, numpy.where(valid, data, 0.0))
+        noise = numpy.array([gaussian_quantile(u) for u in randUniform])
+        return mean + noise * deviation, valid.sum(axis=1)
 
 
 class KrigingWeightCache:

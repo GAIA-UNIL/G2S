@@ -12,7 +12,7 @@ redirect_from:
 
 pyDev lets you try a new sequential-simulation idea in Python without writing C++. G2S does the work around it: the simulation path, the search for informed neighbours, waiting for nodes simulated by other threads, hard data, the outputs and the server integration. Your Python class only has to predict one node from its neighbours.
 
-It is available as `pyDev`, `PyDev`, or `pydev`.
+It is available as `pyDev`, `PyDev`, or `pydev`. For machine-learning models, a batch mode predicts many nodes in one Python call.
 
 ## Build
 
@@ -50,7 +50,8 @@ These are read by the pyDev process, so set them in the environment of the G2S s
 | `-sp` | Simulation path (low to high; -&infin; is not simulated). Default: random path. | |
 | `-ii` | Per-node integer passed to `sample()` as `idTI4Sampling` (for example which TI or model to use). | |
 | `-s` | Random seed. | |
-| `-j` | Number of threads (integer, or fraction of the cores). | |
+| `-j` | Number of threads for `sample()` (integer, or fraction of the cores). In batch mode, the default batch size. | |
+| `-bs` | Batch size when the class defines `sample_batch()`. Default: `-j`. Batch mode runs 2 &times; batch-size threads; `-j` is then ignored. `-bs 1` uses `sample()` when the class defines both. | |
 | `-csim` | Periodic (circular) simulation domain. | |
 
 pyDev runs a vector simulation: all variables of a node are simulated together.
@@ -80,9 +81,18 @@ class myAlgorithm:
         # idTI4Sampling: value of -ii at the node, -1 without -ii
         return value                # or (values, index) to fill the index map
 
+    def sample_batch(self, coordinates, values, randUniform, indexInThePath, idTI4Sampling):
+        # optional: predicts several nodes in one call (for ML models, GPUs, vectorised code)
+        # coordinates: int32 (B, K, ndim), values: float64 (B, K, nvar), padded with
+        #   offset 0 / NaN rows when nodes have fewer than K neighbours
+        # randUniform: (B,), indexInThePath: (B,), idTI4Sampling: (B,)
+        return values               # (B, nvar) or (B,), or (values, index) with index (B,)
+
     def finalize(self):            # optional, called once after a successful run
         pass
 ```
+
+A class needs `sample()`, `sample_batch()`, or both.
 
 - Offsets are given in NumPy axis order, so `ti[tuple(center + offset)]` reads the TI at that lag.
 - Row 0 is always the node being simulated. Its values are NaN except for variables already known at that node.
@@ -91,13 +101,26 @@ class myAlgorithm:
 - If your code raises, the job stops and the error is reported to the client with the Python traceback in the job log.
 - With a free-threaded Python, `sample()` is called from several threads at the same time: do not modify shared state in it without a lock (writing to a row reserved for `indexInThePath` is safe).
 
+## Batch mode
+
+When the class defines `sample_batch()`, pyDev predicts several nodes per Python call:
+
+- threads search neighbourhoods as usual; a node whose neighbourhood is complete is queued in a shared batch, and the thread moves on to the next node of the path;
+- the batch is sent when it holds `-bs` nodes, or when every thread is blocked waiting for a node of that batch (nothing more can join it), so batches are as full as the path allows;
+- one batch is predicted at a time while the next one fills;
+- pyDev runs 2 &times; batch-size threads so that enough nodes are in flight.
+
+Each node still sees exactly the neighbours it would see in per-node mode, so for a given seed the result is the same as with `sample()` (up to floating-point differences between your two implementations). The job log reports `python_calls` and `batch_average_size`.
+
+How full batches can be depends on the path: early in a random path most nodes depend on recently simulated ones, so batches are small; later they fill up. Large grids allow larger batches. As an indication, on a 150 &times; 150 grid with `-n 30`, batches of 8, 32, 64 and 256 averaged 7.9, 28, 48 and 81 nodes.
+
 ## Examples
 
 The PyDevAlgo folder contains three sequential Gaussian simulation (ordinary kriging) algorithms built on `pydev_kriging.py`:
 
 | `-pa` | Description |
 |---|---|
-| `sgs` | Exponential covariance. The index map stores the number of informed neighbours. |
+| `sgs` | Exponential covariance. The index map stores the number of informed neighbours. Defines both `sample()` and a batched `sample_batch()` (one linear solve per batch), a template for ML models. |
 | `sgsCP` | Same model with a constant path (`-sp`). The kriging weights of each path index are stored on the first run and replayed afterwards (index map: 1 computed, 2 replayed). |
 | `sgsTiCP` | Covariance maps given as `-ti` (lag 0 at the centre), optionally one per region with `-ii`. Weights are cached as in `sgsCP`. |
 

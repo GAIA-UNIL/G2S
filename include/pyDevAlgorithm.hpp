@@ -298,15 +298,23 @@ public:
 		if (!_instance) { error = takePythonError(className + ".__init__ failed"); return false; }
 
 		_sampleName.reset(PyUnicode_InternFromString("sample"));
-		if (!_sampleName) { error = takePythonError("internal error"); return false; }
-		int hasSample = PyObject_HasAttrWithError(_instance.get(), _sampleName.get());
-		if (hasSample != 1) {
-			if (hasSample < 0) error = takePythonError(className + " lookup of sample() failed");
-			else error = className + " must define a sample(self, coordinates, values, randUniform, indexInThePath, threadId, fullStationary, variableOfInterest, idTI4Sampling) method";
+		_sampleBatchName.reset(PyUnicode_InternFromString("sample_batch"));
+		if (!_sampleName || !_sampleBatchName) { error = takePythonError("internal error"); return false; }
+		const int hasSample = PyObject_HasAttrWithError(_instance.get(), _sampleName.get());
+		const int hasSampleBatch = hasSample < 0 ? -1 : PyObject_HasAttrWithError(_instance.get(), _sampleBatchName.get());
+		if (hasSample < 0 || hasSampleBatch < 0) { error = takePythonError(className + " method lookup failed"); return false; }
+		_hasSample = hasSample == 1;
+		_hasSampleBatch = hasSampleBatch == 1;
+		if (!_hasSample && !_hasSampleBatch) {
+			error = className + " must define sample(self, coordinates, values, randUniform, indexInThePath, threadId, fullStationary, variableOfInterest, idTI4Sampling)"
+			        " and/or sample_batch(self, coordinates, values, randUniform, indexInThePath, idTI4Sampling)";
 			return false;
 		}
 		return true;
 	}
+
+	bool hasSample() const { return _hasSample; }
+	bool hasSampleBatch() const { return _hasSampleBatch; }
 
 	// Optional build(n) hook.
 	bool build(const std::vector<unsigned>& nbNeighbors, std::string& error) {
@@ -317,7 +325,100 @@ public:
 	bool finalize(std::string& error) { return callOptional("finalize", nullptr, error); }
 
 	// Drops the Python instance (runs __del__). Call while attached.
-	void release() { _instance.reset(); _sampleName.reset(); }
+	void release() { _instance.reset(); _sampleName.reset(); _sampleBatchName.reset(); }
+
+	// One node of a batch: neighbour rows as for sample().
+	struct BatchItem {
+		std::vector<int> offsets;   // rows * nbDims, DataImage axis order
+		std::vector<double> values; // rows * nbVariable
+		size_t rows = 0;
+		float randUniform = 0.f;
+		uint64_t indexInThePath = 0;
+		int idTI4Sampling = -1;
+	};
+
+	// Calls sample_batch(coordinates (B,K,ndim) int32, values (B,K,nvar)
+	// float64, randUniform (B,) float64, indexInThePath (B,) int64,
+	// idTI4Sampling (B,) int32). K is the largest neighbour count of the batch;
+	// shorter neighbourhoods are padded with offset 0 and NaN values.
+	// Accepts values of shape (B,) when nvar == 1 or (B, nvar), optionally as
+	// a (values, index) tuple with index of shape (B,).
+	bool sampleBatch(const std::vector<BatchItem>& items, std::vector<SampleResult>& results, std::string& error) {
+		const npy_intp batch = npy_intp(items.size());
+		size_t maxRows = 1;
+		for (const BatchItem& item : items) maxRows = std::max(maxRows, item.rows);
+		npy_intp coordinateDims[3] = { batch, npy_intp(maxRows), npy_intp(_nbDims) };
+		npy_intp valueDims[3] = { batch, npy_intp(maxRows), npy_intp(_nbVariable) };
+		PyRef coordinates(PyArray_ZEROS(3, coordinateDims, NPY_INT32, 0));
+		PyRef valueArray(PyArray_SimpleNew(3, valueDims, NPY_FLOAT64));
+		PyRef seeds(PyArray_SimpleNew(1, &batch, NPY_FLOAT64));
+		PyRef pathIndices(PyArray_SimpleNew(1, &batch, NPY_INT64));
+		PyRef tiIndices(PyArray_SimpleNew(1, &batch, NPY_INT32));
+		if (!coordinates || !valueArray || !seeds || !pathIndices || !tiIndices) {
+			error = takePythonError("unable to allocate sample_batch() arguments");
+			return false;
+		}
+		int32_t* coordinatePtr = static_cast<int32_t*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(coordinates.get())));
+		double* valuePtr = static_cast<double*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(valueArray.get())));
+		double* seedPtr = static_cast<double*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(seeds.get())));
+		int64_t* pathPtr = static_cast<int64_t*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(pathIndices.get())));
+		int32_t* tiPtr = static_cast<int32_t*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(tiIndices.get())));
+		std::fill(valuePtr, valuePtr + size_t(batch) * maxRows * _nbVariable, std::nan(""));
+		for (size_t b = 0; b < items.size(); ++b) {
+			const BatchItem& item = items[b];
+			for (size_t n = 0; n < item.rows; ++n)
+				for (unsigned d = 0; d < _nbDims; ++d)
+					coordinatePtr[(b * maxRows + n) * _nbDims + d] = item.offsets[n * _nbDims + (_nbDims - 1 - d)];
+			std::memcpy(valuePtr + b * maxRows * _nbVariable, item.values.data(), item.rows * _nbVariable * sizeof(double));
+			seedPtr[b] = item.randUniform;
+			pathPtr[b] = int64_t(item.indexInThePath);
+			tiPtr[b] = item.idTI4Sampling;
+		}
+
+		PyObject* args[] = { _instance.get(), coordinates.get(), valueArray.get(), seeds.get(), pathIndices.get(), tiIndices.get() };
+		PyRef output(PyObject_VectorcallMethod(_sampleBatchName.get(), args, sizeof(args) / sizeof(args[0]), nullptr));
+		uint64_t firstIndex = items.front().indexInThePath, lastIndex = firstIndex;
+		for (const BatchItem& item : items) { firstIndex = std::min(firstIndex, item.indexInThePath); lastIndex = std::max(lastIndex, item.indexInThePath); }
+		const std::string where = "sample_batch() on a batch of " + std::to_string(items.size()) + " nodes (path indices " + std::to_string(firstIndex) + ".." + std::to_string(lastIndex) + ")";
+		if (!output) { error = takePythonError(where + " raised"); return false; }
+
+		PyObject* valuesObject = output.get(); // borrowed
+		PyObject* indexObject = nullptr;
+		if (PyTuple_Check(valuesObject)) {
+			if (PyTuple_GET_SIZE(valuesObject) != 2) { error = where + " must return values or a (values, index) tuple"; return false; }
+			indexObject = PyTuple_GET_ITEM(valuesObject, 1);
+			valuesObject = PyTuple_GET_ITEM(valuesObject, 0);
+		}
+		PyRef valuesOut(PyArray_FromAny(valuesObject, PyArray_DescrFromType(NPY_FLOAT64), 1, 2,
+		                                NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_ALIGNED | NPY_ARRAY_FORCECAST, nullptr));
+		if (!valuesOut) { error = takePythonError(where + ": returned values are not convertible to a float array"); return false; }
+		PyArrayObject* valuesArray = reinterpret_cast<PyArrayObject*>(valuesOut.get());
+		const bool shapeOk = (PyArray_NDIM(valuesArray) == 2 && PyArray_DIM(valuesArray, 0) == batch && PyArray_DIM(valuesArray, 1) == npy_intp(_nbVariable))
+		                  || (PyArray_NDIM(valuesArray) == 1 && _nbVariable == 1 && PyArray_DIM(valuesArray, 0) == batch);
+		if (!shapeOk) {
+			error = where + " returned values of the wrong shape, expected (" + std::to_string((long long)batch) + ", " + std::to_string(_nbVariable) + ")"
+			        + (_nbVariable == 1 ? " or (" + std::to_string((long long)batch) + ",)" : std::string());
+			return false;
+		}
+		PyRef indexOut;
+		if (indexObject) {
+			indexOut.reset(PyArray_FromAny(indexObject, PyArray_DescrFromType(NPY_INT64), 1, 1, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_ALIGNED, nullptr));
+			if (!indexOut) { error = takePythonError(where + ": the index must be an integer array of shape (B,)"); return false; }
+			if (PyArray_DIM(reinterpret_cast<PyArrayObject*>(indexOut.get()), 0) != batch) { error = where + ": the index must have shape (B,)"; return false; }
+		}
+		const double* outValues = static_cast<const double*>(PyArray_DATA(valuesArray));
+		const int64_t* outIndex = indexOut ? static_cast<const int64_t*>(PyArray_DATA(reinterpret_cast<PyArrayObject*>(indexOut.get()))) : nullptr;
+		results.resize(items.size());
+		for (size_t b = 0; b < items.size(); ++b) {
+			results[b].values.assign(outValues + b * _nbVariable, outValues + (b + 1) * _nbVariable);
+			results[b].index = 0;
+			if (outIndex) {
+				if (outIndex[b] < 0 || outIndex[b] > int64_t(UINT32_MAX)) { error = where + ": index values must be in [0, 2^32-1]"; return false; }
+				results[b].index = unsigned(outIndex[b]);
+			}
+		}
+		return true;
+	}
 
 	// Calls sample(). offsets are in DataImage axis order; they are passed to
 	// Python in NumPy axis order (reversed) so they index the arrays given to
@@ -407,6 +508,9 @@ private:
 
 	PyRef _instance;
 	PyRef _sampleName;
+	PyRef _sampleBatchName;
+	bool _hasSample = false;
+	bool _hasSampleBatch = false;
 	unsigned _nbVariable = 1;
 	unsigned _nbDims = 0;
 };

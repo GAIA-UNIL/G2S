@@ -57,6 +57,7 @@ void printHelp() {
 	       "  -ki  kernel image (neighbourhood); -ks kernel size when -ki is omitted\n"
 	       "  -sp  simulation path; -ii training-image index map; -s seed; -j threads; -csim circular simulation\n"
 	       "  -wd  order neighbours by kernel weight instead of Euclidean distance\n"
+	       "  -bs  batch size when the class defines sample_batch() (default: -j; 2 x batch size threads); -bs 1 uses sample()\n"
 	       "Environment: G2S_PYDEV_PYTHON (interpreter or venv python to use), G2S_PYDEV_ALGO_DIR (PyDevAlgo folder)\n");
 }
 
@@ -183,6 +184,7 @@ int main(int argc, char const* argv[]) {
 	fprintf(reportFile, "\n");
 
 	unsigned nbThreads = 1;
+	const bool jobsGiven = arg.count("-j") > 0 || arg.count("--jobs") > 0;
 	{
 		unsigned available = std::max(1u, std::thread::hardware_concurrency());
 		for (const char* flag : { "-j", "--jobs" }) {
@@ -245,6 +247,12 @@ int main(int argc, char const* argv[]) {
 	int kernelSize = -1;
 	if (arg.count("-ks") == 1) kernelSize = atoi(arg.find("-ks")->second.c_str());
 	arg.erase("-ks");
+	long requestedBatchSize = 0; // 0 = not given
+	if (arg.count("-bs") == 1) {
+		requestedBatchSize = atol(arg.find("-bs")->second.c_str());
+		if (requestedBatchSize < 1 || requestedBatchSize > 65536) { fprintf(reportFile, "error: -bs expects an integer in [1, 65536]\n"); run = false; }
+	}
+	arg.erase("-bs");
 
 	std::vector<g2s::DataImage::VariableType> requestedTypes;
 	for (auto it = arg.lower_bound("-dt"); it != arg.upper_bound("-dt"); ++it) {
@@ -371,19 +379,28 @@ int main(int argc, char const* argv[]) {
 		shutdownPython();
 		return failWith(error, 4);
 	}
+	// Mode: sample_batch() when the class defines it, unless -bs 1 and sample() exists.
+	unsigned batchSize = 0;
+	if (algorithm.hasSampleBatch() && !(requestedBatchSize == 1 && algorithm.hasSample()))
+		batchSize = unsigned(requestedBatchSize > 0 ? requestedBatchSize : long(nbThreads));
+	if (batchSize > 0 && requestedBatchSize > 0 && jobsGiven)
+		g2s::reporting::recordWarning(reportFile, "-j is ignored in batch mode when -bs is given (threads = 2 x batch size)");
 	const bool gil = runtime.gilEnabled();
 	g2s::reporting::logParameter(reportFile, "python_version", runtime.version());
 	g2s::reporting::logParameter(reportFile, "python_gil", gil ? "enabled" : "disabled");
 	g2s::reporting::logParameter(reportFile, "python_algorithm", algorithmFile + ":" + algorithmClass);
-	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
+	g2s::reporting::logParameter(reportFile, "mode", batchSize > 0 ? "sample_batch" : "sample");
+	g2s::reporting::logParameter(reportFile, "threads", std::to_string(batchSize > 0 ? 2 * batchSize : nbThreads));
+	if (batchSize > 0) g2s::reporting::logParameter(reportFile, "batch_size", std::to_string(batchSize));
 	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
 	g2s::reporting::logParameter(reportFile, "neighbor_offsets", std::to_string(offsets.size()));
 	g2s::reporting::logParameter(reportFile, "simulation_path_size", std::to_string((unsigned long long)path.size()));
-	if (gil && nbThreads > 1)
+	if (gil && batchSize == 0 && nbThreads > 1)
 		g2s::reporting::recordWarning(reportFile, "the Python GIL is enabled: only one thread at a time runs Python code in sample(); build pyDev with a free-threaded Python (3.14t) to run sample() in parallel");
 
 	g2s::pydev::SimulationSetup setup;
 	setup.nbThreads = nbThreads;
+	setup.batchSize = batchSize;
 	setup.circularSimulation = circularSimulation;
 	setup.nbNeighbors = nbNeighbors;
 	setup.offsets = offsets;
@@ -394,7 +411,8 @@ int main(int argc, char const* argv[]) {
 
 	runtime.detachMainThread();
 	const auto begin = std::chrono::high_resolution_clock::now();
-	bool ok = g2s::pydev::simulate(reportFile, DI, algorithm, setup, reinterpret_cast<unsigned*>(indexImage._data), error);
+	g2s::pydev::SimulationStats stats;
+	bool ok = g2s::pydev::simulate(reportFile, DI, algorithm, setup, reinterpret_cast<unsigned*>(indexImage._data), stats, error);
 	const auto end = std::chrono::high_resolution_clock::now();
 	runtime.attachMainThread();
 	if (ok) ok = algorithm.finalize(error);
@@ -405,6 +423,12 @@ int main(int argc, char const* argv[]) {
 	fprintf(reportFile, "computation time: %7.2f s\n", time / 1000);
 	fprintf(reportFile, "computation time: %.0f ms\n", time);
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
+	g2s::reporting::recordMetric(reportFile, "python_calls", std::to_string(stats.pythonCalls));
+	if (batchSize > 0 && stats.pythonCalls > 0) {
+		char fill[64];
+		snprintf(fill, sizeof(fill), "%.1f", double(stats.predictedNodes) / double(stats.pythonCalls));
+		g2s::reporting::recordMetric(reportFile, "batch_average_size", fill);
+	}
 	g2s::reporting::markFinished(reportFile, time);
 
 	indexImage.write(outputIndexFilename);

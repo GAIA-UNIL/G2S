@@ -12,7 +12,7 @@ result = g2s('-a', 'pyDev',
              '-di', destination,
              '-dt', [0],           # one continuous variable
              '-n', 50,             # informed neighbours per node
-             '-j', 0.5)            # threads: parallel sample() calls need a free-threaded (3.14t) pyDev build
+             '-j', 8)              # sgs defines sample_batch(): batches of 8 nodes per Python call (-bs to change)
 simulation = result["simulation"]
 
 plt.imshow(simulation)
