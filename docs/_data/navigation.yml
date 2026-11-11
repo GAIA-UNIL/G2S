@@ -35,3 +35,5 @@
       url: /algorithms/AutoQS.html
     - title: pyDev (Python prototyping)
       url: /algorithms/PyDev.html
+    - title: pyDev tutorial
+      url: /algorithms/PyDevTutorial.html
