@@ -11,6 +11,8 @@
 
 ## Brief overview
 
+**G2S** is an extensible framework connecting programming interfaces to geostatistical simulation algorithms through a shared server. Bundled algorithms provide ready-to-use examples of this framework; additional algorithms and interfaces can be integrated.
+
 **G2S** is composed of 2 parts:
 - the first one is a server that manages computations and can be compiled for each hardware to obtain optimal performance.
 - the second part is composed of different interfaces that communicate with the server through ZeroMQ. Interfaces can be added for each software. Similarly, G2S can be extended for any other geostatistical simulation algorithm.
@@ -224,3 +226,5 @@ Use one value to apply the same `p` to all continuous variables, or pass one val
 ## Python AS example note
 
 `example/python/as/anchor_sampling.py` is a minimal synthetic AS demo using schema output. The richer AS diagnostic is available as `example/python/as/AnchorSamplingSyntheticExperiment.py`, with the positional-output version kept under `legacy_example/python/AnchorSamplingSyntheticExperiment.py`.
+
+Website SEO uses Jekyll SEO Tag and Sitemap. The documentation uses the selected modular framework favicon (option B), with SVG, PNG, ICO, and Apple touch icons in `docs/assets/icons/`. See `DOCUMENTATION.md` for website review notes.

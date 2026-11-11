@@ -3,6 +3,7 @@ title: Using the interfaces
 author:
   - Mathieu Gravey
 date: 2023-03-13
+description: Run G2S simulations from Python, MATLAB, and R and work with named simulation results.
 toc-depth: 2
 ---
 

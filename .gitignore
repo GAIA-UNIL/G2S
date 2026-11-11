@@ -148,3 +148,9 @@ change_odc.md
 # Optional output from the browser QS Python example
 /example/python/qs/browser_unconditional_simulation.png
 /legacy_example/python/browser_unconditional_simulation.png
+
+# Local Jekyll SEO verification caches
+/docs/.jekyll-cache/
+/docs/.jekyll-metadata
+# Favicon SVG source candidates remain tracked under docs/assets/favicon-options/.
+# Published favicon PNG/ICO assets in docs/assets/icons/ are intentional tracked files.
