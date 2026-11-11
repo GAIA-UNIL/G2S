@@ -3,6 +3,7 @@ title: Algorithms
 author:
   - Mathieu Gravey
 date: 2023-03-13
+description: Explore G2S multiple-point statistics algorithms, including QuickSampling, Anchor Sampling, Direct Sampling, and Narrow Distribution Selection.
 toc-depth: 2
 ---
 

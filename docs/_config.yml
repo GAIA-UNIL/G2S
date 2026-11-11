@@ -22,8 +22,8 @@ title: >-
   G2S: The GeoStatistical Server
 email: g2s@mgarvey.com
 description: >- # this means to ignore newlines until "baseurl:"
-  A free and flexible multiple point (geo)statistics framework including state-of-the-art algorithms:
-  QuickSampling and Narrow Distribution Selection
+  An extensible geostatistical framework connecting programming interfaces to simulation algorithms
+  through a shared server.
 baseurl: "/G2S" # the subpath of your site, e.g. /blog
 url: "https://gaia-unil.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: mathieuGravey
@@ -44,6 +44,8 @@ whitelist:
 # Build settings
 remote_theme: pages-themes/architect@v0.2.0
 plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
   - jekyll-toc
   - jekyll-feed
   - jekyll-spaceship

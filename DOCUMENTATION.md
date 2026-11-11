@@ -348,3 +348,16 @@ The schema Python example `example/python/qs/qs_rotation_equivalence_2d.py` chec
 The static package also includes `browser/deploy/_headers`. Keep this file at the deployment root when using Cloudflare Pages; it enables COOP/COEP for the threaded Wasm build.
 
 For Cloudflare Workers Builds, deploy the directory that contains `index.html` and `_headers`, for example `npx wrangler deploy --assets ./public/ --compatibility-date 2026-07-24` when the package is under `public/`. Workers Static Assets parses the `_headers` file inside that asset directory.
+
+
+## Public documentation SEO review (2026-11-11)
+
+Enabled explicit Jekyll SEO Tag and Sitemap plugins (provided by github-pages), corrected the installation title, added descriptions to key entry pages, and removed the viewport zoom restriction. Existing server-rendered Markdown and ordinary navigation links support search and LLM retrieval. The layout already calls `{% seo %}` for canonical URLs and structured metadata.
+
+Option B (extensible modules) is the selected favicon. The shared layout links to `docs/assets/icons/favicon.svg`, a 48px PNG, a 16/32/48px ICO, and a 180px Apple touch icon using `relative_url` for the GitHub Pages project path. Original candidates remain in `docs/assets/favicon-options/`. To regenerate raster assets, use `rsvg-convert` at the target PNG dimensions and ImageMagick with `-define icon:auto-resize=48,32,16` for the ICO. Google associates favicons with hostnames, so this GitHub Pages project cannot independently control the search favicon for the shared gaia-unil.github.io hostname.
+
+Remaining checks after deployment: verify canonical URLs, rendered JSON-LD, sitemap.xml, HTTP status codes and crawler access; submit the sitemap in Search Console; measure mobile performance and Core Web Vitals. A project-level /G2S/robots.txt does not control crawling: robots.txt must be served at the hostname root. No crawler policy was changed. No llms.txt is required by Google AI features, and adding one does not guarantee AI citations. Keep algorithm and interface documentation current and cite primary research.
+
+References: https://developers.google.com/search/docs/appearance/favicon-in-search and https://developers.google.com/search/docs/appearance/ai-features . This is a source review, not proof of index coverage or ranking.
+
+Website positioning: lead with G2S as an extensible framework connecting interfaces and algorithms through a shared server. Bundled algorithms are implementations available out of the box. Favicon candidates use connections, modules, and framework motifs rather than one algorithm.

@@ -3,6 +3,7 @@ title: Brief overview
 author:
   - Mathieu Gravey
 date: 2023-03-13
+description: G2S is an extensible geostatistical framework connecting programming interfaces to simulation algorithms through a shared server.
 toc-depth: 2
 permalink: /briefOverview.html
 redirect_from:
@@ -15,7 +16,9 @@ redirect_from:
 <!-- Temporary 1.0 migration notice: remove once most users have upgraded (see CHANGES.md). -->
 > **G2S 1.0 changes what `g2s` returns.** Calls now return one result object (`result["simulation"]`, `result.simulation`, `result$simulation`) instead of several outputs. Existing scripts can add `-legacy_output` to keep the old behaviour. See [Migrating to G2S 1.0]({{ site.baseurl }}/migration-1.0.html).
 
-The **GeoStatistical Server (G2S)** is a framework that allows you to use state-of-the-art **Multiple Point Statistics (MPS)** algorithms to run stochastic simulations.
+The **GeoStatistical Server (G2S)** is an extensible framework that connects programming interfaces to geostatistical simulation algorithms through a shared server. It separates the interface used to request a simulation from the algorithm that performs it.
+
+G2S includes several **Multiple Point Statistics (MPS)** algorithms out of the box. Additional algorithms and programming interfaces can be integrated into the framework.
 
 G2S is designed to run simulations in a generic way, independently of the code used or language it is written in. For example, it enables you to run a *C/C++* simulation code using *Python*, or *Python* using *MATLAB* (or any other combination).
 
