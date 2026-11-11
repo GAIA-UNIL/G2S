@@ -63,20 +63,24 @@ Simply run `from g2s import g2s; g2s('--version')`
 #### Installation on Ubuntu
 
 1. (A C++ compiler with c++17 is required)
-2. Open MATLAB
-3. Go to `build/matlab-build`
-4. Run `CompileG2S`
-5. Add compiled file in the MATLAB path
+2. Install the static ZeroMQ and libsodium libraries: `sudo apt install libzmq3-dev libsodium-dev`
+3. Open MATLAB (R2018a or later)
+4. Go to `build/matlab-build`
+5. Run `CompileG2S`
+6. Add compiled file in the MATLAB path
 </div>
 
 <div class="langcontent os macOS">
 
 #### Installation on macOS
 
-1. Open MATLAB
-2. Go to `build/build-matlab`
-3. Run `CompileG2S`
-4. Add compiled file in the MATLAB path
+Supported and tested on Apple Silicon (arm64) with Homebrew. Intel Macs are not supported explicitly.
+
+1. Install the Xcode command line tools and the static ZeroMQ and libsodium libraries: `brew install zeromq libsodium`
+2. Open MATLAB (R2018a or later)
+3. Go to `build/matlab-build`
+4. Run `CompileG2S`
+5. Add compiled file in the MATLAB path
 </div>
 
 <div class="langcontent os Windows">
@@ -91,14 +95,18 @@ Simply run `from g2s import g2s; g2s('--version')`
 ##### Manual compilation
 
 1. (A C++ compiler with c++17 is required)
-2. If needed, install [python](https://www.python.org/downloads/) with the option to add it to the Path
-3. Open MATLAB
-4. Install a compiler with c++17, available [here (2017 or later)](https://visualstudio.microsoft.com/en/downloads)
-5. Go to `build/build-matlab`
-6. Run `CompileG2S`
-7. Add compiled file in the MATLAB path
+2. Open MATLAB (R2018a or later)
+3. Install a compiler with c++17, available [here (2017 or later)](https://visualstudio.microsoft.com/en/downloads)
+4. Go to `build/matlab-build`
+5. Run `CompileG2S`
+6. Add compiled file in the MATLAB path
 </div>
 
+
+##### Notes
+
+- jsoncpp and cppzmq are bundled in `include_interfaces/third_party` and compiled into the MEX file, so no jsoncpp library needs to be installed.
+- `CompileG2S` builds the C++ MEX API interface. To build the older C API interface instead, set the environment variable `G2S_MATLAB_LEGACY_API=1` before running `CompileG2S` (for example `setenv('G2S_MATLAB_LEGACY_API','1')`).
 
 ##### Check proper interface installation
 
