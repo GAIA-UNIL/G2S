@@ -83,12 +83,58 @@ Below are schema-output QS examples. For these examples the G2S server should be
 Current examples are grouped under `example/python/qs/` and `example/matlab/qs/`, including schema-output conversions of the old flat examples and transform diagnostics. Older positional-output versions remain under `legacy_example/` and pass `-legacy_output` directly.
 
 ### Unconditional simulation
-{% include include_code.md examplePath="qs/unconditional" %}
+{% include include_code.md examplePath="qs/unconditionalSimulation" %}
+
+### Conditional simulation
+{% include include_code.md examplePath="qs/conditionalSimulation" %}
+
+### Simulation with multiple Training Images
+{% include include_code.md examplePath="qs/Multiple_TI" %}
+
+### Multivariate simulation
+{% include include_code.md examplePath="qs/multivariateSimulation" %}
+
+### Gap filling
+{% include include_code.md examplePath="qs/gapFilling" %}
+
+### Downscaling
+{% include include_code.md examplePath="qs/downscaling" %}
+
+### 3D simulation
+{% include include_code.md examplePath="qs/3D" %}
+
+### 2D rotation map
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
+{% include include_code.md examplePath="qs/qs_rotation_2d" pythonOnly=true %}
+
+### 2D constant rotation equivalence check
+This diagnostic compares a constant `+pi/2` rotation map with simulations using clockwise and counter-clockwise rotated training images. Exact pixel equality is not expected because the TI candidate order changes when the TI array is rotated, but structures should visibly turn and the closer comparison identifies the effective rotation sign convention.
+
+{% include include_code.md examplePath="qs/qs_rotation_equivalence_2d" pythonOnly=true %}
+
+### 2D scale map
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform map through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
+{% include include_code.md examplePath="qs/qs_scale_2d" pythonOnly=true %}
+
+### 3D quaternion rotation map
+{% include include_code.md examplePath="qs/qs_quaternion_rotation_3d" pythonOnly=true %}
+
+### 2D scale and rotation maps
+This example runs a 500x500 Strebelle simulation with `-j 1.0001`, uploads the transform maps through the Python interface, compares the transformed result to a same-seed baseline, and saves a local comparison figure.
+
+{% include include_code.md examplePath="qs/qs_scale_rotation_2d" pythonOnly=true %}
 
 ### Asynchronous mode 
 {% include include_code.md examplePath="qs/async_status" %}
 
-Additional schema examples in the same folder cover conditional simulation, gap filling, multivariate simulation, multiple TIs, downscaling, 3D simulation, calibration maps, auto-save, pixel-address index decoding, and deterministic rotation/scale transform maps.
+### Minimal schema output
+This minimal example shows the fields returned by the schema output (`simulation`, `indexmap`, `job_id`, `time`).
+
+{% include include_code.md examplePath="qs/unconditional" %}
+
+The same folder also contains examples for calibration maps, auto-save, and pixel-address index decoding.
 
 ## Publication
 
