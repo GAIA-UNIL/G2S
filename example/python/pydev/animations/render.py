@@ -24,6 +24,13 @@ from matplotlib.patches import Ellipse, Rectangle
 SP = os.path.dirname(os.path.abspath(__file__))
 W, H, FPS = 1920, 1080, 30
 
+# Authorship and licence of the generated animations (embedded in the MP4 and SVG metadata).
+AUTHOR = "Mathieu Gravey"
+YEAR = "2026"
+LICENSE_NAME = "CC BY 4.0"
+LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+SOURCE_URL = "https://gaia-unil.github.io/G2S/resources.html"
+
 ACCENT = "#1683d8"
 DARK = "#1f2933"
 MUTED = "#7b8594"
@@ -137,6 +144,8 @@ class Animation:
         T = lambda x, y, s, **kw: fig.text(x / W, 1 - y / H, s, **kw)
 
         T(60, 62, self.title, fontsize=34, fontweight="bold", va="center")
+        T(SIM_BOX.x + SIM_BOX.w, H - 20, f"\u00a9 {YEAR} {AUTHOR}  \u00b7  {LICENSE_NAME}", fontsize=12,
+          color=MUTED, ha="right", va="center")
         T(60, 108, self.subtitle(), fontsize=17, color=MUTED, va="center")
 
         # training image
@@ -1090,10 +1099,21 @@ class SNESIMAnimation(Animation):
 CLASSES = {"qs": QSAnimation, "ds": DSAnimation, "snesim": SNESIMAnimation}
 
 
+def mp4_metadata(anim):
+    """ffmpeg arguments writing the title, author and licence into the MP4."""
+    title = f"{anim.title}, {anim.ti_name} training image"
+    tags = {"title": title, "artist": AUTHOR, "date": YEAR,
+            "copyright": f"\u00a9 {YEAR} {AUTHOR}, licensed under {LICENSE_NAME} ({LICENSE_URL})",
+            "comment": f"{title}. Animation by {AUTHOR}, {LICENSE_NAME} ({LICENSE_URL}). Source: {SOURCE_URL}"}
+    return [arg for k, v in tags.items() for arg in ("-metadata", f"{k}={v}")]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("name")
     ap.add_argument("--preview", type=int, nargs="*", help="write PNGs of these frame numbers instead")
+    ap.add_argument("--retag", action="store_true",
+                    help="only rewrite the title / author / licence metadata of an existing video (no re-encoding)")
     ap.add_argument("--crf", type=int, default=28,
                     help="H.264 quality (default 28: flat graphics, ~3.5x smaller than 18 at SSIM 0.99)")
     ap.add_argument("--theme", choices=sorted(THEMES), default="light",
@@ -1112,10 +1132,17 @@ def main():
         return
     os.makedirs(os.path.join(SP, "out"), exist_ok=True)
     out = os.path.join(SP, "out", f"{args.name}{suffix}.mp4")
+    if args.retag:
+        tmp = out + ".tmp.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", out, "-map", "0", "-c", "copy", "-map_metadata", "-1",
+                        *mp4_metadata(anim), "-movflags", "+faststart", tmp], check=True)
+        os.replace(tmp, out)
+        print("retagged", out)
+        return
     ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
                            "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "veryslow",
                            "-tune", "animation", "-crf", str(args.crf), "-x264-params", "keyint=600:min-keyint=30",
-                           "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
+                           "-pix_fmt", "yuv420p", "-movflags", "+faststart", *mp4_metadata(anim), out],
                           stdin=subprocess.PIPE)
     canvas = anim.fig.canvas
     for k, st in enumerate(frames):
