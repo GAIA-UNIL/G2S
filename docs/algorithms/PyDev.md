@@ -14,6 +14,8 @@ pyDev lets you try a new sequential-simulation idea in Python without writing C+
 
 It is available as `pyDev`, `PyDev`, or `pydev`. For machine-learning models, a batch mode predicts many nodes in one Python call.
 
+New to pyDev? The [pyDev tutorial]({{ site.baseurl }}/algorithms/PyDevTutorial.html) builds and runs a complete algorithm in a few lines.
+
 ## Build and install
 
 pyDev embeds Python, so it is not part of the default build, and it is not included in the Homebrew package. Build it from source, after the usual server build (see the [server installation guide]({{ site.baseurl }}/installation/server.html)):
