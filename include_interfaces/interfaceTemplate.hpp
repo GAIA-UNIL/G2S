@@ -939,11 +939,18 @@ public:
 			socket.setsockopt(ZMQ_SNDTIMEO, timeout);
 		}
 
-		short port=8128;
-		if(input.count("-p")>0)port=nativeToScalar(input.find("-p")->second);
+		// Validate as double before narrowing: out-of-range double->unsigned short is UB.
+		unsigned short port=8128;
+		if(input.count("-p")>0){
+			const double requestedPort=nativeToScalar(input.find("-p")->second);
+			if(!(requestedPort>=1 && requestedPort<=65535) || requestedPort!=std::floor(requestedPort)){
+				sendError("-p must be an integer TCP port between 1 and 65535");
+			}
+			port=static_cast<unsigned short>(requestedPort);
+		}
 
 		char address[4096];
-		snprintf(address,4096, "tcp://%s:%d",serverAddress.c_str(),port);
+		snprintf(address,4096, "tcp://%s:%hu",serverAddress.c_str(),port);
 		socket.connect (address);
 
 		if (requestServerStatus){
