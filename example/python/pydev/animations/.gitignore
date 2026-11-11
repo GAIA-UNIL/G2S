@@ -1,0 +1,5 @@
+data/
+records/
+out/
+algos/seqsim_run.py
+__pycache__/
