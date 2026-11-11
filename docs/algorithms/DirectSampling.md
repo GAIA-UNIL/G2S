@@ -70,7 +70,16 @@ For each simulated node, candidate order is a deterministic pseudo-random permut
 The following examples assume the G2S server is running.
 They are fully unconditional, create all-`NaN` destination images with the same shape as the loaded training image, and use `-j 1.00001` for path-level parallel execution.
 
-- Current schema examples: `example/python/ds/` and `example/matlab/ds/`, including continuous, categorical, transform, and full mixed variants.
-- Legacy positional-output examples remain under `legacy_example/` and pass `-legacy_output` directly.
+The Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`. The MATLAB examples use `imread` with a `websave` fallback for older MATLAB releases. Legacy positional-output versions remain under `legacy_example/` and pass `-legacy_output` directly.
 
-The Python examples load remote TIFFs with `urllib` and Pillow; they do not require `requests`. The MATLAB examples use `imread` with a `websave` fallback for older MATLAB releases.
+### Continuous simulation
+{% include include_code.md examplePath="ds/DirectSamplingContinuous" %}
+
+### Categorical simulation
+{% include include_code.md examplePath="ds/DirectSamplingCategorical" %}
+
+### Local rotation and scale transforms
+{% include include_code.md examplePath="ds/DirectSamplingTransform" %}
+
+### Mixed multivariate simulation
+{% include include_code.md examplePath="ds/DirectSamplingMixedFull" %}
