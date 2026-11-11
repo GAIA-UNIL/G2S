@@ -132,6 +132,8 @@ class SVG:
         o.append(f'<rect width="{W}" height="{H}" fill="{BG}"/>')
         o.append(self.text(60, 62, a.title, 34, weight="bold") + "</text>")
         o.append(self.text(60, 108, a.subtitle(), 17, color=MUTED) + "</text>")
+        o.append(self.text(SIM_BOX.x + SIM_BOX.w, H - 20, f"\u00a9 {render.YEAR} {render.AUTHOR}  \u00b7  "
+                           f"{render.LICENSE_NAME}", 12, color=MUTED, anchor="end") + "</text>")
         o.append(self.text(TI_BOX.x, TI_BOX.y - 22, f"Training image ({a.ti.shape[0]} × {a.ti.shape[1]})",
                            17, weight="bold") + "</text>")
         o.append(f'<image x="{TI_BOX.x}" y="{TI_BOX.y}" width="{TI_BOX.w}" height="{TI_BOX.h}" '
@@ -724,7 +726,29 @@ class SVG:
         body = "\n".join(self.out)
         return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
                 f'font-family="{FONT}">\n<title>{escape(self.a.title)} ({escape(self.a.ti_name)})</title>\n'
-                f'{body}\n</svg>\n')
+                f'{self.metadata()}\n{body}\n</svg>\n')
+
+    def metadata(self):
+        """Authorship and licence (Creative Commons RDF, as written by Inkscape)."""
+        title = escape(f"{self.a.title}, {self.a.ti_name} training image")
+        R = render
+        return (f'<!-- {title}. \u00a9 {R.YEAR} {R.AUTHOR}, licensed under {R.LICENSE_NAME} ({R.LICENSE_URL}). '
+                f'Source: {R.SOURCE_URL} -->\n'
+                '<metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
+                'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#">'
+                f'<cc:Work rdf:about=""><dc:format>image/svg+xml</dc:format><dc:title>{title}</dc:title>'
+                f'<dc:creator><cc:Agent><dc:title>{R.AUTHOR}</dc:title></cc:Agent></dc:creator>'
+                f'<dc:date>{R.YEAR}</dc:date>'
+                f'<dc:rights><cc:Agent><dc:title>\u00a9 {R.YEAR} {R.AUTHOR}, {R.LICENSE_NAME}</dc:title></cc:Agent></dc:rights>'
+                f'<dc:source>{R.SOURCE_URL}</dc:source>'
+                f'<cc:license rdf:resource="{R.LICENSE_URL}"/></cc:Work>'
+                f'<cc:License rdf:about="{R.LICENSE_URL}">'
+                '<cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>'
+                '<cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/>'
+                '<cc:requires rdf:resource="http://creativecommons.org/ns#Notice"/>'
+                '<cc:requires rdf:resource="http://creativecommons.org/ns#Attribution"/>'
+                '<cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>'
+                '</cc:License></rdf:RDF></metadata>')
 
 
 def main():

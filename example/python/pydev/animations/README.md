@@ -85,6 +85,15 @@ The Python versions follow the G2S implementations:
   every child, the counts are read at the deepest node reached (`snesimCPUThreadDevice.cpp`), and the
   category is drawn from them. Multigrid path: every 16th node, then 8th, 4th, 2nd, all.
 
+## Licence
+
+The generated animations (videos and SVGs) are © 2026 Mathieu Gravey, licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The credit is drawn in the bottom-right corner of
+every frame, and `render.py` and `svg.py` also write the title, author and licence into the metadata of every
+MP4 and SVG (`AUTHOR`, `LICENSE_NAME`, ... in `render.py`). `python render.py <name> [--theme dark] --retag`
+rewrites the metadata of an existing video without re-encoding it. The scripts themselves are under the
+licence of the G2S repository (GPL-3.0).
+
 ## Notes
 
 - Colours are set by the themes in `render.py` (`THEMES`, `set_theme`). On the dark background the

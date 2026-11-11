@@ -43,6 +43,8 @@ These animations show how a sequential simulation works, one node at a time: vis
 
 The animations follow the light or dark appearance of your system; the switch under each one changes it. Each one can be downloaded as an animated SVG (for web pages) or as a video (MP4, 1920 × 1080, for slides; PowerPoint does not play animated SVGs). They can be regenerated, or made for other settings, with the scripts in [`example/python/pydev/animations`](https://github.com/GAIA-UNIL/G2S/tree/master/example/python/pydev/animations).
 
+**Licence.** The animations are © 2026 Mathieu Gravey and are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): you can use, share and adapt them, including in slides, courses and publications, as long as you give credit. Suggested credit: *Animation: Mathieu Gravey, G2S (https://gaia-unil.github.io/G2S/resources.html), CC BY 4.0.* The author and licence are shown in the corner of each animation and written in the metadata of each SVG and video file.
+
 {% for anim in page.animations %}
 {% assign light_svg = site.baseurl | append: "/assets/animations/" | append: anim.name | append: ".svg" %}
 {% assign dark_svg = site.baseurl | append: "/assets/animations/" | append: anim.name | append: "_dark.svg" %}
