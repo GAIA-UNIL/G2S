@@ -10,7 +10,8 @@ Outputs, for each configuration:
 
 - `out/<name>.mp4`: 1920 × 1080, 30 fps, H.264 (for slides and web pages);
 - `out/<name>.svg`: animated SVG (SMIL), looping, about 1.2 MB at 50 × 50 (for web pages; it does
-  not play in PowerPoint).
+  not play in PowerPoint);
+- with a dark background: `out/<name>_dark.mp4` and `out/<name>_dark.svg`.
 
 ## Requirements
 
@@ -35,10 +36,12 @@ python check.py qs_strebelle qs_stone snesim_strebelle ds_strebelle ds_stone
 
 # 3. videos (a few minutes each; they can run in parallel)
 python render.py qs_strebelle
+python render.py qs_strebelle --theme dark           # dark background
 python render.py qs_strebelle --preview 400 1200     # only PNGs of some frames, to check the layout
 
 # 4. animated SVGs
 python svg.py qs_strebelle_50
+python svg.py qs_strebelle_50 dark
 python snap.py out/qs_strebelle_50.svg out/qs_check 13.4 40   # PNGs of the SVG at 13.4 s and 40 s
 ```
 
@@ -82,6 +85,10 @@ The Python versions follow the G2S implementations:
   category is drawn from them. Multigrid path: every 16th node, then 8th, 4th, 2nd, all.
 
 ## Notes
+
+- Colours are set by the themes in `render.py` (`THEMES`, `set_theme`). On the dark background the
+  colour map is flipped (low values medium blue, high values pale yellow) so that both categories of
+  Strebelle stay visible.
 
 - The run copy `algos/seqsim_run.py` (made by `--python`) and the folders `data/`, `records/` and
   `out/` are not tracked.

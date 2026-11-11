@@ -1,9 +1,10 @@
 """Explanatory animation of a recorded sequential simulation (QS, DS or SNESIM run with pyDev).
 
-    python render.py qs_strebelle [--preview FRAME ...]
+    python render.py qs_strebelle [--theme dark] [--preview FRAME ...]
 
 Everything drawn comes from the run log (records/<name>.pkl): the path, each node's data event,
-the TI search and the value pasted. Output: out/<name>.mp4 (1920x1080, 30 fps, H.264).
+the TI search and the value pasted. Output: out/<name>.mp4 (1920x1080, 30 fps, H.264), or
+out/<name>_dark.mp4 with --theme dark.
 """
 import argparse
 import os
@@ -33,13 +34,39 @@ LINEC = "#8f99a6"
 THC = "#e8590c"
 OKC = "#2f9e44"
 BG = "#ffffff"
+BAD = "#eef0f3"                                   # mismatch map where the pattern does not fit
 CMAP = ListedColormap(cm.YlGnBu(numpy.linspace(0.30, 0.95, 256)))
 MISMATCH_CMAP = cm.magma_r.copy()
-MISMATCH_CMAP.set_bad("#eef0f3")
 
-plt.rcParams.update({"font.family": ["Avenir Next", "Helvetica Neue", "DejaVu Sans"],
-                     "font.size": 16, "text.color": DARK, "axes.edgecolor": FAINT,
-                     "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": MUTED})
+# Dark background: light text and lines; the colour map is flipped (low values medium blue, high
+# values pale yellow) so that both ends stay visible on the dark background.
+THEMES = {
+    "light": dict(ACCENT="#1683d8", DARK="#1f2933", MUTED="#7b8594", FAINT="#b9c1cc", GRIDC="#e9ecf0",
+                  NBEDGE="#4b5563", LINEC="#8f99a6", THC="#e8590c", OKC="#2f9e44", BG="#ffffff", BAD="#eef0f3",
+                  cmap=(0.30, 0.95)),
+    "dark": dict(ACCENT="#4dabf7", DARK="#e6e9ee", MUTED="#98a2b3", FAINT="#475162", GRIDC="#1c232d",
+                 NBEDGE="#d0d7e1", LINEC="#8793a3", THC="#ff922b", OKC="#51cf66", BG="#0e1217", BAD="#232a35",
+                 cmap=(0.85, 0.06)),
+}
+
+
+def set_theme(name):
+    """Set the colours used by every drawing function (module globals, read at draw time)."""
+    g = globals()
+    t = THEMES[name]
+    for k, v in t.items():
+        if k != "cmap":
+            g[k] = v
+    g["CMAP"] = ListedColormap(cm.YlGnBu(numpy.linspace(*t["cmap"], 256)))
+    g["MISMATCH_CMAP"] = cm.magma_r.copy()
+    g["MISMATCH_CMAP"].set_bad(t["BAD"])
+    plt.rcParams.update({"font.family": ["Avenir Next", "Helvetica Neue", "DejaVu Sans"],
+                         "font.size": 16, "text.color": t["DARK"], "axes.edgecolor": t["FAINT"],
+                         "axes.labelcolor": t["MUTED"], "xtick.color": t["MUTED"], "ytick.color": t["MUTED"],
+                         "axes.facecolor": t["BG"], "figure.facecolor": t["BG"], "savefig.facecolor": t["BG"]})
+
+
+set_theme("light")
 
 
 def ease(t):
@@ -582,8 +609,7 @@ class DSAnimation(Animation):
             self.scan_note.set_text("")
             self.ti_extra.set_offsets(e2)
             self.ti_marks.set_offsets(e2)
-            if ph == "end" or i is None:
-                self.ax_s.set_xlim(0, 10)
+            self.ax_s.set_xlim(0, 10)
             return
         r = self.R[i]
         total = r["n_scanned"]
@@ -869,7 +895,7 @@ class SNESIMAnimation(Animation):
         if stop_shown:
             ys_stop = (ys[-1] if ys else y_top) - dy
             dots.append((0.08, ys_stop))
-            cols.append("white")
+            cols.append(BG)
             d = r["stop"]
             ignored = len(r["offsets"]) - r["used"]
             self.stop_text.set_position((0.13, ys_stop))
@@ -1068,7 +1094,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("name")
     ap.add_argument("--preview", type=int, nargs="*", help="write PNGs of these frame numbers instead")
+    ap.add_argument("--theme", choices=sorted(THEMES), default="light",
+                    help="light or dark background (dark files get a _dark suffix)")
     args = ap.parse_args()
+    set_theme(args.theme)
+    suffix = "" if args.theme == "light" else f"_{args.theme}"
     anim = CLASSES[args.name.split("_")[0]](args.name)
     frames = anim.timeline()
     print(f"{args.name}: {len(frames)} frames ({len(frames) / FPS:.1f} s)", flush=True)
@@ -1076,10 +1106,10 @@ def main():
         os.makedirs(os.path.join(SP, "out"), exist_ok=True)
         for f in args.preview:
             anim.render(frames[f])
-            anim.fig.savefig(os.path.join(SP, "out", f"{args.name}_f{f}.png"), dpi=100, facecolor=BG)
+            anim.fig.savefig(os.path.join(SP, "out", f"{args.name}{suffix}_f{f}.png"), dpi=100, facecolor=BG)
         return
     os.makedirs(os.path.join(SP, "out"), exist_ok=True)
-    out = os.path.join(SP, "out", f"{args.name}.mp4")
+    out = os.path.join(SP, "out", f"{args.name}{suffix}.mp4")
     ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
                            "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "slow",
                            "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],

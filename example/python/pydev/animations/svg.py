@@ -1,6 +1,6 @@
 """Animated SVG (SMIL) version of a recorded sequential simulation.
 
-    python svg.py qs_strebelle_50
+    python svg.py qs_strebelle_50 [dark]
 
 Uses the same run log and the same timeline as render.py. Every element carries discrete or linear
 <animate> tracks over the whole duration and repeats indefinitely, so the animation loops in sync.
@@ -14,12 +14,23 @@ import sys
 from html import escape
 
 import numpy
-from matplotlib.colors import to_hex
+from matplotlib.colors import to_hex, to_rgba
 from PIL import Image
 
 import render
-from render import (ACCENT, DARK, MUTED, FAINT, GRIDC, NBEDGE, LINEC, THC, BG, CMAP, MISMATCH_CMAP,
-                    TI_BOX, SEARCH_BOX, SIM_BOX, W, H, FPS)
+from render import TI_BOX, SEARCH_BOX, SIM_BOX, W, H, FPS
+
+THEME_NAMES = ["ACCENT", "DARK", "MUTED", "FAINT", "GRIDC", "NBEDGE", "LINEC", "THC", "BG", "BAD", "CMAP",
+               "MISMATCH_CMAP"]
+
+
+def use_theme(name):
+    """Take the colours of a render.py theme (module globals, read at build time)."""
+    render.set_theme(name)
+    globals().update({k: getattr(render, k) for k in THEME_NAMES})
+
+
+use_theme("light")
 
 FONT = "'Avenir Next', 'Helvetica Neue', Helvetica, Arial, sans-serif"
 
@@ -73,7 +84,8 @@ class SVG:
         return (f'<animate attributeName="{attr}" dur="{self.T:.3f}s" repeatCount="indefinite" '
                 f'calcMode="linear" values="{a};{a};{b};{b}" keyTimes="0;{k0:.5f};{k1:.5f};1"/>')
 
-    def text(self, x, y, s, size, color=DARK, weight="normal", anchor="start", italic=False, extra=""):
+    def text(self, x, y, s, size, color=None, weight="normal", anchor="start", italic=False, extra=""):
+        color = color or DARK
         st = ' font-style="italic"' if italic else ""
         return (f'<text x="{f3(x)}" y="{f3(y)}" font-size="{px(size):.1f}" fill="{color}" '
                 f'font-weight="{weight}" text-anchor="{anchor}" dominant-baseline="central"{st}{extra}>'
@@ -299,7 +311,7 @@ class SVG:
             if not numpy.all((q >= 0) & (q < [h, w])):
                 continue
             x, y = self.ti_xy(q)
-            fill = to_hex(CMAP(a.ti[tuple(q)])) if colored else "white"
+            fill = to_hex(CMAP(a.ti[tuple(q)])) if colored else BG
             parts.append(f'<circle cx="{f3(x)}" cy="{f3(y)}" r="{f3(max(3, cell_px * 0.8))}" fill="{fill}" '
                          f'stroke="{DARK}" stroke-width="0.8"/>')
         parts.append(f'<circle cx="{f3(cx)}" cy="{f3(cy)}" r="8" fill="none" stroke="{ACCENT}" stroke-width="2.4"/>')
@@ -369,7 +381,7 @@ class SVG:
             finite = m[numpy.isfinite(m)]
             vmax = max(float(numpy.quantile(finite, 0.98)), 1e-6) if len(finite) and finite.max() > 0 else 1
             rgba = MISMATCH_CMAP(numpy.ma.masked_invalid(m) / vmax)
-            rgba[~numpy.isfinite(m)] = (0.933, 0.941, 0.953, 1)
+            rgba[~numpy.isfinite(m)] = to_rgba(BAD)
             parts = ['<g display="none">' + self.visible(self.window(shown[0], shown[-1] + 1)),
                      f'<image x="{SEARCH_BOX.x}" y="{SEARCH_BOX.y}" width="{SEARCH_BOX.w}" height="{SEARCH_BOX.h}" '
                      f'preserveAspectRatio="none" style="image-rendering:pixelated" href="{self.png(rgba)}"/>',
@@ -537,7 +549,7 @@ class SVG:
                          f'fill="none" stroke="{ACCENT}" stroke-width="1.4"/>')
             for t in a.build_tmpl:
                 x, y = self.ti_xy(c0 + t)
-                stamp.append(f'<rect x="{f3(x - 4)}" y="{f3(y - 4)}" width="8" height="8" fill="white" '
+                stamp.append(f'<rect x="{f3(x - 4)}" y="{f3(y - 4)}" width="8" height="8" fill="{BG}" '
                              f'fill-opacity="0.6" stroke="{ACCENT}" stroke-width="1.4"/>')
             x, y = self.ti_xy(c0)
             stamp.append(f'<circle cx="{f3(x)}" cy="{f3(y)}" r="8" fill="none" stroke="{ACCENT}" stroke-width="2.4"/>')
@@ -646,7 +658,7 @@ class SVG:
                 parts.append('<g display="none">' + self.visible(self.window(stop_fr[0], end))
                              + f'<line x1="{f3(SX(0.08))}" y1="{f3(SY(ys[-1]))}" x2="{f3(SX(0.08))}" '
                                f'y2="{f3(SY(ys_stop))}" stroke="{FAINT}" stroke-width="1.6"/>'
-                             + f'<circle cx="{f3(SX(0.08))}" cy="{f3(SY(ys_stop))}" r="8" fill="white" '
+                             + f'<circle cx="{f3(SX(0.08))}" cy="{f3(SY(ys_stop))}" r="8" fill="{BG}" '
                                f'stroke="{THC}" stroke-width="1.2"/>'
                              + self.text(SX(0.13), SY(ys_stop),
                                          f"✗ no branch: stop ({ignored} node{'s' if ignored > 1 else ''} ignored)",
@@ -717,10 +729,13 @@ class SVG:
 
 def main():
     name = sys.argv[1]
+    theme = sys.argv[2] if len(sys.argv) > 2 else "light"
+    use_theme(theme)
+    suffix = "" if theme == "light" else f"_{theme}"
     anim = render.CLASSES[name.split("_")[0]](name)
     doc = SVG(anim).build()
     os.makedirs(os.path.join(render.SP, "out"), exist_ok=True)
-    out = os.path.join(render.SP, "out", f"{name}.svg")
+    out = os.path.join(render.SP, "out", f"{name}{suffix}.svg")
     with open(out, "w") as f:
         f.write(doc)
     print(f"{name}: {len(doc) / 1e6:.2f} MB -> {out}")
