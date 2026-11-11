@@ -364,3 +364,118 @@ red{
 
 
 
+
+/* Resources page: presentation animations */
+.animation-card {
+    --anim-accent: #1683d8;
+    --anim-accent-text: #ffffff;
+    margin: 0 0 2.8em 0;
+}
+
+.animation-card picture img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+}
+
+.animation-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7em 1em;
+    margin-top: 0.9em;
+    font-size: 15px;
+}
+
+.animation-downloads {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6em;
+}
+
+#main-content .animation-downloads a.dl-btn,
+.animation-downloads a.dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 1em;
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color);
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.animation-downloads a.dl-btn:hover {
+    background: var(--very-light-gray);
+    border-color: var(--light-hover-gray);
+}
+
+#main-content .animation-downloads a.dl-btn.dl-primary,
+.animation-downloads a.dl-btn.dl-primary {
+    background: var(--anim-accent);
+    border-color: var(--anim-accent);
+    color: var(--anim-accent-text);
+}
+
+.animation-downloads a.dl-btn.dl-primary:hover {
+    filter: brightness(1.08);
+}
+
+.animation-downloads .dl-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.animation-downloads .dl-meta {
+    font-weight: 400;
+    font-size: 13px;
+    opacity: 0.75;
+}
+
+.theme-switch {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--light-gray);
+    border-radius: 999px;
+}
+
+.theme-switch[hidden] {
+    display: none;
+}
+
+.theme-switch button {
+    padding: 0.3em 0.95em;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--titleColor);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.theme-switch button[aria-pressed="true"] {
+    background: var(--very-light-gray);
+    color: var(--color);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--light-gray);
+}
+
+@media (prefers-color-scheme: dark) {
+    .animation-card {
+        --anim-accent: #4dabf7;
+        --anim-accent-text: #0e1217;
+    }
+}
