@@ -1,19 +1,44 @@
 clc; clear all;
 
-communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
-    '/usr/local/lib/libzmq.a','/opt/local/lib/libjsoncpp.a','/usr/local/lib/libsodium.a','-lut',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
+% Builds the g2s MEX file.
+%   Default: C++ MEX API interface (src_interfaces/matlab_interface_modern.cpp, R2018a+).
+%   Set the environment variable G2S_MATLAB_LEGACY_API=1 to build the C API interface instead.
+% jsoncpp (amalgamated) and cppzmq are vendored in include_interfaces/third_party and compiled
+% into the MEX file, so the result does not depend on a jsoncpp shared library.
+
+useLegacyApi=strcmp(getenv('G2S_MATLAB_LEGACY_API'),'1');
+if useLegacyApi
+    interfaceSource='../../src_interfaces/matlab_interface.cpp';
+    % Recent mex releases add the C++ MEX entry points to the export list of every C++ source,
+    % which the current Apple linker rejects for C API MEX files: drop that export list.
+    apiOptions={'LINKEXPORTCPP='};
+else
+    interfaceSource='../../src_interfaces/matlab_interface_modern.cpp';
+    apiOptions={'-R2018a'};
+end
+
+versionString=strtrim(fileread('../../version'));
+thirdParty='../../include_interfaces/third_party';
+commonSources={interfaceSource,'../../src_interfaces/browserTransport.cpp',[thirdParty '/jsoncpp/jsoncpp.cpp']};
+% Vendored headers first so they win over any system jsoncpp/cppzmq.
+commonIncludes={['-I' thirdParty '/jsoncpp'],['-I' thirdParty '/cppzmq'],'-I../../include_interfaces','-I../../include'};
+commonDefines={'-DG2S_ENABLE_BROWSER_TRANSPORT=1',strcat('-DMATLAB_VERSION=0x',version('-release')),['-DVERSION=\"' versionString '\"']};
 
 if ismac
-    if computer('arch')=="maci64"
-        mex(communMacLinux{:},'-L/opt/local/lib/','-L/usr/local/lib/','CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=10.14', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=10.14');
-    end
-    if computer('arch')=="maca64"
-        communMacLinux={'-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I/usr/local/include','-I/usr/include/jsoncpp','-I/usr/include','-I/opt/local/include','-I/opt/homebrew/include',...
-    '/opt/homebrew/lib/libzmq.a','-ljsoncpp','/opt/homebrew/lib/libsodium.a','-lut','-ld_classic',strcat('-DMATLAB_VERSION=0x',version('-release')),strcat('-DVERSION=\"',fileread('../../version'),'\"')};
-        mex(communMacLinux{:},"-L/opt/homebrew/lib/",'CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=13.0', 'LDFLAGS=$LDFLAGS -mmacosx-version-min=13.0');
-    end
+    % Apple Silicon with Homebrew (tested). Intel Macs are not supported explicitly.
+    % libzmq and libsodium are linked statically from Homebrew.
+    prefix='/opt/homebrew';
+    macMin='13.0';
+    mex('-output','g2s',commonSources{:},commonIncludes{:},['-I' prefix '/include'],commonDefines{:},...
+        [prefix '/lib/libzmq.a'],[prefix '/lib/libsodium.a'],'-lut',apiOptions{:},...
+        ['CXXFLAGS=$CXXFLAGS -std=c++17 -mmacosx-version-min=' macMin],['LDFLAGS=$LDFLAGS -mmacosx-version-min=' macMin]);
 elseif isunix
-    mex(communMacLinux{:},'-L/usr/lib','CXXFLAGS=$CXXFLAGS -std=c++17 ', 'LDFLAGS=$LDFLAGS');
+    zmqLib='/usr/lib/x86_64-linux-gnu/libzmq.a';
+    if ~isfile(zmqLib), zmqLib='/usr/local/lib/libzmq.a'; end
+    sodiumLib='/usr/lib/x86_64-linux-gnu/libsodium.a';
+    if ~isfile(sodiumLib), sodiumLib='/usr/local/lib/libsodium.a'; end
+    mex('-output','g2s',commonSources{:},commonIncludes{:},'-I/usr/local/include','-I/usr/include',commonDefines{:},...
+        zmqLib,sodiumLib,'-lut',apiOptions{:},'CXXFLAGS=$CXXFLAGS -std=c++17','LDFLAGS=$LDFLAGS');
 elseif ispc
     zmqBuilDir='./libzmq-master/build4Matlab/';
     if(exist('libzmq-master')==0)
@@ -27,22 +52,11 @@ elseif ispc
         !msbuild ZeroMQ.sln /property:Configuration=Release /m:4
         cd ../..
     end
-    if(exist('cppzmq-master')==0)
-        websave('cppzmq-master.zip','https://codeload.github.com/zeromq/cppzmq/zip/master');
-        unzip('cppzmq-master.zip');
-    end
-    if(exist('jsoncpp-master')==0)
-        websave('jsoncpp-master.zip','https://codeload.github.com/open-source-parsers/jsoncpp/zip/master')
-        unzip('jsoncpp-master.zip');
-        cd 'jsoncpp-master'
-        ! python amalgamate.py
-        cd ..
-    end
     libsVal=cellstr(ls(strcat(zmqBuilDir,'lib/Release')));
     libName=libsVal(contains(libsVal,'.lib')&contains(libsVal,'libzmq')&(~contains(libsVal,'mt-s')));
-    mex('-output','g2s','../../src_interfaces/matlab_interface.cpp','../../src_interfaces/browserTransport.cpp','jsoncpp-master/dist/jsoncpp.cpp','-DG2S_ENABLE_BROWSER_TRANSPORT=1','-I../../include_interfaces','-I../../include','-I./libzmq-master/include',...
-        '-I"cppzmq-master"',strcat('-L',zmqBuilDir,'lib/Release'),strcat('-l',libName{1}(4:end-4)),'-I"jsoncpp-master\dist"',strcat('-L',matlabroot,'\extern\lib\win64\microsoft'),...
-        '-lut','-lws2_32','-DNOMINMAX',strcat('-DVERSION=\"',fileread('../../version'),'\"'),'-D_USE_MATH_DEFINES',strcat('-DMATLAB_VERSION=0x',version('-release')),'COMPFLAGS=$COMPFLAGS /std:c++17');
+    mex('-output','g2s',commonSources{:},commonIncludes{:},'-I./libzmq-master/include',commonDefines{:},...
+        strcat('-L',zmqBuilDir,'lib/Release'),strcat('-l',libName{1}(4:end-4)),strcat('-L',matlabroot,'\extern\lib\win64\microsoft'),...
+        '-lut','-lws2_32','-DNOMINMAX','-D_USE_MATH_DEFINES',apiOptions{:},'COMPFLAGS=$COMPFLAGS /std:c++17');
     path=getenv('PATH');
     newpath=strcat(path,strcat('-I',zmqBuilDir,'bin/Release'));
     setenv('PATH',newpath);
@@ -50,7 +64,7 @@ elseif ispc
     zip('./../../../G2S-compiled-interfaces/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip',{'g2s.mexw64',strcat(libName{1}(1:end-3),'dll')});
     mkdir('./../../../G2S-compiled-interfaces/',strcat(strjoin(string(fscanf(fopen('../../version'),'%d.%d\n')),'.'),'/MATLAB/Windows/'));
     copyfile('./../../../G2S-compiled-interfaces/latest/MATLAB/Windows/G2S-latest.win-amd64-matlab.zip',strcat('./../../../G2S-compiled-interfaces/',strjoin(string(fscanf(fopen('../../version'),'%d.%d\n')),'.'),'/MATLAB/Windows/','G2S-',fscanf(fopen('../../version'),'%s\n'),'.win-amd64-matlab.zip'))
-    
+
 else
     disp('Platform not supported')
 end
