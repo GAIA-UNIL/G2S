@@ -79,6 +79,10 @@ toc-depth: 3
    To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 8. Run: `make install`
 
+#### Optional: pyDev (Python prototyping)
+
+The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simulation algorithms written in Python, is an optional component. Install Python 3.14 or later with numpy (`python3.14t` recommended), then in the `build` folder run `make pydev` before `make install`.
+
 </div>
 
 <div class="langcontent os macOS">
@@ -94,6 +98,10 @@ toc-depth: 3
 5. Go to the `build` subfolder.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). Obviously, Intel compiler is only for Intel CPUs 😁. To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 7. Run: `make install`
+
+#### Optional: pyDev (Python prototyping)
+
+The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simulation algorithms written in Python, is an optional component that is not included in the Homebrew package. To add it to a source installation, install Python 3.14 or later with numpy (`python3.14t` recommended), then in the `build` folder run `make pydev` before `make install`.
 
 #### using MacPort (now deprecated)
 

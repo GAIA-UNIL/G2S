@@ -1,8 +1,9 @@
 ---
-title: Algorithms
+title: Installation
 author:
   - Mathieu Gravey
 date: 2023-03-13
+description: Install the G2S geostatistical server and its Python, MATLAB, or R interface.
 toc-depth: 2
 ---
 
