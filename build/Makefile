@@ -134,7 +134,7 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: c++ intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
+.PHONY: pydev c++ intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
@@ -153,6 +153,9 @@ wasm-single:
 
 wasm-threaded:
 	$(MAKE) -C wasm-build threaded
+
+pydev:
+	$(MAKE) -C c++-build pyDev algoNames
 
 c++-server:
 	$(MAKE) g2s_server -C c++-build

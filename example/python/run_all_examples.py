@@ -28,6 +28,9 @@ REQUIRES_BROWSER_PAGE = {
     Path("example") / "python" / "qs" / "browser_unconditional_simulation.py",
     Path("legacy_example") / "python" / "browser_unconditional_simulation.py",
 }
+# pyDev is an optional build target (`make pydev` in build/, Python >= 3.14).
+PYDEV_BINARY = REPO_ROOT / "build" / "c++-build" / "pyDev"
+PYDEV_EXAMPLES_DIR = Path("example") / "python" / "pydev"
 EXPECTED_FAILURE_MARKERS = {
     Path("example") / "python" / "reporting" / "reporting_probe.py": "error probe submitted with job id",
     Path("legacy_example") / "python" / "reporting_probe.py": "error probe submitted with job id",
@@ -88,6 +91,9 @@ def discover_examples(
                 continue
             if relative in REQUIRES_BROWSER_PAGE:
                 print(f"[SKIP] {relative} (requires the QS browser page)", flush=True)
+                continue
+            if PYDEV_EXAMPLES_DIR in relative.parents and not PYDEV_BINARY.exists():
+                print(f"[SKIP] {relative} (pyDev is not built: run `make pydev` in build/)", flush=True)
                 continue
             examples.append(path)
     return sorted(examples)

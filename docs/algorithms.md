@@ -3,6 +3,7 @@ title: Algorithms
 author:
   - Mathieu Gravey
 date: 2023-03-13
+description: Explore G2S multiple-point statistics algorithms, including QuickSampling, Anchor Sampling, Direct Sampling, and Narrow Distribution Selection.
 toc-depth: 2
 ---
 
@@ -15,5 +16,6 @@ toc-depth: 2
 - **Narrow Distribution Selection (NDS)** is an algorithm specifically targeted to simulate spectrally enhanced remote-sensed imagery. It requires an external variable *(for example, a grayscale image)* to control the simulation *(of colors)*.
 - **SNESIM** is a categorical search-tree-based MPS algorithm with a dedicated multigrid workflow.
 - **AutoQS** is a calibration workflow used to explore QuickSampling settings.
+- **pyDev** lets you prototype a sequential simulation in Python: G2S handles the path, the neighbour search and the threads, and a Python class predicts each node. It is an optional build target that embeds Python 3.14 or later. See the [pyDev tutorial]({{ site.baseurl }}/algorithms/PyDevTutorial.html) for a first example.
 
 The framework can be easily extended to handle most codes that use gridded data. Currently, any compiled code or Python code can be handled.
