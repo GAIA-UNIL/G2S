@@ -8,7 +8,8 @@ training image (or in the SNESIM search tree) and the value pasted.
 
 Outputs, for each configuration:
 
-- `out/<name>.mp4`: 1920 × 1080, 30 fps, H.264 (for slides and web pages);
+- `out/<name>.mp4`: 1920 × 1080, 30 fps, H.264 at CRF 28 (2.5 to 6.5 MB; `--crf` to change), for slides
+  and web pages;
 - `out/<name>.svg`: animated SVG (SMIL), looping, about 1.2 MB at 50 × 50 (for web pages; it does
   not play in PowerPoint);
 - with a dark background: `out/<name>_dark.mp4` and `out/<name>_dark.svg`.
