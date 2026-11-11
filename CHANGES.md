@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-11-11
+
+- The MATLAB interface is now built on the C++ MEX / MATLAB Data API (`src_interfaces/matlab_interface_modern.cpp`, R2018a+), ported onto the 1.0 interface template (result struct, `-legacy_output`, `-returnMeta`, job-grid JSON, browser transport). The C API interface (`matlab_interface.cpp`) remains available with `G2S_MATLAB_LEGACY_API=1`.
+- New in the C++ MEX interface: MATLAB `string` arguments (`"-a","qs"`) are accepted, text is converted as UTF-8, `-dt` accepts any numeric class, errors are raised with the `g2s:error` identifier without format-string interpretation (`g2s:interrupted` after Ctrl+C), and the per-call overhead is lower.
+- Fixed two defects of the earlier C++ MEX prototype: integer outputs (TI index maps) were returned as zeros, and cell-array parameters such as `-n {20 10}` were sent empty.
+- Ctrl+C handling no longer depends on MATLAB calls succeeding: the job is always killed on the server, including when the interrupt arrives while progress is printed.
+- jsoncpp 1.9.6 (amalgamated) and cppzmq 4.10.0 are vendored in `include_interfaces/third_party` and compiled into the MEX file; the shipped `example/matlab/g2s.mexmaca64` no longer depends on Homebrew's `libjsoncpp` dylib, which made it fail to load after a Homebrew update.
+- `CompileG2S.m` works with R2025a and current Xcode: the C API build drops the C++ MEX export list (`LINKEXPORTCPP=`) that the current Apple linker rejects, and `-ld_classic` is no longer used. On macOS only Apple Silicon with Homebrew (`/opt/homebrew`) is supported explicitly; the separate Intel (`maci64`) build path was removed. Corrected the MATLAB build folder name in the installation docs and listed the ZeroMQ/libsodium requirement.
+
 ## 2026-11-10
 
 - Bumped the project and Python package version to `1.0.1`.
