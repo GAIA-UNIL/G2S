@@ -1094,6 +1094,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("name")
     ap.add_argument("--preview", type=int, nargs="*", help="write PNGs of these frame numbers instead")
+    ap.add_argument("--crf", type=int, default=28,
+                    help="H.264 quality (default 28: flat graphics, ~3.5x smaller than 18 at SSIM 0.99)")
     ap.add_argument("--theme", choices=sorted(THEMES), default="light",
                     help="light or dark background (dark files get a _dark suffix)")
     args = ap.parse_args()
@@ -1111,8 +1113,9 @@ def main():
     os.makedirs(os.path.join(SP, "out"), exist_ok=True)
     out = os.path.join(SP, "out", f"{args.name}{suffix}.mp4")
     ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
-                           "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "slow",
-                           "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
+                           "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "veryslow",
+                           "-tune", "animation", "-crf", str(args.crf), "-x264-params", "keyint=600:min-keyint=30",
+                           "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
                           stdin=subprocess.PIPE)
     canvas = anim.fig.canvas
     for k, st in enumerate(frames):

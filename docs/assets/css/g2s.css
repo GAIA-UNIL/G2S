@@ -364,3 +364,57 @@ red{
 
 
 
+
+/* Resources page: presentation animations */
+.animation-card {
+    margin: 0 0 2.5em 0;
+}
+
+.animation-card picture img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--light-gray);
+    border-radius: 6px;
+}
+
+.animation-downloads {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6em 0.8em;
+    margin-top: 0.8em;
+    font-size: 15px;
+}
+
+.animation-downloads .download-button {
+    display: inline-block;
+    padding: 0.35em 0.9em;
+    border: 1px solid var(--light-gray);
+    border-radius: 6px;
+    background: var(--very-light-gray);
+    color: var(--color);
+    text-decoration: none;
+}
+
+.animation-downloads .download-button:hover {
+    background: var(--light-hover-gray);
+}
+
+.animation-downloads .other-theme {
+    color: var(--titleColor);
+}
+
+.animation-downloads.theme-dark {
+    display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .animation-downloads.theme-light {
+        display: none;
+    }
+
+    .animation-downloads.theme-dark {
+        display: flex;
+    }
+}
