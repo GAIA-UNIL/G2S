@@ -8,7 +8,6 @@
 {% assign class_active = "active" %}
 {% assign class_sub_active = "sub-active" %}
 
-{% assign level = include.level | 0 %}
 {% assign path_parts = page.url+site.baseurl | split: '/' %}
 {% assign path_parts_len = path_parts.size %}
 
@@ -42,8 +41,13 @@
         <li class="{% if has_sublinks %} {{ class_sub }}{% endif %}{% if current_path == link.url %}{{ 'selected'}} {% endif %}">
       <a href="{{ site.baseurl }}{{ link.url }}">{{ link.title }}</a>
 
-      {% if has_sublinks and level < max_levels %}
-        {% assign sublinks_level = level | plus: 1 %}
+      {% comment %}
+        Use include.level, not an assigned variable: assign is page-global in
+        Liquid, so the nested include below would overwrite it and hide the
+        submenus of the following entries.
+      {% endcomment %}
+      {% if has_sublinks and include.level < max_levels %}
+        {% assign sublinks_level = include.level | plus: 1 %}
         {% include navigation.html menu=sublinks level=sublinks_level tocinfo=tocinfo %}
       {% else %}
         {% if current_path == link.url %}
