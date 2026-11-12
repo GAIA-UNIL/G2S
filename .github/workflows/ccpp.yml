@@ -5,10 +5,14 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'example/**'
-      - '.github/**'
-      - '!.github/workflows/ccpp.yml'
+    # Everything except docs/ and example/ (deployed by github-pages.yml)
+    # and the other workflow files. Later patterns override earlier ones.
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!example/**'
+      - '!.github/**'
+      - '.github/workflows/ccpp.yml'
 
 jobs:
   build-test:
