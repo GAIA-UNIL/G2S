@@ -16,6 +16,12 @@ toc-depth: 2
 - **Narrow Distribution Selection (NDS)** is an algorithm specifically targeted to simulate spectrally enhanced remote-sensed imagery. It requires an external variable *(for example, a grayscale image)* to control the simulation *(of colors)*.
 - **SNESIM** is a categorical search-tree-based MPS algorithm with a dedicated multigrid workflow.
 - **AutoQS** is a calibration workflow used to explore QuickSampling settings.
+- **Gaussian geostatistics** share one [covariance model]({{ site.baseurl }}/algorithms/CovarianceModels.html) syntax (nested structures, anisotropy, spatially varying parameters, regions, covariance maps), which `covEval` evaluates:
+  - **[Sequential Gaussian simulation (sgs)]({{ site.baseurl }}/algorithms/SGS.html)**: kriging-based SGS with a plan computed once per path and replayed for many realisations; accepts non-stationary models.
+  - **[Kriging]({{ site.baseurl }}/algorithms/Kriging.html)**: simple and ordinary kriging, with a unique (direct) or moving (local) neighbourhood, and the kriging variance.
+  - **[FFT-MA and spectral simulation]({{ site.baseurl }}/algorithms/FFTMA.html)**: fast stationary simulation by FFT, conditioned to hard data by kriging.
+  - **[Turning bands (tb)]({{ site.baseurl }}/algorithms/TurningBands.html)**: stationary simulation without grid or periodicity constraints, conditioned to hard data by kriging.
+  - [Choosing a Gaussian simulation method]({{ site.baseurl }}/algorithms/GaussianSimulation.html) compares them.
 - **pyDev** lets you prototype a sequential simulation in Python: G2S handles the path, the neighbour search and the threads, and a Python class predicts each node. It is an optional build target that embeds Python 3.14 or later. See the [pyDev tutorial]({{ site.baseurl }}/algorithms/PyDevTutorial.html) for a first example.
 
 The framework can be easily extended to handle most codes that use gridded data. Currently, any compiled code or Python code can be handled.
