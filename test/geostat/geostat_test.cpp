@@ -724,9 +724,11 @@ void testNeighbors() {
 				if (expected.size() == 6) break;
 			}
 			CHECK(set.ids == expected);
+			CHECK(set.refs.size() == set.size());
 			for (size_t i = 0; i < set.size(); ++i) {
 				const long nx = long(set.ids[i] % 13), ny = long(set.ids[i] / 13);
 				CHECK(set.lag(i)[0] == double(nx - x) && set.lag(i)[1] == double(ny - y));
+				CHECK(set.ref(i) < offsets.size() && offsets[set.ref(i)][0] == nx - x && offsets[set.ref(i)][1] == ny - y);
 			}
 		}
 		// Determinism across threads: every node, 4 threads vs 1.

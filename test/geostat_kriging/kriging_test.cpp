@@ -405,6 +405,7 @@ void testKdTree() {
 			grid.find(cell, 0, s.count, a);
 			tree.find(cell, 0, s.count, b);
 			if (a.ids != b.ids || a.lags != b.lags) ++mismatches;
+			for (size_t i = 0; i < b.size(); ++i) if (b.ref(i) != uint32_t(b.ids[i])) ++mismatches; // the tree's reference is the node id
 		}
 		CHECK_MSG(mismatches == 0, std::to_string(mismatches) + " cells differ (kernel " + std::to_string(s.kernel[0]) + ", per sector " + std::to_string(s.perSector) + ")");
 	}

@@ -28,7 +28,8 @@
 // neighbour into a 32-bit reference and back:
 //   unsigned ndim() const;
 //   size_t   referenceLimit() const;      // upper bound on neighbours per node
-//   uint32_t encode(size_t target, size_t neighbor, const double* lag) const;
+//   uint32_t encode(size_t target, size_t neighbor, const double* lag, uint32_t searchRef) const;
+//                                          // searchRef: NeighborSet::ref() of the neighbour;
 //                                          // kNoReference when not representable
 //   void     decode(size_t target, const uint32_t* refs, size_t count, size_t* ids) const;
 //   void     lag(size_t target, uint32_t ref, double* out) const; // neighbour - target
@@ -98,8 +99,6 @@
 
 namespace g2s {
 namespace geostat {
-
-constexpr uint32_t kNoReference = std::numeric_limits<uint32_t>::max();
 
 // ============================================================ threads
 
@@ -173,7 +172,7 @@ public:
 	PointAddressing(const double* coordinates, size_t nodeCount, unsigned ndim) : _coordinates(coordinates), _nodeCount(nodeCount), _ndim(ndim) {}
 	unsigned ndim() const { return _ndim; }
 	size_t referenceLimit() const { return _nodeCount; }
-	uint32_t encode(size_t, size_t neighbor, const double*) const { return neighbor < size_t(kNoReference) ? uint32_t(neighbor) : kNoReference; }
+	uint32_t encode(size_t, size_t neighbor, const double*, uint32_t) const { return neighbor < size_t(kNoReference) ? uint32_t(neighbor) : kNoReference; }
 	void decode(size_t, const uint32_t* refs, size_t count, size_t* ids) const { for (size_t i = 0; i < count; ++i) ids[i] = refs[i]; }
 	void lag(size_t target, uint32_t ref, double* out) const {
 		for (unsigned d = 0; d < _ndim; ++d) out[d] = _coordinates[size_t(ref) * _ndim + d] - _coordinates[target * _ndim + d];
@@ -248,7 +247,7 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 				h.u64(stationary ? 0 : models.at(node, scratch[worker]).key());
 				h.u64(count);
 				for (size_t j = 0; j < count; ++j) {
-					row[j] = addressing.encode(node, set.ids[j], set.lag(j));
+					row[j] = addressing.encode(node, set.ids[j], set.lag(j), set.ref(j));
 					if (row[j] == kNoReference) unaddressable = true;
 				}
 				h.bytes(row, count * sizeof(uint32_t));

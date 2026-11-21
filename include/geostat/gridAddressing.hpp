@@ -16,11 +16,13 @@
 */
 
 // Grid addressing for the SGS engine (sgsEngine.hpp): a neighbour is stored
-// as the id of its kernel offset (the order of the offsets given, as for
-// GridNeighborSearch), so the stencil of a node depends only on its
-// neighbour pattern and every node with the same pattern and covariance
-// shares one solved system. Decoding is target + offset, with wrapping in
-// circular mode (-csim).
+// as the id of its kernel offset, which GridNeighborSearch returns in
+// NeighborSet::refs when it is built with the same offsets, so the stencil of
+// a node depends only on its neighbour pattern and every node with the same
+// pattern and covariance shares one solved system. encode() checks that the
+// offset matches the lag (another search, or other offsets, give
+// kNoReference). Decoding is target + offset, with wrapping in circular mode
+// (-csim).
 
 #ifndef G2S_GEOSTAT_GRID_ADDRESSING_HPP
 #define G2S_GEOSTAT_GRID_ADDRESSING_HPP
@@ -45,23 +47,13 @@ public:
 		if (nd == 0 || nd > 16) throw std::invalid_argument("GridAddressing: the grid must have 1 to 16 dimensions");
 		size_t stride = 1;
 		for (unsigned d : dims) { _strides.push_back(stride); stride *= d; }
-		_half.assign(nd, 0);
 		for (const std::vector<int>& o : offsets) {
 			if (o.size() != nd) throw std::invalid_argument("GridAddressing: an offset does not match the grid dimension");
-			for (size_t d = 0; d < nd; ++d) _half[d] = std::max(_half[d], std::abs(o[d]));
-		}
-		size_t box = 1;
-		for (size_t d = 0; d < nd; ++d) { _boxStrides.push_back(box); box *= size_t(2 * _half[d] + 1); }
-		_lookup.assign(box, kNoReference);
-		for (size_t i = 0; i < offsets.size(); ++i) {
-			size_t index = 0;
 			int64_t delta = 0;
 			for (size_t d = 0; d < nd; ++d) {
-				index += size_t(offsets[i][d] + _half[d]) * _boxStrides[d];
-				delta += int64_t(offsets[i][d]) * int64_t(_strides[d]);
-				_offsets.push_back(offsets[i][d]);
+				delta += int64_t(o[d]) * int64_t(_strides[d]);
+				_offsets.push_back(o[d]);
 			}
-			if (_lookup[index] == kNoReference) _lookup[index] = uint32_t(i); // first one wins for duplicates
 			_deltas.push_back(delta);
 		}
 	}
@@ -72,14 +64,13 @@ public:
 	bool integerLags() const { return true; }
 	std::vector<int32_t> referenceTable() const { return std::vector<int32_t>(_offsets.begin(), _offsets.end()); }
 
-	uint32_t encode(size_t, size_t, const double* lag) const {
-		size_t index = 0;
-		for (size_t d = 0; d < _dims.size(); ++d) {
-			const long v = std::lround(lag[d]);
-			if (v < -_half[d] || v > _half[d]) return kNoReference;
-			index += size_t(v + _half[d]) * _boxStrides[d];
-		}
-		return _lookup[index];
+	// searchRef: the offset index given by GridNeighborSearch.
+	uint32_t encode(size_t, size_t, const double* lag, uint32_t searchRef) const {
+		if (searchRef >= _deltas.size()) return kNoReference;
+		const size_t nd = _dims.size();
+		const int* offset = _offsets.data() + size_t(searchRef) * nd;
+		for (size_t d = 0; d < nd; ++d) if (double(offset[d]) != lag[d]) return kNoReference;
+		return searchRef;
 	}
 
 	void decode(size_t target, const uint32_t* refs, size_t count, size_t* ids) const {
@@ -111,10 +102,9 @@ public:
 
 private:
 	std::vector<unsigned> _dims;
-	std::vector<size_t> _strides, _boxStrides;
-	std::vector<int> _half, _offsets;
+	std::vector<size_t> _strides;
+	std::vector<int> _offsets;
 	std::vector<int64_t> _deltas;
-	std::vector<uint32_t> _lookup;
 	bool _circular;
 };
 

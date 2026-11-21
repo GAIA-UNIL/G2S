@@ -100,6 +100,7 @@ public:
 		for (const Candidate& c : all) {
 			out.ids.push_back(c.id);
 			out.lags.insert(out.lags.end(), c.lag, c.lag + _ndim);
+			out.refs.push_back(c.id < size_t(kNoReference) ? uint32_t(c.id) : kNoReference);
 		}
 	}
 

@@ -53,6 +53,8 @@ namespace g2s {
 namespace geostat {
 
 constexpr int64_t kRankKnown = -1;
+// No reference (NeighborSet::ref, sgsEngine.hpp addressing).
+constexpr uint32_t kNoReference = std::numeric_limits<uint32_t>::max();
 constexpr int64_t kRankNever = std::numeric_limits<int64_t>::max();
 
 // Ranks from a path: kRankKnown where isKnown(node), else the path position,
@@ -68,12 +70,16 @@ inline std::vector<int64_t> pathRanks(size_t nodeCount, const PathIndex* path, s
 // The neighbours of one target, nearest first.
 struct NeighborSet {
 	unsigned ndim = 0;
-	std::vector<size_t> ids;  // node ids (flat cell index on a grid)
-	std::vector<double> lags; // size() x ndim, row-major: neighbour position - target position
+	std::vector<size_t> ids;    // node ids (flat cell index on a grid)
+	std::vector<double> lags;   // size() x ndim, row-major: neighbour position - target position
+	std::vector<uint32_t> refs; // optional, one per neighbour when filled: what the search knows of it
+	                            // (GridNeighborSearch: index of the kernel offset; KdTreeSearch: node id)
 
 	size_t size() const { return ids.size(); }
 	const double* lag(size_t i) const { return lags.data() + i * ndim; }
-	void clear() { ids.clear(); lags.clear(); }
+	// The reference of neighbour i, kNoReference when the search gives none.
+	uint32_t ref(size_t i) const { return i < refs.size() ? refs[i] : kNoReference; }
+	void clear() { ids.clear(); lags.clear(); refs.clear(); }
 };
 
 class NeighborSearch {
@@ -203,7 +209,8 @@ struct GridSearchOptions {
 };
 
 // Grid implementation: walks the sorted offsets from the target and keeps the
-// first maxCount cells with rank < rankLimit. In circular mode an offset
+// first maxCount cells with rank < rankLimit. NeighborSet::refs holds the
+// index of each neighbour's offset in the offsets given to the constructor. In circular mode an offset
 // leaving the grid wraps around (the lag stays the offset); keep the kernel
 // smaller than the grid or a cell can be reached twice. In sector mode, an
 // offset whose sector already holds maxPerSector neighbours is skipped, and
@@ -224,11 +231,13 @@ public:
 		_offsets.reserve(offsets.size() * nd);
 		_lags.reserve(offsets.size() * nd);
 		std::vector<double> lag(nd);
-		for (const std::vector<int>& offset : offsets) {
+		for (size_t i = 0; i < offsets.size(); ++i) {
+			const std::vector<int>& offset = offsets[i];
 			if (offset.size() != nd) throw std::invalid_argument("GridNeighborSearch: an offset does not match the grid dimension");
 			bool zero = true;
 			for (int v : offset) zero &= v == 0;
 			if (zero) continue;
+			_offsetIndex.push_back(i < size_t(kNoReference) ? uint32_t(i) : kNoReference);
 			for (size_t d = 0; d < nd; ++d) { _offsets.push_back(offset[d]); _lags.push_back(double(offset[d])); lag[d] = double(offset[d]); }
 			_sectors.push_back((unsigned char)sectorOf(lag.data(), unsigned(nd)));
 		}
@@ -269,6 +278,7 @@ public:
 			if (!(_ranks[id] < rankLimit)) continue;
 			out.ids.push_back(id);
 			out.lags.insert(out.lags.end(), _lags.begin() + long(p * nd), _lags.begin() + long((p + 1) * nd));
+			out.refs.push_back(_offsetIndex[p]);
 			if (out.ids.size() >= maxCount) break;
 			if (sectorMode && ++perSector[_sectors[p]] == _options.maxPerSector && ++fullSectors == sectorCount) break;
 		}
@@ -281,6 +291,7 @@ private:
 	std::vector<int> _offsets;     // offsetCount x ndim
 	std::vector<double> _lags;     // same, as doubles
 	std::vector<unsigned char> _sectors;
+	std::vector<uint32_t> _offsetIndex; // index in the offsets given to the constructor
 	const int64_t* _ranks;
 	GridSearchOptions _options;
 };
