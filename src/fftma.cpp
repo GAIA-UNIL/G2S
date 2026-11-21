@@ -288,7 +288,11 @@ int main(int argc, char const* argv[]) {
 		noiseImage = g2s::DataImage::createFromFile(noiseFileName);
 		g2s::reporting::logInput(reportFile, "-ni", noiseFileName, noiseImage);
 		if (noiseImage.isEmpty()) return failWith("failed to load -ni " + noiseFileName, 3);
-		if (noiseImage._dims.size() != ndim) return failWith("-ni must have the same number of dimensions as -di", 2);
+		// The interfaces upload -ni without -dt, so the realisations of a noise
+		// returned by -on (one variable each) come back as one more, innermost,
+		// dimension of a single variable; the memory layout is the same (as -ki).
+		if (noiseImage._dims.size() == ndim + 1 && noiseImage._nbVariable == 1) noiseImage.convertFirstDimInVariable();
+		if (noiseImage._dims.size() != ndim) return failWith("-ni must have the dimensions of -di, plus optionally a last one for the realisations", 2);
 		for (unsigned d = 0; d < ndim; ++d) {
 			if (noiseImage._dims[d] < grid[d] || (periodic && noiseImage._dims[d] != grid[d]))
 				return failWith("-ni has size " + gridText(noiseImage._dims) + "; it must cover the grid " + gridText(grid) + (periodic ? " exactly with -csim" : ""), 2);

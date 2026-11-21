@@ -598,6 +598,16 @@ void testExecutable(const std::string& binary) {
 	CHECK(run(binary, "-ni im_2_" + testIdText(500) + " -s 999 -on -j 4", testId(503)) == 0);
 	{ g2s::DataImage other = load(1, testId(503)); CHECK(sameData(batch, other)); }
 	{ g2s::DataImage other = load(2, testId(503)); CHECK(sameData(batchNoise, other)); }
+	// The same noise as one variable with the realisations as an extra, innermost
+	// dimension (how the interfaces upload an (ny, nx, R) array without -dt).
+	if (!batchNoise.isEmpty()) {
+		std::vector<unsigned> stacked = batchNoise._dims;
+		stacked.insert(stacked.begin(), batchNoise._nbVariable);
+		CHECK(writeImage(N("geostat_fft_stacked_noise"), stacked, std::vector<float>(batchNoise._data, batchNoise._data + batchNoise.dataSize())));
+		CHECK(run(binary, "-ni " + N("geostat_fft_stacked_noise") + " -s 999 -j 4", testId(518)) == 0);
+		{ g2s::DataImage other = load(1, testId(518)); CHECK(sameData(batch, other)); }
+		CHECK(run(binary, "-nr 3 -ni " + N("geostat_fft_stacked_noise"), testId(519)) != 0); // 4 realisations in -ni
+	}
 	// Mean (also negative), spectral entry name and -method.
 	CHECK(run(spectralBinary, "-nr 2 -s 5 -m -2.5", testId(504)) == 0);
 	CHECK(run(binary, "-method spectral -nr 2 -s 5 -m -2.5", testId(505)) == 0);
