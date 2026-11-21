@@ -59,13 +59,14 @@ jobs:
           done
         fi
 
-    - name: Run geostat tests (covariance models, kriging, SGS, FFT-MA, turning bands)
+    - name: Run geostat tests (covariance models, kriging, SGS, FFT-MA, turning bands, conditioning)
       run: |
         make -C test/geostat
         make -C test/geostat_kriging
         make -C test/geostat_sgs
         make -C test/geostat_fft
         make -C test/geostat_tb quick
+        make -C test/geostat_conditioning
 
     - name: Set up Python for the covariance helper test
       uses: actions/setup-python@v5
