@@ -20,9 +20,13 @@
 
 #include <iostream>
 #include <cmath>
-#if __arm64__
+// __arm64__ is only defined by Apple compilers; Linux/Windows ARM64 use __aarch64__/_M_ARM64.
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+	#ifndef G2S_ARM64
+		#define G2S_ARM64 1
+	#endif
 	#include <arm_neon.h>
-#else
+#elif defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
 	#include <immintrin.h>
 #endif
 #include <limits>
@@ -44,10 +48,10 @@
 #   endif
 
 #   ifndef _mm_moveldup_pd
-#       define _mm_moveldup_pd(a) _mm_permute_pd(a, 0)
+#       define _mm_moveldup_pd(a) _mm_movedup_pd(a)
 #   endif
 #   ifndef _mm_movehdup_pd
-#       define _mm_movehdup_pd(a) _mm_permute_pd(a, 3)
+#       define _mm_movehdup_pd(a) _mm_unpackhi_pd(a, a)
 #   endif
 
 
@@ -66,7 +70,8 @@ namespace  g2s{
 		}
 	}
 
-#if __arm64__
+#if G2S_ARM64 && defined(__ARM_FEATURE_COMPLEX)
+#define G2S_HAS_NEON_COMPLEX 1
 
 inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size) {
     float32x4_t alphaVect = vdupq_n_f32(Alpha);
@@ -114,7 +119,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 			_mm_storeu_ps(dst+i*4,val);
 		}
 		
-		for (unsigned int i = (size/4)*4; i < size; i++)
+		for (unsigned int i = (size/2)*2; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -147,12 +152,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 	
 			_mm_storeu_pd(dst+i*2,val);
 		}
-		
-		for (unsigned int i = (size/2)*2; i < size; i++)
-		{
-			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
-			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
-		}
+		// one complex value per iteration: no scalar tail
 	}
 
 	
@@ -185,7 +185,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 			_mm256_storeu_ps(dst+i*8,val);
 		}
 		
-		for (unsigned int i = (size/8)*8; i < size; i++)
+		for (unsigned int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -218,7 +218,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 			_mm256_storeu_pd(dst+i*4,val);
 		}
 		
-		for (unsigned int i = (size/4)*4; i < size; i++)
+		for (unsigned int i = (size/2)*2; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -257,7 +257,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 			_mm512_storeu_ps(dst+i*16,val);
 		}
 		
-		for (unsigned int i = (size/16)*16; i < size; i++)
+		for (unsigned int i = (size/8)*8; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -292,7 +292,7 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 			_mm512_storeu_pd(dst+i*8,val);
 		}
 		
-		for (unsigned int i = (size/8)*8; i < size; i++)
+		for (unsigned int i = (size/4)*4; i < size; i++)
 		{
 			dst[2*i+0]+= Alpha * ( C[2*i+0]*D[2*i+0] - C[2*i+1]*D[2*i+1] );
 			dst[2*i+1]+= Alpha * ( C[2*i+0]*D[2*i+1] + C[2*i+1]*D[2*i+0] );
@@ -300,6 +300,18 @@ inline void complexAddAlphaxCxD_ARM(float* restrict dst, const float* C, const f
 	}
 
 #endif
+#if G2S_HAS_NEON_COMPLEX
+	// overloads instead of a runtime type test, so complexAddAlphaxCxD<double> also compiles on ARM
+	inline bool complexAddAlphaxCxD_NEON(float* restrict dst, const float* C, const float* D, const float Alpha, const unsigned int size){
+		complexAddAlphaxCxD_ARM(dst, C, D, Alpha, size);
+		return true;
+	}
+	template<typename T>
+	inline bool complexAddAlphaxCxD_NEON(T* restrict, const T*, const T*, const T, const unsigned int){
+		return false;
+	}
+#endif
+
 template<typename T>
 	inline void complexAddAlphaxCxD(T* restrict dst, const T* C, const T* D, const T Alpha, const unsigned int size){
 
@@ -318,11 +330,9 @@ template<typename T>
 		return;
 	#endif
 
-	#if __arm64__
-		if(std::is_same<T, float>::value){
-			complexAddAlphaxCxD_ARM(dst, C, D, Alpha, size);
+	#if G2S_HAS_NEON_COMPLEX
+		if(complexAddAlphaxCxD_NEON(dst, C, D, Alpha, size))
 			return;
-		}
 	#endif
 
 		complexAddAlphaxCxD_32(dst, C, D, Alpha, size);

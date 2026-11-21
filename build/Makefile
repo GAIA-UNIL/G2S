@@ -13,7 +13,7 @@ ifndef HOMEBREW_PRODUCT
 	export LIBINC=-I/usr/include -I/usr/include/jsoncpp -I/opt/local/include
 endif
 export LDFLAGS=-lz -lpthread
-export LDFLAGS_NO_SERVER_ONLY= -lfftw3f -lfftw3f_threads -ldl
+export LDFLAGS_NO_SERVER_ONLY= -lfftw3f_threads -lfftw3f -ldl
 export LDFLAGS_SERVER_ONLY= -lzmq -ljsoncpp -ldl
 export LIB_PATH= -L/usr/lib -L/usr/lib/x86_64-linux-gnu/ -L/opt/local/lib -L/usr/local/lib/
 export ARFLAGS= rcs
@@ -68,6 +68,14 @@ else
 endif
 
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# SIMD FFTW built by `make fftw-simd` (static libraries only, so searching it first makes
+# -lfftw3f/-lfftw3f_threads resolve to it rather than to the system copy)
+FFTW_SIMD_PREFIX := $(MAKEFILE_DIR)fftw-simd/install
+ifneq ($(wildcard $(FFTW_SIMD_PREFIX)/lib/libfftw3f.a),)
+	export INC := -I$(FFTW_SIMD_PREFIX)/include $(INC)
+	export LIB_PATH := -L$(FFTW_SIMD_PREFIX)/lib $(LIB_PATH)
+endif
 ZMQ_HPP_PATH := $(abspath $(MAKEFILE_DIR)/../include/zmq.hpp)
 ZMQ_HPP_URL := https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
 ZMQ_HPP_AVAILABLE := $(shell [ -f "$(ZMQ_HPP_PATH)" ] && echo 1 || echo 0)
@@ -134,13 +142,16 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: pydev c++ intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
+.PHONY: pydev c++ fftw-simd intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
 
 c++:
 	$(MAKE) -C c++-build
+
+fftw-simd:
+	sh fftw-simd/build_fftw_simd.sh
 
 intel:
 	$(MAKE) -C intel-build

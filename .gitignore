@@ -154,3 +154,6 @@ change_odc.md
 /docs/.jekyll-metadata
 # Favicon SVG source candidates remain tracked under docs/assets/favicon-options/.
 # Published favicon PNG/ICO assets in docs/assets/icons/ are intentional tracked files.
+/build/fftw-simd/cache/
+/build/fftw-simd/install/
+/test/qs_kernels/out/

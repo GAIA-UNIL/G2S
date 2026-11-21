@@ -339,7 +339,7 @@ public:
 	}
 
 private:
-	inline void determineDistribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0.f, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
+	inline void determineDistribution(float *errors, unsigned* encodedPosition, std::vector<std::vector<int>>& neighborArrayVector, std::vector<std::vector<float> >& neighborValueArrayVector,float seed, matchLocation verbatimRecord, float verbatimRadius=0.f, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
 		
 		if(localk<=0.f)
 			localk=_k;
@@ -351,6 +351,11 @@ private:
 
 		std::vector<std::vector<float> > convertedNeighborValueArrayVector(neighborArrayVector.size());
 		std::vector<float> cumulatedVariablesCoefficient;
+		{
+			size_t nbConversions=0;
+			for (size_t i = 0; i < _conversionTypeVector.size(); ++i) nbConversions+=_conversionTypeVector[i].size();
+			for (size_t k = 0; k < convertedNeighborValueArrayVector.size(); ++k) convertedNeighborValueArrayVector[k].reserve(nbConversions);
+		}
 
 		//if(_conversionTypeVector[0].size()!=neighborValueArrayVector[0].size()) //to redo
 		//	fprintf(stderr, "%s %d vs %d\n", "failure",_conversionTypeVector[0].size(),neighborValueArrayVector[0].size());

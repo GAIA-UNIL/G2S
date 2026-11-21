@@ -372,17 +372,6 @@ bool  CPUThreadDevice::candidateForPattern(std::vector<std::vector<int> > &neigh
 			memset(_frenquencySpaceOutputArray[dataArrayIndex], 0, _fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
 		}
 		
-		std::vector<std::vector<int> > neighborArray=neighborArrayVector;
-
-		//update coordonate
-		for (size_t j = 0; j < neighborArray.size(); ++j)
-		{
-			for (size_t i = 0; i < _min.size(); ++i)
-			{
-				neighborArray[j][i]-=_min[i];
-			}
-		}
-
 		for (unsigned int var = 0; var <_coefficientMatrix[0].getNumberOfVariable() ; ++var)
 		{
 			bool needToBeComputed=false;
@@ -394,12 +383,13 @@ bool  CPUThreadDevice::candidateForPattern(std::vector<std::vector<int> > &neigh
 
 			memset(_realSpaceArray[0],0,sizeof(dataType_g2s) * _realSpaceSize );
 			memset(_frenquencySpaceInput,0,_fftSpaceSize * sizeof(FFTW_PRECISION(complex)) );
+			std::fill(lines,lines+_fftSize.back(),false);
 
-			for (size_t i = 0; i < neighborArray.size(); ++i)
+			for (size_t i = 0; i < neighborArrayVector.size(); ++i)
 			{
 				if(std::isnan(neighborValueArrayVector[i][var]))continue;
-				_realSpaceArray[0][ index(neighborArray[i]) ] =  neighborValueArrayVector[i][var];
-				lines[neighborArray[i].back()]=true;
+				_realSpaceArray[0][ shiftedIndex(neighborArrayVector[i]) ] =  neighborValueArrayVector[i][var];
+				lines[neighborArrayVector[i].back()-_min.back()]=true;
 			}
 
 			bool patialFFT=false;
