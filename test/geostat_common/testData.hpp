@@ -9,7 +9,7 @@
 //
 // The first call of either registers removeTestData() with atexit: it removes
 // the names of this process from /tmp/G2S/data and the current directory and
-// the outputs im_<i>_<id> of its job ids. The content-addressed files these
+// the outputs of its job ids (im_<i>_<id>, id_<id>, <id>). The content-addressed files these
 // names link to (/tmp/G2S/data/<sha256>.bgrid.gz) are kept on purpose: they
 // are shared by every writer of the same content (another run of the same
 // test writes identical images, the server may serve them), so removing one
@@ -40,11 +40,19 @@ inline std::string namePrefix() { return "t" + std::to_string(processTag()) + "_
 
 inline bool startsWith(const char* text, const std::string& prefix) { return std::strncmp(text, prefix.c_str(), prefix.size()) == 0; }
 
-// True when `entry` is im_<i>_<id>[.<suffix>] with id one of this process.
+// True when `entry` is an output an executable names after a job id of this
+// process: im_<i>_<id>, id_<id> (-oi default) or <id> (-o default), followed
+// by '.' (the .bgrid / .bgrid.gz extension).
 inline bool isOwnOutput(const char* entry) {
 	unsigned output = 0, id = 0;
-	int consumed = 0;
-	if (std::sscanf(entry, "im_%u_%u%n", &output, &id, &consumed) != 2) return false;
+	int consumed = -1;
+	if (std::sscanf(entry, "im_%u_%u%n", &output, &id, &consumed) != 2 || consumed < 0) {
+		consumed = -1;
+		if (std::sscanf(entry, "id_%u%n", &id, &consumed) != 1 || consumed < 0) {
+			consumed = -1;
+			if (!(entry[0] >= '0' && entry[0] <= '9') || std::sscanf(entry, "%u%n", &id, &consumed) != 1 || consumed < 0) return false;
+		}
+	}
 	if (entry[consumed] != '\0' && entry[consumed] != '.') return false;
 	return id >= firstTestId() && id < firstTestId() + 1000u;
 }
