@@ -23,7 +23,9 @@
   #include <process.h>
 #else
   #include <unistd.h>
+  #include <sys/stat.h>
 #endif
+#include <atomic>
 #ifndef _WIN32
 	#include "zlib.h"
 #endif
@@ -91,9 +93,47 @@ char* copyValidatedRaw(const std::vector<char>& data, size_t* outSize){
 }
 }
 
+#ifndef _WIN32
+namespace {
+// A name unique to this process and call, next to `path`, for atomic replacement.
+void temporaryName(const char* path, char* out, size_t size){
+	static std::atomic<unsigned> counter(0);
+	snprintf(out, size, "%s.tmp.%ld.%u", path, (long)getpid(), counter++);
+}
+
+bool isSymbolicLink(const char* path){
+	struct stat info;
+	return lstat(path, &info) == 0 && S_ISLNK(info.st_mode);
+}
+}
+#endif
+
+// Links the name of an image (fullFilename, e.g. /tmp/G2S/data/im_1_<id>.bgrid.gz)
+// to its content-addressed file (outputFullFilename, named by the SHA-256 of
+// the content). Writing a name again replaces its link atomically: the new
+// link is made under a temporary name and renamed over the old one, so a
+// reader sees the old image or the new one, never a missing or stale mix, and
+// concurrent writers of the same name leave one of their links. Only links
+// are replaced: a regular file under that name (a content-addressed file) is
+// left as it is. The link of the other compression (.bgrid vs .bgrid.gz),
+// which loadRawData would otherwise prefer or fall back to, is removed.
 void createLink(char* outputFullFilename, char* fullFilename){
 	#ifndef _WIN32
-	(void)symlink(outputFullFilename, fullFilename);
+	if(strcmp(outputFullFilename, fullFilename)==0) return; // the name is the content hash itself
+	struct stat info;
+	if(lstat(fullFilename, &info)==0 && !S_ISLNK(info.st_mode)) return;
+	char temporary[4096];
+	temporaryName(fullFilename, temporary, sizeof(temporary));
+	if(symlink(outputFullFilename, temporary)!=0) return;
+	if(rename(temporary, fullFilename)!=0){
+		unlink(temporary);
+		return;
+	}
+	char other[4096];
+	const size_t length=strlen(fullFilename);
+	if(length>3 && strcmp(fullFilename+length-3, ".gz")==0) snprintf(other, sizeof(other), "%.*s", int(length-3), fullFilename);
+	else snprintf(other, sizeof(other), "%s.gz", fullFilename);
+	if(isSymbolicLink(other)) unlink(other);
 	#endif
 }
 
@@ -140,20 +180,40 @@ char* writeRawData(char* data, bool compresed){
 
 	char filename[4096];
 
+	// The content file is written under a temporary name and renamed, so that
+	// a reader (or a link to it) never sees a partly written file, also when
+	// another job is writing the same content at the same time.
 	#ifndef _WIN32
+	char temporary[4096];
 	if(compresed) {
 		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hashInHexa);
-
-		gzFile dataFile=gzopen(filename,"wb");
+		temporaryName(filename, temporary, sizeof(temporary));
+		gzFile dataFile=gzopen(temporary,"wb");
 		if(dataFile) {
-			gzwrite (dataFile, data, fullSize);
-			gzclose(dataFile);
+			const bool written=gzwrite(dataFile, data, unsigned(fullSize))==int(fullSize);
+			if(gzclose(dataFile)==Z_OK && written) {
+				if(rename(temporary, filename)!=0) unlink(temporary);
+			} else {
+				unlink(temporary);
+			}
 		}
 	}
-	else 
-	#endif
+	else {
+		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hashInHexa);
+		temporaryName(filename, temporary, sizeof(temporary));
+		FILE* dataFile=fopen(temporary,"wb");
+		if(dataFile) {
+			const bool written=fwrite(data, 1, fullSize, dataFile)==fullSize;
+			if(fclose(dataFile)==0 && written) {
+				if(rename(temporary, filename)!=0) unlink(temporary);
+			} else {
+				unlink(temporary);
+			}
+		}
+	}
+	#else
 	{
-			snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hashInHexa);
+		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hashInHexa);
 
 		FILE* dataFile=fopen(filename,"wb");
 		if(dataFile) {
@@ -161,5 +221,6 @@ char* writeRawData(char* data, bool compresed){
 			fclose(dataFile);
 		}
 	}
+	#endif
 	return hashInHexa;
 }
