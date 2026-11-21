@@ -1,0 +1,536 @@
+/*
+ * G2S - geostat: shared foundation of the Gaussian geostatistics algorithms.
+ * Copyright (C) 2018-2026, Mathieu Gravey (gravey.mathieu@gmail.com) and UNIL (University of Lausanne)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// Sequential Gaussian simulation engine in two phases (Nunes & Almeida 2010;
+// Schoedl, MacKie, ..., Gravey 2023): neighbour search and kriging weights
+// depend only on the geometry, the path and the covariance model, never on
+// values, so they are computed ahead in parallel (plan, planSgs) into a
+// WeightTable (weightTable.hpp); the simulation then only applies the stored
+// weights (replay, replaySgs) to any number of realisations at once, which is
+// the constant-path idea of Nussbaumer et al. (2018).
+//
+// Nothing here knows about grids or images: nodes are ids into flat arrays,
+// neighbours come from a NeighborSearch, and an Addressing object turns a
+// neighbour into a 32-bit reference and back:
+//   unsigned ndim() const;
+//   size_t   referenceLimit() const;      // upper bound on neighbours per node
+//   uint32_t encode(size_t target, size_t neighbor, const double* lag) const;
+//                                          // kNoReference when not representable
+//   void     decode(size_t target, const uint32_t* refs, size_t count, size_t* ids) const;
+//   void     lag(size_t target, uint32_t ref, double* out) const; // neighbour - target
+//   bool     shareable() const;           // equal references mean equal lags
+//   std::vector<int32_t> referenceTable() const; // stored in the weight file
+// GridAddressing (gridAddressing.hpp) uses kernel-offset ids, so that every
+// node with the same neighbour pattern and covariance shares one stencil;
+// PointAddressing below uses node ids (no sharing) for scattered nodes.
+//
+// Plan (planSgs), for path positions i = 0 .. L-1 (rank of node path[i] is i):
+//   1. search (parallel): the nearest maxNeighbors nodes with rank < i
+//      (hard data have rank -1), as references, and a signature hash of
+//      (resolved covariance key, references);
+//   2. levels (sequential, O(L n)): level = 1 + max level of the simulated
+//      neighbours, 0 without any; entries are then counting-sorted by level
+//      (stable, so path order inside a level);
+//   3. sharing (sequential, hash map): an entry reuses the stencil of an
+//      earlier entry with the same references and the same resolved model
+//      (ResolvedModel::key() then sameParameters()); without sharing, one
+//      stencil per entry;
+//   4. solve (parallel over stencils): kriging (kriging.hpp) in double,
+//      stored as float32 weights and standard deviation.
+// The result depends on the inputs only, not on the number of threads.
+//
+// Replay (replaySgs): values are float, [node x R] (realisation fastest),
+// residuals for simple kriging (the front end subtracts the mean beforehand
+// and adds it back), raw values for ordinary kriging. Hard-data rows must be
+// filled; simulated rows are overwritten. For each entry,
+//   v[t, r] = sum_j w_j v[n_j, r] + sigma * standardNormal(seed, first + r, t)
+//             (+ the isolated mean when the entry has no neighbour)
+// The weights of an entry are read once for all R realisations (the inner
+// loop over r is contiguous and vectorised). Threads take consecutive chunks
+// of the level-ordered entries and wait, per neighbour, only for nodes that
+// are still being computed (see replaySgs). The random
+// numbers are counter-based (random.hpp), indexed by the target node, so the
+// result is the same for any number of threads and any batching of
+// realisations (realisation r of a batch starting at `first` is realisation
+// first + r).
+
+#ifndef G2S_GEOSTAT_SGS_ENGINE_HPP
+#define G2S_GEOSTAT_SGS_ENGINE_HPP
+
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+
+#include "geostat/covarianceModel.hpp"
+#include "geostat/kriging.hpp"
+#include "geostat/neighborSearch.hpp"
+#include "geostat/random.hpp"
+#include "geostat/weightTable.hpp"
+
+namespace g2s {
+namespace geostat {
+
+constexpr uint32_t kNoReference = std::numeric_limits<uint32_t>::max();
+
+// ============================================================ threads
+
+// f(begin, end, worker) over [0, count) in chunks of `grain`, dynamically
+// scheduled over `threads` workers (the calling thread is worker 0).
+template <class F>
+inline void parallelFor(size_t count, unsigned threads, size_t grain, F f) {
+	if (grain == 0) grain = 1;
+	if (threads <= 1 || count <= grain) { if (count > 0) f(size_t(0), count, 0u); return; }
+	threads = unsigned(std::min<size_t>(threads, (count + grain - 1) / grain));
+	std::atomic<size_t> next(0);
+	auto work = [&](unsigned worker) {
+		for (;;) {
+			const size_t begin = next.fetch_add(grain);
+			if (begin >= count) break;
+			f(begin, std::min(count, begin + grain), worker);
+		}
+	};
+	std::vector<std::thread> pool;
+	for (unsigned w = 1; w < threads; ++w) pool.emplace_back(work, w);
+	work(0);
+	for (std::thread& t : pool) t.join();
+}
+
+// Hint to the core that we are spinning.
+inline void cpuRelax() {
+#if defined(__aarch64__) || defined(_M_ARM64)
+	__asm__ __volatile__("yield");
+#elif defined(__x86_64__) || defined(__i386__)
+	__asm__ __volatile__("pause");
+#endif
+}
+
+inline double millisecondsSince(std::chrono::steady_clock::time_point start) {
+	return 1e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count());
+}
+
+// ============================================================ paths and seeds
+
+// Seed of path p: independent noise and path for every path index.
+inline uint64_t pathSeed(uint64_t seed, uint64_t pathIndex) {
+	uint64_t z = seed + 0x9E3779B97F4A7C15ull * (pathIndex + 1);
+	z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+	z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+	return z ^ (z >> 31);
+}
+
+// Fisher-Yates shuffle driven by uniform(seed, 0, i, stream 1): the same
+// permutation on every platform and for any number of threads.
+inline void shufflePath(std::vector<uint64_t>& nodes, uint64_t seed) {
+	for (size_t i = nodes.size(); i > 1; --i) {
+		size_t j = size_t(uniform(seed, 0, i - 1, 1) * double(i));
+		if (j >= i) j = i - 1;
+		std::swap(nodes[i - 1], nodes[j]);
+	}
+}
+
+inline uint64_t pathHash(const uint64_t* path, size_t length) {
+	Hasher h;
+	h.u64(length);
+	h.bytes(path, length * sizeof(uint64_t));
+	return h.value();
+}
+
+// ============================================================ point addressing
+
+// References are node ids; lags from explicit coordinates (nodeCount x ndim).
+// For scattered nodes, where neighbour patterns do not repeat.
+class PointAddressing {
+public:
+	PointAddressing(const double* coordinates, size_t nodeCount, unsigned ndim) : _coordinates(coordinates), _nodeCount(nodeCount), _ndim(ndim) {}
+	unsigned ndim() const { return _ndim; }
+	size_t referenceLimit() const { return _nodeCount; }
+	uint32_t encode(size_t, size_t neighbor, const double*) const { return neighbor < size_t(kNoReference) ? uint32_t(neighbor) : kNoReference; }
+	void decode(size_t, const uint32_t* refs, size_t count, size_t* ids) const { for (size_t i = 0; i < count; ++i) ids[i] = refs[i]; }
+	void lag(size_t target, uint32_t ref, double* out) const {
+		for (unsigned d = 0; d < _ndim; ++d) out[d] = _coordinates[size_t(ref) * _ndim + d] - _coordinates[target * _ndim + d];
+	}
+	bool shareable() const { return false; }
+	std::vector<int32_t> referenceTable() const { return std::vector<int32_t>(); }
+private:
+	const double* _coordinates;
+	size_t _nodeCount;
+	unsigned _ndim;
+};
+
+// ============================================================ plan
+
+struct SgsPlanOptions {
+	KrigingType type = KrigingType::Simple;
+	size_t maxNeighbors = 32;
+	bool shareStencils = true;
+	unsigned threads = 1;
+};
+
+struct SgsPlanStats {
+	size_t entries = 0, stencils = 0, neighbors = 0, levels = 0, largestLevel = 0;
+	size_t isolated = 0;          // entries without any neighbour
+	size_t jittered = 0, failed = 0; // stencils whose system needed a jitter / could not be solved
+	double searchMs = 0, levelMs = 0, shareMs = 0, solveMs = 0, totalMs = 0;
+	// Solved systems per simulated node: 1 without sharing.
+	double sharingRatio() const { return entries ? double(stencils) / double(entries) : 1.0; }
+};
+
+// Builds the plan of `path` (pathLength node ids; ranks from pathRanks with
+// the same path). table.inputHash and table.geometry are left to the caller.
+// Returns false (and sets error) when a neighbour cannot be addressed.
+template <class Addressing>
+inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, const CovarianceModelSet& models,
+                    const int64_t* ranks, const uint64_t* path, size_t pathLength, const SgsPlanOptions& options,
+                    WeightTable& table, SgsPlanStats& stats, std::string& error) {
+	const auto start = std::chrono::steady_clock::now();
+	stats = SgsPlanStats();
+	const unsigned threads = std::max(1u, options.threads);
+	const unsigned ndim = addressing.ndim();
+	const size_t stride = std::max<size_t>(1, std::min(options.maxNeighbors, addressing.referenceLimit()));
+	const bool stationary = models.isStationary();
+	const size_t L = pathLength;
+
+	table = WeightTable();
+	table.krigingType = options.type == KrigingType::Ordinary ? 1u : 0u;
+	table.ndim = ndim;
+	table.nodeCount = search.nodeCount();
+	table.pathHash = pathHash(path, L);
+	table.refTable = addressing.referenceTable();
+	const bool share = options.shareStencils && addressing.shareable();
+	if (share) table.flags |= WeightTableShared;
+
+	// ---- 1. search
+	std::vector<uint32_t> refs(L * stride);
+	std::vector<uint32_t> counts(L);
+	std::vector<uint64_t> signature(L);
+	std::atomic<bool> unaddressable(false);
+	{
+		std::vector<NeighborSet> sets(threads);
+		std::vector<ResolvedModel> scratch(threads);
+		parallelFor(L, threads, 1024, [&](size_t begin, size_t end, unsigned worker) {
+			NeighborSet& set = sets[worker];
+			for (size_t i = begin; i < end; ++i) {
+				const size_t node = size_t(path[i]);
+				search.find(node, int64_t(i), options.maxNeighbors, set);
+				const size_t count = std::min(set.size(), stride);
+				uint32_t* row = refs.data() + i * stride;
+				Hasher h;
+				h.u64(stationary ? 0 : models.at(node, scratch[worker]).key());
+				h.u64(count);
+				for (size_t j = 0; j < count; ++j) {
+					row[j] = addressing.encode(node, set.ids[j], set.lag(j));
+					if (row[j] == kNoReference) unaddressable = true;
+				}
+				h.bytes(row, count * sizeof(uint32_t));
+				counts[i] = uint32_t(count);
+				signature[i] = h.value();
+			}
+		});
+	}
+	if (unaddressable) { error = "a neighbour could not be expressed as a reference (kernel offset)"; return false; }
+	stats.searchMs = millisecondsSince(start);
+
+	// ---- 2. levels, and the level order of the entries
+	auto t1 = std::chrono::steady_clock::now();
+	std::vector<uint32_t> level(L);
+	uint32_t maxLevel = 0;
+	{
+		std::vector<size_t> ids(stride);
+		for (size_t i = 0; i < L; ++i) {
+			addressing.decode(size_t(path[i]), refs.data() + i * stride, counts[i], ids.data());
+			uint32_t value = 0;
+			for (size_t j = 0; j < counts[i]; ++j) {
+				const int64_t rank = ranks[ids[j]];
+				if (rank >= 0) value = std::max(value, level[size_t(rank)] + 1);
+			}
+			level[i] = value;
+			maxLevel = std::max(maxLevel, value);
+			if (counts[i] == 0) ++stats.isolated;
+		}
+	}
+	const size_t levelCount = L ? size_t(maxLevel) + 1 : 0;
+	table.levelStart.assign(levelCount + 1, 0);
+	for (size_t i = 0; i < L; ++i) ++table.levelStart[level[i] + 1];
+	for (size_t l = 0; l < levelCount; ++l) {
+		stats.largestLevel = std::max<size_t>(stats.largestLevel, table.levelStart[l + 1]);
+		table.levelStart[l + 1] += table.levelStart[l];
+	}
+	std::vector<uint64_t> order(L); // entry -> path position
+	{
+		std::vector<uint64_t> cursor(table.levelStart.begin(), table.levelStart.end() - 1);
+		for (size_t i = 0; i < L; ++i) order[cursor[level[i]]++] = i;
+	}
+	std::vector<uint32_t>().swap(level);
+	stats.levelMs = millisecondsSince(t1);
+
+	// ---- 3. stencils: share identical systems
+	auto t2 = std::chrono::steady_clock::now();
+	table.entryTarget.resize(L);
+	table.entryStencil.resize(L);
+	std::vector<uint64_t> representative; // stencil -> path position solved for it
+	representative.reserve(share ? L / 4 : L);
+	if (share) {
+		std::unordered_map<uint64_t, uint32_t> first; // signature -> first stencil with it
+		first.reserve(L);
+		std::vector<uint32_t> nextSame;                 // stencil -> next stencil with the same signature
+		ResolvedModel a, b;
+		for (size_t e = 0; e < L; ++e) {
+			const size_t i = size_t(order[e]);
+			const uint32_t* row = refs.data() + i * stride;
+			uint32_t found = kNoReference, last = kNoReference;
+			auto it = first.find(signature[i]);
+			if (it != first.end()) {
+				for (uint32_t c = it->second; c != kNoReference; c = nextSame[c]) {
+					last = c;
+					const size_t r = size_t(representative[c]);
+					if (counts[r] != counts[i] || std::memcmp(refs.data() + r * stride, row, counts[i] * sizeof(uint32_t)) != 0) continue;
+					if (!stationary) {
+						const ResolvedModel& ma = models.at(size_t(path[r]), a);
+						const ResolvedModel& mb = models.at(size_t(path[i]), b);
+						if (ma.key() != mb.key() || !ma.sameParameters(mb)) continue;
+					}
+					found = c;
+					break;
+				}
+			}
+			if (found == kNoReference) {
+				found = uint32_t(representative.size());
+				representative.push_back(i);
+				nextSame.push_back(kNoReference);
+				if (last == kNoReference) first.emplace(signature[i], found);
+				else nextSame[last] = found;
+			}
+			table.entryTarget[e] = path[i];
+			table.entryStencil[e] = found;
+		}
+	} else {
+		for (size_t e = 0; e < L; ++e) {
+			representative.push_back(order[e]);
+			table.entryTarget[e] = path[size_t(order[e])];
+			table.entryStencil[e] = uint32_t(e);
+		}
+	}
+	std::vector<uint64_t>().swap(signature);
+	const size_t S = representative.size();
+	if (S >= size_t(kNoReference)) { error = "too many distinct stencils for 32-bit stencil ids"; return false; }
+	table.stencilStart.assign(S + 1, 0);
+	for (size_t s = 0; s < S; ++s) table.stencilStart[s + 1] = table.stencilStart[s] + counts[size_t(representative[s])];
+	stats.shareMs = millisecondsSince(t2);
+
+	// ---- 4. solve
+	auto t3 = std::chrono::steady_clock::now();
+	const size_t N = size_t(table.stencilStart[S]);
+	table.neighborRef.resize(N);
+	table.neighborWeight.resize(N);
+	table.stencilSigma.resize(S);
+	std::vector<size_t> jittered(threads, 0), failed(threads, 0);
+	{
+		std::vector<KrigingWorkspace> workspaces(threads);
+		std::vector<KrigingSolution> solutions(threads);
+		std::vector<ResolvedModel> scratch(threads);
+		std::vector<std::vector<double> > lags(threads, std::vector<double>(stride * ndim));
+		parallelFor(S, threads, 64, [&](size_t begin, size_t end, unsigned worker) {
+			for (size_t s = begin; s < end; ++s) {
+				const size_t i = size_t(representative[s]);
+				const size_t node = size_t(path[i]);
+				const size_t count = counts[i];
+				const uint32_t* row = refs.data() + i * stride;
+				double* lag = lags[worker].data();
+				for (size_t j = 0; j < count; ++j) addressing.lag(node, row[j], lag + j * ndim);
+				const ResolvedModel& model = models.at(node, scratch[worker]);
+				KrigingSolution& solution = solutions[worker];
+				const unsigned status = krige(options.type, model, lag, count, workspaces[worker], solution);
+				if (status & KrigingJittered) ++jittered[worker];
+				if (status & KrigingFailed) ++failed[worker];
+				const size_t offset = size_t(table.stencilStart[s]);
+				for (size_t j = 0; j < count; ++j) {
+					table.neighborRef[offset + j] = row[j];
+					table.neighborWeight[offset + j] = float(solution.weights[j]);
+				}
+				table.stencilSigma[s] = float(std::sqrt(std::max(0.0, solution.variance)));
+			}
+		});
+	}
+	for (unsigned w = 0; w < threads; ++w) { stats.jittered += jittered[w]; stats.failed += failed[w]; }
+	stats.solveMs = millisecondsSince(t3);
+
+	stats.entries = L;
+	stats.stencils = S;
+	stats.neighbors = 0;
+	for (size_t i = 0; i < L; ++i) stats.neighbors += counts[i];
+	stats.levels = levelCount;
+	stats.totalMs = millisecondsSince(start);
+	return true;
+}
+
+// ============================================================ replay
+
+struct SgsReplayOptions {
+	uint64_t seed = 0;
+	uint32_t firstRealisation = 0;   // realisation r of this batch draws the noise of first + r
+	unsigned realisations = 1;       // R: values are [node x R]
+	unsigned threads = 1;
+	// Mean of entries without any neighbour (ordinary kriging falls back to
+	// it); per node when isolatedMeanMap is set, otherwise isolatedMean.
+	// Leave at 0 for simple kriging on residuals.
+	const float* isolatedMeanMap = nullptr;
+	double isolatedMean = 0.0;
+};
+
+struct SgsReplayStats {
+	unsigned threads = 1;
+	size_t waits = 0; // neighbours not yet final when an entry needed them (parallel replay)
+	double totalMs = 0;
+};
+
+namespace detail {
+
+// One entry of the replay. With `ready` (parallel replay), waits until every
+// neighbour is final and then publishes its own node.
+template <class Addressing>
+struct ReplayKernel {
+	const WeightTableView& table;
+	const Addressing& addressing;
+	const SgsReplayOptions& options;
+	float* values;
+	std::atomic<uint8_t>* ready;
+
+	float isolatedMean(size_t target) const {
+		return float(options.isolatedMeanMap ? double(options.isolatedMeanMap[target]) : options.isolatedMean);
+	}
+
+	// Returns the number of neighbours that had to be waited for.
+	size_t run(uint64_t begin, uint64_t end, std::vector<size_t>& ids, std::vector<float>& acc) const {
+		const size_t R = options.realisations;
+		size_t waits = 0;
+		for (uint64_t e = begin; e < end; ++e) {
+			const size_t target = size_t(table.entryTarget[e]);
+			const uint32_t s = table.entryStencil[e];
+			const uint64_t first = table.stencilStart[s];
+			const size_t count = size_t(table.stencilStart[s + 1] - first);
+			if (ids.size() < count) ids.resize(count);
+			addressing.decode(target, table.neighborRef + first, count, ids.data());
+			if (ready) {
+				for (size_t j = 0; j < count; ++j) {
+					if (ready[ids[j]].load(std::memory_order_acquire)) continue;
+					++waits;
+					for (unsigned spin = 0; !ready[ids[j]].load(std::memory_order_acquire); ++spin) {
+						if (spin < 4096) cpuRelax();
+						else std::this_thread::yield();
+					}
+				}
+			}
+			const float* weight = table.neighborWeight + first;
+			float* out = values + target * R;
+			const float sigma = table.stencilSigma[s];
+			if (R == 1) {
+				float sum = 0.f;
+				for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
+				if (count == 0) sum = isolatedMean(target);
+				out[0] = sum + sigma * float(standardNormal(options.seed, options.firstRealisation, target, 0));
+			} else {
+				float* a = acc.data();
+				for (size_t r = 0; r < R; ++r) a[r] = 0.f;
+				for (size_t j = 0; j < count; ++j) {
+					const float w = weight[j];
+					const float* v = values + ids[j] * R;
+					for (size_t r = 0; r < R; ++r) a[r] += w * v[r];
+				}
+				if (count == 0) {
+					const float mean = isolatedMean(target);
+					for (size_t r = 0; r < R; ++r) a[r] = mean;
+				}
+				for (size_t r = 0; r < R; ++r)
+					out[r] = a[r] + sigma * float(standardNormal(options.seed, options.firstRealisation + uint32_t(r), target, 0));
+			}
+			if (ready) ready[target].store(1, std::memory_order_release);
+		}
+		return waits;
+	}
+};
+
+} // namespace detail
+
+// Applies the table to `values` ([nodeCount x R] floats, see the top of the
+// file). In parallel, workers take consecutive chunks of the level-ordered
+// entries; since a node's neighbours belong to earlier levels, they come
+// earlier in the table and were taken before, so waiting on them always
+// terminates. Within a level nothing waits; a wait only happens at a level
+// boundary, for the few neighbours still being computed, instead of a barrier
+// for the whole level.
+template <class Addressing>
+inline void replaySgs(const WeightTableView& table, const Addressing& addressing, float* values, const SgsReplayOptions& options,
+                      SgsReplayStats* stats = nullptr) {
+	const auto start = std::chrono::steady_clock::now();
+	const size_t R = std::max(1u, options.realisations);
+	SgsReplayOptions local = options;
+	local.realisations = unsigned(R);
+	const unsigned threads = unsigned(std::min<uint64_t>(std::max(1u, options.threads), std::max<uint64_t>(1, table.entryCount / 64)));
+	SgsReplayStats result;
+	result.threads = threads;
+
+	if (threads == 1) {
+		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, nullptr };
+		std::vector<size_t> ids;
+		std::vector<float> acc(R);
+		kernel.run(0, table.entryCount, ids, acc);
+	} else {
+		std::vector<std::atomic<uint8_t> > ready(size_t(table.nodeCount));
+		parallelFor(size_t(table.nodeCount), threads, size_t(1) << 16, [&](size_t b, size_t e, unsigned) {
+			for (size_t i = b; i < e; ++i) ready[i].store(1, std::memory_order_relaxed);
+		});
+		parallelFor(size_t(table.entryCount), threads, size_t(1) << 16, [&](size_t b, size_t e, unsigned) {
+			for (size_t i = b; i < e; ++i) ready[size_t(table.entryTarget[i])].store(0, std::memory_order_relaxed);
+		});
+		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, ready.data() };
+		const uint64_t grain = 16;
+		std::atomic<uint64_t> cursor(0);
+		std::atomic<size_t> waits(0);
+		auto work = [&](unsigned) {
+			std::vector<size_t> ids;
+			std::vector<float> acc(R);
+			size_t local = 0;
+			for (;;) {
+				const uint64_t b = cursor.fetch_add(grain, std::memory_order_relaxed);
+				if (b >= table.entryCount) break;
+				local += kernel.run(b, std::min<uint64_t>(table.entryCount, b + grain), ids, acc);
+			}
+			waits += local;
+		};
+		std::vector<std::thread> pool;
+		for (unsigned w = 1; w < threads; ++w) pool.emplace_back(work, w);
+		work(0);
+		for (std::thread& t : pool) t.join();
+		result.waits = waits;
+	}
+	result.totalMs = millisecondsSince(start);
+	if (stats) *stats = result;
+}
+
+} // namespace geostat
+} // namespace g2s
+
+#endif // G2S_GEOSTAT_SGS_ENGINE_HPP
