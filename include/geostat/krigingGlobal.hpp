@@ -57,6 +57,13 @@
 // (coordinates), CellCrossCovariance (grid cells, model evaluated) and
 // GridCrossCovariance (grid cells, table lookup) are provided.
 //
+// Periodic domains (a simulation on a torus, -csim): Options::period gives one
+// period per axis (0 = not periodic); the covariance of every lag between two
+// points is then periodicCovariance (below: the model at the minimal image,
+// averaged over both signs of a component at exactly half a period), in the
+// matrix and in PointCrossCovariance / CellCrossCovariance.
+// GridCovarianceTable::build takes the same choice for the grid fast path.
+//
 // All member functions are const after factorize() and thread-safe; results
 // do not depend on the number of threads. Memory: one n x n double matrix
 // (8 n^2 bytes; factorize refuses beyond Options::maxMatrixBytes).
@@ -82,6 +89,53 @@
 namespace g2s {
 namespace geostat {
 
+// Minimal image of a lag on a periodic domain: each component d with
+// period[d] > 0 is shifted by a multiple of period[d] into
+// [-period[d]/2, period[d]/2) (the same image for lag and lag + period).
+// period == nullptr or period[d] == 0: unchanged.
+inline void minimalImage(double* lag, const double* period, unsigned ndim) {
+	if (!period) return;
+	for (unsigned d = 0; d < ndim; ++d)
+		if (period[d] > 0) lag[d] -= period[d] * std::floor(lag[d] / period[d] + 0.5);
+}
+
+// Covariance of a lag on a periodic domain: the model at the minimal image;
+// a component at exactly half a period has two equally near images, and the
+// value is averaged over both signs of such components. This is the circulant
+// covariance that spectralEngine.hpp samples (sampleCovariance: the Nyquist
+// lags), i.e. the covariance of a periodic (-csim) FFT simulation, and it is
+// symmetric (c(-h) = c(h)) and periodic, which the minimal image alone is not
+// for a rotated anisotropy. period == nullptr: the model itself.
+inline double periodicCovariance(const ResolvedModel& model, const double* lag, const double* period, unsigned ndim) {
+	if (!period) return model.covariance(lag);
+	double image[kMaxDims], flipped[kMaxDims];
+	for (unsigned d = 0; d < ndim; ++d) image[d] = lag[d];
+	minimalImage(image, period, ndim);
+	unsigned mask = 0;
+	for (unsigned d = 0; d < ndim; ++d)
+		if (period[d] > 0 && 2.0 * std::fabs(image[d]) == period[d]) mask |= 1u << d;
+	if (mask == 0) return model.covariance(image);
+	double sum = 0.0;
+	unsigned combinations = 0;
+	for (unsigned signs = 0; signs < (1u << ndim); ++signs) {
+		if ((signs & ~mask) != 0) continue;
+		for (unsigned d = 0; d < ndim; ++d) flipped[d] = (signs >> d & 1u) ? -image[d] : image[d];
+		sum += model.covariance(flipped);
+		++combinations;
+	}
+	return sum / double(combinations);
+}
+
+// Automatic choice between this engine ("direct") and the moving neighbourhood
+// (krigingLocal.hpp), shared by the kriging executable (-method auto) and the
+// conditioning of simulations (conditioning.hpp, -km auto): direct up to this
+// many data (8 n^2 bytes = 763 MiB) and while the matrix fits the memory limit.
+// Measured on an Apple M1 Pro (8 threads, 1000 x 1000 grid): direct 0.8 s for
+// 4000 data and 3.5 s for 10000, local (-n 50) about 6.5 s whatever the data count.
+constexpr size_t kAutoDirectMaxData = 10000;
+// Default memory limit (GiB) of the n x n matrix (-maxmem).
+constexpr double kDefaultDirectMaxMemoryGiB = 2.0;
+
 // Dual weights of nrhs right-hand sides: Z*_r(x) = constant[r] + sum_i k_i(x) alpha[i*nrhs + r].
 struct GlobalKrigingDual {
 	size_t count = 0;              // number of data
@@ -96,6 +150,7 @@ public:
 		KrigingType type = KrigingType::Ordinary;
 		unsigned nbThreads = 1;
 		size_t maxMatrixBytes = size_t(2) << 30; // refuse when 8 n^2 exceeds this
+		std::vector<double> period;              // per axis, 0 = not periodic; empty = no axis is (see minimalImage)
 	};
 
 	static size_t matrixBytes(size_t count) { return count * count * sizeof(double); }
@@ -121,6 +176,9 @@ public:
 		_type = options.type;
 		_threads = std::max(1u, options.nbThreads);
 		_coordinates.assign(coordinates, coordinates + count * ndim);
+		_period.clear();
+		for (double p : options.period) if (p > 0) { _period = options.period; break; }
+		if (!_period.empty() && _period.size() != ndim) { error = "global kriging: the period needs one value per axis"; return false; }
 		_factor.resize(count * count);
 		const double maxDiagonal = model.sill();
 		if (!(maxDiagonal > 0) || !std::isfinite(maxDiagonal)) { error = "global kriging: the covariance at lag 0 must be positive"; return false; }
@@ -148,6 +206,7 @@ public:
 	const ResolvedModel& model() const { return _model; }
 	const double* coordinates() const { return _coordinates.data(); } // dataCount x ndim
 	unsigned threads() const { return _threads; }
+	const double* period() const { return _period.empty() ? nullptr : _period.data(); } // ndim values, or nullptr when not periodic
 
 	// Dual weights for nrhs right-hand sides. values: realisation-major, value i
 	// of right-hand side r at values[r*ldValues + i] (ldValues >= dataCount).
@@ -252,6 +311,7 @@ public:
 private:
 	ResolvedModel _model;
 	std::vector<double> _coordinates;
+	std::vector<double> _period; // empty when no axis is periodic
 	size_t _count = 0;
 	unsigned _ndim = 0;
 	unsigned _threads = 1;
@@ -272,6 +332,7 @@ private:
 	void fillMatrix(double jitter) {
 		const size_t n = _coordinates.size() / _ndim;
 		const unsigned nd = _ndim;
+		const double* period = this->period();
 		const size_t rowsPerBlock = 64;
 		parallelFor((n + rowsPerBlock - 1) / rowsPerBlock, _threads, [&](size_t b, unsigned) {
 			double lag[kMaxDims];
@@ -282,7 +343,7 @@ private:
 				for (size_t j = 0; j <= i; ++j) {
 					const double* xj = _coordinates.data() + j * nd;
 					for (unsigned d = 0; d < nd; ++d) lag[d] = xi[d] - xj[d];
-					row[j] = _model.covariance(lag);
+					row[j] = periodicCovariance(_model, lag, period, nd);
 				}
 				row[i] += jitter;
 			}
@@ -324,14 +385,14 @@ private:
 class PointCrossCovariance {
 public:
 	PointCrossCovariance(const GlobalKriging& kriging, const double* targetCoordinates)
-		: _model(kriging.model()), _data(kriging.coordinates()), _count(kriging.dataCount()), _ndim(kriging.ndim()), _targets(targetCoordinates) {}
+		: _model(kriging.model()), _data(kriging.coordinates()), _count(kriging.dataCount()), _ndim(kriging.ndim()), _period(kriging.period()), _targets(targetCoordinates) {}
 	void operator()(size_t target, double* k) const {
 		double lag[kMaxDims];
 		const double* x = _targets + target * _ndim;
 		for (size_t i = 0; i < _count; ++i) {
 			const double* xi = _data + i * _ndim;
 			for (unsigned d = 0; d < _ndim; ++d) lag[d] = xi[d] - x[d];
-			k[i] = _model.covariance(lag);
+			k[i] = periodicCovariance(_model, lag, _period, _ndim);
 		}
 	}
 private:
@@ -339,6 +400,7 @@ private:
 	const double* _data;
 	size_t _count;
 	unsigned _ndim;
+	const double* _period;
 	const double* _targets;
 };
 
@@ -352,7 +414,7 @@ inline void cellCoordinates(size_t cell, const std::vector<unsigned>& dims, long
 class CellCrossCovariance {
 public:
 	CellCrossCovariance(const GlobalKriging& kriging, const std::vector<unsigned>& dims, const size_t* targetCells)
-		: _model(kriging.model()), _data(kriging.coordinates()), _count(kriging.dataCount()), _ndim(kriging.ndim()), _dims(dims), _targets(targetCells) {}
+		: _model(kriging.model()), _data(kriging.coordinates()), _count(kriging.dataCount()), _ndim(kriging.ndim()), _period(kriging.period()), _dims(dims), _targets(targetCells) {}
 	void operator()(size_t target, double* k) const {
 		long c[kMaxDims];
 		cellCoordinates(_targets[target], _dims, c);
@@ -360,7 +422,7 @@ public:
 		for (size_t i = 0; i < _count; ++i) {
 			const double* xi = _data + i * _ndim;
 			for (unsigned d = 0; d < _ndim; ++d) lag[d] = xi[d] - double(c[d]);
-			k[i] = _model.covariance(lag);
+			k[i] = periodicCovariance(_model, lag, _period, _ndim);
 		}
 	}
 private:
@@ -368,6 +430,7 @@ private:
 	const double* _data;
 	size_t _count;
 	unsigned _ndim;
+	const double* _period;
 	std::vector<unsigned> _dims;
 	const size_t* _targets;
 };
@@ -378,10 +441,12 @@ private:
 // o = target cell - data cell, o_d in [-(dims_d - 1), dims_d - 1]; prod(2 dims - 1)
 // doubles (32 MiB for 1000 x 1000). Lookups replace covariance evaluations,
 // and the scatter in estimateGridFields streams contiguous rows of the table.
+// periodic: the grid is a torus, value(o) = periodicCovariance(-o) (the
+// covariance of a -csim simulation on that grid).
 class GridCovarianceTable {
 public:
 	// Returns false (and stays empty) when the table would exceed maxBytes.
-	bool build(const ResolvedModel& model, const std::vector<unsigned>& dims, unsigned nbThreads, size_t maxBytes = size_t(1) << 30) {
+	bool build(const ResolvedModel& model, const std::vector<unsigned>& dims, unsigned nbThreads, size_t maxBytes = size_t(1) << 30, bool periodic = false) {
 		_values.clear();
 		if (dims.empty() || dims.size() != model.ndim || dims.size() > kMaxDims) return false;
 		_dims = dims;
@@ -398,6 +463,8 @@ public:
 		_values.resize(total);
 		const size_t rowLength = _extent[0];
 		const unsigned nd = unsigned(dims.size());
+		double period[kMaxDims];
+		for (unsigned d = 0; d < nd; ++d) period[d] = periodic ? double(dims[d]) : 0.0;
 		parallelFor(total / rowLength, nbThreads, [&](size_t row, unsigned) {
 			double lag[kMaxDims];
 			size_t rest = row;
@@ -405,7 +472,7 @@ public:
 			double* out = _values.data() + row * rowLength;
 			for (size_t x = 0; x < rowLength; ++x) {
 				lag[0] = -(double(x) - double(_dims[0] - 1));
-				out[x] = model.covariance(lag);
+				out[x] = periodic ? periodicCovariance(model, lag, period, nd) : model.covariance(lag);
 			}
 		});
 		return true;

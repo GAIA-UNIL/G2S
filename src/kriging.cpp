@@ -55,15 +55,14 @@
 
 namespace {
 
-// -method auto: direct up to this many data (8 n^2 bytes = 763 MiB). Measured on an
-// Apple M1 Pro (8 threads, 1000 x 1000 grid): direct 0.8 s for 4000 data and 3.5 s for
-// 10000, local (-n 50) about 6.5 s whatever the data count.
-constexpr size_t kAutoDirectMaxData = 10000;
+// -method auto: direct up to g2s::geostat::kAutoDirectMaxData data (krigingGlobal.hpp,
+// the rule the conditioning of simulations shares) ...
+using g2s::geostat::kAutoDirectMaxData;
 // ... and, with -var, while n^2 x targets stays below this: the variance costs n^2 per
 // target (1000 data on 1000 x 1000 cells: 7.9 s, about the cost of local kriging).
 constexpr double kAutoDirectVarianceWork = 1.0e12;
 // Default -maxmem (GiB): direct refuses larger n x n matrices.
-constexpr double kDefaultMaxMemoryGiB = 2.0;
+constexpr double kDefaultMaxMemoryGiB = g2s::geostat::kDefaultDirectMaxMemoryGiB;
 // Grid search is used when it walks at most this many kernel offsets per target, the k-d tree otherwise.
 constexpr double kGridSearchMaxWalk = 4096.0;
 
