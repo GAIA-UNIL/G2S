@@ -15,16 +15,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// fftma and spectral: unconditional stationary Gaussian simulation on the -di
-// grid (engine: geostat/spectralEngine.hpp). One executable; the method comes
+// fftma and spectral: stationary Gaussian simulation on the -di grid
+// (engine: geostat/spectralEngine.hpp). One executable; the method comes
 // from the name it is run under (the build links `spectral` to `fftma`) and
 // -method overrides it.
 //
 //   g2s('-a','fftma','-di',grid,'-cov','1*spherical(range=[40,20], angle=30)','-nr',16,'-s',1,'-j',8)
 //   g2s('-a','spectral','-di',grid,'-cov','1*gaussian(range=30)','-csim')
 //   g2s('-a','fftma','-di',grid,'-cov',model,'-ni',noise,'-on')   % FFT-MA with a given noise
+//   g2s('-a','fftma','-di',data,'-cov',model,'-nr',16,'-km','local')  % conditional
 //
-// The values of -di are ignored (unconditional simulation); only its grid is used.
+// The informed (non-NaN) cells of -di are hard data: each realisation is
+// conditioned by kriging of its residuals (geostat/conditioning.hpp, flags in
+// geostat/conditioningArguments.hpp). With -csim the kriging uses the
+// covariance of the periodic simulated field (minimal-image lags, the same
+// circulant covariance as the FFTs). An all-NaN -di gives the unconditional
+// simulation.
 
 #include <algorithm>
 #include <chrono>
@@ -39,28 +45,31 @@
 #include "DataImage.hpp"
 #include "jobManager.hpp"
 #include "jobReporting.hpp"
+#include "geostat/conditioningArguments.hpp"
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/spectralEngine.hpp"
 
 namespace {
 
 void printHelp() {
-	printf("fftma / spectral: unconditional Gaussian simulation with FFTs.\n"
-	       "  -di   grid of the simulation (mandatory; its values are ignored)\n"
+	printf("fftma / spectral: Gaussian simulation with FFTs, conditioned to the informed cells of -di.\n"
+	       "  -di   grid of the simulation (mandatory); non-NaN cells are hard data (all NaN: unconditional)\n"
 	       "  -cov  covariance model, e.g. \"0.1*nugget + 0.9*spherical(range=[40,20], angle=30)\" (mandatory, stationary)\n"
 	       "  -cvar name value  binds a model variable (number, or map image); repeat as needed\n"
 	       "  -method fftma|spectral  default: the name the executable is run under\n"
 	       "  -nr   number of realisations (default 1; the number of -ni variables when -ni is given)\n"
-	       "  -fr   index of the first realisation (default 0): realisation r of a run with -fr 0\n"
-	       "        equals realisation 0 of a run with -fr r\n"
+	       "  -ri   index of the first realisation (default 0): realisation r of a run with -ri 0\n"
+	       "        equals realisation 0 of a run with -ri r\n"
 	       "  -m    mean (default 0)\n"
-	       "  -s    seed; -j threads (fraction = share of the cores)\n"
+	       "  -s    seed; -j threads (a fraction = share of the cores)\n"
 	       "  -buf  buffer in cells, one value or one per axis (default: the largest practical\n"
 	       "        range along each axis); the grid is then rounded up to an FFT-friendly size\n"
-	       "  -csim periodic simulation on the -di grid (no buffer)\n"
+	       "  -csim periodic simulation on the -di grid (no buffer); the conditioning uses periodic distances\n"
 	       "  -ni   fftma only: white noise image on the extended grid, one variable per realisation\n"
 	       "        (its size sets the extended grid)\n"
-	       "  -on   fftma only: also output the white noise (output 2, extended grid)\n");
+	       "  -on   fftma only: also output the white noise of the unconditional field (output 2, extended grid)\n"
+	       "%s"
+	       "  -o / -oi  output names (simulation / noise)\n", g2s::geostat::conditioningHelp());
 }
 
 std::string baseName(const char* path) {
@@ -132,6 +141,15 @@ int main(int argc, char const* argv[]) {
 		fprintf(reportFile, "error: %s\n", error.c_str());
 		run = false;
 	}
+	gs::ConditioningArguments conditioning;
+	{
+		std::string conditioningError;
+		if (!gs::readConditioningArguments(arg, conditioning, conditioningError)) {
+			fprintf(reportFile, "error: %s\n", conditioningError.c_str());
+			if (error.empty()) error = conditioningError;
+			run = false;
+		}
+	}
 	if (covarianceArguments.models.empty()) { fprintf(reportFile, "error: -cov is mandatory\n"); run = false; }
 
 	unsigned nbThreads = 1;
@@ -150,7 +168,7 @@ int main(int argc, char const* argv[]) {
 
 	std::string targetFileName, noiseFileName;
 	if (arg.count("-di") == 1) targetFileName = arg.find("-di")->second;
-	else { fprintf(reportFile, "error: -di (simulation grid) is mandatory\n"); run = false; }
+	else { fprintf(reportFile, "error: -di is mandatory\n"); run = false; }
 	arg.erase("-di");
 	if (arg.count("-ni") == 1) noiseFileName = arg.find("-ni")->second;
 	else if (arg.count("-ni") > 1) { fprintf(reportFile, "error: only one -ni (noise image) is possible\n"); run = false; }
@@ -161,8 +179,11 @@ int main(int argc, char const* argv[]) {
 	arg.erase("-csim");
 
 	std::string outputFilename = std::to_string(uniqueID);
+	std::string outputIndexFilename = std::string("id_") + std::to_string(uniqueID);
 	if (arg.count("-o") == 1) outputFilename = arg.find("-o")->second;
 	arg.erase("-o");
+	if (arg.count("-oi") == 1) outputIndexFilename = arg.find("-oi")->second;
+	arg.erase("-oi");
 
 	// argumentReader() takes "-2" for a flag: read the value from argv instead
 	// and drop the bogus key.
@@ -189,10 +210,13 @@ int main(int argc, char const* argv[]) {
 		else nbRealisations = unsigned(value);
 	}
 	uint32_t firstRealisation = 0;
-	if (readNumber("-fr", value)) {
-		if (!(value >= 0 && value <= 4294967295.0 && value == std::floor(value))) { fprintf(reportFile, "error: -fr expects an integer >= 0\n"); run = false; }
+	for (const char* flag : { "-ri", "-fr" }) { // -fr: former name, kept as an alias
+		if (!readNumber(flag, value)) continue;
+		if (!(value >= 0 && value <= 4294967295.0 && value == std::floor(value))) { fprintf(reportFile, "error: -ri expects an integer >= 0\n"); run = false; }
 		else firstRealisation = uint32_t(value);
+		break;
 	}
+	arg.erase("-fr");
 	double mean = 0.0;
 	readNumber("-m", mean);
 
@@ -226,12 +250,6 @@ int main(int argc, char const* argv[]) {
 	const std::vector<unsigned> grid = DI._dims;
 	const unsigned ndim = unsigned(grid.size());
 	if (ndim < 1 || ndim > 3) return failWith("-di must be a 1D, 2D or 3D grid, got " + std::to_string(ndim) + " dimensions", 2);
-	{
-		size_t informed = 0;
-		for (size_t i = 0; i < DI.dataSize(); ++i) if (!std::isnan(DI._data[i])) ++informed;
-		if (informed > 0)
-			warn(std::to_string(informed) + " informed value(s) in -di are ignored: " + std::string(sp::methodName(method)) + " is unconditional");
-	}
 
 	gs::CovarianceModelSet models;
 	std::vector<unsigned> modelGrid = grid;
@@ -315,13 +333,20 @@ int main(int argc, char const* argv[]) {
 
 	// ---- simulation
 	const auto begin = std::chrono::high_resolution_clock::now();
+	gs::Conditioner conditioner;
+	try {
+		if (!gs::prepareGridConditioning(reportFile, DI, model, periodic, conditioning, nbThreads, conditioner, error)) return failWith(error, 2);
+	} catch (const std::bad_alloc&) {
+		return failWith("not enough memory to prepare the conditioning", 5);
+	}
 	g2s::DataImage simulation(ndim, const_cast<unsigned*>(grid.data()), nbRealisations);
 	g2s::DataImage noiseOutput;
 	if (outputNoise) noiseOutput = g2s::DataImage(ndim, extended.data(), nbRealisations);
 	double spectrumTime = 0.0;
 	try {
+		const auto spectrumBegin = std::chrono::high_resolution_clock::now();
 		sp::SpectralSimulator simulator(model, grid, extended, method, nbThreads);
-		spectrumTime = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count());
+		spectrumTime = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - spectrumBegin).count());
 		const sp::SpectrumReport& spectrum = simulator.report();
 		char text[256];
 		snprintf(text, sizeof(text), "%.3e", spectrum.clippedFraction);
@@ -343,6 +368,7 @@ int main(int argc, char const* argv[]) {
 		sp::FieldView noiseOut;
 		if (outputNoise) noiseOut = { noiseOutput._data, nbRealisations, 1 };
 		simulator.simulate(seed, firstRealisation, nbRealisations, mean, { simulation._data, nbRealisations, 1 }, noiseIn, noiseOut);
+		conditioner.condition({ simulation._data, nbRealisations, 1 }, nbRealisations);
 	} catch (const gs::Error& e) {
 		return failWith(e.what(), 5);
 	} catch (const std::bad_alloc&) {
@@ -350,6 +376,7 @@ int main(int argc, char const* argv[]) {
 	}
 	const auto end = std::chrono::high_resolution_clock::now();
 	const double time = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+	gs::reportConditioning(reportFile, conditioner);
 	fprintf(reportFile, "spectrum time: %.0f ms\n", spectrumTime);
 	fprintf(reportFile, "computation time: %.0f ms\n", time);
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
@@ -361,6 +388,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), simulation);
 	if (outputNoise) {
+		noiseOutput.write(outputIndexFilename);
 		noiseOutput.write(std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::recordOutputDescriptor(reportFile, 2, "noise", std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::logOutput(reportFile, "noise_image_runtime", std::string("im_2_") + std::to_string(uniqueID), noiseOutput);
