@@ -430,6 +430,124 @@ void timeKriging(gpu::Device& device) {
 	}
 }
 
+// ------------------------------------------------------------ statistics of device realisations
+
+// Mean, variance and the variogram at lag h along axis 0, over realisations
+// stored realisation-major (count cells each) on a grid with dims[0] columns.
+void fieldStatistics(const std::vector<float>& values, size_t cells, size_t columns, size_t h, double& mean, double& variance, double& gamma) {
+	double sum = 0, sum2 = 0, g = 0;
+	size_t pairs = 0;
+	const size_t count = values.size() / cells;
+	for (size_t r = 0; r < count; ++r)
+		for (size_t c = 0; c < cells; ++c) {
+			const double v = values[r * cells + c];
+			sum += v; sum2 += v * v;
+			if (c % columns + h < columns) { const double d = v - values[r * cells + c + h]; g += 0.5 * d * d; ++pairs; }
+		}
+	mean = sum / double(values.size());
+	variance = sum2 / double(values.size()) - mean * mean;
+	gamma = g / double(pairs);
+}
+
+void testStatistics(gpu::Device& device) {
+	section("statistics of device realisations (mean, variance, variogram at lag 10 along axis 0)");
+	const unsigned dims[2] = { 400, 400 };
+	struct Case { const char* model; double gamma10; };
+	// gamma(10) = sill - C(10): exponential range 40: 1 - exp(-0.75); spherical range 40: 1.5 h/a - 0.5 (h/a)^3
+	const Case cases[] = { { "1*exponential(range=40)", 1.0 - std::exp(-0.75) }, { "1*spherical(range=40)", 1.5 * 0.25 - 0.5 * 0.015625 } };
+	for (const Case& c : cases) {
+		const ResolvedModel model = stationary(c.model, 2);
+		TurningBandsSettings settings;
+		settings.seed = 31;
+		const RegularGrid grid = RegularGrid::cells(2, dims);
+		std::vector<float> values;
+		std::string error;
+		CHECK_MSG(tbDevice(device, model, settings, grid, 0, 12, values, error), error);
+		double mean, variance, gamma;
+		fieldStatistics(values, grid.nodeCount(), dims[0], 10, mean, variance, gamma);
+		printf("   tb       %-26s mean %+.3f variance %.3f gamma(10) %.3f (model %.3f)\n", c.model, mean, variance, gamma, c.gamma10);
+		CHECK(std::fabs(mean) < 0.1);
+		CHECK(std::fabs(variance - 1.0) < 0.12);
+		CHECK(std::fabs(gamma - c.gamma10) < 0.06);
+		for (sp::Method method : { sp::Method::FftMovingAverage, sp::Method::Spectral }) {
+			FftRun run;
+			CHECK_MSG(fftRun(&device, model, { 400, 400 }, { 450, 450 }, method, 0, 12, false, run, error), error);
+			// fftRun stores interleaved realisations (cellStride = count): de-interleave.
+			std::vector<float> fields(run.field.size());
+			const size_t cells = 400 * 400;
+			for (size_t cell = 0; cell < cells; ++cell)
+				for (size_t r = 0; r < 12; ++r) fields[r * cells + cell] = run.field[cell * 12 + r] - 0.25f;
+			fieldStatistics(fields, cells, 400, 10, mean, variance, gamma);
+			printf("   %-8s %-26s mean %+.3f variance %.3f gamma(10) %.3f (model %.3f)\n", sp::methodName(method), c.model, mean, variance, gamma, c.gamma10);
+			CHECK(std::fabs(mean) < 0.1);
+			CHECK(std::fabs(variance - 1.0) < 0.12);
+			CHECK(std::fabs(gamma - c.gamma10) < 0.06);
+		}
+	}
+}
+
+// ------------------------------------------------------------ executables
+
+bool writeImage(const std::string& name, const std::vector<unsigned>& dims, const std::vector<float>& values) {
+	g2s::DataImage image(unsigned(dims.size()), const_cast<unsigned*>(dims.data()), 1);
+	std::copy(values.begin(), values.end(), image._data);
+	image.write(name);
+	return true;
+}
+
+std::vector<float> readImage(const std::string& name) {
+	g2s::DataImage image = g2s::DataImage::createFromFile(name);
+	if (image.isEmpty()) return {};
+	return std::vector<float>(image._data, image._data + image.dataSize());
+}
+
+void testExecutables(const std::string& bin, gpu::Device& device) {
+	section("executables: -W_GPU -gpuforce against the CPU run (same seed)");
+	const std::string grid = geostat_test::testName("gpu_grid"), data = geostat_test::testName("gpu_data");
+	std::vector<unsigned> dims = { 150, 120 };
+	CHECK(writeImage(grid, dims, std::vector<float>(150 * 120, std::nanf(""))));
+	std::vector<float> withData(150 * 120, std::nanf(""));
+	for (size_t i = 0; i < withData.size(); i += 97) withData[i] = float(std::sin(double(i)));
+	CHECK(writeImage(data, dims, withData));
+	struct Case { std::string executable, input, flags; double tolerance; };
+	const std::vector<Case> cases = {
+		{ "tb", grid, "-cov '0.1*nugget + 0.9*exponential(range=[30,15], angle=20)' -nr 3 -nb 500", 2e-5 },
+		{ "tb", grid, "-cov 'cubic(range=25)' -nr 2", 2e-5 },
+		{ "tb", data, "-cov 'exponential(range=30)' -nr 2", 2e-5 },          // conditional: conditioning on the CPU
+		{ "fftma", grid, "-cov 'gaussian(range=20)' -nr 3", 1e-4 },
+		{ "spectral", data, "-cov 'spherical(range=30)' -nr 2", 1e-4 },
+	};
+	unsigned id = 0;
+	for (const Case& c : cases) {
+		const std::string cpuOut = geostat_test::testName("gpu_cpu_" + std::to_string(id)), gpuOut = geostat_test::testName("gpu_dev_" + std::to_string(id));
+		const std::string base = bin + "/" + c.executable + " -di " + c.input + " " + c.flags + " -s 17 -j " + std::to_string(threads());
+		const std::string log = geostat_test::testName("gpu_log_" + std::to_string(id));
+		const int cpuStatus = std::system((base + " -id " + geostat_test::testIdText(2 * id) + " -o " + cpuOut + " >/dev/null 2>&1").c_str());
+		const int gpuStatus = std::system((base + " -W_GPU -gpuforce -id " + geostat_test::testIdText(2 * id + 1) + " -o " + gpuOut + " > " + log + " 2>&1").c_str());
+		CHECK(cpuStatus == 0 && gpuStatus == 0);
+		std::string text;
+		if (FILE* f = fopen(log.c_str(), "r")) { char line[4096]; while (fgets(line, sizeof(line), f)) text += line; fclose(f); }
+		const bool used = text.find("gpu: device time") != std::string::npos;
+		CHECK_MSG(used, c.executable + " did not use the device: " + text.substr(0, 400));
+		const std::vector<float> a = readImage(cpuOut), b = readImage(gpuOut);
+		CHECK(!a.empty() && a.size() == b.size());
+		if (a.empty() || a.size() != b.size()) { ++id; continue; }
+		const Difference d = compare(a, b, c.tolerance);
+		printf("   %-8s %-62s max |gpu - cpu| %.2e (tolerance %.0e)\n", c.executable.c_str(), c.flags.c_str(), d.max, c.tolerance);
+		CHECK(d.large == 0);
+		++id;
+	}
+	// Without a device: the run continues on the CPU and says so.
+	{
+		const std::string log = geostat_test::testName("gpu_log_cuda");
+		CHECK(std::system((bin + "/tb -di " + grid + " -cov 'exponential(range=10)' -s 1 -W_CUDA 7 -id " + geostat_test::testIdText(50) + " -o " + geostat_test::testName("gpu_cuda") + " > " + log + " 2>&1").c_str()) == 0);
+		std::string text;
+		if (FILE* f = fopen(log.c_str(), "r")) { char line[4096]; while (fgets(line, sizeof(line), f)) text += line; fclose(f); }
+		CHECK(text.find("running on the CPU") != std::string::npos);
+	}
+	(void)device;
+}
+
 void timeTurningBands(gpu::Device& device) {
 	section("turning bands timings (device path with its host work, CPU grid path, 8 threads)");
 	struct Case { const char* model; std::vector<unsigned> dims; unsigned R; };
@@ -481,8 +599,12 @@ void timeTurningBands(gpu::Device& device) {
 } // namespace
 
 int main(int argc, char** argv) {
-	const std::string executables = argc > 1 ? argv[1] : "";
-	(void)executables;
+	std::string executables = argc > 1 ? argv[1] : "";
+	if (!executables.empty()) {
+		FILE* f = fopen((executables + "/tb").c_str(), "r");
+		if (f) fclose(f);
+		else { printf("note: no executables in %s, their tests are skipped\n", executables.c_str()); executables.clear(); }
+	}
 	std::string message;
 	if (!gpu::openclAvailable() || gpu::openclDeviceNames().empty()) {
 		printf("skipped: no OpenCL device (%s)\n", gpu::openclAvailable() ? "no GPU found" : "built without OpenCL");
@@ -500,6 +622,8 @@ int main(int argc, char** argv) {
 	testTurningBands(*device);
 	testSpectral(*device);
 	testKriging(*device);
+	testStatistics(*device);
+	if (!executables.empty()) testExecutables(executables, *device);
 	if (timings) {
 		timeKriging(*device);
 		timeTurningBands(*device);
