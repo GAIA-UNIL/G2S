@@ -10,7 +10,10 @@ FFTMA ?= $(REPO_ROOT)/build/c++-build/fftma
 THREADS ?= 8
 BREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 EXTRA_INC := $(if $(BREW_PREFIX),-I$(BREW_PREFIX)/include) -I/usr/include/jsoncpp
-EXTRA_LIB := $(if $(BREW_PREFIX),-L$(BREW_PREFIX)/lib)
+# Same FFTW as the executables: the local SIMD build (make fftw-simd) first when present, as build/Makefile does;
+# the executable-versus-engine checks are bit for bit.
+FFTW_SIMD_LIB := $(wildcard $(REPO_ROOT)/build/fftw-simd/install/lib/libfftw3f.a)
+EXTRA_LIB := $(if $(FFTW_SIMD_LIB),-L$(dir $(FFTW_SIMD_LIB))) $(if $(BREW_PREFIX),-L$(BREW_PREFIX)/lib)
 
 .PHONY: all test bench clean
 
