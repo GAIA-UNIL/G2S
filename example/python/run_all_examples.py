@@ -99,10 +99,26 @@ def discover_examples(
     return sorted(examples)
 
 
+def g2s_is_installed() -> bool:
+    """True when this interpreter imports g2s without help (installed, or on PYTHONPATH)."""
+    probe = subprocess.run(
+        [sys.executable, "-c", "import g2s"],
+        cwd=str(Path.home()),
+        capture_output=True,
+    )
+    return probe.returncode == 0
+
+
 def build_environment() -> Dict[str, str]:
     env = os.environ.copy()
     python_path = env.get("PYTHONPATH", "")
-    entries = [str(PYTHON_BUILD_DIR)] if PYTHON_BUILD_DIR.exists() else []
+    # The source tree is only a fallback: put first on PYTHONPATH it would shadow
+    # the installed package with modules whose compiled extension may be missing
+    # or stale (built in place for another interpreter or an older source).
+    use_source_tree = PYTHON_BUILD_DIR.exists() and not g2s_is_installed()
+    entries = [str(PYTHON_BUILD_DIR)] if use_source_tree else []
+    if use_source_tree:
+        print(f"g2s is not installed for {sys.executable}: using {PYTHON_BUILD_DIR}", flush=True)
     if python_path:
         entries.append(python_path)
     if entries:
