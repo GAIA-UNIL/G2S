@@ -121,7 +121,7 @@ ifeq ($(dosentSupportCUDA),0)
 	export CFLAGS+= -DWITH_CUDA
 	export WITH_CUDA+=g2s_cuda.so
 	export LDFLAGS_NO_SERVER_ONLY+=-Wl,--export-dynamic -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
-	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas --Xlinker -Wl,-rpath,/usr/local/cuda/targets/x86_64-linux/lib/
+	export NVLIB +=-L$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/lib/ -lcudart -lcufft -lcublas -Xlinker -rpath,/usr/local/cuda/targets/x86_64-linux/lib/
 	export LIBINC+=-I$(dir $(shell sh -c "which ${NVCC}"))/../targets/x86_64-linux/include/
 endif
 
