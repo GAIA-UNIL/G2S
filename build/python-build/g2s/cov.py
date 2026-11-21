@@ -856,7 +856,9 @@ class _Compiled:
                             other, other_map = known
                             if other_map != is_map:
                                 raise CovarianceError("'%s' is used both as a map table and as a parameter variable" % v.name)
-                            if other is not v and not _values_equal(other.value, v.value):
+                            if other is not v and other.value is None:
+                                by_name[v.name] = (v, is_map)  # an unbound occurrence takes the bound value
+                            elif other is not v and v.value is not None and not _values_equal(other.value, v.value):
                                 raise CovarianceError("variable '%s' is defined twice with different values" % v.name)
                         self.names[id(v)] = v.name
         # automatic names avoid every user name (case-sensitive, like the C++)

@@ -210,6 +210,9 @@ class Builders(unittest.TestCase):
             unbound.args()
         with self.assertRaisesRegex(cov.CovarianceError, "does not use it"):
             cov.parse("nug*nugget", other=1)
+        # an unbound parsed variable takes the value of a bound one with the same name
+        joined = cov.parse("exponential(range=L)") + cov.gaussian(range=cov.var("L", 4))
+        self.assertEqual(joined.args()[-3:], ["-cvar", "L", "4"])
         # a parsed model is a normal model
         m2 = 0.5 * cov.parse("exponential(range=L)", L=3) + cov.nugget()
         self.assertEqual(str(m2), "0.5*exponential(range=L) + 1*nugget")
