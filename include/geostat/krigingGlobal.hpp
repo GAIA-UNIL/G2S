@@ -124,12 +124,11 @@ public:
 		_factor.resize(count * count);
 		const double maxDiagonal = model.sill();
 		if (!(maxDiagonal > 0) || !std::isfinite(maxDiagonal)) { error = "global kriging: the covariance at lag 0 must be positive"; return false; }
-		static const double relativeJitter[] = { 0.0, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2 };
 		bool factorised = false;
-		for (double relative : relativeJitter) {
+		for (double relative : kRelativeJitters) {
 			_jitter = relative * maxDiagonal;
 			fillMatrix(_jitter);
-			if (blockedCholesky(_factor.data(), count, count, 1e-12 * maxDiagonal, _threads) == 0) { factorised = true; break; }
+			if (blockedCholesky(_factor.data(), count, count, kRelativePivotTolerance * maxDiagonal, _threads) == 0) { factorised = true; break; }
 		}
 		if (!factorised) { _factor.clear(); error = "global kriging: the data covariance matrix is not positive definite, even with a diagonal jitter"; return false; }
 		_count = count;

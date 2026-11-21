@@ -136,13 +136,18 @@ inline void choleskySolve(const double* l, size_t n, size_t lda, double* b, size
 // `factor` (n x n, leading dimension n), adding the escalating jitter described
 // at the top of this file when needed. Returns the absolute jitter added
 // (0 when none was needed), or a negative value when every attempt failed.
+// The escalating jitter, relative to max(diag K) (also used by krigingGlobal.hpp,
+// which refills its large matrix in place instead of copying it).
+constexpr double kRelativeJitters[] = { 0.0, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2 };
+// Pivots at or below this times max(diag K) count as a failed factorisation.
+constexpr double kRelativePivotTolerance = 1e-12;
+
 inline double choleskyFactorWithJitter(const double* a, size_t n, size_t lda, std::vector<double>& factor) {
 	factor.resize(n * n);
 	double maxDiagonal = 0.0;
 	for (size_t i = 0; i < n; ++i) maxDiagonal = std::max(maxDiagonal, a[i * lda + i]);
 	if (!(maxDiagonal > 0) || !std::isfinite(maxDiagonal)) return -1.0;
-	static const double relativeJitter[] = { 0.0, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2 };
-	for (double relative : relativeJitter) {
+	for (double relative : kRelativeJitters) {
 		const double jitter = relative * maxDiagonal;
 		for (size_t i = 0; i < n; ++i) {
 			const double* source = a + i * lda;
@@ -150,7 +155,7 @@ inline double choleskyFactorWithJitter(const double* a, size_t n, size_t lda, st
 			for (size_t j = 0; j < i; ++j) target[j] = source[j];
 			target[i] = source[i] + jitter;
 		}
-		if (choleskyFactor(factor.data(), n, n, 1e-12 * maxDiagonal) == 0) return jitter;
+		if (choleskyFactor(factor.data(), n, n, kRelativePivotTolerance * maxDiagonal) == 0) return jitter;
 	}
 	return -1.0;
 }
