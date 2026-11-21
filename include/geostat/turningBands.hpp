@@ -476,10 +476,11 @@ inline void sumLines(const LineSet& lines, const double* points, size_t count, d
 
 // ============================================================ grid kernel
 
-// Builds the CPU tables of a line set on a grid (see GridLines).
-inline void buildGridLines(const LineSet& lines, const RegularGrid& grid, GridLines& table) {
-	using namespace simd;
-	const size_t L = lines.count, P = (L + kLanes - 1) / kLanes * kLanes;
+// The CPU tables of a line set on a grid (see GridLines), in two steps so
+// that the column tables can be filled in parallel: prepareGridLines (shift,
+// step, allocation), then fillGridColumns for every range of lines.
+inline void prepareGridLines(const LineSet& lines, const RegularGrid& grid, GridLines& table) {
+	const size_t L = lines.count, P = (L + simd::kLanes - 1) / simd::kLanes * simd::kLanes;
 	table.count = L;
 	table.padded = P;
 	table.shift.assign(P, 0.0);
@@ -494,26 +495,35 @@ inline void buildGridLines(const LineSet& lines, const RegularGrid& grid, GridLi
 		}
 		table.shift[l] = spectral ? shift - std::nearbyint(shift) : shift;
 	}
-	table.columnCos.clear();
-	table.columnSin.clear();
-	table.stride = 0;
-	if (!spectral) return;
-	table.stride = (grid.size[0] + 63) / 64 * 64 + 64;
+	table.stride = spectral ? (grid.size[0] + 63) / 64 * 64 + 64 : 0;
+	table.columnCos.resize(L * table.stride);
+	table.columnSin.resize(L * table.stride);
+}
+
+// Column tables of lines lineBegin .. lineEnd - 1 (spectral only; no-op otherwise).
+inline void fillGridColumns(GridLines& table, size_t lineBegin, size_t lineEnd) {
+	using namespace simd;
 	const size_t stride = table.stride;
-	table.columnCos.resize(L * stride);
-	table.columnSin.resize(L * stride);
-	std::vector<double> columns(stride);
-	for (size_t i = 0; i < stride; ++i) columns[i] = double(i);
-	for (size_t l = 0; l < L; ++l) {
+	if (stride == 0) return;
+	alignas(64) double columns[64];
+	for (size_t l = lineBegin; l < lineEnd; ++l) {
 		const D w = dSet(table.step[l]);
 		float* c = table.columnCos.data() + l * stride;
 		float* s = table.columnSin.data() + l * stride;
-		for (size_t i = 0; i < stride; i += kLanes) {
-			const D t = dMul(w, dLoad(columns.data() + i));
-			fStore(c + i, detail::cosTurns(t));
-			fStore(s + i, detail::sinTurns(t));
+		for (size_t begin = 0; begin < stride; begin += 64) {
+			for (size_t i = 0; i < 64; ++i) columns[i] = double(begin + i);
+			for (size_t i = 0; i < 64; i += kLanes) {
+				const D t = dMul(w, dLoad(columns + i));
+				fStore(c + begin + i, detail::cosTurns(t));
+				fStore(s + begin + i, detail::sinTurns(t));
+			}
 		}
 	}
+}
+
+inline void buildGridLines(const LineSet& lines, const RegularGrid& grid, GridLines& table) {
+	prepareGridLines(lines, grid, table);
+	fillGridColumns(table, 0, table.count);
 }
 
 namespace detail {
@@ -1015,11 +1025,18 @@ public:
 	// Prepares the grid path (tables of every structure on `grid`, whose ndim
 	// must be the model's).
 	void attachGrid(const RegularGrid& grid) {
+		prepareGrid(grid);
+		for (size_t s = 0; s < _gridLines.size(); ++s) geostat::fillGridColumns(_gridLines[s], 0, _gridLines[s].count);
+	}
+	// attachGrid in two steps: prepareGrid, then fillGridColumns(i, ...) for
+	// every structure i < lineSetCount() and range of lines (may run in parallel).
+	void prepareGrid(const RegularGrid& grid) {
 		if (grid.ndim != _ndim) throw Error("turning bands: the grid has " + std::to_string(grid.ndim) + " dimensions, the model " + std::to_string(_ndim));
 		_grid = grid;
 		_gridLines.resize(_structures.size());
-		for (size_t s = 0; s < _structures.size(); ++s) buildGridLines(lineSet(s), grid, _gridLines[s]);
+		for (size_t s = 0; s < _structures.size(); ++s) prepareGridLines(lineSet(s), grid, _gridLines[s]);
 	}
+	void fillGridColumns(size_t i, size_t lineBegin, size_t lineEnd) { geostat::fillGridColumns(_gridLines[i], lineBegin, lineEnd); }
 	const GridLines& gridLines(size_t i) const { return _gridLines[i]; }
 
 	// out (block layout, see GridBlock) = values at the nodes of the block;
@@ -1162,6 +1179,7 @@ inline void simulateTurningBandsGrid(const ResolvedModel& model, const TurningBa
 	for (const GridBlock& block : blocks) largest = std::max(largest, block.count());
 	const unsigned batch = detail::realisationBatch(realisationCount, pool.size(), blocks.size(), TurningBandsRealisation::gridTableBytes(model, settings, grid));
 	std::vector<std::unique_ptr<TurningBandsRealisation> > slots(batch);
+	const size_t kTableChunk = 32;
 	std::vector<GridScratch> scratch(pool.size());
 	for (GridScratch& s : scratch) s.values.resize(largest);
 	for (unsigned r0 = 0; r0 < realisationCount; r0 += batch) {
@@ -1169,7 +1187,18 @@ inline void simulateTurningBandsGrid(const ResolvedModel& model, const TurningBa
 		pool.run(n, [&](size_t i, unsigned) {
 			slots[i].reset();
 			slots[i].reset(new TurningBandsRealisation(model, settings, firstRealisation + r0 + unsigned(i)));
-			slots[i]->attachGrid(grid);
+			slots[i]->prepareGrid(grid);
+		});
+		// Column tables by chunks of lines, so that one realisation's setup is parallel too.
+		std::vector<std::array<size_t, 3> > chunks; // (slot, structure, first line)
+		for (unsigned i = 0; i < n; ++i)
+			for (size_t s = 0; s < slots[i]->lineSetCount(); ++s)
+				if (slots[i]->gridLines(s).stride > 0)
+					for (size_t l = 0; l < slots[i]->gridLines(s).count; l += kTableChunk) chunks.push_back({ { size_t(i), s, l } });
+		pool.run(chunks.size(), [&](size_t c, unsigned) {
+			TurningBandsRealisation& realisation = *slots[chunks[c][0]];
+			const size_t s = chunks[c][1], l = chunks[c][2];
+			realisation.fillGridColumns(s, l, std::min(l + kTableChunk, realisation.gridLines(s).count));
 		});
 		pool.run(size_t(n) * blocks.size(), [&](size_t task, unsigned worker) {
 			const size_t i = task / blocks.size();
