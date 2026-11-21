@@ -26,10 +26,16 @@
 #include "geostat/neighborSearch.hpp"
 #include "geostat/sgsEngine.hpp"
 #include "geostat/weightTable.hpp"
+#include "../geostat_common/testData.hpp"
 
 using namespace g2s::geostat;
+using geostat_test::testId;
+using geostat_test::testIdText;
 
 namespace {
+
+// Image and file names unique to this run (removed at exit).
+std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
 int failures = 0;
 int checks = 0;
@@ -299,9 +305,9 @@ void testEngine() {
 		WeightTable t = base.table;
 		t.inputHash = 42;
 		t.geometry = { 40, 30 };
-		CHECK_MSG(writeWeightFile("sgs_engine_test.w", t.view(), error), error);
+		CHECK_MSG(writeWeightFile(N("sgs_engine_test.w"), t.view(), error), error);
 		WeightFile file;
-		CHECK_MSG(file.open("sgs_engine_test.w", error), error);
+		CHECK_MSG(file.open(N("sgs_engine_test.w"), error), error);
 		const WeightTableView v = file.view();
 		CHECK(v.inputHash == 42 && v.pathHash == t.pathHash && v.geometryCount == 2 && v.geometry[1] == 30);
 		CHECK(v.entryCount == t.entryTarget.size() && v.stencilCount == t.stencilSigma.size());
@@ -316,28 +322,28 @@ void testEngine() {
 		replaySgs(v, addressing, b.data(), options);
 		CHECK(sameBits(a, b));
 		// Truncated and corrupted files are refused.
-		FILE* in = fopen("sgs_engine_test.w", "rb");
+		FILE* in = fopen(N("sgs_engine_test.w").c_str(), "rb");
 		std::vector<char> bytes;
 		if (in) { fseek(in, 0, SEEK_END); bytes.resize(size_t(ftell(in))); fseek(in, 0, SEEK_SET); if (fread(bytes.data(), 1, bytes.size(), in) != bytes.size()) bytes.clear(); fclose(in); }
 		CHECK(bytes.size() > 512);
-		FILE* out = fopen("sgs_engine_truncated.w", "wb");
+		FILE* out = fopen(N("sgs_engine_truncated.w").c_str(), "wb");
 		if (out) { fwrite(bytes.data(), 1, bytes.size() - 100, out); fclose(out); }
 		WeightFile bad;
-		CHECK(!bad.open("sgs_engine_truncated.w", error));
+		CHECK(!bad.open(N("sgs_engine_truncated.w"), error));
 		CHECK_MSG(error.find("truncated") != std::string::npos, error);
 		std::vector<char> corrupt = bytes;
 		corrupt[0] = 'X';
-		out = fopen("sgs_engine_corrupt.w", "wb");
+		out = fopen(N("sgs_engine_corrupt.w").c_str(), "wb");
 		if (out) { fwrite(corrupt.data(), 1, corrupt.size(), out); fclose(out); }
-		CHECK(!bad.open("sgs_engine_corrupt.w", error));
+		CHECK(!bad.open(N("sgs_engine_corrupt.w"), error));
 		CHECK_MSG(error.find("magic") != std::string::npos, error);
 		corrupt = bytes;
 		const WeightFileHeader* h = reinterpret_cast<const WeightFileHeader*>(bytes.data());
 		uint32_t wrongRef = 1u << 30;
 		std::memcpy(corrupt.data() + h->sections[5].offset, &wrongRef, sizeof(wrongRef));
-		out = fopen("sgs_engine_corrupt.w", "wb");
+		out = fopen(N("sgs_engine_corrupt.w").c_str(), "wb");
 		if (out) { fwrite(corrupt.data(), 1, corrupt.size(), out); fclose(out); }
-		CHECK(!bad.open("sgs_engine_corrupt.w", error));
+		CHECK(!bad.open(N("sgs_engine_corrupt.w"), error));
 		CHECK_MSG(error.find("reference") != std::string::npos, error);
 	}
 
@@ -563,7 +569,7 @@ bool writeImage(const std::string& name, const std::vector<unsigned>& dims, cons
 }
 
 int runSgs(const std::string& binary, const std::string& arguments) {
-	const std::string command = binary + " " + arguments + " 2>sgs_test_last.log";
+	const std::string command = binary + " " + arguments + " 2>" + N("sgs_test_last.log");
 	const int status = std::system(command.c_str());
 	return status;
 }
@@ -586,62 +592,62 @@ void testExecutable(const std::string& binary) {
 	const size_t n = 60 * 45;
 	std::vector<float> di(n, std::numeric_limits<float>::quiet_NaN());
 	for (size_t i = 0; i < n; i += 29) di[i] = float(1.5 * std::sin(0.11 * double(i)));
-	CHECK(writeImage("sgstest_di", dims, di));
+	CHECK(writeImage(N("sgstest_di"), dims, di));
 	std::vector<float> di2 = di;
 	di2[5] = 0.25f; // one more hard datum: another mask
-	CHECK(writeImage("sgstest_di2", dims, di2));
+	CHECK(writeImage(N("sgstest_di2"), dims, di2));
 	std::vector<float> priority(n);
 	for (size_t i = 0; i < n; ++i) priority[i] = float((i * 7919) % n);
-	CHECK(writeImage("sgstest_sp", dims, priority));
+	CHECK(writeImage(N("sgstest_sp"), dims, priority));
 	std::vector<float> priority2(n);
 	for (size_t i = 0; i < n; ++i) priority2[i] = float((i * 104729) % n);
-	CHECK(writeImage("sgstest_sp2", dims, priority2));
+	CHECK(writeImage(N("sgstest_sp2"), dims, priority2));
 	std::vector<float> mean(n);
 	for (size_t i = 0; i < n; ++i) mean[i] = float(i % 60) / 30.f;
-	CHECK(writeImage("sgstest_mean", dims, mean));
+	CHECK(writeImage(N("sgstest_mean"), dims, mean));
 
 	const std::string model = "-cov '0.1*nugget + 0.9*spherical(range=[15,8], angle=20)'";
-	const std::string common = "-di sgstest_di " + model + " -n 20 -s 77 -nr 3";
+	const std::string common = "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -nr 3";
 	// One shot, then plan to a file, then replay the file.
-	CHECK(runSgs(binary, common + " -j 4 -id 770001 -o sgstest_a") == 0);
-	std::remove("sgstest.w");
-	CHECK(runSgs(binary, common + " -j 3 -wo sgstest.w -id 770002 -o sgstest_b") == 0);
-	CHECK(runSgs(binary, common + " -j 2 -wi sgstest.w -id 770003 -o sgstest_c") == 0);
-	g2s::DataImage a = output(770001), b = output(770002), c = output(770003);
+	CHECK(runSgs(binary, common + " -j 4 -id " + testIdText(1) + " -o " + N("sgstest_a")) == 0);
+	std::remove(N("sgstest.w").c_str());
+	CHECK(runSgs(binary, common + " -j 3 -wo " + N("sgstest.w") + " -id " + testIdText(2) + " -o " + N("sgstest_b")) == 0);
+	CHECK(runSgs(binary, common + " -j 2 -wi " + N("sgstest.w") + " -id " + testIdText(3) + " -o " + N("sgstest_c")) == 0);
+	g2s::DataImage a = output(testId(1)), b = output(testId(2)), c = output(testId(3));
 	CHECK(a._nbVariable == 3 && a._dims == dims);
 	CHECK(sameImage(a, b));
 	CHECK_MSG(sameImage(a, c), "replay from the weight file differs from the one-shot run");
 	// A new seed at replay gives other realisations from the same plan.
-	CHECK(runSgs(binary, common + " -wi sgstest.w -s 78 -id 770004 -o sgstest_d") == 0);
-	CHECK(!sameImage(a, output(770004)));
+	CHECK(runSgs(binary, common + " -wi " + N("sgstest.w") + " -s 78 -id " + testIdText(4) + " -o " + N("sgstest_d")) == 0);
+	CHECK(!sameImage(a, output(testId(4))));
 	// New hard-data values at the same locations are accepted and honoured.
 	{
 		std::vector<float> moved = di;
 		for (float& v : moved) if (!std::isnan(v)) v += 3.f;
-		CHECK(writeImage("sgstest_di3", dims, moved));
-		CHECK(runSgs(binary, "-di sgstest_di3 " + model + " -n 20 -s 77 -nr 3 -wi sgstest.w -id 770005 -o sgstest_e") == 0);
-		g2s::DataImage e = output(770005);
+		CHECK(writeImage(N("sgstest_di3"), dims, moved));
+		CHECK(runSgs(binary, "-di " + N("sgstest_di3") + " " + model + " -n 20 -s 77 -nr 3 -wi " + N("sgstest.w") + " -id " + testIdText(5) + " -o " + N("sgstest_e")) == 0);
+		g2s::DataImage e = output(testId(5));
 		bool ok = !e.isEmpty();
 		for (size_t i = 0; ok && i < n; ++i) if (!std::isnan(moved[i])) for (unsigned r = 0; r < 3; ++r) ok &= e._data[i * 3 + r] == moved[i];
 		CHECK(ok);
 	}
 
 	section("sgs executable: threads, realisations, paths");
-	CHECK(runSgs(binary, common + " -j 1 -id 770010 -o sgstest_j1") == 0);
-	CHECK(sameImage(a, output(770010)));
+	CHECK(runSgs(binary, common + " -j 1 -id " + testIdText(10) + " -o " + N("sgstest_j1")) == 0);
+	CHECK(sameImage(a, output(testId(10))));
 	{
 		bool same = true;
 		for (unsigned r = 0; r < 3; ++r) {
-			CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -nr 1 -ri " + std::to_string(r) + " -j 2 -id " + std::to_string(770020 + r) + " -o sgstest_r") == 0);
-			g2s::DataImage one = output(770020 + r);
+			CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -nr 1 -ri " + std::to_string(r) + " -j 2 -id " + std::to_string(testId(20) + r) + " -o " + N("sgstest_r")) == 0);
+			g2s::DataImage one = output(testId(20) + r);
 			if (one.isEmpty() || one._nbVariable != 1) { same = false; continue; }
 			for (size_t i = 0; i < n; ++i) if (std::memcmp(&one._data[i], &a._data[i * 3 + r], sizeof(float)) != 0) same = false;
 		}
 		CHECK_MSG(same, "-nr 3 differs from three -nr 1 -ri r runs");
 	}
 	{
-		CHECK(runSgs(binary, common + " -np 2 -j 4 -id 770030 -o sgstest_np") == 0);
-		g2s::DataImage p2 = output(770030);
+		CHECK(runSgs(binary, common + " -np 2 -j 4 -id " + testIdText(30) + " -o " + N("sgstest_np")) == 0);
+		g2s::DataImage p2 = output(testId(30));
 		CHECK(p2._nbVariable == 6);
 		bool firstPath = !p2.isEmpty(), differ = false;
 		for (size_t i = 0; firstPath && i < n; ++i)
@@ -651,7 +657,7 @@ void testExecutable(const std::string& binary) {
 			}
 		CHECK_MSG(firstPath, "path 0 of -np 2 differs from -np 1");
 		CHECK(differ);
-		g2s::DataImage index = g2s::DataImage::createFromFile("im_2_770030");
+		g2s::DataImage index = g2s::DataImage::createFromFile("im_2_" + testIdText(30));
 		CHECK(!index.isEmpty() && index._nbVariable == 2);
 		if (!index.isEmpty()) {
 			const unsigned* count = reinterpret_cast<const unsigned*>(index._data);
@@ -677,93 +683,93 @@ void testExecutable(const std::string& binary) {
 		}
 		CHECK(exact);
 		CHECK(finite);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -nr 3 -m sgstest_mean -id 770040 -o sgstest_m") == 0);
-		g2s::DataImage m = output(770040);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -nr 3 -m " + N("sgstest_mean") + " -id " + testIdText(40) + " -o " + N("sgstest_m")) == 0);
+		g2s::DataImage m = output(testId(40));
 		exact = !m.isEmpty();
 		for (size_t i = 0; exact && i < n; ++i) if (!std::isnan(di[i])) for (unsigned r = 0; r < 3; ++r) exact &= m._data[i * 3 + r] == di[i];
 		CHECK(exact);
-		CHECK(writeImage("sgstest_empty", dims, std::vector<float>(n, std::numeric_limits<float>::quiet_NaN())));
-		CHECK(runSgs(binary, "-di sgstest_empty " + model + " -n 20 -s 77 -nr 4 -m -4.5 -id 770041 -o sgstest_m2") == 0);
-		g2s::DataImage neg = output(770041);
+		CHECK(writeImage(N("sgstest_empty"), dims, std::vector<float>(n, std::numeric_limits<float>::quiet_NaN())));
+		CHECK(runSgs(binary, "-di " + N("sgstest_empty") + " " + model + " -n 20 -s 77 -nr 4 -m -4.5 -id " + testIdText(41) + " -o " + N("sgstest_m2")) == 0);
+		g2s::DataImage neg = output(testId(41));
 		double sum = 0;
 		for (size_t i = 0; !neg.isEmpty() && i < 4 * n; ++i) sum += neg._data[i];
 		CHECK_NEAR(sum / double(4 * n), -4.5, 0.4); // unconditional, negative mean given as "-m -4.5"
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -kt ok -j 3 -id 770042 -o sgstest_ok") == 0);
-		CHECK(!output(770042).isEmpty());
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -kt ok -j 3 -id " + testIdText(42) + " -o " + N("sgstest_ok")) == 0);
+		CHECK(!output(testId(42)).isEmpty());
 	}
 
 	section("sgs executable: -sp and -pt");
 	{
-		CHECK(runSgs(binary, common + " -sp sgstest_sp -wo sgstest_sp.w -id 770050 -o sgstest_sp_a") == 0);
-		CHECK(runSgs(binary, common + " -sp sgstest_sp -wi sgstest_sp.w -id 770051 -o sgstest_sp_b") == 0);
-		CHECK(sameImage(output(770050), output(770051)));
-		CHECK(runSgs(binary, common + " -sp sgstest_sp2 -wi sgstest_sp.w -id 770052 -o sgstest_sp_c") != 0); // another path
-		CHECK(runSgs(binary, common + " -pt multigrid -j 4 -id 770053 -o sgstest_mg") == 0);
-		CHECK(runSgs(binary, common + " -pt regular -j 4 -os 3 -csim -id 770054 -o sgstest_reg") == 0);
+		CHECK(runSgs(binary, common + " -sp " + N("sgstest_sp") + " -wo " + N("sgstest_sp.w") + " -id " + testIdText(50) + " -o " + N("sgstest_sp_a")) == 0);
+		CHECK(runSgs(binary, common + " -sp " + N("sgstest_sp") + " -wi " + N("sgstest_sp.w") + " -id " + testIdText(51) + " -o " + N("sgstest_sp_b")) == 0);
+		CHECK(sameImage(output(testId(50)), output(testId(51))));
+		CHECK(runSgs(binary, common + " -sp " + N("sgstest_sp2") + " -wi " + N("sgstest_sp.w") + " -id " + testIdText(52) + " -o " + N("sgstest_sp_c")) != 0); // another path
+		CHECK(runSgs(binary, common + " -pt multigrid -j 4 -id " + testIdText(53) + " -o " + N("sgstest_mg")) == 0);
+		CHECK(runSgs(binary, common + " -pt regular -j 4 -os 3 -csim -id " + testIdText(54) + " -o " + N("sgstest_reg")) == 0);
 	}
 
 	section("sgs executable: mismatched weight files are refused");
 	{
-		CHECK(runSgs(binary, "-di sgstest_di -cov 'spherical(range=[15,8], angle=20)' -n 20 -s 77 -wi sgstest.w -id 770060 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 19 -s 77 -wi sgstest.w -id 770061 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di2 " + model + " -n 20 -s 77 -wi sgstest.w -id 770062 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -kt ok -wi sgstest.w -id 770063 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -ks 9 -wi sgstest.w -id 770064 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -os 2 -wi sgstest.w -id 770065 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -s 77 -csim -wi sgstest.w -id 770066 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 20 -wi missing_file.w -id 770067 -o sgstest_x") != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -cov 'spherical(range=[15,8], angle=20)' -n 20 -s 77 -wi " + N("sgstest.w") + " -id " + testIdText(60) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 19 -s 77 -wi " + N("sgstest.w") + " -id " + testIdText(61) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di2") + " " + model + " -n 20 -s 77 -wi " + N("sgstest.w") + " -id " + testIdText(62) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -kt ok -wi " + N("sgstest.w") + " -id " + testIdText(63) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -ks 9 -wi " + N("sgstest.w") + " -id " + testIdText(64) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -os 2 -wi " + N("sgstest.w") + " -id " + testIdText(65) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 77 -csim -wi " + N("sgstest.w") + " -id " + testIdText(66) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -wi missing_file.w -id " + testIdText(67) + " -o " + N("sgstest_x")) != 0);
 		// The refusal states the reason.
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -n 19 -s 77 -wi sgstest.w -id 770068 -o sgstest_x") != 0);
-		FILE* log = fopen("sgs_test_last.log", "r");
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 19 -s 77 -wi " + N("sgstest.w") + " -id " + testIdText(68) + " -o " + N("sgstest_x")) != 0);
+		FILE* log = fopen(N("sgs_test_last.log").c_str(), "r");
 		std::string text;
 		if (log) { char buffer[4096]; size_t k; while ((k = fread(buffer, 1, sizeof(buffer), log)) > 0) text.append(buffer, k); fclose(log); }
 		CHECK_MSG(text.find("does not match") != std::string::npos, text);
 		// A model variable bound to a different map is refused too.
 		std::vector<float> range(n, 12.f), range2(n, 12.f);
 		for (size_t i = 0; i < n; ++i) { range[i] = 8.f + float(i % 60) / 6.f; range2[i] = range[i] + (i == 100 ? 1.f : 0.f); }
-		CHECK(writeImage("sgstest_range", dims, range));
-		CHECK(writeImage("sgstest_range2", dims, range2));
-		CHECK(runSgs(binary, "-di sgstest_di -cov 'spherical(range=L)' -cvar L sgstest_range -ks 31 -n 20 -s 1 -wo sgstest_ns.w -id 770070 -o sgstest_ns") == 0);
-		CHECK(runSgs(binary, "-di sgstest_di -cov 'spherical(range=L)' -cvar L sgstest_range -ks 31 -n 20 -s 1 -wi sgstest_ns.w -id 770071 -o sgstest_ns2") == 0);
-		CHECK(sameImage(output(770070), output(770071)));
-		CHECK(runSgs(binary, "-di sgstest_di -cov 'spherical(range=L)' -cvar L sgstest_range2 -ks 31 -n 20 -s 1 -wi sgstest_ns.w -id 770072 -o sgstest_x") != 0);
+		CHECK(writeImage(N("sgstest_range"), dims, range));
+		CHECK(writeImage(N("sgstest_range2"), dims, range2));
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -cov 'spherical(range=L)' -cvar L " + N("sgstest_range") + " -ks 31 -n 20 -s 1 -wo " + N("sgstest_ns.w") + " -id " + testIdText(70) + " -o " + N("sgstest_ns")) == 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -cov 'spherical(range=L)' -cvar L " + N("sgstest_range") + " -ks 31 -n 20 -s 1 -wi " + N("sgstest_ns.w") + " -id " + testIdText(71) + " -o " + N("sgstest_ns2")) == 0);
+		CHECK(sameImage(output(testId(70)), output(testId(71))));
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -cov 'spherical(range=L)' -cvar L " + N("sgstest_range2") + " -ks 31 -n 20 -s 1 -wi " + N("sgstest_ns.w") + " -id " + testIdText(72) + " -o " + N("sgstest_x")) != 0);
 	}
 
 	section("sgs executable: non-stationary inputs");
 	{
 		std::vector<float> index(n);
 		for (size_t i = 0; i < n; ++i) index[i] = (i % 60) < 30 ? 0.f : 1.f;
-		CHECK(writeImage("sgstest_index", dims, index));
-		CHECK(runSgs(binary, "-di sgstest_di -cov 'exponential(range=4)' -cov 'cubic(range=25)' -ii sgstest_index -ks 31 -n 20 -s 3 -nr 2 -j 4 -id 770080 -o sgstest_ii") == 0);
-		CHECK(!output(770080).isEmpty());
+		CHECK(writeImage(N("sgstest_index"), dims, index));
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -cov 'exponential(range=4)' -cov 'cubic(range=25)' -ii " + N("sgstest_index") + " -ks 31 -n 20 -s 3 -nr 2 -j 4 -id " + testIdText(80) + " -o " + N("sgstest_ii")) == 0);
+		CHECK(!output(testId(80)).isEmpty());
 		// 1D and 3D grids, a grid without unknown cells, a single cell.
-		CHECK(writeImage("sgstest_1d", { 500 }, std::vector<float>(500, std::numeric_limits<float>::quiet_NaN())));
-		CHECK(runSgs(binary, "-di sgstest_1d -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 3 -wo sgstest_1d.w -id 770090 -o sgstest_1d_out") == 0);
-		CHECK(runSgs(binary, "-di sgstest_1d -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 2 -wi sgstest_1d.w -id 770091 -o sgstest_1d_out2") == 0);
-		CHECK(sameImage(output(770090), output(770091)));
-		CHECK(writeImage("sgstest_3d", { 20, 16, 12 }, std::vector<float>(20 * 16 * 12, std::numeric_limits<float>::quiet_NaN())));
-		CHECK(runSgs(binary, "-di sgstest_3d -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 4 -id 770092 -o sgstest_3d_out") == 0);
-		CHECK(runSgs(binary, "-di sgstest_3d -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 1 -id 770093 -o sgstest_3d_out2") == 0);
-		CHECK(sameImage(output(770092), output(770093)));
-		CHECK(writeImage("sgstest_full", { 7, 5 }, std::vector<float>(35, 1.25f)));
-		CHECK(runSgs(binary, "-di sgstest_full -cov 'spherical(range=3)' -s 1 -nr 2 -wo sgstest_full.w -id 770094 -o sgstest_full_out") == 0);
-		CHECK(runSgs(binary, "-di sgstest_full -cov 'spherical(range=3)' -s 1 -nr 2 -wi sgstest_full.w -id 770095 -o sgstest_full_out2") == 0);
+		CHECK(writeImage(N("sgstest_1d"), { 500 }, std::vector<float>(500, std::numeric_limits<float>::quiet_NaN())));
+		CHECK(runSgs(binary, "-di " + N("sgstest_1d") + " -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 3 -wo " + N("sgstest_1d.w") + " -id " + testIdText(90) + " -o " + N("sgstest_1d_out")) == 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_1d") + " -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 2 -wi " + N("sgstest_1d.w") + " -id " + testIdText(91) + " -o " + N("sgstest_1d_out2")) == 0);
+		CHECK(sameImage(output(testId(90)), output(testId(91))));
+		CHECK(writeImage(N("sgstest_3d"), { 20, 16, 12 }, std::vector<float>(20 * 16 * 12, std::numeric_limits<float>::quiet_NaN())));
+		CHECK(runSgs(binary, "-di " + N("sgstest_3d") + " -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 4 -id " + testIdText(92) + " -o " + N("sgstest_3d_out")) == 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_3d") + " -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 1 -id " + testIdText(93) + " -o " + N("sgstest_3d_out2")) == 0);
+		CHECK(sameImage(output(testId(92)), output(testId(93))));
+		CHECK(writeImage(N("sgstest_full"), { 7, 5 }, std::vector<float>(35, 1.25f)));
+		CHECK(runSgs(binary, "-di " + N("sgstest_full") + " -cov 'spherical(range=3)' -s 1 -nr 2 -wo " + N("sgstest_full.w") + " -id " + testIdText(94) + " -o " + N("sgstest_full_out")) == 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_full") + " -cov 'spherical(range=3)' -s 1 -nr 2 -wi " + N("sgstest_full.w") + " -id " + testIdText(95) + " -o " + N("sgstest_full_out2")) == 0);
 		{
-			g2s::DataImage full = output(770095);
+			g2s::DataImage full = output(testId(95));
 			bool ok = !full.isEmpty();
 			for (size_t i = 0; ok && i < 70; ++i) ok &= full._data[i] == 1.25f;
 			CHECK(ok);
 		}
-		CHECK(writeImage("sgstest_one", { 1 }, { std::numeric_limits<float>::quiet_NaN() }));
-		CHECK(runSgs(binary, "-di sgstest_one -cov 'spherical(range=3)' -s 1 -nr 3 -j 4 -id 770096 -o sgstest_one_out") == 0);
+		CHECK(writeImage(N("sgstest_one"), { 1 }, { std::numeric_limits<float>::quiet_NaN() }));
+		CHECK(runSgs(binary, "-di " + N("sgstest_one") + " -cov 'spherical(range=3)' -s 1 -nr 3 -j 4 -id " + testIdText(96) + " -o " + N("sgstest_one_out")) == 0);
 		{
-			g2s::DataImage one = output(770096);
+			g2s::DataImage one = output(testId(96));
 			CHECK(!one.isEmpty() && one._nbVariable == 3 && std::isfinite(one._data[0]));
 		}
 		// Errors: missing -cov, bad -kt, -wo with -np 2.
-		CHECK(runSgs(binary, "-di sgstest_di -n 20 -id 770081 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -kt uk -id 770082 -o sgstest_x") != 0);
-		CHECK(runSgs(binary, "-di sgstest_di " + model + " -np 2 -wo sgstest_np.w -id 770083 -o sgstest_x") != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -n 20 -id " + testIdText(81) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -kt uk -id " + testIdText(82) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -np 2 -wo " + N("sgstest_np.w") + " -id " + testIdText(83) + " -o " + N("sgstest_x")) != 0);
 	}
 }
 

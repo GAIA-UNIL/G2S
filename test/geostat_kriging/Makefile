@@ -15,11 +15,11 @@ EXTRA_LIB := $(if $(BREW_PREFIX),-L$(BREW_PREFIX)/lib)
 all: test
 
 test: $(OUT)
-	$(OUT) $(KRIGING)
+	cd $(CURDIR)/out && $(OUT) $(KRIGING)
 
-$(OUT): kriging_test.cpp $(wildcard $(REPO_ROOT)/include/geostat/*.hpp) $(REPO_ROOT)/src/DataImage.cpp
+$(OUT): kriging_test.cpp $(wildcard $(REPO_ROOT)/include/geostat/*.hpp) $(REPO_ROOT)/test/geostat_common/testData.hpp $(REPO_ROOT)/src/DataImage.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) -std=c++17 -O2 -Wall -Wno-unused -I$(REPO_ROOT)/include $(EXTRA_INC) kriging_test.cpp $(REPO_ROOT)/src/DataImage.cpp -o $@ $(EXTRA_LIB) -lz -lpthread
+	$(CXX) -std=c++17 -O2 -Wall -Wno-unused -I$(REPO_ROOT)/include $(EXTRA_INC) kriging_test.cpp $(REPO_ROOT)/src/DataImage.cpp -o $@.$$$$ $(EXTRA_LIB) -lz -lpthread && mv -f $@.$$$$ $@
 
 clean:
 	rm -rf $(CURDIR)/out

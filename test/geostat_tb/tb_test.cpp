@@ -29,10 +29,16 @@
 #include "DataImage.hpp"
 #include "geostat/covarianceModel.hpp"
 #include "geostat/turningBands.hpp"
+#include "../geostat_common/testData.hpp"
 
 using namespace g2s::geostat;
+using geostat_test::testId;
+using geostat_test::testIdText;
 
 namespace {
+
+// Image names unique to this run (removed at exit with the outputs of testId()).
+std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
 int failures = 0;
 int checks = 0;
@@ -459,16 +465,7 @@ void testRefusals() {
 
 // ============================================================ executable
 
-// DataImage::write links /tmp/G2S/data/<name>.bgrid.gz to the content and
-// never replaces an existing link: remove the name first, or a stale image of
-// an earlier run would be read back.
-void removeImage(const std::string& name) {
-	unlink(("/tmp/G2S/data/" + name + ".bgrid.gz").c_str());
-	unlink(("/tmp/G2S/data/" + name + ".bgrid").c_str());
-}
-
 bool writeImage(const std::string& name, const std::vector<unsigned>& dims, float value) {
-	removeImage(name);
 	std::vector<unsigned> d = dims;
 	g2s::DataImage image(unsigned(d.size()), d.data(), 1);
 	for (size_t i = 0; i < image.dataSize(); ++i) image._data[i] = value;
@@ -482,17 +479,16 @@ void testExecutable(const std::string& binary) {
 	if (!probe) { printf("   skipped: %s not built\n", binary.c_str()); return; }
 	fclose(probe);
 	const std::vector<unsigned> dims = { 60, 45 };
-	CHECK(writeImage("tb_test_grid", dims, std::nanf("")));
+	CHECK(writeImage(N("tb_test_grid"), dims, std::nanf("")));
 	const std::string model = "0.1*nugget + 0.6*spherical(range=[30,12], angle=25) + 0.3*matern(range=20, nu=1.5)";
 	auto run = [&](const std::string& options, int id) {
-		removeImage("im_1_" + std::to_string(id));
-		const std::string command = binary + " -di tb_test_grid -cov '" + model + "' " + options + " -id " + std::to_string(id) + " -o tb_test_out 2>/dev/null >/dev/null";
+		const std::string command = binary + " -di " + N("tb_test_grid") + " -cov '" + model + "' " + options + " -id " + std::to_string(id) + " -o " + N("tb_test_out") + " 2>/dev/null >/dev/null";
 		return std::system(command.c_str());
 	};
-	CHECK(run("-nr 3 -s 11 -m -2.5 -j 1", 987700) == 0);
-	CHECK(run("-nr 3 -s 11 -m -2.5 -j 6", 987701) == 0);
-	g2s::DataImage a = g2s::DataImage::createFromFile("im_1_987700");
-	g2s::DataImage b = g2s::DataImage::createFromFile("im_1_987701");
+	CHECK(run("-nr 3 -s 11 -m -2.5 -j 1", testId(700)) == 0);
+	CHECK(run("-nr 3 -s 11 -m -2.5 -j 6", testId(701)) == 0);
+	g2s::DataImage a = g2s::DataImage::createFromFile("im_1_" + testIdText(700));
+	g2s::DataImage b = g2s::DataImage::createFromFile("im_1_" + testIdText(701));
 	CHECK(!a.isEmpty() && !b.isEmpty());
 	if (!a.isEmpty() && !b.isEmpty()) {
 		CHECK(a._dims == dims && a._nbVariable == 3);
@@ -515,11 +511,11 @@ void testExecutable(const std::string& binary) {
 		printf("   executable vs engine: max |difference| %.2e, mean %.3f\n", worst, sum / (3.0 * count));
 		CHECK(worst <= 1e-5);
 	}
-	CHECK(run("-nb 300", 987702) == 0);
+	CHECK(run("-nb 300", testId(702)) == 0);
 	// Refusals: non-zero exit and an explicit message (the report goes to stderr).
 	auto refused = [&](const std::string& arguments, const std::string& fragment) {
-		const std::string log = "out/tb_test_log.txt";
-		const std::string command = binary + " " + arguments + " -o tb_test_out > " + log + " 2>&1";
+		const std::string log = N("tb_test_log.txt");
+		const std::string command = binary + " " + arguments + " -o " + N("tb_test_out") + " > " + log + " 2>&1";
 		const bool failed = std::system(command.c_str()) != 0;
 		std::string text;
 		if (FILE* file = fopen(log.c_str(), "r")) {
@@ -531,22 +527,20 @@ void testExecutable(const std::string& binary) {
 		const bool explained = text.find(fragment) != std::string::npos;
 		report(failed && explained, "tb " + arguments + " should fail with '" + fragment + "'", __FILE__, __LINE__);
 	};
-	CHECK(writeImage("tb_test_table", dims, 1.0f)); // map tables have the size of the grid
-	refused("-di tb_test_grid -cov '0.5*exponential(range=10) + 1*map(C)' -cvar C tb_test_table -id 987703", "structure 2 (map) is not supported");
+	CHECK(writeImage(N("tb_test_table"), dims, 1.0f)); // map tables have the size of the grid
+	refused("-di " + N("tb_test_grid") + " -cov '0.5*exponential(range=10) + 1*map(C)' -cvar C " + N("tb_test_table") + " -id " + testIdText(703), "structure 2 (map) is not supported");
 	g2s::DataImage ranges(2, std::vector<unsigned>{ 60, 45 }.data(), 1);
 	for (size_t i = 0; i < ranges.dataSize(); ++i) ranges._data[i] = float(5 + i % 7);
-	removeImage("tb_test_range");
-	ranges.write("tb_test_range");
-	refused("-di tb_test_grid -cov 'exponential(range=L)' -cvar L tb_test_range -id 987704", "stationary models only");
-	refused("-di tb_test_grid -cov 'exponential(range=10)' -csim -id 987705", "-csim");
-	refused("-di tb_test_grid -cov 'exponential(range=10)' -nb 0 -id 987706", "-nb expects");
-	CHECK(writeImage("tb_test_4d", { 3, 3, 3, 3 }, std::nanf("")));
-	refused("-di tb_test_4d -cov 'exponential(range=10)' -id 987708", "1D, 2D or 3D");
+	ranges.write(N("tb_test_range"));
+	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=L)' -cvar L " + N("tb_test_range") + " -id " + testIdText(704), "stationary models only");
+	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=10)' -csim -id " + testIdText(705), "-csim");
+	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=10)' -nb 0 -id " + testIdText(706), "-nb expects");
+	CHECK(writeImage(N("tb_test_4d"), { 3, 3, 3, 3 }, std::nanf("")));
+	refused("-di " + N("tb_test_4d") + " -cov 'exponential(range=10)' -id " + testIdText(708), "1D, 2D or 3D");
 	// A constant -cvar and a positive mean.
-	removeImage("im_1_987707");
-	const std::string command = binary + " -di tb_test_grid -cov 'exponential(range=L)' -cvar L 12 -m 3 -nr 2 -s 3 -id 987707 -o tb_test_out 2>/dev/null >/dev/null";
+	const std::string command = binary + " -di " + N("tb_test_grid") + " -cov 'exponential(range=L)' -cvar L 12 -m 3 -nr 2 -s 3 -id " + testIdText(707) + " -o " + N("tb_test_out") + " 2>/dev/null >/dev/null";
 	CHECK(std::system(command.c_str()) == 0);
-	g2s::DataImage c = g2s::DataImage::createFromFile("im_1_987707");
+	g2s::DataImage c = g2s::DataImage::createFromFile("im_1_" + testIdText(707));
 	CHECK(!c.isEmpty() && c._nbVariable == 2);
 	if (!c.isEmpty()) {
 		double sum = 0.0;
@@ -567,12 +561,11 @@ void timing(const std::string& binary) {
 		{ { 200, 200, 200 }, "exponential(range=30)" }, { { 200, 200, 200 }, "spherical(range=30)" },
 		{ { 200, 200, 200 }, "0.1*nugget + 0.6*spherical(range=[40,20,10], angle=[30,0,0]) + 0.3*matern(range=50, nu=1.5)" },
 	};
-	int id = 987800;
+	unsigned id = testId(800);
 	for (const Case& c : cases) {
-		const std::string grid = "tb_test_timing_" + std::to_string(c.dims.size()) + "d";
+		const std::string grid = N("tb_test_timing_") + std::to_string(c.dims.size()) + "d";
 		CHECK(writeImage(grid, c.dims, std::nanf("")));
-		removeImage("im_1_" + std::to_string(id));
-		const std::string command = binary + " -di " + grid + " -cov '" + c.model + "' -s 1 -j " + std::to_string(hardwareThreads()) + " -id " + std::to_string(id++) + " -o tb_test_out 2>/dev/null >/dev/null";
+		const std::string command = binary + " -di " + grid + " -cov '" + c.model + "' -s 1 -j " + std::to_string(hardwareThreads()) + " -id " + std::to_string(id++) + " -o " + N("tb_test_out") + " 2>/dev/null >/dev/null";
 		const auto begin = std::chrono::steady_clock::now();
 		CHECK(std::system(command.c_str()) == 0);
 		const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();

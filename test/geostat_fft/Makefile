@@ -17,14 +17,14 @@ EXTRA_LIB := $(if $(BREW_PREFIX),-L$(BREW_PREFIX)/lib)
 all: test
 
 test: $(OUT)
-	$(OUT) $(FFTMA)
+	cd $(CURDIR)/out && $(OUT) $(FFTMA)
 
 bench: $(OUT)
-	$(OUT) bench $(THREADS)
+	cd $(CURDIR)/out && $(OUT) bench $(THREADS)
 
-$(OUT): geostat_fft_test.cpp $(wildcard $(REPO_ROOT)/include/geostat/*.hpp) $(REPO_ROOT)/src/DataImage.cpp
+$(OUT): geostat_fft_test.cpp $(wildcard $(REPO_ROOT)/include/geostat/*.hpp) $(REPO_ROOT)/test/geostat_common/testData.hpp $(REPO_ROOT)/src/DataImage.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) -std=c++17 -O2 -Wall -Wno-unused -I$(REPO_ROOT)/include $(EXTRA_INC) geostat_fft_test.cpp $(REPO_ROOT)/src/DataImage.cpp -o $@ $(EXTRA_LIB) -lfftw3f_threads -lfftw3f -lfftw3_threads -lfftw3 -lz -lpthread
+	$(CXX) -std=c++17 -O2 -Wall -Wno-unused -I$(REPO_ROOT)/include $(EXTRA_INC) geostat_fft_test.cpp $(REPO_ROOT)/src/DataImage.cpp -o $@.$$$$ $(EXTRA_LIB) -lfftw3f_threads -lfftw3f -lfftw3_threads -lfftw3 -lz -lpthread && mv -f $@.$$$$ $@
 
 clean:
 	rm -rf $(CURDIR)/out

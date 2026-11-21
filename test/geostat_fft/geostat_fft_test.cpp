@@ -23,11 +23,17 @@
 #include "DataImage.hpp"
 #include "geostat/covarianceModel.hpp"
 #include "geostat/spectralEngine.hpp"
+#include "../geostat_common/testData.hpp"
 
 using namespace g2s::geostat;
 using namespace g2s::geostat::spectral;
+using geostat_test::testId;
+using geostat_test::testIdText;
 
 namespace {
+
+// Image names unique to this run (removed at exit with the outputs of testId()).
+std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
 int failures = 0;
 int checks = 0;
@@ -406,35 +412,35 @@ void testExecutable(const std::string& binary) {
 	fclose(probe);
 	const std::string spectralBinary = binary.substr(0, binary.find_last_of('/') + 1) + "spectral";
 	std::vector<float> nan(70 * 50, std::nanf(""));
-	CHECK(writeImage("geostat_fft_di", { 70, 50 }, nan));
+	CHECK(writeImage(N("geostat_fft_di"), { 70, 50 }, nan));
 	const std::string model = "'0.1*nugget + 0.9*spherical(range=[30,12], angle=20)'";
 	auto run = [&](const std::string& exe, const std::string& args, int id) {
-		const std::string command = exe + " -di geostat_fft_di -cov " + model + " " + args + " -id " + std::to_string(id) + " -o geostat_fft_out 2>/dev/null";
+		const std::string command = exe + " -di " + N("geostat_fft_di") + " -cov " + model + " " + args + " -id " + std::to_string(id) + " -o " + N("geostat_fft_out") + " 2>/dev/null";
 		return std::system(command.c_str());
 	};
 	auto load = [](int output, int id) { return g2s::DataImage::createFromFile("im_" + std::to_string(output) + "_" + std::to_string(id)); };
 
 	// R realisations as R variables; thread count and -fr invariance.
-	CHECK(run(binary, "-nr 4 -s 11 -j 1 -on", 976500) == 0);
-	g2s::DataImage batch = load(1, 976500), batchNoise = load(2, 976500);
+	CHECK(run(binary, "-nr 4 -s 11 -j 1 -on", testId(500)) == 0);
+	g2s::DataImage batch = load(1, testId(500)), batchNoise = load(2, testId(500));
 	CHECK(!batch.isEmpty() && batch._dims == (std::vector<unsigned>{ 70, 50 }) && batch._nbVariable == 4);
 	CHECK(!batchNoise.isEmpty() && batchNoise._nbVariable == 4 && batchNoise._dims[0] >= 70 + 29 && batchNoise._dims[1] >= 50 + 16);
-	CHECK(run(binary, "-nr 4 -s 11 -j 8", 976501) == 0);
-	{ g2s::DataImage other = load(1, 976501); CHECK(sameData(batch, other)); }
-	CHECK(run(binary, "-nr 1 -s 11 -fr 2 -j 3", 976502) == 0);
-	g2s::DataImage third = load(1, 976502);
+	CHECK(run(binary, "-nr 4 -s 11 -j 8", testId(501)) == 0);
+	{ g2s::DataImage other = load(1, testId(501)); CHECK(sameData(batch, other)); }
+	CHECK(run(binary, "-nr 1 -s 11 -fr 2 -j 3", testId(502)) == 0);
+	g2s::DataImage third = load(1, testId(502));
 	bool same = !third.isEmpty() && !batch.isEmpty();
 	for (size_t i = 0; same && i < 70 * 50; ++i) same = third._data[i] == batch._data[i * 4 + 2];
 	CHECK(same);
 	// Given noise: same result, noise returned unchanged; -nr taken from -ni.
-	CHECK(run(binary, "-ni im_2_976500 -s 999 -on -j 4", 976503) == 0);
-	{ g2s::DataImage other = load(1, 976503); CHECK(sameData(batch, other)); }
-	{ g2s::DataImage other = load(2, 976503); CHECK(sameData(batchNoise, other)); }
+	CHECK(run(binary, "-ni im_2_" + testIdText(500) + " -s 999 -on -j 4", testId(503)) == 0);
+	{ g2s::DataImage other = load(1, testId(503)); CHECK(sameData(batch, other)); }
+	{ g2s::DataImage other = load(2, testId(503)); CHECK(sameData(batchNoise, other)); }
 	// Mean (also negative), spectral entry name and -method.
-	CHECK(run(spectralBinary, "-nr 2 -s 5 -m -2.5", 976504) == 0);
-	CHECK(run(binary, "-method spectral -nr 2 -s 5 -m -2.5", 976505) == 0);
-	g2s::DataImage spectral = load(1, 976504);
-	{ g2s::DataImage other = load(1, 976505); CHECK(sameData(spectral, other)); }
+	CHECK(run(spectralBinary, "-nr 2 -s 5 -m -2.5", testId(504)) == 0);
+	CHECK(run(binary, "-method spectral -nr 2 -s 5 -m -2.5", testId(505)) == 0);
+	g2s::DataImage spectral = load(1, testId(504));
+	{ g2s::DataImage other = load(1, testId(505)); CHECK(sameData(spectral, other)); }
 	CHECK(!sameData(spectral, batch));
 	if (!spectral.isEmpty()) {
 		double sum = 0.0;
@@ -442,33 +448,33 @@ void testExecutable(const std::string& binary) {
 		CHECK(std::fabs(sum / double(spectral.dataSize()) + 2.5) < 0.6);
 	}
 	// -csim keeps the grid; -buf per axis.
-	CHECK(run(binary, "-csim -s 1 -on", 976506) == 0);
-	CHECK(load(2, 976506)._dims == (std::vector<unsigned>{ 70, 50 }));
-	CHECK(run(binary, "-buf 5 0 -s 1 -on", 976507) == 0);
-	CHECK(load(2, 976507)._dims == (std::vector<unsigned>{ 75, 50 }));
+	CHECK(run(binary, "-csim -s 1 -on", testId(506)) == 0);
+	CHECK(load(2, testId(506))._dims == (std::vector<unsigned>{ 70, 50 }));
+	CHECK(run(binary, "-buf 5 0 -s 1 -on", testId(507)) == 0);
+	CHECK(load(2, testId(507))._dims == (std::vector<unsigned>{ 75, 50 }));
 	// 1D and 3D grids.
-	CHECK(writeImage("geostat_fft_di1", { 500 }, std::vector<float>(500, std::nanf(""))));
-	CHECK(std::system((binary + " -di geostat_fft_di1 -cov 'exponential(range=30)' -nr 3 -s 1 -id 976508 -o geostat_fft_out 2>/dev/null").c_str()) == 0);
-	CHECK(load(1, 976508)._nbVariable == 3);
-	CHECK(writeImage("geostat_fft_di3", { 20, 18, 16 }, std::vector<float>(20 * 18 * 16, 0.f)));
-	CHECK(std::system((spectralBinary + " -di geostat_fft_di3 -cov 'gaussian(range=[8,6,4], angle=[10,20,30])' -s 1 -id 976509 -o geostat_fft_out 2>/dev/null").c_str()) == 0);
-	CHECK(load(1, 976509)._dims == (std::vector<unsigned>{ 20, 18, 16 }));
+	CHECK(writeImage(N("geostat_fft_di1"), { 500 }, std::vector<float>(500, std::nanf(""))));
+	CHECK(std::system((binary + " -di " + N("geostat_fft_di1") + " -cov 'exponential(range=30)' -nr 3 -s 1 -id " + testIdText(508) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
+	CHECK(load(1, testId(508))._nbVariable == 3);
+	CHECK(writeImage(N("geostat_fft_di3"), { 20, 18, 16 }, std::vector<float>(20 * 18 * 16, 0.f)));
+	CHECK(std::system((spectralBinary + " -di " + N("geostat_fft_di3") + " -cov 'gaussian(range=[8,6,4], angle=[10,20,30])' -s 1 -id " + testIdText(509) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
+	CHECK(load(1, testId(509))._dims == (std::vector<unsigned>{ 20, 18, 16 }));
 	// A stationary map(...) model works.
 	std::vector<float> table(21 * 21, 0.f);
 	for (int y = -10; y <= 10; ++y)
 		for (int x = -10; x <= 10; ++x) table[size_t((y + 10) * 21 + x + 10)] = float(std::max(0.0, 1.0 - std::sqrt(double(x * x + y * y)) / 10.0));
-	CHECK(writeImage("geostat_fft_map", { 21, 21 }, table));
-	CHECK(std::system((binary + " -di geostat_fft_di -cov 'map(M)' -cvar M geostat_fft_map -s 1 -id 976510 -o geostat_fft_out 2>/dev/null").c_str()) == 0);
+	CHECK(writeImage(N("geostat_fft_map"), { 21, 21 }, table));
+	CHECK(std::system((binary + " -di " + N("geostat_fft_di") + " -cov 'map(M)' -cvar M " + N("geostat_fft_map") + " -s 1 -id " + testIdText(510) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
 	// Errors: non-stationary model, noise with spectral, wrong noise size, bad method.
 	std::vector<float> ranges(70 * 50);
 	for (size_t i = 0; i < ranges.size(); ++i) ranges[i] = float(10 + i % 7);
-	CHECK(writeImage("geostat_fft_range", { 70, 50 }, ranges));
-	CHECK(std::system((binary + " -di geostat_fft_di -cov 'exponential(range=L)' -cvar L geostat_fft_range -id 976511 -o geostat_fft_out 2>/dev/null").c_str()) != 0);
-	CHECK(run(spectralBinary, "-on", 976512) != 0);
-	CHECK(writeImage("geostat_fft_small", { 60, 50 }, std::vector<float>(3000, 0.f)));
-	CHECK(run(binary, "-ni geostat_fft_small", 976513) != 0);
-	CHECK(run(binary, "-method kriging", 976514) != 0);
-	CHECK(run(binary, "-nr 2 -ni im_2_976500", 976515) != 0); // 4 noise variables
+	CHECK(writeImage(N("geostat_fft_range"), { 70, 50 }, ranges));
+	CHECK(std::system((binary + " -di " + N("geostat_fft_di") + " -cov 'exponential(range=L)' -cvar L " + N("geostat_fft_range") + " -id " + testIdText(511) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) != 0);
+	CHECK(run(spectralBinary, "-on", testId(512)) != 0);
+	CHECK(writeImage(N("geostat_fft_small"), { 60, 50 }, std::vector<float>(3000, 0.f)));
+	CHECK(run(binary, "-ni " + N("geostat_fft_small"), testId(513)) != 0);
+	CHECK(run(binary, "-method kriging", testId(514)) != 0);
+	CHECK(run(binary, "-nr 2 -ni im_2_" + testIdText(500), testId(515)) != 0); // 4 noise variables
 }
 
 // ============================================================ timings

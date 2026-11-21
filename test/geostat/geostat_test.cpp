@@ -25,10 +25,16 @@
 #include "geostat/neighborSearch.hpp"
 #include "geostat/random.hpp"
 #include "geostat/specialFunctions.hpp"
+#include "../geostat_common/testData.hpp"
 
 using namespace g2s::geostat;
+using geostat_test::testId;
+using geostat_test::testIdText;
 
 namespace {
+
+// Image names unique to this run (removed at exit with the outputs of testId()).
+std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
 int failures = 0;
 int checks = 0;
@@ -896,16 +902,16 @@ void testArguments() {
 		for (size_t i = 0; i < 12; ++i) { ranges[i] = float(5 + i); index[i] = float(i % 2); }
 		table[1 * 4 + 2] = 2.f; // centre (2, 1)
 		table[1 * 4 + 3] = 1.f; // lag (+1, 0)
-		CHECK(writeImage("geostat_test_range", grid, ranges));
-		CHECK(writeImage("geostat_test_const", grid, constant));
-		CHECK(writeImage("geostat_test_table", grid, table));
-		CHECK(writeImage("geostat_test_index", grid, index));
-		CHECK(writeImage("geostat_test_small", { 2, 2 }, { 1, 2, 3, 4 }));
+		CHECK(writeImage(N("geostat_test_range"), grid, ranges));
+		CHECK(writeImage(N("geostat_test_const"), grid, constant));
+		CHECK(writeImage(N("geostat_test_table"), grid, table));
+		CHECK(writeImage(N("geostat_test_index"), grid, index));
+		CHECK(writeImage(N("geostat_test_small"), { 2, 2 }, { 1, 2, 3, 4 }));
 
 		CovarianceArguments ca;
 		ca.models = { "exponential(range=L)", "s*spherical(range=K) + 0.5*map(C)" };
-		ca.variables = { { "L", "geostat_test_range" }, { "K", "geostat_test_const" }, { "s", "2" }, { "C", "geostat_test_table" } };
-		ca.indexFileName = "geostat_test_index";
+		ca.variables = { { "L", N("geostat_test_range") }, { "K", N("geostat_test_const") }, { "s", "2" }, { "C", N("geostat_test_table") } };
+		ca.indexFileName = N("geostat_test_index");
 		std::vector<unsigned> dims;
 		CovarianceModelSet models;
 		std::string error;
@@ -927,7 +933,7 @@ void testArguments() {
 		CHECK(!loadCovarianceModels(nullptr, ca, wrong, 0, models, error));
 		CHECK(error.find("has size 4x3 but the grid is 4x4") != std::string::npos);
 		CovarianceArguments small = ca;
-		small.variables[0].second = "geostat_test_small";
+		small.variables[0].second = N("geostat_test_small");
 		dims.clear();
 		CHECK(!loadCovarianceModels(nullptr, small, dims, 0, models, error));
 		CovarianceArguments mapNumber;
@@ -938,7 +944,7 @@ void testArguments() {
 		CHECK(error.find("needs a covariance map image") != std::string::npos);
 		CovarianceArguments missing;
 		missing.models = { "exponential(range=L)" };
-		missing.variables = { { "L", "geostat_test_does_not_exist" } };
+		missing.variables = { { "L", N("geostat_test_does_not_exist") } };
 		dims.clear();
 		CHECK(!loadCovarianceModels(nullptr, missing, dims, 1, models, error));
 		CHECK(error.find("failed to load -cvar L") != std::string::npos);
@@ -947,6 +953,7 @@ void testArguments() {
 		dims.clear();
 		CHECK(loadCovarianceModels(nullptr, stationaryArgs, dims, 2, models, error));
 		CHECK(models.isStationary() && dims.empty());
+
 	}
 }
 
@@ -956,17 +963,17 @@ void testCovEval(const std::string& binary) {
 	if (!probe) { printf("   skipped: %s not built\n", binary.c_str()); return; }
 	fclose(probe);
 	std::vector<float> lags = { 0, 0, 10, 0, 0, 10, 20, 5, -7, 3 }; // 5 x 2
-	CHECK(writeImage("geostat_test_lags", { 2, 5 }, lags));
+	CHECK(writeImage(N("geostat_test_lags"), { 2, 5 }, lags));
 	std::vector<float> ranges(12);
 	for (size_t i = 0; i < 12; ++i) ranges[i] = float(5 + i);
-	CHECK(writeImage("geostat_test_range", { 4, 3 }, ranges));
-	CHECK(writeImage("geostat_test_pos", { 2, 1 }, { 2, 1 })); // cell (2, 1) -> L = 11
+	CHECK(writeImage(N("geostat_test_range"), { 4, 3 }, ranges));
+	CHECK(writeImage(N("geostat_test_pos"), { 2, 1 }, { 2, 1 })); // cell (2, 1) -> L = 11
 
 	const std::string model = "0.1*nugget + 0.9*spherical(range=[40,20], angle=30)";
-	std::string command = binary + " -cov '" + model + "' -lag geostat_test_lags -vario -id 987650 -o geostat_test_out 2>/dev/null";
+	std::string command = binary + " -cov '" + model + "' -lag " + N("geostat_test_lags") + " -vario -id " + testIdText(650) + " -o " + N("geostat_test_out") + " 2>/dev/null";
 	CHECK(std::system(command.c_str()) == 0);
-	g2s::DataImage c = g2s::DataImage::createFromFile("im_1_987650");
-	g2s::DataImage v = g2s::DataImage::createFromFile("im_2_987650");
+	g2s::DataImage c = g2s::DataImage::createFromFile("im_1_" + testIdText(650));
+	g2s::DataImage v = g2s::DataImage::createFromFile("im_2_" + testIdText(650));
 	CHECK(!c.isEmpty() && !v.isEmpty() && c._dims == std::vector<unsigned>{ 5 });
 	if (!c.isEmpty() && !v.isEmpty()) {
 		const ResolvedModel m = stationary(model, 2);
@@ -975,17 +982,17 @@ void testCovEval(const std::string& binary) {
 			CHECK_NEAR(v._data[i], m.sill() - c._data[i], 1e-6);
 		}
 	}
-	command = binary + " -cov 'exponential(range=L)' -cvar L geostat_test_range -lag geostat_test_lags -pos geostat_test_pos -id 987651 -o geostat_test_out 2>/dev/null";
+	command = binary + " -cov 'exponential(range=L)' -cvar L " + N("geostat_test_range") + " -lag " + N("geostat_test_lags") + " -pos " + N("geostat_test_pos") + " -id " + testIdText(651) + " -o " + N("geostat_test_out") + " 2>/dev/null";
 	CHECK(std::system(command.c_str()) == 0);
-	g2s::DataImage n = g2s::DataImage::createFromFile("im_1_987651");
+	g2s::DataImage n = g2s::DataImage::createFromFile("im_1_" + testIdText(651));
 	CHECK(!n.isEmpty());
 	if (!n.isEmpty()) CHECK_NEAR(n._data[1], std::exp(-3.0 * 10 / 11), 1e-6);
 	// Non-stationary without -pos and invalid model are errors.
-	command = binary + " -cov 'exponential(range=L)' -cvar L geostat_test_range -lag geostat_test_lags -id 987652 -o geostat_test_out 2>/dev/null";
+	command = binary + " -cov 'exponential(range=L)' -cvar L " + N("geostat_test_range") + " -lag " + N("geostat_test_lags") + " -id " + testIdText(652) + " -o " + N("geostat_test_out") + " 2>/dev/null";
 	CHECK(std::system(command.c_str()) != 0);
-	command = binary + " -cov 'exponential(range=-1)' -lag geostat_test_lags -id 987653 -o geostat_test_out 2>/dev/null";
+	command = binary + " -cov 'exponential(range=-1)' -lag " + N("geostat_test_lags") + " -id " + testIdText(653) + " -o " + N("geostat_test_out") + " 2>/dev/null";
 	CHECK(std::system(command.c_str()) != 0);
-	command = binary + " -cov 'exponential(range=theta*-1)' -cvar theta -5 -lag geostat_test_lags -id 987654 -o geostat_test_out 2>/dev/null";
+	command = binary + " -cov 'exponential(range=theta*-1)' -cvar theta -5 -lag " + N("geostat_test_lags") + " -id " + testIdText(654) + " -o " + N("geostat_test_out") + " 2>/dev/null";
 	CHECK(std::system(command.c_str()) == 0);
 }
 

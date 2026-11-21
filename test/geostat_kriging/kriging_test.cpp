@@ -25,10 +25,16 @@
 #include "geostat/krigingGlobal.hpp"
 #include "geostat/krigingLocal.hpp"
 #include "geostat/neighborSearch.hpp"
+#include "../geostat_common/testData.hpp"
 
 using namespace g2s::geostat;
+using geostat_test::testId;
+using geostat_test::testIdText;
 
 namespace {
+
+// Image names unique to this run (removed at exit with the outputs of testId()).
+std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
 int failures = 0;
 int checks = 0;
@@ -572,26 +578,14 @@ void testExecutable(const std::string& binary) {
 	FILE* probe = fopen(binary.c_str(), "r");
 	if (!probe) { printf("   skipped: %s not built\n", binary.c_str()); return; }
 	fclose(probe);
-	mkdir("/tmp/G2S", 0770);
-	mkdir("/tmp/G2S/data", 0770);
 	GridCase g({ 50, 40 }, 120, 10, 2.0);
 	std::vector<float> di(g.values.begin(), g.values.end()), ranges(g.values.size());
 	for (size_t cell = 0; cell < ranges.size(); ++cell) ranges[cell] = float(6.0 + 0.3 * double(cell % 50));
-	for (const char* name : { "kriging_test_di", "kriging_test_range", "kriging_test_out" }) std::remove((std::string("/tmp/G2S/data/") + name + ".bgrid.gz").c_str());
-	CHECK(writeImage("kriging_test_di", g.dims, di));
-	CHECK(writeImage("kriging_test_range", g.dims, ranges));
+	CHECK(writeImage(N("kriging_test_di"), g.dims, di));
+	CHECK(writeImage(N("kriging_test_range"), g.dims, ranges));
 	const std::string model = "0.1*nugget + 0.9*spherical(range=[18,9], angle=15)";
-	// Outputs are links in /tmp/G2S/data that are never replaced: remove ours first.
-	auto clear = [](int id) {
-		for (int k = 1; k <= 2; ++k) {
-			const std::string base = "/tmp/G2S/data/im_" + std::to_string(k) + "_" + std::to_string(id);
-			std::remove((base + ".bgrid.gz").c_str());
-			std::remove((base + ".bgrid").c_str());
-		}
-	};
-	for (int id = 557100; id < 557110; ++id) clear(id);
 	auto run = [&](const std::string& options, int id) {
-		const std::string command = binary + " -di kriging_test_di -cov '" + model + "' " + options + " -id " + std::to_string(id) + " -o kriging_test_out 2>/dev/null";
+		const std::string command = binary + " -di " + N("kriging_test_di") + " -cov '" + model + "' " + options + " -id " + std::to_string(id) + " -o " + N("kriging_test_out") + " 2>/dev/null";
 		return std::system(command.c_str());
 	};
 	auto load = [](const std::string& name) { return g2s::DataImage::createFromFile(name); };
@@ -602,10 +596,10 @@ void testExecutable(const std::string& binary) {
 	};
 
 	// direct vs local with every datum, OK, with variance; data cells keep their value, variance 0 there.
-	CHECK(run("-method direct -var -j 4", 557100) == 0);
-	CHECK(run("-method local -n 500 -var -j 3", 557101) == 0);
-	g2s::DataImage directEstimate = load("im_1_557100"), directVariance = load("im_2_557100");
-	g2s::DataImage localEstimate = load("im_1_557101"), localVariance = load("im_2_557101");
+	CHECK(run("-method direct -var -j 4", testId(100)) == 0);
+	CHECK(run("-method local -n 500 -var -j 3", testId(101)) == 0);
+	g2s::DataImage directEstimate = load("im_1_" + testIdText(100)), directVariance = load("im_2_" + testIdText(100));
+	g2s::DataImage localEstimate = load("im_1_" + testIdText(101)), localVariance = load("im_2_" + testIdText(101));
 	CHECK(!directEstimate.isEmpty() && !directVariance.isEmpty() && !localEstimate.isEmpty() && !localVariance.isEmpty());
 	if (!directEstimate.isEmpty() && !localEstimate.isEmpty() && !directVariance.isEmpty() && !localVariance.isEmpty()) {
 		CHECK(directEstimate._dims == g.dims);
@@ -621,24 +615,24 @@ void testExecutable(const std::string& binary) {
 		CHECK(maxAbsDifference(targetsOf(directVariance), referenceVariance) < 1e-5);
 	}
 	// SK with a negative mean and auto (direct: stationary, few data); no -var: no output 2.
-	CHECK(run("-kt sk -m -1.25", 557102) == 0);
-	g2s::DataImage sk = load("im_1_557102");
+	CHECK(run("-kt sk -m -1.25", testId(102)) == 0);
+	g2s::DataImage sk = load("im_1_" + testIdText(102));
 	CHECK(!sk.isEmpty());
 	if (!sk.isEmpty()) {
 		std::vector<double> reference, referenceVariance;
 		bruteForce(KrigingType::Simple, stationary(model, 2), g, -1.25, reference, referenceVariance);
 		CHECK_MSG(maxAbsDifference(targetsOf(sk), reference) < 1e-5, "SK -m -1.25: " + formatNumber(maxAbsDifference(targetsOf(sk), reference)));
 	}
-	CHECK(load("im_2_557102").isEmpty());
+	CHECK(load("im_2_" + testIdText(102)).isEmpty());
 	// Non-stationary: local runs, direct is refused.
-	const std::string nonStationary = binary + " -di kriging_test_di -cov 'exponential(range=L)' -cvar L kriging_test_range";
-	CHECK(std::system((nonStationary + " -method local -n 20 -var -id 557103 -o kriging_test_out 2>/dev/null").c_str()) == 0);
-	CHECK(!load("im_2_557103").isEmpty());
-	CHECK(std::system((nonStationary + " -method direct -id 557104 -o kriging_test_out 2>/dev/null").c_str()) != 0);
-	CHECK(std::system((nonStationary + " -id 557105 -o kriging_test_out 2>/dev/null").c_str()) == 0); // auto -> local
+	const std::string nonStationary = binary + " -di " + N("kriging_test_di") + " -cov 'exponential(range=L)' -cvar L " + N("kriging_test_range");
+	CHECK(std::system((nonStationary + " -method local -n 20 -var -id " + testIdText(103) + " -o " + N("kriging_test_out") + " 2>/dev/null").c_str()) == 0);
+	CHECK(!load("im_2_" + testIdText(103)).isEmpty());
+	CHECK(std::system((nonStationary + " -method direct -id " + testIdText(104) + " -o " + N("kriging_test_out") + " 2>/dev/null").c_str()) != 0);
+	CHECK(std::system((nonStationary + " -id " + testIdText(105) + " -o " + N("kriging_test_out") + " 2>/dev/null").c_str()) == 0); // auto -> local
 	// Kernel + octant search, grid and k-d tree give the same result (dense data -> grid; -ks large -> tree).
-	CHECK(run("-method local -n 12 -os 3 -ks 21", 557106) == 0);
-	g2s::DataImage windowed = load("im_1_557106");
+	CHECK(run("-method local -n 12 -os 3 -ks 21", testId(106)) == 0);
+	g2s::DataImage windowed = load("im_1_" + testIdText(106));
 	CHECK(!windowed.isEmpty());
 	if (!windowed.isEmpty()) {
 		auto pos = [&](size_t cell, double* x) { long c[kMaxDims]; cellCoordinates(cell, g.dims, c); x[0] = double(c[0]); x[1] = double(c[1]); };
@@ -653,10 +647,10 @@ void testExecutable(const std::string& binary) {
 		CHECK_MSG(maxAbsDifference(targetsOf(windowed), estimate) < 1e-5, "-ks 21 -os 3 (grid search) vs k-d tree engine");
 	}
 	// Memory guard.
-	CHECK(run("-method direct -maxmem 0.00001", 557107) != 0);
+	CHECK(run("-method direct -maxmem 0.00001", testId(107)) != 0);
 	// Invalid arguments.
-	CHECK(run("-kt uk", 557108) != 0);
-	CHECK(run("-method global", 557109) != 0);
+	CHECK(run("-kt uk", testId(108)) != 0);
+	CHECK(run("-method global", testId(109)) != 0);
 }
 
 } // namespace
