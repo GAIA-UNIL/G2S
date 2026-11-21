@@ -193,6 +193,8 @@ void testEngine() {
 		const std::vector<float> d = replay(c, base, hard, 5, 99, 0, 8);
 		CHECK(sameBits(a, b));
 		CHECK(sameBits(a, d));
+		// One realisation takes the scalar path of the replay.
+		CHECK(sameBits(replay(c, base, hard, 1, 99, 0, 1), replay(c, base, hard, 1, 99, 0, 4)));
 	}
 
 	section("engine: sharing does not change the weights");

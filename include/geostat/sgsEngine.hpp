@@ -532,9 +532,16 @@ struct ReplayKernel {
 		const float* weight = table.neighborWeight + table.stencilStart[table.entryStencil[e]];
 		float* out = values + target * R;
 		if (count == 0) return;
+		// Products and sums are separate statements so that the compiler
+		// cannot fuse them (fp-contract=on): whether a loop is vectorised
+		// (an ordered reduction is not fused) depends on where it is inlined,
+		// and the result must not.
 		if (R == 1) {
 			float sum = 0.f;
-			for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
+			for (size_t j = 0; j < count; ++j) {
+				const float product = weight[j] * values[ids[j]];
+				sum += product;
+			}
 			out[0] = sum + out[0];
 			return;
 		}
@@ -542,7 +549,10 @@ struct ReplayKernel {
 		for (size_t j = 0; j < count; ++j) {
 			const float w = weight[j];
 			const float* v = values + ids[j] * R;
-			for (size_t r = 0; r < R; ++r) acc[r] += w * v[r];
+			for (size_t r = 0; r < R; ++r) {
+				const float product = w * v[r];
+				acc[r] += product;
+			}
 		}
 		for (size_t r = 0; r < R; ++r) out[r] = acc[r] + out[r];
 	}
