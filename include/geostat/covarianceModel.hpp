@@ -572,6 +572,25 @@ private:
 	}
 };
 
+// ============================================================ hashing
+
+// FNV-1a 64 over bytes, deterministic across runs and platforms of the same
+// endianness. Doubles are normalised (-0 -> 0) before hashing.
+class Hasher {
+public:
+	void bytes(const void* data, size_t size) {
+		const unsigned char* p = static_cast<const unsigned char*>(data);
+		for (size_t i = 0; i < size; ++i) { _hash ^= p[i]; _hash *= 1099511628211ull; }
+	}
+	void u64(uint64_t v) { bytes(&v, sizeof(v)); }
+	void i64(int64_t v) { bytes(&v, sizeof(v)); }
+	void f64(double v) { if (v == 0.0) v = 0.0; bytes(&v, sizeof(v)); }
+	void text(const std::string& s) { u64(s.size()); bytes(s.data(), s.size()); }
+	uint64_t value() const { return _hash; }
+private:
+	uint64_t _hash = 1469598103934665603ull;
+};
+
 // ============================================================ resolved model
 
 // R_ij products for ndim = 2 or 3 (see the header comment); R is row-major
@@ -611,8 +630,10 @@ struct ResolvedStructure {
 	double scaleToRange = 1.0;      // practical range / scale; h/scale = |A h| * scaleToRange
 	bool isotropic = true;          // all ranges equal: |A h| = |h| / range[0]
 	double maternLogNorm = 0.0;     // (1 - nu) ln 2 - lgamma(nu)
-	// map(name) only: the table (owned by the CovarianceModel), its dims, strides and centre.
+	// map(name) only: the table (owned by the CovarianceModel), a hash of its
+	// dims and values, its dims, strides and centre.
 	const float* table = nullptr;
+	uint64_t tableHash = 0;
 	unsigned tableDims[kMaxDims] = {};
 	size_t tableStride[kMaxDims] = {};
 	int tableCentre[kMaxDims] = {};
@@ -687,11 +708,23 @@ struct ResolvedStructure {
 		}
 	}
 
+	// Equal parameters; map tables are compared by content (the same table,
+	// or equal dims and values).
 	bool sameParameters(const ResolvedStructure& o) const {
-		if (type != o.type || ndim != o.ndim || coefficient != o.coefficient || shape != o.shape || table != o.table) return false;
+		if (type != o.type || ndim != o.ndim || coefficient != o.coefficient || shape != o.shape) return false;
 		for (unsigned k = 0; k < ndim; ++k) if (range[k] != o.range[k]) return false;
 		for (unsigned k = 0; k < 3; ++k) if (angle[k] != o.angle[k]) return false;
-		return true;
+		return sameTable(o);
+	}
+	bool sameTable(const ResolvedStructure& o) const {
+		if (table == o.table) return true;
+		if (!table || !o.table || tableHash != o.tableHash) return false;
+		size_t count = 1;
+		for (unsigned d = 0; d < ndim; ++d) {
+			if (tableDims[d] != o.tableDims[d]) return false;
+			count *= tableDims[d];
+		}
+		return std::memcmp(table, o.table, count * sizeof(float)) == 0;
 	}
 };
 
@@ -755,8 +788,9 @@ public:
 	}
 
 	// 64-bit hash of the resolved parameters (types, coefficients, ranges,
-	// angles, shapes, map tables). Equal parameters give equal keys; confirm a
-	// key match with sameParameters() before sharing a solved system.
+	// angles, shapes, map tables by content), the same from run to run. Equal
+	// parameters give equal keys; confirm a key match with sameParameters()
+	// before sharing a solved system.
 	uint64_t key() const { return _key; }
 
 	bool sameParameters(const ResolvedModel& o) const {
@@ -768,25 +802,19 @@ public:
 	// Recomputes sill() and key() after `structures` was edited by hand.
 	void update() {
 		_sill = 0.0;
-		uint64_t hash = 1469598103934665603ull;
-		auto mix = [&](const void* data, size_t size) {
-			const unsigned char* bytes = static_cast<const unsigned char*>(data);
-			for (size_t i = 0; i < size; ++i) { hash ^= bytes[i]; hash *= 1099511628211ull; }
-		};
-		auto mixDouble = [&](double v) { if (v == 0.0) v = 0.0; mix(&v, sizeof(v)); };
-		mix(&ndim, sizeof(ndim));
+		Hasher h;
+		h.u64(ndim);
+		h.u64(structures.size());
 		for (const ResolvedStructure& s : structures) {
 			_sill += s.sill;
-			const int type = int(s.type);
-			mix(&type, sizeof(type));
-			mixDouble(s.coefficient);
-			mixDouble(s.shape);
-			for (unsigned k = 0; k < ndim; ++k) mixDouble(s.range[k]);
-			for (unsigned k = 0; k < 3; ++k) mixDouble(s.angle[k]);
-			const float* table = s.table;
-			mix(&table, sizeof(table));
+			h.u64(uint64_t(s.type));
+			h.f64(s.coefficient);
+			h.f64(s.shape);
+			for (unsigned k = 0; k < ndim; ++k) h.f64(s.range[k]);
+			for (unsigned k = 0; k < 3; ++k) h.f64(s.angle[k]);
+			h.u64(s.tableHash);
 		}
-		_key = hash;
+		_key = h.value();
 	}
 
 private:
@@ -831,6 +859,10 @@ public:
 				for (unsigned d = 0; d < ndim; ++d) { centre += size_t(table.dims[d] / 2) * stride; stride *= table.dims[d]; }
 				for (float v : *table.values) if (!std::isfinite(v)) throw Error(context + "map '" + name + "' contains non-finite values");
 				if (!((*table.values)[centre] > 0)) throw Error(context + "map '" + name + "' must be positive at its centre (lag 0)");
+				Hasher h;
+				for (unsigned d : table.dims) h.u64(d);
+				h.bytes(table.values->data(), table.values->size() * sizeof(float));
+				table.hash = h.value();
 			} else if (kind == Bindings::Kind::Constant) {
 				_constants[i] = bindings.constant(name);
 			} else if (kind == Bindings::Kind::Field) {
@@ -919,6 +951,7 @@ private:
 	struct Table {
 		std::shared_ptr<const std::vector<float> > values;
 		std::vector<unsigned> dims;
+		uint64_t hash = 0; // of dims and values
 	};
 	struct Raw {
 		double coefficient = 0.0, shape = 0.0;
@@ -965,6 +998,7 @@ private:
 		if (st.type == StructureType::Map) {
 			const Table& table = _tables[st.mapName];
 			rs.table = table.values->data();
+			rs.tableHash = table.hash;
 			size_t stride = 1, centre = 0;
 			for (unsigned d = 0; d < _ndim; ++d) {
 				rs.tableDims[d] = table.dims[d];
@@ -1095,6 +1129,30 @@ private:
 		}
 	}
 };
+
+// Hash of what a model set means, the same from run to run: canonical texts
+// and, at every node when the set is not stationary (nodeCount nodes), the
+// model index and ResolvedModel::key() (map tables by content).
+inline uint64_t covarianceModelSetHash(const CovarianceModelSet& models, size_t nodeCount) {
+	Hasher h;
+	for (const std::string& text : models.canonical()) h.text(text);
+	h.u64(models.ndim());
+	if (models.isStationary()) {
+		h.u64(1);
+		h.u64(models.stationaryModel().modelIndex);
+		h.u64(models.stationaryModel().key());
+	} else {
+		h.u64(0);
+		h.u64(nodeCount);
+		ResolvedModel scratch;
+		for (size_t node = 0; node < nodeCount; ++node) {
+			const ResolvedModel& m = models.at(node, scratch);
+			h.u64(m.modelIndex);
+			h.u64(m.key());
+		}
+	}
+	return h.value();
+}
 
 // Parses and binds every model text, checks that every binding is used by at
 // least one model and that the index (when given) refers to existing models

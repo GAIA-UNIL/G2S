@@ -445,6 +445,23 @@ void testVariables() {
 		bad.setTable("C", std::vector<float>(15, 0.f), { 5, 3 });
 		CHECK_THROWS(buildCovarianceModelSet({ "map(C)" }, bad, 2), "positive at its centre");
 		CHECK_THROWS(buildCovarianceModelSet({ "map(C)" }, b, 3), "has 2 dimensions, the lags have 3");
+		// Keys and sameParameters() compare tables by content, not by address.
+		Bindings two;
+		two.setTable("C", table, { 5, 3 });
+		two.setTable("D", table, { 5, 3 });
+		std::vector<float> changed = table;
+		changed[0] += 1.f;
+		two.setTable("E", changed, { 5, 3 });
+		two.setTable("F", table, { 3, 5 });
+		const CovarianceModelSet maps = buildCovarianceModelSet({ "0.5*map(C)", "0.5*map(D)", "0.5*map(E)", "0.5*map(F)" }, two, 2, { 0, 1, 2, 3 });
+		ResolvedModel mc, md, me, mf;
+		maps.resolve(0, mc); maps.resolve(1, md); maps.resolve(2, me); maps.resolve(3, mf);
+		CHECK(mc.structures[0].table != md.structures[0].table);
+		CHECK(mc.key() == md.key() && mc.sameParameters(md));
+		CHECK(mc.key() != me.key() && !mc.sameParameters(me));
+		CHECK(mc.key() != mf.key() && !mc.sameParameters(mf));
+		CHECK(m.key() == mc.key()); // same content in another model set
+		CHECK(covarianceModelSetHash(set, 0) == covarianceModelSetHash(buildCovarianceModelSet({ "0.5*map(C)" }, b, 2), 0));
 	}
 
 	section("variables: model set and index");

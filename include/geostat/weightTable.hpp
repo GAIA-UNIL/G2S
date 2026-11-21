@@ -94,67 +94,7 @@
 namespace g2s {
 namespace geostat {
 
-// ============================================================ hashing
-
-// FNV-1a 64 over bytes, deterministic across runs and platforms of the same
-// endianness. Doubles are normalised (-0 -> 0) before hashing.
-class Hasher {
-public:
-	void bytes(const void* data, size_t size) {
-		const unsigned char* p = static_cast<const unsigned char*>(data);
-		for (size_t i = 0; i < size; ++i) { _hash ^= p[i]; _hash *= 1099511628211ull; }
-	}
-	void u64(uint64_t v) { bytes(&v, sizeof(v)); }
-	void i64(int64_t v) { bytes(&v, sizeof(v)); }
-	void f64(double v) { if (v == 0.0) v = 0.0; bytes(&v, sizeof(v)); }
-	void text(const std::string& s) { u64(s.size()); bytes(s.data(), s.size()); }
-	uint64_t value() const { return _hash; }
-private:
-	uint64_t _hash = 1469598103934665603ull;
-};
-
-// Hash of what a model set means: canonical texts, per-node model index and
-// every resolved parameter (map tables by content), visiting every node when
-// the set is not stationary. ResolvedModel::key() is not used because it
-// hashes the address of map tables, which changes from run to run.
-inline uint64_t covarianceModelSetHash(const CovarianceModelSet& models, size_t nodeCount) {
-	Hasher h;
-	for (const std::string& text : models.canonical()) h.text(text);
-	std::vector<std::pair<const float*, uint64_t> > tables;
-	auto tableHash = [&](const ResolvedStructure& s) -> uint64_t {
-		for (const std::pair<const float*, uint64_t>& t : tables) if (t.first == s.table) return t.second;
-		Hasher th;
-		size_t count = 1;
-		for (unsigned d = 0; d < s.ndim; ++d) { th.u64(s.tableDims[d]); count *= s.tableDims[d]; }
-		th.bytes(s.table, count * sizeof(float));
-		tables.push_back({ s.table, th.value() });
-		return th.value();
-	};
-	auto mixModel = [&](const ResolvedModel& m) {
-		h.u64(m.modelIndex);
-		h.u64(m.structures.size());
-		for (const ResolvedStructure& s : m.structures) {
-			h.u64(uint64_t(s.type));
-			h.f64(s.coefficient);
-			h.f64(s.sill);
-			h.f64(s.shape);
-			for (unsigned k = 0; k < s.ndim; ++k) h.f64(s.range[k]);
-			for (unsigned k = 0; k < 3; ++k) h.f64(s.angle[k]);
-			if (s.table) h.u64(tableHash(s));
-		}
-	};
-	h.u64(models.ndim());
-	if (models.isStationary()) {
-		h.u64(1);
-		mixModel(models.stationaryModel());
-	} else {
-		h.u64(0);
-		h.u64(nodeCount);
-		ResolvedModel scratch;
-		for (size_t node = 0; node < nodeCount; ++node) mixModel(models.at(node, scratch));
-	}
-	return h.value();
-}
+// Hasher and covarianceModelSetHash() are in covarianceModel.hpp.
 
 // ============================================================ table
 
