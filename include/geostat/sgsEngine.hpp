@@ -61,7 +61,7 @@
 // residuals for simple kriging (the front end subtracts the mean beforehand
 // and adds it back), raw values for ordinary kriging. Hard-data rows must be
 // filled; simulated rows are overwritten. For each entry,
-//   v[t, r] = sum_j w_j v[n_j, r] + sigma * standardNormal(seed, first + r, t)
+//   v[t, r] = sum_j w_j v[n_j, r] + sigma * fastNormalByRealisation(seed, first + r, t)
 //             (the isolated mean instead of the sum when the entry has no
 //             neighbour); the noise term depends on no value and is written
 //             first, in a fully parallel pass
@@ -518,8 +518,9 @@ struct ReplayKernel {
 			const bool isolated = table.stencilStart[s + 1] == table.stencilStart[s];
 			const float mean = isolated ? float(options.isolatedMeanMap ? double(options.isolatedMeanMap[target]) : options.isolatedMean) : 0.f;
 			float* out = values + target * R;
+			fillFastNormalsByRealisation(options.seed, options.firstRealisation, R, target, 0, out);
 			for (size_t r = 0; r < R; ++r) {
-				const float deviation = sigma * float(standardNormal(options.seed, options.firstRealisation + uint32_t(r), target, 0));
+				const float deviation = sigma * out[r];
 				out[r] = isolated ? mean + deviation : deviation;
 			}
 		}

@@ -835,6 +835,70 @@ void testRandom() {
 		standardNormalPair(5, 2, 77, 3, a, b);
 		CHECK(a == standardNormal(5, 2, 77, 3) && b == inverseNormalCdf(uniform2(5, 2, 77, 3)));
 	}
+	section("random: fast normals");
+	{
+		// Fills equal the scalar functions whatever the start and the count.
+		bool fillsMatch = true;
+		std::vector<float> values(300);
+		for (uint64_t first : { uint64_t(0), uint64_t(1), uint64_t(2), uint64_t(3), uint64_t(6), (uint64_t(1) << 33) + 1 })
+			for (size_t count : { size_t(0), size_t(1), size_t(2), size_t(3), size_t(4), size_t(5), size_t(127), size_t(128), size_t(129), size_t(300) }) {
+				fillFastNormalsByIndex(7, 3, first, count, 2, values.data());
+				for (size_t k = 0; k < count; ++k) fillsMatch &= values[k] == fastNormalByIndex(7, 3, first + k, 2);
+				fillFastNormalsByRealisation(7, uint32_t(first), count, (uint64_t(5) << 32) + 9, 2, values.data());
+				for (size_t k = 0; k < count; ++k) fillsMatch &= values[k] == fastNormalByRealisation(7, uint32_t(first + k), (uint64_t(5) << 32) + 9, 2);
+			}
+		CHECK(fillsMatch);
+		CHECK(fastNormalByIndex(42, 3, 1000) != fastNormalByIndex(42, 4, 1000));
+		CHECK(fastNormalByIndex(42, 3, 1000) != fastNormalByIndex(42, 3, 1001));
+		CHECK(fastNormalByIndex(42, 3, 1000) != fastNormalByIndex(42, 3, 1000, 1));
+		CHECK(fastNormalByIndex(42, 3, 1000) != fastNormalByIndex(43, 3, 1000));
+		CHECK(fastNormalByIndex(42, 3, uint64_t(1) << 40) != fastNormalByIndex(42, 3, 0));
+		CHECK(fastNormalByRealisation(42, 3, 1000) != fastNormalByIndex(42, 3, 1000));
+		CHECK(fastNormalByRealisation(42, 3, 1000) != fastNormalByRealisation(42, 3, 1000 + (uint64_t(1) << 32)));
+		// Moments and tails of both families.
+		const size_t n = 4000000;
+		std::vector<float> byIndex(n), byRealisation(n);
+		fillFastNormalsByIndex(2026, 7, 0, n, 0, byIndex.data());
+		for (size_t i = 0; i < n; i += 64) fillFastNormalsByRealisation(2026, 0, 64, i / 64, 0, byRealisation.data() + i);
+		for (const std::vector<float>* z : { &byIndex, &byRealisation }) {
+			double s1 = 0, s2 = 0, s3 = 0, s4 = 0, largest = 0;
+			size_t beyond2 = 0, beyond3 = 0;
+			for (float v : *z) {
+				const double x = v;
+				s1 += x; s2 += x * x; s3 += x * x * x; s4 += x * x * x * x;
+				largest = std::max(largest, std::fabs(x));
+				beyond2 += std::fabs(x) > 2; beyond3 += std::fabs(x) > 3;
+			}
+			const double mean = s1 / n, variance = s2 / n - mean * mean;
+			CHECK_NEAR(mean, 0, 0.003);
+			CHECK_NEAR(variance, 1, 0.004);
+			CHECK_NEAR(s3 / n, 0, 0.008);
+			CHECK_NEAR(s4 / n, 3, 0.02);
+			CHECK_NEAR(double(beyond2) / n, std::erfc(2 / std::sqrt(2.0)), 0.0005);
+			CHECK_NEAR(double(beyond3) / n, std::erfc(3 / std::sqrt(2.0)), 0.0001);
+			CHECK(largest < 6.77 && largest > 4.5);
+		}
+		// Neighbouring values of a block are uncorrelated.
+		double lag1 = 0;
+		for (size_t i = 0; i + 1 < n; ++i) lag1 += double(byIndex[i]) * double(byIndex[i + 1]);
+		CHECK_NEAR(lag1 / n, 0, 0.003);
+		// The building blocks.
+		double logError = 0;
+		for (uint64_t k = 1; k < (uint64_t(1) << 32); k += 65537) {
+			const float u = float(k) * 0x1p-32f + 0x1p-33f;
+			logError = std::max(logError, std::fabs(double(detail::fastLog(u)) - std::log(double(u))) / std::max(1e-6, std::fabs(std::log(double(u)))));
+		}
+		CHECK(logError < 3e-7);
+		double angleError = 0;
+		const double radius = std::sqrt(-2.0 * std::log(0.5 + std::ldexp(1.0, -33)));
+		for (uint64_t k = 0; k < (uint64_t(1) << 32); k += 65537) {
+			float c, s;
+			detail::boxMuller(0x80000000u, uint32_t(k), c, s);
+			const double angle = 6.283185307179586 * double(k) / 4294967296.0;
+			angleError = std::max(angleError, std::max(std::fabs(c - radius * std::cos(angle)), std::fabs(s - radius * std::sin(angle))));
+		}
+		CHECK(angleError < 5e-7);
+	}
 	section("random: inverse normal CDF");
 	{
 		CHECK_NEAR(inverseNormalCdf(0.5), 0.0, 1e-16);

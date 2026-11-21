@@ -101,21 +101,6 @@ inline const char* methodName(Method method) { return method == Method::Spectral
 constexpr uint32_t kWhiteNoiseStream = 0;
 constexpr uint32_t kSpectralNoiseStream = 1;
 
-// ============================================================ random numbers
-
-// Two independent N(0,1) from the Philox block (seed, realisation, index,
-// stream) of geostat/random.hpp, by Box-Muller on uniform() and uniform2():
-// r = sqrt(-2 ln u1), first = r cos(2 pi u2), second = r sin(2 pi u2).
-// Counter-based like standardNormalPair() but about 2.5x faster (no erfc
-// refinement), which matters here: drawing the noise costs more than the FFTs.
-inline void normalPair(uint64_t seed, uint32_t realisation, uint64_t index, uint32_t stream, double& first, double& second) {
-	const std::array<uint32_t, 4> bits = randomBlock(seed, realisation, index, stream);
-	const double radius = std::sqrt(-2.0 * std::log(bitsToUniform(bits[0], bits[1])));
-	const double angle = 6.28318530717958647693 * bitsToUniform(bits[2], bits[3]);
-	first = radius * std::cos(angle);
-	second = radius * std::sin(angle);
-}
-
 // ============================================================ threads
 
 // Runs f(begin, end) over [0, count) split in `threads` contiguous chunks
@@ -329,31 +314,13 @@ inline SpectrumReport amplitudeFromSpectrum(const double* halfSpectrum, const Gr
 
 // White noise N(0,1) of realisation `realisation` on the extended grid,
 // written to an in-place r2c float array (padding set to 0). Cell x (unpadded
-// flat index) takes one of the two normals of normalPair(block x/2).
+// flat index) takes fastNormalByIndex(seed, realisation, x, kWhiteNoiseStream).
 inline void fillWhiteNoise(uint64_t seed, uint32_t realisation, const GridLayout& L, float* padded, unsigned threads) {
 	const size_t N0 = L.extended[0];
 	parallelFor(L.rows, threads, [&](size_t begin, size_t end) {
 		for (size_t row = begin; row < end; ++row) {
 			float* out = padded + row * L.rowPitch;
-			const size_t base = row * N0;
-			size_t x = 0;
-			if (base % 2 == 1) { // first cell is the second normal of its block
-				double first, second;
-				normalPair(seed, realisation, base / 2, kWhiteNoiseStream, first, second);
-				out[0] = float(second);
-				x = 1;
-			}
-			for (; x + 1 < N0; x += 2) {
-				double first, second;
-				normalPair(seed, realisation, (base + x) / 2, kWhiteNoiseStream, first, second);
-				out[x] = float(first);
-				out[x + 1] = float(second);
-			}
-			if (x < N0) {
-				double first, second;
-				normalPair(seed, realisation, (base + x) / 2, kWhiteNoiseStream, first, second);
-				out[x] = float(first);
-			}
+			fillFastNormalsByIndex(seed, realisation, row * N0, N0, kWhiteNoiseStream, out);
 			for (size_t k = N0; k < L.rowPitch; ++k) out[k] = 0.f;
 		}
 	});
@@ -398,34 +365,35 @@ inline void multiplyAmplitude(const float* amplitude, float scale, float* spectr
 
 // Complex Gaussian noise times scale * amplitude in the half spectrum, with
 // Hermitian symmetry: frequency k (flat index f over the full extended grid)
-// uses normalPair(block min(f, f(-k)), stream kSpectralNoiseStream) as
-// (real, imaginary) parts; interior entries
-// (0 < k0 < N0/2) are independent, entries on the self-partner planes are the
-// conjugate of their partner, and self-conjugate entries are real N(0,1).
+// uses the normals 2 g and 2 g + 1 of fastNormalByIndex(stream
+// kSpectralNoiseStream), g = min(f, f(-k)), as (real, imaginary) parts;
+// interior entries (0 < k0 < N0/2) are independent, entries on the
+// self-partner planes are the conjugate of their partner, and self-conjugate
+// entries are real N(0,1).
 inline void fillSpectralNoise(uint64_t seed, uint32_t realisation, const GridLayout& L, const float* amplitude, float scale,
                               float* spectrum, unsigned threads) {
 	const size_t N0 = L.extended[0];
 	const double half = std::sqrt(0.5);
 	parallelFor(L.rows, threads, [&](size_t begin, size_t end) {
+		std::vector<float> normals(2 * L.halfRow);
 		for (size_t row = begin; row < end; ++row) {
+			fillFastNormalsByIndex(seed, realisation, 2 * row * N0, 2 * L.halfRow, kSpectralNoiseStream, normals.data());
 			for (size_t k0 = 0; k0 < L.halfRow; ++k0) {
 				const size_t i = row * L.halfRow + k0;
 				const size_t flat = row * N0 + k0;
 				size_t partnerRow = row;
-				double re, im;
+				double re = double(normals[2 * k0]), im = double(normals[2 * k0 + 1]);
 				if (!onSelfPartnerPlane(L, k0, row, partnerRow)) {
-					normalPair(seed, realisation, flat, kSpectralNoiseStream, re, im);
 					re *= half; im *= half;
 				} else {
 					const size_t partnerFlat = partnerRow * N0 + k0;
 					if (partnerFlat == flat) {
-						normalPair(seed, realisation, flat, kSpectralNoiseStream, re, im);
 						im = 0.0;
 					} else if (flat < partnerFlat) {
-						normalPair(seed, realisation, flat, kSpectralNoiseStream, re, im);
 						re *= half; im *= half;
 					} else {
-						normalPair(seed, realisation, partnerFlat, kSpectralNoiseStream, re, im);
+						re = double(fastNormalByIndex(seed, realisation, 2 * partnerFlat, kSpectralNoiseStream));
+						im = double(fastNormalByIndex(seed, realisation, 2 * partnerFlat + 1, kSpectralNoiseStream));
 						re *= half; im *= -half;
 					}
 				}

@@ -88,7 +88,7 @@
 // Random numbers are counter-based (random.hpp): every draw is a function of
 // (seed, realisation, index, stream), so results do not depend on the number
 // of threads, on how the points are split into blocks, or on how realisations
-// are batched. Streams: 0 nugget (index = node id), 1 rotations (index =
+// are batched. Streams: 0 nugget (fastNormalByIndex, index = node id), 1 rotations (index =
 // structure), 2 + 8 s + k the k-th draw of structure s (index = line, or
 // line * 64 + attempt, or (line << 40) + segment).
 //
@@ -489,10 +489,16 @@ public:
 	void evaluate(const double* points, size_t count, const uint64_t* nodeIds, uint64_t firstId, double* out) const {
 		for (size_t i = 0; i < count; ++i) out[i] = 0.0;
 		for (size_t s = 0; s < _structures.size(); ++s) sumLines(lineSet(s), points, count, out);
-		for (size_t i = 0; i < count; ++i) {
-			double value = _mean + out[i];
-			if (_nuggetDeviation > 0) value += _nuggetDeviation * standardNormal(_seed, _realisation, nodeIds ? nodeIds[i] : firstId + i, 0);
-			out[i] = value;
+		if (!(_nuggetDeviation > 0)) {
+			for (size_t i = 0; i < count; ++i) out[i] += _mean;
+			return;
+		}
+		float noise[256];
+		for (size_t begin = 0; begin < count; begin += 256) {
+			const size_t n = std::min<size_t>(256, count - begin);
+			if (nodeIds) for (size_t i = 0; i < n; ++i) noise[i] = fastNormalByIndex(_seed, _realisation, nodeIds[begin + i], 0);
+			else fillFastNormalsByIndex(_seed, _realisation, firstId + begin, n, 0, noise);
+			for (size_t i = 0; i < n; ++i) out[begin + i] = _mean + out[begin + i] + _nuggetDeviation * double(noise[i]);
 		}
 	}
 
