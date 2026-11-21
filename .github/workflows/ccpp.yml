@@ -86,3 +86,8 @@ jobs:
         rm -f build/c++-build/*.o
         make -C build c++ -j
         ./build/c++-build/test -sampling 1D 2D 3D
+        # FFT-MA / spectral determinism and conditioning against the SIMD FFTW (relinked).
+        make -C test/geostat_fft clean
+        make -C test/geostat_fft
+        make -C test/geostat_conditioning clean
+        make -C test/geostat_conditioning
