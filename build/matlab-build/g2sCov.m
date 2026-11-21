@@ -9,7 +9,7 @@ classdef g2sCov
 %
 %   model = 0.1*g2sCov.nugget() + 0.9*g2sCov.spherical('range', [40 20], 'angle', thetaMap);
 %   args  = model.args();
-%   sim   = g2s('-a', 'sgs', '-di', di, args{:}, '-n', 50);
+%   sim   = g2s('-a', 'sgs', '-di', di, '-dt', [0], args{:}, '-n', 50);   % -dt: data type of -di
 %   char(model)   % '0.1*nugget + 0.9*spherical(range=[40, 20], angle=_a1)', the canonical
 %                 % text, identical to the C++ one (thetaMap got the automatic name _a1)
 %
@@ -325,8 +325,13 @@ classdef g2sCov
 
 		function m = map(table)
 			% Covariance given as a map M: C(h) = sill*M(centre + round(h)), 0 outside M.
-			% table: a matrix (same size as the grid; centre = floor(size/2) per axis, 0-based,
-			% must be > 0), a g2sCov.var(name, M), or a name (char) to bind later.
+			% table: a matrix of any size, one axis per lag component (it does not have to
+			% match the grid; lags beyond it have covariance 0; centre = floor(size/2) per
+			% axis, 0-based, must be > 0), a g2sCov.var(name, M), or a name (char) to bind later.
+			% M must be a valid covariance (symmetric, positive definite): the server warns
+			% when it is not (e.g. a raw experimental covariance map, with which sgs can give
+			% values far outside the data range); fit a model, or add '-mapclip' to the call
+			% to project M onto a valid covariance of the same size.
 			if ischar(table) || (isstring(table) && isscalar(table))
 				node = mkVar(char(table), [], 0);
 			elseif isa(table, 'g2sCov') && strcmp(table.Kind, 'expr') && strcmp(table.Node.op, 'var')

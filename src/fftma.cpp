@@ -20,10 +20,12 @@
 // from the name it is run under (the build links `spectral` to `fftma`) and
 // -method overrides it.
 //
-//   g2s('-a','fftma','-di',grid,'-cov','1*spherical(range=[40,20], angle=30)','-nr',16,'-s',1,'-j',8)
-//   g2s('-a','spectral','-di',grid,'-cov','1*gaussian(range=30)','-csim')
-//   g2s('-a','fftma','-di',grid,'-cov',model,'-ni',noise,'-on')   % FFT-MA with a given noise
-//   g2s('-a','fftma','-di',data,'-cov',model,'-nr',16,'-km','local')  % conditional
+//   g2s('-a','fftma','-di',grid,'-dt',[0],'-cov','1*spherical(range=[40,20], angle=30)','-nr',16,'-s',1,'-j',8)
+//   g2s('-a','spectral','-di',grid,'-dt',[0],'-cov','1*gaussian(range=30)','-csim')
+//   g2s('-a','fftma','-di',grid,'-dt',[0],'-cov',model,'-ni',noise,'-on')   % FFT-MA with a given noise
+//   g2s('-a','fftma','-di',data,'-dt',[0],'-cov',model,'-nr',16,'-km','local')  % conditional
+//   (-dt: the interfaces need the data type of -di, one 0 = continuous; -ni is
+//   uploaded without it, its realisations as a last dimension)
 //
 // The informed (non-NaN) cells of -di are hard data: each realisation is
 // conditioned by kriging of its residuals (geostat/conditioning.hpp, flags in
@@ -59,19 +61,22 @@ void printHelp() {
 	       "  -di   grid of the simulation (mandatory); non-NaN cells are hard data (all NaN: unconditional)\n"
 	       "  -cov  covariance model, e.g. \"0.1*nugget + 0.9*spherical(range=[40,20], angle=30)\" (mandatory, stationary)\n"
 	       "  -cvar name value  binds a model variable (number, or map image); repeat as needed\n"
+	       "  -mapclip  project map(name) tables onto a valid covariance (see the map_* warning)\n"
 	       "  -method fftma|spectral  default: the name the executable is run under\n"
 	       "  -nr   number of realisations (default 1; the number of -ni variables when -ni is given)\n"
 	       "  -ri   index of the first realisation (default 0): realisation r of a run with -ri 0\n"
 	       "        equals realisation 0 of a run with -ri r\n"
 	       "  -m    mean (default 0)\n"
-	       "  -s    seed; -j threads (a fraction = share of the cores); with a given FFTW library on a\n"
-	       "        given machine the output is bit-identical for any -j and any split of -nr / -ri\n"
-	       "        (not across FFTW builds or machines)\n"
+	       "  -s    seed, an integer in [0, 2^64 - 1] (default: from the clock)\n"
+	       "  -j    threads (a fraction = share of the cores); with a given FFTW library on a given\n"
+	       "        machine the output is bit-identical for any -j and any split of -nr / -ri (not across\n"
+	       "        FFTW builds or machines)\n"
 	       "  -buf  buffer in cells, one value or one per axis (default: the largest practical\n"
 	       "        range along each axis); the grid is then rounded up to an FFT-friendly size\n"
 	       "  -csim periodic simulation on the -di grid (no buffer); the conditioning uses periodic distances\n"
-	       "  -ni   fftma only: white noise image on the extended grid, one variable per realisation\n"
-	       "        (its size sets the extended grid)\n"
+	       "  -ni   fftma only: white noise image on the extended grid, one variable per realisation,\n"
+	       "        or one more (last) dimension for the realisations, as -on returns it to the\n"
+	       "        Python / MATLAB / R interfaces; its size sets the extended grid\n"
 	       "  -on   fftma only: also output the white noise of the unconditional field (output 2, extended grid)\n"
 	       "%s"
 	       "%s"

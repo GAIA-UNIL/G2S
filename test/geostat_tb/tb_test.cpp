@@ -695,7 +695,7 @@ void testExecutable(const std::string& binary) {
 		const bool explained = text.find(fragment) != std::string::npos;
 		report(failed && explained, "tb " + arguments + " should fail with '" + fragment + "'", __FILE__, __LINE__);
 	};
-	CHECK(writeImage(N("tb_test_table"), dims, 1.0f)); // map tables have the size of the grid
+	CHECK(writeImage(N("tb_test_table"), dims, 1.0f)); // a map table (any size; here the grid's)
 	refused("-di " + N("tb_test_grid") + " -cov '0.5*exponential(range=10) + 1*map(C)' -cvar C " + N("tb_test_table") + " -id " + testIdText(703), "structure 2 (map) is not supported");
 	g2s::DataImage ranges(2, std::vector<unsigned>{ 60, 45 }.data(), 1);
 	for (size_t i = 0; i < ranges.dataSize(); ++i) ranges._data[i] = float(5 + i % 7);

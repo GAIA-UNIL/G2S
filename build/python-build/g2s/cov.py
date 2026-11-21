@@ -12,7 +12,8 @@ Example::
     from g2s import g2s, cov
     model = 0.1*cov.nugget() + 0.9*cov.spherical(range=[40, 20], angle=30)
     str(model)   # '0.1*nugget + 0.9*spherical(range=[40, 20], angle=30)'
-    sim = g2s('-a', 'sgs', '-di', di, *model.args(), '-n', 50)
+    sim = g2s('-a', 'sgs', '-di', di, '-dt', [0], *model.args(), '-n', 50)
+    # ('-dt', [0]: the data type of -di, which the interfaces need with -di)
 
     # parameters may vary in space (a numpy array on the simulation grid) and
     # may be expressions of named variables
@@ -790,10 +791,19 @@ def stable(range=None, alpha=None, angle=None, scale=None):
 def map(table):
     """Covariance given as a map: C(h) = sill * M[centre + round(h)], 0 outside M.
 
-    table: a numpy array M (same size as the simulation grid; its centre, lag
-    0, is at shape//2 on each axis and must be > 0), a ``cov.var(name, M)``,
-    or a name (string) to bind later. The partial sill is the factor times
-    M[centre].
+    table: a numpy array M of any size, one axis per lag component (it does
+    not have to match the simulation grid; lags beyond it have covariance 0;
+    its centre, lag 0, is at shape//2 on each axis and must be > 0), a
+    ``cov.var(name, M)``, or a name (string) to bind later. The partial sill
+    is the factor times M[centre].
+
+    M must be a valid covariance (symmetric, positive definite). The server
+    checks it when it loads it and warns (naming the variable) when the
+    negative part of its spectrum exceeds 1 % or it is not symmetric: a raw
+    experimental covariance map usually is not valid, and sgs can then
+    produce values far outside the data range. Fit a model to it, or add
+    ``'-mapclip'`` to the call to project M onto a valid covariance of the
+    same size (negative spectral values set to 0).
     """
     if isinstance(table, str):
         table = Var(table)

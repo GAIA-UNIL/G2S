@@ -77,8 +77,9 @@ inline const char* conditioningHelp() {
 	       "  -kt   sk | ok (default sk: the residuals have mean 0; ok re-estimates the mean from the data)\n"
 	       "  -km   direct | local | auto: kriging method (default auto: direct up to 10000 data, local beyond)\n"
 	       "  -n    local: number of neighbours (default 50)\n"
-	       "  -ki   local: kernel image (neighbourhood window); -ks kernel size; default: unrestricted\n"
-	       "  -os k local: octant/quadrant search, at most k neighbours per sector\n"
+	       "  -ki   local: kernel image (neighbourhood window); -ks kernel size, one value for every axis\n"
+	       "        (an even size is increased by 1); default: unrestricted\n"
+	       "  -os k local: octant (3D) / quadrant (2D) search, at most k neighbours per sector\n"
 	       "  -maxmem GiB  direct: largest n x n matrix allowed (default 2)\n";
 }
 

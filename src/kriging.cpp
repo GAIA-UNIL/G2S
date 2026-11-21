@@ -18,8 +18,9 @@
 // kriging: estimation (not simulation). The informed (non-NaN) cells of -di
 // are the data, the NaN cells the targets; data cells keep their value.
 //
-//   g2s('-a','kriging','-di',grid,'-cov','0.1*nugget + 0.9*spherical(range=40)','-var')
-//   g2s('-a','kriging','-di',grid,'-cov',model,'-kt','sk','-m',meanMap,'-method','local','-n',30,'-os',8)
+//   g2s('-a','kriging','-di',grid,'-dt',[0],'-cov','0.1*nugget + 0.9*spherical(range=40)','-var')
+//   g2s('-a','kriging','-di',grid,'-dt',[0],'-cov',model,'-kt','sk','-m',meanMap,'-method','local','-n',30,'-os',8)
+//   (-dt: the interfaces need the data type of -di, one 0 = continuous)
 //
 // Two strategies (the engines are include/geostat/krigingGlobal.hpp and
 // krigingLocal.hpp; this file only maps the grid onto them):
@@ -72,13 +73,15 @@ void printHelp() {
 	printf("kriging: simple / ordinary kriging of the NaN cells of -di from its informed cells.\n"
 	       "  -di   data image, one variable, NaN = cell to estimate (mandatory)\n"
 	       "  -cov  covariance model(s) (mandatory); -cvar name value; -ii model index image (see covEval)\n"
+	       "  -mapclip  project map(name) tables onto a valid covariance (see the map_* warning)\n"
 	       "  -kt   sk | ok (default ok)\n"
 	       "  -m    SK mean: number or image on the -di grid (default 0); OK uses it only where a target has no neighbour\n"
 	       "  -method direct | local | auto (default auto)\n"
 	       "  -var  also compute the kriging variance (output 2)\n"
 	       "  -n    local: number of neighbours (default 50)\n"
-	       "  -ki   local: kernel image (neighbourhood window); -ks kernel size; default: unrestricted\n"
-	       "  -os k local: octant/quadrant search, at most k neighbours per sector\n"
+	       "  -ki   local: kernel image (neighbourhood window); -ks kernel size, one value for every axis\n"
+	       "        (an even size is increased by 1); default: unrestricted\n"
+	       "  -os k local: octant (3D) / quadrant (2D) search, at most k neighbours per sector (up to 4D)\n"
 	       "  -csim local: circular (periodic) grid\n"
 	       "  -maxmem GiB  direct: largest n x n matrix allowed (default %.0f)\n"
 	       "  -j    threads (a fraction = share of the cores)\n"
@@ -88,6 +91,7 @@ void printHelp() {
 	       "        devices with cl_khr_fp64); the factorisation and the estimate stay on the CPU.\n"
 	       "        Devices without double precision (Apple GPUs) are not used: kriging systems are\n"
 	       "        ill-conditioned and are never solved in float. |gpu - cpu| <= 1e-9 sill\n"
+	       "  -gpuforce  accepted for symmetry with tb and fftma; no effect\n"
 	       "  -o / -oi  output names (estimate / variance)\n", kDefaultMaxMemoryGiB, g2s::geostat::gpu::gpuHelp());
 }
 

@@ -20,7 +20,8 @@
 // in parallel, then replayed for R realisations at once. The values are
 // simulated as given: transform to normal scores beforehand if needed.
 //
-//   g2s('-a','sgs','-di',grid,'-cov','spherical(range=[40,20], angle=30)','-n',50,'-nr',8,'-j',8)
+//   g2s('-a','sgs','-di',grid,'-dt',[0],'-cov','spherical(range=[40,20], angle=30)','-n',50,'-nr',8,'-j',8)
+//   (-dt: the interfaces need the data type of -di, one 0 = continuous)
 //
 // Outputs: 1 the simulations, P*R variables in (path, realisation) order;
 //          2 the number of neighbours used per node, one variable per path
@@ -51,19 +52,26 @@ namespace {
 
 void printHelp() {
 	printf("sgs: sequential Gaussian simulation (kriging-based, plan then replay).\n"
-	       "  -di   destination grid (mandatory); non-NaN cells are hard data, honoured exactly\n"
+	       "  -di   destination grid, one variable (mandatory); non-NaN cells are hard data, honoured exactly\n"
 	       "  -cov  covariance model(s); -cvar name value binds a variable; -ii model index image\n"
+	       "  -mapclip  project map(name) tables onto a valid covariance (see the map_* warning)\n"
 	       "  -kt   kriging type: sk (simple, default) or ok (ordinary)\n"
-	       "  -m    simple-kriging mean: a number or an image on the grid (default 0)\n"
+	       "  -m    simple-kriging mean: a number or an image on the grid (default 0); with ok, used only\n"
+	       "        for nodes without any neighbour\n"
 	       "  -n    maximum number of neighbours (default 50)\n"
-	       "  -ki   kernel image (neighbourhood); -ks kernel size when -ki is omitted\n"
-	       "        (default: twice the largest practical range of the model, + 1)\n"
+	       "  -ki   kernel image (neighbourhood window; NaN or 0 weight = excluded); -ks kernel size, one\n"
+	       "        value for every axis, when -ki is omitted (default: 2 x the largest practical range of\n"
+	       "        the model + 1); clamped to 2 x grid - 1 (to the grid size with -csim) and made odd\n"
+	       "        (an even size is reduced by 1)\n"
 	       "  -wd   order the kernel by weight instead of Euclidean distance\n"
-	       "  -os k octant search: at most k neighbours per sector (default off)\n"
+	       "  -os k octant (3D) / quadrant (2D) search: at most k neighbours per sector (default off; up to 4D)\n"
 	       "  -csim circular simulation (the grid wraps around)\n"
-	       "  -nr R realisations per path (default 1); -np P paths (default 1); -ri first realisation index (default 0)\n"
-	       "  -sp   simulation path image (fixed path); -pt random|multigrid|regular path type (default random)\n"
-	       "  -s    seed; -j threads (a fraction = share of the cores)\n"
+	       "  -nr R realisations per path (default 1); -np P paths (default 1); -ri first realisation index\n"
+	       "        (default 0); R x P <= 65535\n"
+	       "  -sp   simulation path image (fixed path: ascending values, NaN last, -inf not simulated);\n"
+	       "        -pt random|multigrid|regular path type (default random)\n"
+	       "  -s    seed, an integer in [0, 2^64 - 1] (default: from the clock)\n"
+	       "  -j    threads (a fraction = share of the cores); the result does not depend on -j\n"
 	       "  -wo file  write the plan (weights) of the path; -wi file  replay a written plan\n"
 	       "  -noshare  solve every node, without sharing identical systems\n"
 	       "  -o / -oi  output names (simulation / neighbour count)\n");

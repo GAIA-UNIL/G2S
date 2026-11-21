@@ -55,7 +55,9 @@ void printHelp() {
 	       "  -lag  N x ndim lags, column 0 = shift along the last array index (mandatory)\n"
 	       "  -pos  1 x ndim or N x ndim nodes where non-stationary parameters are resolved\n"
 	       "  -di   grid (optional when a -cvar or -ii image gives it)\n"
-	       "  -vario  also output the variogram C(0) - C(h)\n");
+	       "  -mapclip  project map(name) tables onto a valid covariance (see the map_* warning)\n"
+	       "  -vario  also output the variogram C(0) - C(h)\n"
+	       "  -o    output name\n");
 }
 
 // N x ndim array (DataImage dims [ndim, N]) or vector (dims [N], ndim = 1).

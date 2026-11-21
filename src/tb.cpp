@@ -17,8 +17,9 @@
 
 // tb: grid front end of the turning-bands engine (geostat/turningBands.hpp).
 //
-//   g2s('-a','tb','-di',nan(200,300),'-cov','0.1*nugget + 0.9*spherical(range=[40,20], angle=30)','-nr',10,'-s',7)
-//   g2s('-a','tb','-di',data,'-cov',model,'-nr',16,'-km','local','-n',30)   % conditional
+//   g2s('-a','tb','-di',nan(200,300),'-dt',[0],'-cov','0.1*nugget + 0.9*spherical(range=[40,20], angle=30)','-nr',10,'-s',7)
+//   g2s('-a','tb','-di',data,'-dt',[0],'-cov',model,'-nr',16,'-km','local','-n',30)   % conditional
+//   (-dt: the interfaces need the data type of -di, one 0 = continuous)
 //
 // The grid is the -di image; node coordinates are cell indices in DataImage
 // axis order, the same units as the covariance ranges. Its informed (non-NaN)
@@ -56,12 +57,14 @@ void printHelp() {
 	       "  -cov  covariance model, e.g. \"0.1*nugget + 0.9*spherical(range=[40,20], angle=30)\" (mandatory)\n"
 	       "        supported: nugget, spherical, exponential, gaussian, cubic, matern, stable (not map)\n"
 	       "  -cvar name value  binds a model variable (constant; spatially varying values are not supported)\n"
-	       "  -nb   number of lines per structure (default 1000)\n"
-	       "  -nr   number of realisations, output as variables (default 1)\n"
+	       "        (-ii and several -cov are not supported either)\n"
+	       "  -nb   number of lines per structure (default 1000, at most 16777215)\n"
+	       "  -nr   number of realisations, output as variables (default 1, at most 100000)\n"
 	       "  -ri   index of the first realisation (default 0): realisation r of a run with -ri 0\n"
 	       "        equals realisation 0 of a run with -ri r\n"
 	       "  -m    mean (default 0)\n"
-	       "  -s    seed; -j threads (a fraction = share of the cores; the result does not depend on -j)\n"
+	       "  -s    seed, an integer in [0, 2^64 - 1] (default: from the clock)\n"
+	       "  -j    threads (a fraction = share of the cores); the result does not depend on -j\n"
 	       "  -csim is refused: turning bands fields are not periodic\n"
 	       "%s"
 	       "%s"
