@@ -198,9 +198,8 @@ int main(int argc, char const* argv[]) {
 	} else if (arg.count("-ri") > 1) { error = "-ri expects an integer >= 0"; fprintf(reportFile, "error: %s\n", error.c_str()); run = false; }
 	arg.erase("-ri");
 
-	unsigned seed = unsigned(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-	if (arg.count("-s") == 1) seed = unsigned(atol(arg.find("-s")->second.c_str()));
-	arg.erase("-s");
+	uint64_t seed = 0;
+	if (!g2s::geostat::readSeedArgument(arg, seed, error)) { fprintf(reportFile, "error: %s\n", error.c_str()); run = false; }
 
 	if (arg.count("-csim") >= 1) {
 		error = "-csim (periodic simulation) is not available with turning bands: the fields are not periodic; remove -csim";
@@ -252,7 +251,7 @@ int main(int argc, char const* argv[]) {
 	settings.seed = seed;
 	settings.threads = nbThreads;
 	settings.mean = mean;
-	g2s::reporting::logParameter(reportFile, "seed", std::to_string(seed));
+	g2s::reporting::logParameter(reportFile, "seed", std::to_string((unsigned long long)seed));
 	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
 	g2s::reporting::logParameter(reportFile, "lines_per_structure", std::to_string(lineCount));
 	g2s::reporting::logParameter(reportFile, "realisations", std::to_string(nbRealisations));

@@ -737,6 +737,16 @@ void testFlags() {
 	refused("sgs", "-cov 'spherical(range=12)' -id " + testIdText(827), "-di is mandatory");
 	refused("kriging", common + " -kt uk -id " + testIdText(828), "-kt expects sk or ok");
 	refused("sgs", common + " -kt uk -id " + testIdText(829), "-kt expects sk or ok");
+	// The seed is read identically by the simulations (geostat/random.hpp readSeedArgument).
+	{
+		const std::string noSeed = "-di " + N("cond_flags") + " -cov 'spherical(range=12)'";
+		int id = 831;
+		for (const char* name : { "sgs", "fftma", "tb" }) {
+			refused(name, noSeed + " -s 1.5 -id " + testIdText(id++), "-s expects an integer seed in [0, 18446744073709551615]");
+			refused(name, noSeed + " -s 2 -s 3 -id " + testIdText(id++), "only one -s (seed) is possible");
+			CHECK(run(name, noSeed + " -s 18446744073709551615", testId(id++)) == 0);
+		}
+	}
 	// Several variables with data: refused (one variable holds the hard data).
 	{
 		std::vector<unsigned> d = dims;

@@ -53,9 +53,13 @@
 #define G2S_GEOSTAT_RANDOM_HPP
 
 #include <array>
+#include <cctype>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <map>
+#include <string>
 
 #include <cmath>
 
@@ -298,6 +302,49 @@ inline void fillFastNormalsByRealisation(uint64_t seed, uint32_t firstRealisatio
 	detail::fillFastNormals(firstRealisation, count, key.data(), [&](uint64_t block, std::array<uint32_t, 4>& c) {
 		c = { uint32_t(block), uint32_t(index), uint32_t(index >> 32), stream };
 	}, out);
+}
+
+// ---- the -s seed of the executables (sgs, fftma / spectral, tb): one reading
+// for all of them, so that a seed means the same everywhere.
+
+// Seed text: a decimal integer in [0, 2^64 - 1]; a fractional part of zeros
+// only is accepted ("7.000000" is how the MATLAB and Python interfaces send a
+// floating-point 7). Returns false for anything else.
+inline bool parseSeedText(const std::string& text, uint64_t& seed) {
+	size_t i = 0;
+	while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
+	if (i < text.size() && text[i] == '+') ++i;
+	const size_t digitsBegin = i;
+	uint64_t value = 0;
+	for (; i < text.size() && std::isdigit(static_cast<unsigned char>(text[i])); ++i) {
+		const uint64_t digit = uint64_t(text[i] - '0');
+		if (value > (UINT64_MAX - digit) / 10) return false; // overflow
+		value = value * 10 + digit;
+	}
+	if (i == digitsBegin) return false;
+	if (i < text.size() && text[i] == '.') {
+		for (++i; i < text.size() && text[i] == '0'; ++i) {}
+	}
+	while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
+	if (i != text.size()) return false;
+	seed = value;
+	return true;
+}
+
+// Reads -s from the arguments of an executable (and removes it). Without -s
+// the seed comes from the clock. Returns false with a message on a bad value.
+inline bool readSeedArgument(std::multimap<std::string, std::string>& arg, uint64_t& seed, std::string& error) {
+	seed = uint64_t(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+	bool ok = true;
+	if (arg.count("-s") > 1) {
+		error = "only one -s (seed) is possible";
+		ok = false;
+	} else if (arg.count("-s") == 1 && !parseSeedText(arg.find("-s")->second, seed)) {
+		error = "-s expects an integer seed in [0, 18446744073709551615], got '" + arg.find("-s")->second + "'";
+		ok = false;
+	}
+	arg.erase("-s");
+	return ok;
 }
 
 } // namespace geostat

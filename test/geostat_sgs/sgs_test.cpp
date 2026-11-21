@@ -618,7 +618,7 @@ void testExecutable(const std::string& binary) {
 	CHECK(sameImage(a, b));
 	CHECK_MSG(sameImage(a, c), "replay from the weight file differs from the one-shot run");
 	// A new seed at replay gives other realisations from the same plan.
-	CHECK(runSgs(binary, common + " -wi " + N("sgstest.w") + " -s 78 -id " + testIdText(4) + " -o " + N("sgstest_d")) == 0);
+	CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -n 20 -s 78 -nr 3 -wi " + N("sgstest.w") + " -id " + testIdText(4) + " -o " + N("sgstest_d")) == 0);
 	CHECK(!sameImage(a, output(testId(4))));
 	// New hard-data values at the same locations are accepted and honoured.
 	{

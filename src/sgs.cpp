@@ -246,9 +246,11 @@ int main(int argc, char const* argv[]) {
 	positive("-np", paths, 1);
 	positive("-ri", firstRealisation, 0);
 
-	uint64_t seed = uint64_t(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-	if (arg.count("-s") == 1) seed = uint64_t(strtoull(arg.find("-s")->second.c_str(), nullptr, 10));
-	arg.erase("-s");
+	uint64_t seed = 0;
+	{
+		std::string seedError;
+		if (!g2s::geostat::readSeedArgument(arg, seed, seedError)) { fprintf(reportFile, "error: %s\n", seedError.c_str()); if (error.empty()) error = seedError; run = false; }
+	}
 	const bool byWeight = arg.count("-wd") >= 1;
 	arg.erase("-wd");
 	arg.erase("-ed");

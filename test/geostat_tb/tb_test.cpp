@@ -670,6 +670,16 @@ void testExecutable(const std::string& binary) {
 		CHECK(worst <= 1e-5);
 	}
 	CHECK(run("-nb 300", testId(702)) == 0);
+	// 64-bit seeds, read as sgs and fftma read them: 2^32 + 11 is not 11, and
+	// "11.000000" (a floating-point 11 sent by an interface) is 11.
+	CHECK(run("-nr 3 -s 4294967307 -m -2.5 -j 2", testId(709)) == 0);
+	CHECK(run("-nr 3 -s 11.000000 -m -2.5 -j 2", testId(710)) == 0);
+	{
+		g2s::DataImage wide = g2s::DataImage::createFromFile("im_1_" + testIdText(709));
+		g2s::DataImage decimal = g2s::DataImage::createFromFile("im_1_" + testIdText(710));
+		CHECK(!wide.isEmpty() && !a.isEmpty() && wide.dataSize() == a.dataSize() && !std::equal(a._data, a._data + a.dataSize(), wide._data));
+		CHECK(!decimal.isEmpty() && !a.isEmpty() && decimal.dataSize() == a.dataSize() && std::equal(a._data, a._data + a.dataSize(), decimal._data));
+	}
 	// Refusals: non-zero exit and an explicit message (the report goes to stderr).
 	auto refused = [&](const std::string& arguments, const std::string& fragment) {
 		const std::string log = N("tb_test_log.txt");
@@ -693,6 +703,7 @@ void testExecutable(const std::string& binary) {
 	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=L)' -cvar L " + N("tb_test_range") + " -id " + testIdText(704), "stationary models only");
 	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=10)' -csim -id " + testIdText(705), "-csim");
 	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=10)' -nb 0 -id " + testIdText(706), "-nb expects");
+	refused("-di " + N("tb_test_grid") + " -cov 'exponential(range=10)' -s 1.5 -id " + testIdText(711), "-s expects an integer seed");
 	CHECK(writeImage(N("tb_test_4d"), { 3, 3, 3, 3 }, std::nanf("")));
 	refused("-di " + N("tb_test_4d") + " -cov 'exponential(range=10)' -id " + testIdText(708), "1D, 2D or 3D");
 	// A constant -cvar and a positive mean.
