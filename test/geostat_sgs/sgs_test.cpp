@@ -766,7 +766,46 @@ void testExecutable(const std::string& binary) {
 			g2s::DataImage one = output(testId(96));
 			CHECK(!one.isEmpty() && one._nbVariable == 3 && std::isfinite(one._data[0]));
 		}
-		// Errors: missing -cov, bad -kt, -wo with -np 2.
+		// A map table that is not positive definite (a gaussian of practical range 30
+		// cut at 20 cells, as a cropped covariance map is): a warning naming it, and
+		// with -mapclip a bounded simulation (without it this case reached |z| > 100).
+		{
+			const int half = 20, side = 2 * half + 1;
+			std::vector<float> table(size_t(side * side));
+			for (int y = -half; y <= half; ++y)
+				for (int x = -half; x <= half; ++x) {
+					const double u = std::sqrt(double(x * x + y * y)) / 30.0;
+					table[size_t((y + half) * side + x + half)] = float(std::exp(-3.0 * u * u));
+				}
+			CHECK(writeImage(N("sgstest_badmap"), { unsigned(side), unsigned(side) }, table));
+			const std::string mapRun = "-di " + N("sgstest_empty") + " -cov 'map(C)' -cvar C " + N("sgstest_badmap") + " -n 50 -s 2 -nr 4 -j 4 -o " + N("sgstest_map");
+			auto logText = [&]() {
+				std::string text;
+				if (FILE* log = fopen(N("sgs_test_last.log").c_str(), "r")) { char buffer[4096]; size_t k; while ((k = fread(buffer, 1, sizeof(buffer), log)) > 0) text.append(buffer, k); fclose(log); }
+				return text;
+			};
+			CHECK(runSgs(binary, mapRun + " -id " + testIdText(97)) == 0);
+			const std::string warned = logText();
+			CHECK_MSG(warned.find("warning: -cvar C: the covariance map is not a valid covariance") != std::string::npos, warned);
+			CHECK(warned.find("kriging systems: ") != std::string::npos);
+			CHECK(runSgs(binary, mapRun + " -mapclip -id " + testIdText(98)) == 0);
+			const std::string clippedLog = logText();
+			CHECK_MSG(clippedLog.find("map_C_clipped=") != std::string::npos && clippedLog.find("not a valid covariance") == std::string::npos, clippedLog);
+			g2s::DataImage clipped = output(testId(98));
+			double largest = 0.0, sum2 = 0.0;
+			bool finite = !clipped.isEmpty() && clipped._nbVariable == 4;
+			for (size_t i = 0; finite && i < clipped.dataSize(); ++i) {
+				finite = std::isfinite(clipped._data[i]);
+				largest = std::max(largest, double(std::fabs(clipped._data[i])));
+				sum2 += double(clipped._data[i]) * clipped._data[i];
+			}
+			CHECK(finite);
+			printf("   map not positive definite, -mapclip: max |z| %.2f, mean z^2 %.2f\n", largest, finite ? sum2 / double(clipped.dataSize()) : 0.0);
+			CHECK(finite && largest < 12.0 && sum2 / double(clipped.dataSize()) < 3.0); // C(0) of the clipped table is about 1.8
+		}
+		// Errors: missing -cov, bad -kt, -wo with -np 2, two seeds, a bad seed.
+		CHECK(runSgs(binary, common + " -s 78 -id " + testIdText(84) + " -o " + N("sgstest_x")) != 0);
+		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -s 1.5 -id " + testIdText(85) + " -o " + N("sgstest_x")) != 0);
 		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " -n 20 -id " + testIdText(81) + " -o " + N("sgstest_x")) != 0);
 		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -kt uk -id " + testIdText(82) + " -o " + N("sgstest_x")) != 0);
 		CHECK(runSgs(binary, "-di " + N("sgstest_di") + " " + model + " -np 2 -wo " + N("sgstest_np.w") + " -id " + testIdText(83) + " -o " + N("sgstest_x")) != 0);

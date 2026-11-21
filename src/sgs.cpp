@@ -403,7 +403,7 @@ int main(int argc, char const* argv[]) {
 	g2s::geostat::WeightTable table;
 	bool tableForFixedPath = false;
 	double planMs = 0, replayMs = 0;
-	size_t totalEntries = 0, totalStencils = 0;
+	size_t totalEntries = 0, totalStencils = 0, totalSolved = 0, totalJittered = 0, totalFailed = 0;
 	const bool simple = krigingType == g2s::geostat::KrigingType::Simple;
 
 	for (unsigned p = 0; p < P; ++p) {
@@ -442,7 +442,9 @@ int main(int argc, char const* argv[]) {
 			        "search %.0f ms, levels %.0f ms, sharing %.0f ms, solve %.0f ms, total %.0f ms\n",
 			        p, stats.entries, stats.stencils, stats.sharingRatio(), stats.levels, stats.largestLevel, stats.isolated, stats.jittered, stats.failed,
 			        stats.searchMs, stats.levelMs, stats.shareMs, stats.solveMs, stats.totalMs);
-			if (stats.failed > 0) g2s::reporting::recordWarning(reportFile, std::to_string(stats.failed) + " kriging systems could not be solved; these nodes were drawn from the unconditional distribution");
+			totalSolved += stats.stencils;
+			totalJittered += stats.jittered;
+			totalFailed += stats.failed;
 			if (p == 0) {
 				g2s::reporting::recordMetric(reportFile, "plan_systems_solved", std::to_string(stats.stencils));
 				g2s::reporting::recordMetric(reportFile, "plan_nodes", std::to_string(stats.entries));
@@ -500,6 +502,19 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordMetric(reportFile, "plan_ms", millisecondsText(planMs));
 	g2s::reporting::recordMetric(reportFile, "replay_ms", millisecondsText(replayMs));
 	if (totalEntries > 0) g2s::reporting::recordMetric(reportFile, "systems_per_node", ratioText(double(totalStencils) / double(totalEntries)));
+	// Jittered / failed kriging systems (all paths planned in this run): the
+	// symptom of a covariance that is not positive definite (e.g. a raw map
+	// table) or of nearly duplicate neighbours with a very smooth model.
+	if (weightInput.empty()) {
+		fprintf(reportFile, "kriging systems: %zu solved, %zu needed a diagonal jitter, %zu could not be solved\n", totalSolved, totalJittered, totalFailed);
+		g2s::reporting::recordMetric(reportFile, "plan_systems_jittered", std::to_string(totalJittered));
+		g2s::reporting::recordMetric(reportFile, "plan_systems_failed", std::to_string(totalFailed));
+		if (totalJittered > 0)
+			g2s::reporting::recordWarning(reportFile, std::to_string(totalJittered) + " of " + std::to_string(totalSolved) + " kriging systems needed a diagonal jitter (nearly singular): "
+			                              "the covariance may not be positive definite (a map table: see -mapclip) or the model is very smooth for the neighbourhood");
+		if (totalFailed > 0)
+			g2s::reporting::recordWarning(reportFile, std::to_string(totalFailed) + " of " + std::to_string(totalSolved) + " kriging systems could not be solved; these nodes were drawn from the unconditional distribution");
+	}
 	g2s::reporting::markFinished(reportFile, time);
 
 	indexImage.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) });

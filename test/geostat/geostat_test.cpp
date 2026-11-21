@@ -22,6 +22,7 @@
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/covarianceModel.hpp"
 #include "geostat/kriging.hpp"
+#include "geostat/mapTable.hpp"
 #include "geostat/neighborSearch.hpp"
 #include "geostat/random.hpp"
 #include "geostat/specialFunctions.hpp"
@@ -952,6 +953,66 @@ bool writeImage(const std::string& name, const std::vector<unsigned>& dims, cons
 	return !g2s::DataImage::createFromFile(name).isEmpty();
 }
 
+void testSeedsAndMaps() {
+	section("seeds: -s text");
+	{
+		uint64_t seed = 0;
+		CHECK(parseSeedText("0", seed) && seed == 0);
+		CHECK(parseSeedText("4294967307", seed) && seed == 4294967307ull);
+		CHECK(parseSeedText("18446744073709551615", seed) && seed == 18446744073709551615ull);
+		CHECK(parseSeedText("7.000000", seed) && seed == 7);
+		CHECK(!parseSeedText("18446744073709551616", seed)); // overflow
+		CHECK(!parseSeedText("-1", seed) && !parseSeedText("1.5", seed) && !parseSeedText("abc", seed) && !parseSeedText("", seed) && !parseSeedText("1e3", seed));
+		std::multimap<std::string, std::string> arg = { { "-s", "12" }, { "-n", "5" } };
+		std::string error;
+		CHECK(readSeedArgument(arg, seed, error) && seed == 12 && arg.count("-s") == 0 && arg.count("-n") == 1);
+		arg = { { "-s", "x" } };
+		CHECK(!readSeedArgument(arg, seed, error) && error.find("-s expects") != std::string::npos);
+	}
+	section("map tables: positive definiteness check and clip");
+	{
+		// A sampled spherical covariance (range 10, table 41 x 41): valid.
+		const int half = 20, n = 2 * half + 1;
+		std::vector<float> valid(size_t(n * n)), gaussian(size_t(n * n));
+		for (int y = -half; y <= half; ++y)
+			for (int x = -half; x <= half; ++x) {
+				const double t = std::sqrt(double(x * x + y * y)) / 10.0;
+				valid[size_t((y + half) * n + x + half)] = float(t < 1 ? 1 - 1.5 * t + 0.5 * t * t * t : 0.0);
+				// gaussian of practical range 30 cut at 20 cells: not positive definite
+				const double u = std::sqrt(double(x * x + y * y)) / 30.0;
+				gaussian[size_t((y + half) * n + x + half)] = float(std::exp(-3.0 * u * u));
+			}
+		const std::vector<unsigned> dims = { unsigned(n), unsigned(n) };
+		const MapTableDiagnostics ok = diagnoseMapTable(valid, dims);
+		CHECK(ok.checked && ok.negativeFraction < 1e-6 && ok.asymmetry < 1e-7 && ok.centre == 1.0);
+		const MapTableDiagnostics bad = diagnoseMapTable(gaussian, dims);
+		CHECK(bad.checked && bad.negativeFraction > kMapNegativeFractionWarning && bad.asymmetry < 1e-7);
+		// An asymmetric table.
+		std::vector<float> shifted = valid;
+		for (int x = 0; x < n; ++x) shifted[size_t(half * n + x)] += x > half ? 0.3f : 0.f;
+		CHECK(diagnoseMapTable(shifted, dims).asymmetry > kMapAsymmetryWarning);
+		// The clip makes it valid, keeps the size and leaves a valid table unchanged (up to float rounding).
+		std::vector<float> clipped = gaussian;
+		MapTableDiagnostics after;
+		unsigned iterations = 0;
+		CHECK(clipMapTable(clipped, dims, after, iterations) && iterations > 0);
+		CHECK(after.negativeFraction <= kClipTarget && after.asymmetry < 1e-6 && after.centre >= 1.0 && clipped.size() == gaussian.size());
+		std::vector<float> same = valid;
+		CHECK(clipMapTable(same, dims, after, iterations));
+		double worst = 0.0;
+		for (size_t i = 0; i < same.size(); ++i) worst = std::max(worst, std::fabs(double(same[i]) - double(valid[i])));
+		CHECK(worst < 1e-5);
+		// 1D and 3D tables, an even size.
+		std::vector<float> line(31);
+		for (int i = 0; i < 31; ++i) line[size_t(i)] = float(std::exp(-3.0 * std::fabs(i - 15) / 10.0));
+		CHECK(diagnoseMapTable(line, { 31 }).negativeFraction < 1e-3);
+		std::vector<float> cube(size_t(8 * 9 * 10), 0.f);
+		cube[size_t((5 * 9 + 4) * 8 + 4)] = 1.f; // a pure nugget at the centre (4, 4, 5)
+		const MapTableDiagnostics nugget = diagnoseMapTable(cube, { 8, 9, 10 });
+		CHECK(nugget.checked && nugget.negativeFraction == 0.0 && nugget.centre == 1.0 && nugget.asymmetry == 0.0);
+	}
+}
+
 void testArguments() {
 	section("arguments: -cov / -cvar / -ii");
 	{
@@ -1136,6 +1197,7 @@ int main(int argc, char** argv) {
 	testKriging();
 	testNeighbors();
 	testRandom();
+	testSeedsAndMaps();
 	testArguments();
 	testCovEval(covEval);
 	printf("%d checks, %d failures\n", checks, failures);

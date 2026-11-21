@@ -31,6 +31,13 @@
 //                             "-cvar name=value" (one token) is accepted too.
 //   -ii   image               model index per node (0-based, integers), same
 //                             grid as -di; model 0 everywhere when absent.
+//   -mapclip                  project every map(name) table onto a valid
+//                             (symmetric, positive definite) covariance of the
+//                             same size before use (geostat/mapTable.hpp).
+//
+// Every map table is checked when it is loaded: a warning names the variable
+// when its spectrum has a significant negative part or it is not symmetric
+// (geostat/mapTable.hpp); the measures are logged as map_<name>_* parameters.
 //
 // Negative constants: argumentReader() treats "-30" as a flag, so
 // readCovarianceArguments re-reads argv after each -cvar and accepts tokens
@@ -69,6 +76,7 @@
 #include "DataImage.hpp"
 #include "jobReporting.hpp"
 #include "geostat/covarianceModel.hpp"
+#include "geostat/mapTable.hpp"
 
 namespace g2s {
 namespace geostat {
@@ -77,6 +85,7 @@ struct CovarianceArguments {
 	std::vector<std::string> models;                               // -cov, in order
 	std::vector<std::pair<std::string, std::string> > variables;   // -cvar name value, in order
 	std::string indexFileName;                                     // -ii, empty when absent
+	bool clipMaps = false;                                         // -mapclip
 };
 
 // True when the whole text is a finite number (strtod syntax, sign allowed).
@@ -145,7 +154,52 @@ inline bool readCovarianceArguments(std::multimap<std::string, std::string>& arg
 	if (arg.count("-ii") > 1) { error = "only one -ii (model index image) is possible"; ok = false; }
 	else if (arg.count("-ii") == 1) out.indexFileName = arg.find("-ii")->second;
 	arg.erase("-ii");
+	out.clipMaps = arg.count("-mapclip") > 0;
+	arg.erase("-mapclip");
 	return ok;
+}
+
+// Checks a map table (and projects it with -mapclip): logs the measures and
+// warns when the table is far from a valid covariance.
+inline void checkMapTable(FILE* reportFile, const std::string& name, std::vector<float>& values, const std::vector<unsigned>& dims, bool clip) {
+	auto percent = [](double fraction) {
+		char text[64];
+		snprintf(text, sizeof(text), "%.3g%%", 100.0 * fraction);
+		return std::string(text);
+	};
+	auto value = [](double v) {
+		char text[64];
+		snprintf(text, sizeof(text), "%.4g", v);
+		return std::string(text);
+	};
+	auto warn = [&](const std::string& message) {
+		if (reportFile) fprintf(reportFile, "warning: %s\n", message.c_str());
+		g2s::reporting::recordWarning(reportFile, message);
+	};
+	const MapTableDiagnostics before = diagnoseMapTable(values, dims);
+	const std::string prefix = "map_" + name + "_";
+	g2s::reporting::logParameter(reportFile, prefix + "negative_spectrum", before.checked ? percent(before.negativeFraction) : std::string("not checked (table too large)"));
+	g2s::reporting::logParameter(reportFile, prefix + "asymmetry", percent(before.asymmetry));
+	if (before.centre < before.largestAbsolute)
+		warn("-cvar " + name + ": the map table is not largest at its centre (lag 0 is at dims/2; C(0) = " + value(before.centre) +
+		     ", max |C| = " + value(before.largestAbsolute) + "): it cannot be a covariance; check how it was centred");
+	if (clip) {
+		MapTableDiagnostics after;
+		unsigned iterations = 0;
+		if (!clipMapTable(values, dims, after, iterations)) {
+			warn("-mapclip: the map table " + name + " is too large to be projected; it is used as given");
+			return;
+		}
+		g2s::reporting::logParameter(reportFile, prefix + "clipped", "negative spectrum " + percent(before.negativeFraction) + " -> " + percent(after.negativeFraction) +
+		                             ", asymmetry " + percent(before.asymmetry) + " -> " + percent(after.asymmetry) + ", C(0) " + value(before.centre) +
+		                             " -> " + value(after.centre) + " (" + std::to_string(iterations) + " iterations)");
+		return;
+	}
+	if ((before.checked && before.negativeFraction > kMapNegativeFractionWarning) || before.asymmetry > kMapAsymmetryWarning)
+		warn("-cvar " + name + ": the covariance map is not a valid covariance (negative part of its spectrum " +
+		     (before.checked ? percent(before.negativeFraction) : std::string("not checked")) + ", asymmetry " + percent(before.asymmetry) +
+		     "); kriging systems built from it can be indefinite, and simulations can then take values far outside the data range. "
+		     "Fit a covariance model to it, or add -mapclip to project it onto the nearest valid covariance (negative spectral values set to 0)");
 }
 
 // Loads the -cvar images and the -ii index, checks the per-node images
@@ -193,6 +247,7 @@ inline bool loadCovarianceModels(FILE* reportFile, const CovarianceArguments& ar
 			const size_t count = image.dataSize();
 			std::vector<float> data(image._data, image._data + count);
 			if (isMap(name)) {
+				checkMapTable(reportFile, name, data, image._dims, args.clipMaps);
 				bindings.setTable(name, std::move(data), image._dims);
 				continue;
 			}

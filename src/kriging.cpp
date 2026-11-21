@@ -354,6 +354,7 @@ int main(int argc, char const* argv[]) {
 		const double factorTime = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - factorBegin).count());
 		fprintf(reportFile, "factorisation of the %zu x %zu data covariance: %.0f ms\n", n, n, factorTime);
 		g2s::reporting::recordMetric(reportFile, "factorization_ms", std::to_string((long long)factorTime));
+		g2s::reporting::recordMetric(reportFile, "factorization_jitter", number(kriging.jitter()));
 		if (kriging.jitter() > 0) g2s::reporting::recordWarning(reportFile, "the data covariance matrix needed a diagonal jitter of " + number(kriging.jitter()) + " (duplicate or nearly collinear data, or a very smooth model)");
 
 		std::vector<double> data(n);
@@ -479,14 +480,16 @@ int main(int argc, char const* argv[]) {
 		                                                                         options, estimate.data(), withVariance ? variance.data() : nullptr);
 		char ratio[32];
 		snprintf(ratio, sizeof(ratio), "%.4f", stats.sharingRatio());
-		fprintf(reportFile, "local kriging: %zu targets, %zu systems solved, %zu shared (ratio %s), %zu without neighbour\n",
-		        stats.targets, stats.solved, stats.shared, ratio, stats.noNeighbor);
+		fprintf(reportFile, "local kriging: %zu targets, %zu systems solved, %zu shared (ratio %s), %zu without neighbour, %zu jittered, %zu failed\n",
+		        stats.targets, stats.solved, stats.shared, ratio, stats.noNeighbor, stats.jittered, stats.failed);
 		g2s::reporting::recordMetric(reportFile, "systems_solved", std::to_string(stats.solved));
+		g2s::reporting::recordMetric(reportFile, "systems_jittered", std::to_string(stats.jittered));
+		g2s::reporting::recordMetric(reportFile, "systems_failed", std::to_string(stats.failed));
 		g2s::reporting::recordMetric(reportFile, "systems_shared", std::to_string(stats.shared));
 		g2s::reporting::recordMetric(reportFile, "sharing_ratio", ratio);
 		if (stats.noNeighbor > 0)
 			g2s::reporting::recordWarning(reportFile, std::to_string(stats.noNeighbor) + " target(s) have no datum in their neighbourhood: they get the mean (-m, default 0) and the sill as variance");
-		if (stats.jittered > 0) g2s::reporting::recordWarning(reportFile, std::to_string(stats.jittered) + " kriging system(s) needed a diagonal jitter");
+		if (stats.jittered > 0) g2s::reporting::recordWarning(reportFile, std::to_string(stats.jittered) + " of " + std::to_string(stats.solved) + " kriging system(s) needed a diagonal jitter (nearly singular): the covariance may not be positive definite (a map table: see -mapclip) or the model is very smooth for the neighbourhood");
 		if (stats.failed > 0) g2s::reporting::recordWarning(reportFile, std::to_string(stats.failed) + " kriging system(s) could not be solved: those targets get the mean and the sill");
 	}
 
