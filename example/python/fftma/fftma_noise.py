@@ -25,3 +25,7 @@ plt.show()
 # t = 0 gives back the first realisation
 first = g2s('-a', 'fftma', '-di', grid, '-dt', [0], *model.args(), '-ni', noise[:, :, 0])['simulation']
 print('identical to realisation 0:', np.array_equal(first, result['simulation'][:, :, 0]))
+
+# the whole noise (both realisations, one per layer) can be given back at once
+both = g2s('-a', 'fftma', '-di', grid, '-dt', [0], *model.args(), '-ni', noise)['simulation']
+print('both realisations identical:', np.array_equal(both, result['simulation']))

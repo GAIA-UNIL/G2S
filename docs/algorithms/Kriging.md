@@ -35,6 +35,7 @@ Outputs: `result["estimate"]` / `result.estimate`, and with `-var`, `result["var
 | `-di` | Data image, one variable, 1 to 4 dimensions: NaN cells are estimated, the other cells are data. Through the interfaces, give `-dt` as well (`'-dt', [0]`). | | &#x2714; |
 | `-cov` | Covariance model(s), see [Covariance models]({{ site.baseurl }}/algorithms/CovarianceModels.html). | | &#x2714; |
 | `-cvar` | `name value`: binds a model variable; repeat as needed. | | |
+| `-mapclip` | Project covariance-map tables onto a valid covariance, see [Covariance maps]({{ site.baseurl }}/algorithms/CovarianceModels.html#covariance-maps). | off | |
 | `-ii` | Model index image (0-based) when several models are given. | model 0 | |
 | `-kt` | `sk` (simple kriging, known mean `-m`) or `ok` (ordinary kriging, unknown mean). | `ok` | |
 | `-m` | Simple-kriging mean: a number or an image on the grid. Ordinary kriging only uses it at cells without any neighbour. | 0 | |
@@ -54,10 +55,14 @@ Outputs: `result["estimate"]` / `result.estimate`, and with `-var`, `result["var
 
 - `estimate`: the grid of `-di`; data cells keep their value.
 - `variance` (with `-var`): the kriging variance, 0 at data cells.
-- A cell without any datum in its neighbourhood gets the mean `-m` and the sill as variance, for SK and OK alike (a warning gives their number). A kriging system that needs a diagonal jitter to be solved (duplicate or nearly collinear data, very smooth models) is reported as a warning.
-- Job metrics: `kriging_method`, and for `local` the number of systems solved and shared.
+- A cell without any datum in its neighbourhood gets the mean `-m` and the sill as variance, for SK and OK alike (a warning gives their number). A kriging system that needs a diagonal jitter to be solved (duplicate or nearly collinear data, very smooth models, or a covariance map that is not positive definite) is reported as a warning.
+- Job metrics: `kriging_method`; for `direct` the jitter of the factorisation (`factorization_jitter`, 0 when none was needed); for `local` the number of systems solved, shared, jittered and not solved (`systems_solved`, `systems_shared`, `systems_jittered`, `systems_failed`).
 
 With `direct` and ordinary kriging, the generalised-least-squares estimate of the mean is written to the log (`ok_gls_mean`).
+
+## GPU
+
+Only one part of `kriging` can run on a GPU: with `-method direct` and `-var`, the per-cell part of the variance (*L*<sup>−1</sup>*k* for blocks of cells), with `-W_GPU` (OpenCL) or `-W_CUDA`. The factorisation and the estimate stay on the CPU. Kriging systems are often ill-conditioned, so this runs in double precision only: on CUDA devices, or OpenCL devices with `cl_khr_fp64`; the result matches the CPU within 10<sup>−9</sup> × sill. Apple GPUs have no double precision, so on Apple silicon `kriging` always runs on the CPU (the log says why). `-gpuforce` is accepted for symmetry with `tb` and `fftma` and has no effect. The CUDA back end has been written but **has not been compiled or run**: please report problems on the [issue tracker](https://github.com/GAIA-UNIL/G2S/issues).
 
 ## Examples
 

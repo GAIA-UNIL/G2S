@@ -21,3 +21,7 @@ end
 % t = 0 gives back the first realisation
 [first, ~] = g2s('-a', 'fftma', '-di', destination, '-dt', [0], args{:}, '-ni', noise(:, :, 1));
 fprintf('identical to realisation 0: %d\n', isequal(first.simulation, result.simulation(:, :, 1)));
+
+% the whole noise (both realisations, one per layer) can be given back at once
+[both, ~] = g2s('-a', 'fftma', '-di', destination, '-dt', [0], args{:}, '-ni', noise);
+fprintf('both realisations identical: %d\n', isequal(both.simulation, result.simulation));

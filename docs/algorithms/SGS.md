@@ -29,12 +29,13 @@ Outputs: `result["simulation"]` / `result.simulation` and `result["indexmap"]` /
 | `-di` | Destination grid, one variable, 1 to 4 dimensions. NaN cells are simulated; the other cells are hard data and are honoured exactly. Through the interfaces, give `-dt` as well (`'-dt', [0]`). | | &#x2714; |
 | `-cov` | Covariance model(s), see [Covariance models]({{ site.baseurl }}/algorithms/CovarianceModels.html). | | &#x2714; |
 | `-cvar` | `name value`: binds a model variable (number, image on the grid, or covariance map); repeat as needed. | | |
+| `-mapclip` | Project covariance-map tables onto a valid covariance, see [Covariance maps]({{ site.baseurl }}/algorithms/CovarianceModels.html#covariance-maps). | off | |
 | `-ii` | Model index image (0-based) when several models are given. | model 0 | |
 | `-kt` | Kriging type: `sk` (simple) or `ok` (ordinary). | `sk` | |
 | `-m` | Simple-kriging mean: a number or an image on the grid. With `ok`, it is only used for nodes without any neighbour. | 0 | |
 | `-n` | Maximum number of neighbours per node. | 50 | |
 | `-ki` | Kernel image: its size is the neighbourhood window, and cells with a zero or NaN weight are excluded from it. | | |
-| `-ks` | Kernel size, in cells, when `-ki` is not given. | twice the largest practical range of the model along each axis, + 1 (limited to the grid, made odd) | |
+| `-ks` | Kernel size, in cells, one value for every axis, when `-ki` is not given. The size (given or default) is limited to 2 × grid − 1 along each axis (to the grid size with `-csim`) and made odd (an even size is reduced by 1). | twice the largest practical range of the model along each axis, + 1 | |
 | `-wd` | Order the kernel cells by weight instead of by Euclidean distance. | distance | |
 | `-os` | Octant search: at most `k` neighbours per sector (quadrants in 2D, octants in 3D; up to 4D). | off | |
 | `-csim` | Circular simulation: the grid wraps around on every axis. | off | |
@@ -43,7 +44,7 @@ Outputs: `result["simulation"]` / `result.simulation` and `result["indexmap"]` /
 | `-ri` | Index of the first realisation: realisation `r` of a run with `-ri 0` equals realisation 0 of a run with `-ri r` (same seed and inputs). | 0 | |
 | `-sp` | Simulation path: an image on the grid, visited from low to high values; NaN cells come last and −&infin; cells are not simulated. | random path | |
 | `-pt` | Path type when `-sp` is not given: `random`, `multigrid` (coarse to fine levels of stride 2<sup>k</sup>, random order inside a level) or `regular` (the same levels, raster order inside a level). | `random` | |
-| `-s` | Seed. | from the clock | |
+| `-s` | Seed, an integer from 0 to 2<sup>64</sup> − 1 (read the same way by `sgs`, `fftma`, `spectral` and `tb`). | from the clock | |
 | `-j` | Number of threads; a fraction is a share of the cores (`0.5` = half). | 1 | |
 | `-wo` | File (on the server) where the plan of the path is written. Needs `-np 1`. | | |
 | `-wi` | Plan file (on the server) to replay instead of planning. Needs `-np 1`; cannot be combined with `-wo`. | | |
@@ -53,7 +54,7 @@ Outputs: `result["simulation"]` / `result.simulation` and `result["indexmap"]` /
 
 - `simulation`: the grid of `-di` with `-np` × `-nr` variables, ordered by path then realisation: variable `p × nr + r` is realisation `r` of path `p`. With a 2D grid and several realisations, the Python result has shape `(ny, nx, np × nr)`.
 - `indexmap`: the number of neighbours used at each node, one variable per path (0 for hard data and for cells that were not simulated).
-- Job metrics: `plan_ms` and `replay_ms` (time of the two phases), `plan_nodes`, `plan_systems_solved`, `plan_sharing_ratio` (systems solved per simulated node, for the first path) and `plan_levels`.
+- Job metrics: `plan_ms` and `replay_ms` (time of the two phases), `plan_nodes`, `plan_systems_solved`, `plan_sharing_ratio` (systems solved per simulated node, for the first path), `plan_levels`, and `plan_systems_jittered` / `plan_systems_failed`: how many kriging systems of the run needed a diagonal jitter or could not be solved (a node whose system could not be solved is drawn from the unconditional distribution). Both are also in the log, with a warning when they are not 0: they are the sign of a covariance that is not positive definite (typically a raw covariance map, see [Covariance maps]({{ site.baseurl }}/algorithms/CovarianceModels.html#covariance-maps)) or of a very smooth model with many close neighbours.
 
 ## Neighbourhood and kriging
 

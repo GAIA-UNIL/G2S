@@ -49,7 +49,7 @@ Output: `result["simulation"]` / `result.simulation`: the grid of `-di` with one
 | `-nr` | Number of realisations, 1 to 100000, output as variables. | 1 | |
 | `-ri` | Index of the first realisation: realisation `r` of a run with `-ri 0` equals realisation 0 of a run with `-ri r`. | 0 | |
 | `-m` | Mean. | 0 | |
-| `-s` | Seed. | from the clock | |
+| `-s` | Seed, an integer from 0 to 2<sup>64</sup> − 1 (read the same way by `sgs`, `fftma`, `spectral` and `tb`). | from the clock | |
 | `-j` | Number of threads; a fraction is a share of the cores. | 1 | |
 | `-kt` | Conditioning: kriging type of the residuals, `sk` or `ok`. | `sk` | |
 | `-km` | Conditioning: kriging method, `direct`, `local` or `auto`. | `auto` | |

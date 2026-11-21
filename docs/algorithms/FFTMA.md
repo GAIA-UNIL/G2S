@@ -39,15 +39,16 @@ Outputs: `result["simulation"]` / `result.simulation` and, with `-on`, `result["
 | `-di` | Grid of the simulation, 1D, 2D or 3D. Non-NaN cells are hard data, honoured exactly; an all-NaN grid gives an unconditional simulation. Through the interfaces, give `-dt` as well (`'-dt', [0]`). | | &#x2714; |
 | `-cov` | Stationary covariance model, see [Covariance models]({{ site.baseurl }}/algorithms/CovarianceModels.html). | | &#x2714; |
 | `-cvar` | `name value`: binds a model variable (a number, or the table of a covariance map); repeat as needed. | | |
+| `-mapclip` | Project covariance-map tables onto a valid covariance, see [Covariance maps]({{ site.baseurl }}/algorithms/CovarianceModels.html#covariance-maps). | off | |
 | `-method` | `fftma` or `spectral`. | the name used with `-a` | |
 | `-nr` | Number of realisations. | 1 (with `-ni`: the number of noise variables) | |
 | `-ri` | Index of the first realisation: realisation `r` of a run with `-ri 0` equals realisation 0 of a run with `-ri r`. | 0 | |
 | `-m` | Mean (a number). | 0 | |
-| `-s` | Seed. | from the clock | |
+| `-s` | Seed, an integer from 0 to 2<sup>64</sup> − 1 (read the same way by `sgs`, `fftma`, `spectral` and `tb`). | from the clock | |
 | `-j` | Number of threads; a fraction is a share of the cores. | 1 | |
 | `-buf` | Buffer in cells, one value or one per axis. The extended grid is then rounded up to an FFT-friendly size. Ignored with `-csim` and with `-ni`. | the extent of the largest practical range along each axis | |
 | `-csim` | Periodic simulation on the `-di` grid (no buffer); the conditioning then uses periodic distances. | off | |
-| `-ni` | `fftma` only: white noise on the extended grid, one variable per realisation. Its size sets the extended grid; it must cover the `-di` grid (equal it with `-csim`). | drawn from the seed | |
+| `-ni` | `fftma` only: white noise on the extended grid, one variable per realisation, or a single variable with one more (last) dimension for the realisations, which is how the noise returned by `-on` comes back to Python, MATLAB and R. Its size sets the extended grid; it must cover the `-di` grid (equal it with `-csim`). | drawn from the seed | |
 | `-on` | `fftma` only: also output the white noise of the unconditional field (output 2, on the extended grid). | off | |
 | `-kt` | Conditioning: kriging type of the residuals, `sk` or `ok`. | `sk` | |
 | `-km` | Conditioning: kriging method, `direct`, `local` or `auto`. | `auto` | |
@@ -63,7 +64,7 @@ Outputs: `result["simulation"]` / `result.simulation` and, with `-on`, `result["
 - `noise` (`fftma` with `-on`): the white noise of each realisation on the extended grid, one variable per realisation. It is the noise of the unconditional field; conditioning does not change it. Giving it back with `-ni` (same model, `-di` and `-m`) reproduces the realisation.
 - Job metrics: `extended_grid`, `clipped_energy_fraction`, `covariance_model` (canonical text), and with hard data `kriging_method` and `conditioning_ms`.
 
-Through the Python and MATLAB interfaces, an image given with `-ni` is uploaded as a single variable: give the noise of one realisation per run (a 2D array for a 2D grid), as in the example below.
+Through the Python, MATLAB and R interfaces, the noise returned by `-on` for several realisations is an array with the realisations along its last dimension (shape `(ny, nx, nr)` in 2D). It can be given back as it is with `-ni`: the interfaces upload it as a single variable with one more dimension, which `fftma` reads as one variable per realisation. A slice (the noise of one realisation) or a combination of slices works too, as in the example below.
 
 ## Conditioning to hard data
 

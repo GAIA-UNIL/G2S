@@ -137,7 +137,11 @@ As for spatially varying parameters, a node uses the model of its own region for
 - the partial sill is the coefficient times the value at the centre;
 - a map can be combined with other structures: `map(C) + 0.1*nugget`.
 
-The table must be a valid (positive definite) covariance. An experimental covariance map cut out of an image usually is not, and kriging systems built from it can be unstable: in our tests `sgs` with such a map produced values far outside the range of the data. A table sampled from a valid covariance, wide enough for the covariance to vanish at its edge, works (see the example below).
+The table must be a valid covariance: symmetric (*M*[centre + *h*] = *M*[centre − *h*]) and positive definite (its discrete spectrum, the Fourier transform of the table seen as a function of the integer lags, is never negative). An experimental covariance map cut out of an image usually is not, and neither is a valid covariance cut where it has not yet vanished (a `gaussian` of practical range 30 cut at ±20 cells: 4% negative spectrum). Kriging systems built from such a table can be indefinite: in our tests (100 × 100 grid, 50 neighbours, eight realisations, unit sill) `sgs` then produced values up to 225, with many kriging systems jittered or unsolvable. A table sampled from a valid covariance, wide enough for the covariance to vanish at its edge, works (see the example below).
+
+Every table is checked when it is loaded. The job log gives two measures, `map_NAME_negative_spectrum` (the negative part of the spectrum over the sum of its absolute values, computed on a zero-padded grid of at least twice the table) and `map_NAME_asymmetry`, and a warning names the variable when either exceeds 1%. It is a warning, not a refusal: slightly invalid tables are common and usually harmless. `sgs` and `kriging` also report how many kriging systems needed a diagonal jitter or could not be solved (`plan_systems_jittered` / `plan_systems_failed` for `sgs`, `systems_jittered` / `systems_failed` for local kriging), which is how an invalid table shows up in practice.
+
+Two fixes: fit a covariance model to the map (the usual choice), or add the flag `-mapclip`, which projects every `map` table onto a valid covariance of the same size before use: alternately, the negative values of its spectrum (and its antisymmetric part) are set to 0, then the values outside the table, until the negative part is below 0.01% (at most 200 times). The value at the centre, hence the sill, usually grows (from 1 to between 1.06 and 1.87 on the tables of our tests, whose negative part was 2.6% to 24%); the log gives the measures before and after (`map_NAME_clipped`). On the same tests, `sgs` with `-mapclip` stayed within 5 standard deviations of the clipped sill, with no jittered or unsolved system. `-mapclip` is accepted by `sgs`, `kriging`, `fftma`, `spectral` and `covEval`.
 
 `map` is supported by `sgs`, `kriging`, `fftma`, `spectral` and `covEval`. `tb` refuses it (there is no turning-bands line process for a tabulated covariance).
 
@@ -191,6 +195,7 @@ Usage: `result = g2s('-a', 'covEval', flag1, value1, ...)`. Outputs: `result["co
 | `-pos` | `1 × ndim` (the same node for every lag) or `N × ndim` (one node per lag): integer cell coordinates, in the same component order as `-lag`, where a spatially varying model is resolved. Required when the model varies in space. | | |
 | `-di` | Grid. Optional when a `-cvar` or `-ii` image gives it. | | |
 | `-vario` | Also output the variogram *C*(0) − *C*(*h*). | off | |
+| `-mapclip` | Project `map` tables onto a valid covariance (see [Covariance maps](#covariance-maps)). | off | |
 
 ## Examples
 
