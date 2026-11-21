@@ -1,0 +1,135 @@
+# Covariance-model strings and their canonical form.
+# Shared by the C++ test (test/geostat/geostat_test.cpp) and the tests of the
+# Python and MATLAB model builders, which must produce the same canonical text.
+#
+# Format: one case per line,
+#     <input> ==> <expected>
+# where <expected> is either
+#     the canonical text that g2s::geostat::ModelSpec::canonical() prints, or
+#     !error <fragment>   parsing must fail with a message containing <fragment>.
+# The separator is the first " ==> " of the line (it never occurs in a model).
+# Spaces around <input> and <expected> are not significant; an empty <input> is
+# the empty model. Empty lines and lines starting with '#' are ignored.
+# The C++ test also checks that parsing <expected> gives <expected> back.
+#
+# Canonical rules (details in include/geostat/covarianceModel.hpp and expression.hpp):
+#   terms joined by " + "; every term is <sill>*<structure>, sill 1 when absent,
+#   parenthesised when it is a sum or difference; lower-case names; "nugget"
+#   without parentheses; keyword order range|scale, angle, nu|alpha; vectors
+#   "[a, b]", one-element vectors as scalars; constant sub-expressions folded;
+#   numbers: integers below 1e15 without decimals, otherwise the shortest
+#   "%.{p}g" that reads back to the same double; " + " and " - " spaced,
+#   "*" and "/" not; minimal parentheses.
+
+# ---- the examples of the specification
+0.1*nugget + 0.6*spherical(range=[40,20], angle=30) + 0.3*exponential(range=100) ==> 0.1*nugget + 0.6*spherical(range=[40, 20], angle=30) + 0.3*exponential(range=100)
+nug*nugget + (1-nug)*spherical(range=[L, L/2], angle=theta) ==> nug*nugget + (1 - nug)*spherical(range=[L, L/2], angle=theta)
+
+# ---- structures and keywords
+spherical(range=10) ==> 1*spherical(range=10)
+nugget ==> 1*nugget
+nugget() ==> 1*nugget
+2*NUGGET ==> 2*nugget
+0.5*Gaussian(Range=12.5) ==> 0.5*gaussian(range=12.5)
+exponential(scale=5) ==> 1*exponential(scale=5)
+cubic(range=8) ==> 1*cubic(range=8)
+matern(range=30, nu=1.5) ==> 1*matern(range=30, nu=1.5)
+matern(nu=0.5, angle=45, range=[30,10]) ==> 1*matern(range=[30, 10], angle=45, nu=0.5)
+matern(scale=[3, 1], nu=2.5) ==> 1*matern(scale=[3, 1], nu=2.5)
+stable(range=20, alpha=1.5) ==> 1*stable(range=20, alpha=1.5)
+stable(alpha=2, scale=4) ==> 1*stable(scale=4, alpha=2)
+cubic(range=[10,20,30], angle=[10,20,30]) ==> 1*cubic(range=[10, 20, 30], angle=[10, 20, 30])
+0.7*map(C) ==> 0.7*map(C)
+map(covMap) + 0.1*nugget ==> 1*map(covMap) + 0.1*nugget
+spherical(range=[40]) ==> 1*spherical(range=40)
+spherical(range=10, angle=[15]) ==> 1*spherical(range=10, angle=15)
+0.5*spherical(range=10) + 0.5*spherical(range=10) ==> 0.5*spherical(range=10) + 0.5*spherical(range=10)
+  0.3 * exponential ( range = 100 )   ==> 0.3*exponential(range=100)
+spherical(range=10, angle=-30) ==> 1*spherical(range=10, angle=-30)
+
+# ---- numbers
+(1-0.1)*nugget ==> 0.9*nugget
+1e-3*nugget ==> 0.001*nugget
+0.00001*nugget ==> 1e-05*nugget
+100000*nugget ==> 100000*nugget
+1.5e16*nugget ==> 1.5e+16*nugget
+.5*nugget ==> 0.5*nugget
+2.50*nugget ==> 2.5*nugget
+exponential(range=1/3) ==> 1*exponential(range=0.3333333333333333)
+exponential(range=0.1+0.2) ==> 1*exponential(range=0.30000000000000004)
+exponential(range=2*(3+4)) ==> 1*exponential(range=14)
+exponential(range=sqrt(16) + max(1, 2) - min(3, 4) + abs(-5)) ==> 1*exponential(range=8)
+0*nugget + spherical(range=1) ==> 0*nugget + 1*spherical(range=1)
+
+# ---- expressions with variables
+a*b*spherical(range=r) ==> a*b*spherical(range=r)
+a/2*nugget ==> a/2*nugget
+(a+b)/(c*d)*nugget ==> (a + b)/(c*d)*nugget
+spherical(range=a - b) ==> 1*spherical(range=a - b)
+spherical(range=a - (b - c)) ==> 1*spherical(range=a - (b - c))
+spherical(range=(a - b) - c) ==> 1*spherical(range=a - b - c)
+spherical(range=(a*b)*c) ==> 1*spherical(range=a*b*c)
+spherical(range=a*(b*c)) ==> 1*spherical(range=a*(b*c))
+spherical(range=a/(b/c)) ==> 1*spherical(range=a/(b/c))
+spherical(range=min(L, 50), angle=-theta) ==> 1*spherical(range=min(L, 50), angle=-theta)
+exponential(range=sqrt(L)*2 + max(a,b)) ==> 1*exponential(range=sqrt(L)*2 + max(a, b))
+exponential(range=exp(log(L))) ==> 1*exponential(range=exp(log(L)))
+gaussian(range=2*-L) ==> 1*gaussian(range=2*-L)
+gaussian(range=-(L - 2*L)) ==> 1*gaussian(range=-(L - 2*L))
+exponential(range=ABS(L)) ==> 1*exponential(range=abs(L))
+(1-nug)*matern(range=R, nu=nu_map) ==> (1 - nug)*matern(range=R, nu=nu_map)
+s_1*nugget + s_2*exponential(range=L_2) ==> s_1*nugget + s_2*exponential(range=L_2)
+
+# ---- errors
+ ==> !error empty model
+spherical ==> !error spherical needs range= or scale=
+spherical() ==> !error spherical needs range= or scale=
+0.5*spherical(range=-10) ==> !error range/scale must be > 0
+spherical(range=[10, 0]) ==> !error range/scale must be > 0
+-0.5*nugget ==> !error partial sill must be >= 0
+0.5*foo(range=1) ==> !error unknown structure 'foo'
+0.5*foo ==> !error has no structure
+spherical(range=10, foo=2) ==> !error unknown keyword 'foo'
+spherical(range=10, range=20) ==> !error given twice
+spherical(range=10, scale=20) ==> !error given twice
+spherical(range=10, angle=1, angle=2) ==> !error given twice
+matern(range=10) ==> !error matern needs nu=
+matern(range=10, nu=0) ==> !error nu must be in (0, 100]
+matern(range=10, nu=101) ==> !error nu must be in (0, 100]
+stable(range=10) ==> !error stable needs alpha=
+stable(range=10, alpha=2.5) ==> !error alpha must be in (0, 2]
+stable(range=10, alpha=0) ==> !error alpha must be in (0, 2]
+spherical(range=10, nu=1) ==> !error unknown keyword 'nu'
+matern(range=10, nu=[1, 2]) ==> !error nu takes a single value
+nugget(range=1) ==> !error nugget takes no parameter
+map(1) ==> !error map takes one table name
+map(a, b) ==> !error map takes one table name
+map(range) ==> !error reserved word
+spherical(range=range) ==> !error reserved word
+spherical(range=Spherical) ==> !error structure 'Spherical' inside brackets
+spherical(range=min) ==> !error expected '('
+spherical(range=h) ==> !error the lag 'h'
+spherical(range=10*H) ==> !error the lag 'h'
+1-0.5*nugget ==> !error cannot be subtracted
+0.5*nugget - 0.5*spherical(range=1) ==> !error two structures in one term
+spherical(range=10)*0.5 ==> !error the partial sill must come before the structure
+0.5 spherical(range=10) ==> !error expected '*'
+*spherical(range=10) ==> !error missing value
+spherical(range=[10,20,30,40,50]) ==> !error more than 4 values
+spherical(range=10, angle=[1,2]) ==> !error angle takes one value (2D) or three values (3D)
+spherical(range=[]) ==> !error empty vector
+spherical(range=1/0) ==> !error not finite
+spherical(range=sqrt(-1)) ==> !error not finite
+spherical(range=10 ==> !error unclosed '('
+spherical(range=10)) ==> !error unbalanced ')'
+spherical(range=[10, 20)] ==> !error closed by
+0.5*spherical(range=10) + ==> !error empty term
+spherical(range=$L) ==> !error unexpected character '$'
+spherical(range=1e) ==> !error invalid number
+spherical(range=1.2.3) ==> !error invalid number
+spherical(range=) ==> !error missing value
+spherical(range 10) ==> !error expected keyword=value
+spherical(range=10,) ==> !error empty argument
+spherical(range=10 20) ==> !error unexpected '20'
+C*map(C) ==> !error used both as a map table and as a parameter
+2*(spherical(range=1)) ==> !error inside brackets

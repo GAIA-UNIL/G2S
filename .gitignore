@@ -157,3 +157,4 @@ change_odc.md
 /build/fftw-simd/cache/
 /build/fftw-simd/install/
 /test/qs_kernels/out/
+/test/geostat/out/
