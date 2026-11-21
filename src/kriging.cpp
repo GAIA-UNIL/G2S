@@ -50,6 +50,8 @@
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/kdTreeSearch.hpp"
 #include "geostat/krigingGlobal.hpp"
+#include "geostat/gpu/deviceEngines.hpp"
+#include "geostat/gpu/deviceSelection.hpp"
 #include "geostat/krigingLocal.hpp"
 #include "geostat/neighborSearch.hpp"
 
@@ -80,7 +82,13 @@ void printHelp() {
 	       "  -csim local: circular (periodic) grid\n"
 	       "  -maxmem GiB  direct: largest n x n matrix allowed (default %.0f)\n"
 	       "  -j    threads (a fraction = share of the cores)\n"
-	       "  -o / -oi  output names (estimate / variance)\n", kDefaultMaxMemoryGiB);
+	       "%s"
+	       "        kriging: -method direct with -var: the per-target part of the variance (L^-1 k for\n"
+	       "        blocks of targets) runs on the device, in double precision only (CUDA, or OpenCL\n"
+	       "        devices with cl_khr_fp64); the factorisation and the estimate stay on the CPU.\n"
+	       "        Devices without double precision (Apple GPUs) are not used: kriging systems are\n"
+	       "        ill-conditioned and are never solved in float. |gpu - cpu| <= 1e-9 sill\n"
+	       "  -o / -oi  output names (estimate / variance)\n", kDefaultMaxMemoryGiB, g2s::geostat::gpu::gpuHelp());
 }
 
 std::string number(double v) {
@@ -225,6 +233,13 @@ int main(int argc, char const* argv[]) {
 	arg.erase("-maxmem");
 	arg.erase("-dt");
 
+	g2s::geostat::gpu::GpuRequest gpuRequest;
+	{
+		std::string gpuError;
+		if (!g2s::geostat::gpu::readGpuArguments(arg, gpuRequest, gpuError)) { fprintf(reportFile, "error: %s\n", gpuError.c_str()); run = false; }
+	}
+	arg.erase("-gpuforce"); // accepted for symmetry with tb and fftma: kriging has no slower device path
+
 	for (auto it = arg.begin(); it != arg.end(); ++it)
 		fprintf(reportFile, "%s %s <== ignored !\n", it->first.c_str(), it->second.c_str());
 
@@ -314,6 +329,8 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::logParameter(reportFile, "variance", withVariance ? "true" : "false");
 	g2s::reporting::recordMetric(reportFile, "kriging_method", method);
 
+	if (gpuRequest.any() && !(method == "direct" && withVariance))
+		fprintf(reportFile, "gpu: only the variance of -method direct (-var) runs on a device; running on the CPU\n");
 	std::vector<double> estimate(targetCells.size()), variance(withVariance ? targetCells.size() : 0);
 	const auto begin = std::chrono::high_resolution_clock::now();
 
@@ -359,8 +376,29 @@ int main(int argc, char const* argv[]) {
 		if (simple) for (size_t t = 0; t < targetCells.size(); ++t) estimate[t] += meanAt(targetCells[t]);
 		if (withVariance) {
 			g2s::reporting::setProgress(reportFile, 40, "variance", std::to_string(targetCells.size()) + " targets");
-			if (useTable) kriging.variance(g2s::geostat::GridCrossCovariance(table, dataCells.data(), n, targetCells.data()), targetCells.size(), variance.data());
-			else kriging.variance(g2s::geostat::CellCrossCovariance(kriging, dims, targetCells.data()), targetCells.size(), variance.data());
+			bool onDevice = false;
+			if (gpuRequest.any()) {
+				g2s::geostat::gpu::SelectedDevice device = g2s::geostat::gpu::openDevice(gpuRequest, argv[0], reportFile);
+				std::unique_ptr<g2s::geostat::gpu::KrigingKernel> kernel;
+				std::string reason;
+				if (device) kernel.reset(device.get()->kriging(reason));
+				if (device && !kernel) fprintf(reportFile, "gpu: kriging variance unavailable on the device (%s); running on the CPU\n", reason.c_str());
+				if (kernel) {
+					const g2s::geostat::GridCovarianceTable* deviceTable = useTable ? &table : nullptr;
+					onDevice = g2s::geostat::gpu::globalKrigingVarianceDevice(kriging, *kernel, g2s::geostat::CellCrossCovariance(kriging, dims, targetCells.data()), deviceTable,
+					                                                          dataCells.data(), targetCells.data(), targetCells.size(), variance.data(), reason);
+					if (!onDevice) fprintf(reportFile, "gpu: the device failed (%s); computing the variance on the CPU\n", reason.c_str());
+					else {
+						const g2s::geostat::gpu::DeviceTimes times = kernel->times();
+						fprintf(reportFile, "gpu: device time %.0f ms (upload %.0f, kernels %.0f, download %.0f)\n", 1e3 * times.total(), 1e3 * times.upload, 1e3 * times.compute, 1e3 * times.download);
+					}
+				}
+				g2s::reporting::logParameter(reportFile, "variance_device", onDevice ? g2s::geostat::gpu::describe(device.get()->info()) : std::string("cpu"));
+			}
+			if (!onDevice) {
+				if (useTable) kriging.variance(g2s::geostat::GridCrossCovariance(table, dataCells.data(), n, targetCells.data()), targetCells.size(), variance.data());
+				else kriging.variance(g2s::geostat::CellCrossCovariance(kriging, dims, targetCells.data()), targetCells.size(), variance.data());
+			}
 		}
 	} else {
 		// ---- local: neighbour search over the data cells
