@@ -304,10 +304,9 @@ char* writeRawData(char* data, bool compresed, bool fieldContent){
 		if(fullSize>=ParallelGzipMinimum) {
 			if(writeGzipParallel(temporary, data, fullSize, fieldContent ? Z_HUFFMAN_ONLY : Z_DEFAULT_STRATEGY)) {
 				if(rename(temporary, filename)!=0) unlink(temporary);
-			} else {
-				unlink(temporary);
+				return hashInHexa;
 			}
-			return hashInHexa;
+			unlink(temporary); // e.g. out of memory for the chunks: write it serially below
 		}
 		#endif
 		gzFile dataFile=gzopen(temporary,fieldContent ? "wbh" : "wb");
