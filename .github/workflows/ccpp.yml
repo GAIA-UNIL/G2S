@@ -66,6 +66,13 @@ jobs:
         make -C test/geostat_sgs
         make -C test/geostat_fft
         make -C test/geostat_tb quick
+        if [ "$(uname -m)" = "x86_64" ]; then
+          # The turning-bands kernels on AVX2 (the default x86 build is SSE2);
+          # tb itself stays SSE2, so the executable check is skipped.
+          make -C test/geostat_tb clean
+          make -C test/geostat_tb quick SIMD_FLAGS="-mavx2 -mfma" TB=/nonexistent
+          make -C test/geostat_tb clean
+        fi
 
     - name: Set up Python for the covariance helper test
       uses: actions/setup-python@v5
