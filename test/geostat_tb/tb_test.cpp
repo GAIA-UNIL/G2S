@@ -14,6 +14,7 @@
 // per check; the seeds are fixed, so the outcome is reproducible).
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -87,15 +88,76 @@ void parallelFor(size_t count, F f) {
 // ============================================================ helpers
 
 void testCos() {
-	section("fast cosine");
+	section("fast cosine (float, phase reduced in double)");
 	double worst = 0.0;
 	for (int i = -2000000; i <= 2000000; ++i) {
-		const double x = i * 1.2345e-3 + (i % 7) * 1e-2;
-		worst = std::max(worst, std::fabs(turningBandsCos(x) - std::cos(x)));
+		const double y = i * 1.2345e-4 + (i % 7) * 1e-3;
+		worst = std::max(worst, std::fabs(double(turningBandsCosTurns(y)) - std::cos(kTwoPi * (y - std::nearbyint(y)))));
 	}
-	for (double x : { 1e4, 1e6, 12345.678, -98765.4321 }) worst = std::max(worst, std::fabs(turningBandsCos(x) - std::cos(x)) * 1e-3);
-	printf("   max |error| = %.2e\n", worst);
-	CHECK(worst < 1e-9);
+	// Large phases: the error does not grow with |y| (the reduction is exact in double).
+	for (double y : { 1e4 + 0.123, 1e6 + 0.37, 12345.678, -98765.4321, 3.0e9 + 0.25, -7.0e11 + 0.4 }) {
+		const long double reduced = (long double)y - std::nearbyint((long double)y);
+		worst = std::max(worst, std::fabs(double(turningBandsCosTurns(y)) - double(std::cos(2.0L * 3.14159265358979323846264338327950288L * reduced))));
+	}
+	printf("   max |error| = %.2e (instruction set %s, %u lanes)\n", worst, simd::kInstructionSet, simd::kLanes);
+	CHECK(worst < 2.5e-7);
+}
+
+// sumLines against a long-double reference, for hand-made lines with high
+// frequencies and coordinates far from the origin (the float part of the
+// kernel works on the reduced phase only).
+void testKernelAccuracy() {
+	section("kernel accuracy against a long-double reference (large coordinates, high frequencies)");
+	for (LineProcess process : { LineProcess::Spectral, LineProcess::DilutionSpherical, LineProcess::DilutionCubic }) {
+		for (unsigned ndim : { 1u, 2u, 3u }) {
+			for (double offset : { 0.0, 1e3, 1e6 }) {
+				const size_t L = 1000, n = 777;
+				std::vector<double> direction(ndim * L), shift(L);
+				std::vector<uint32_t> key(2 * L);
+				for (size_t l = 0; l < L; ++l) {
+					for (unsigned d = 0; d < ndim; ++d) {
+						const double u = g2s::geostat::uniform(3, 0, l * 3 + d, 9) - 0.5;
+						// spectral: up to 5 turns per unit; dilution: up to 1/2 segment per unit
+						direction[d * L + l] = process == LineProcess::Spectral ? 10.0 * u : u;
+					}
+					shift[l] = g2s::geostat::uniform(3, 0, l, 10);
+					const std::array<uint32_t, 4> bits = g2s::geostat::randomBlock(3, 0, l, 11);
+					key[l] = bits[0] | 1u;
+					key[L + l] = bits[1];
+				}
+				LineSet lines;
+				lines.process = process;
+				lines.ndim = ndim;
+				lines.count = L;
+				lines.amplitude = std::sqrt((process == LineProcess::Spectral ? 2.0 : 1.0) / double(L));
+				lines.direction = direction.data();
+				lines.shift = shift.data();
+				lines.signKey = key.data();
+				std::vector<double> points(n * ndim), out(n, 0.0);
+				for (size_t i = 0; i < n; ++i)
+					for (unsigned d = 0; d < ndim; ++d) points[i * ndim + d] = offset + 97.0 * g2s::geostat::uniform(4, 0, i * 3 + d, 12);
+				sumLines(lines, points.data(), n, out.data());
+				double worst = 0.0;
+				for (size_t i = 0; i < n; ++i) {
+					long double sum = 0.0L;
+					for (size_t l = 0; l < L; ++l) {
+						long double t = shift[l];
+						for (unsigned d = 0; d < ndim; ++d) t += (long double)direction[d * L + l] * (long double)points[i * ndim + d];
+						if (process == LineProcess::Spectral) {
+							sum += std::cos(2.0L * 3.14159265358979323846264338327950288L * (t - std::nearbyint(t)));
+						} else {
+							const long double k = std::floor(t), s = t - k - 0.5L;
+							const long double g = process == LineProcess::DilutionCubic ? std::sqrt(52.5L) * s * (1 - 4 * s * s) : 2 * std::sqrt(3.0L) * s;
+							sum += dilutionSign(key[l], key[L + l], int64_t(k)) * g;
+						}
+					}
+					worst = std::max(worst, std::fabs(out[i] - double(lines.amplitude * sum)));
+				}
+				printf("   %-22s %uD offset %-7g max |error| %.2e\n", lineProcessName(process), ndim, offset, worst);
+				CHECK_MSG(worst < 1.5e-6, std::string(lineProcessName(process)) + ": kernel error " + std::to_string(worst));
+			}
+		}
+	}
 }
 
 void testLineProfiles() {
@@ -282,11 +344,7 @@ double isotropyDeviation(const std::string& text, unsigned ndim, unsigned lines,
 	std::vector<unsigned> dims(ndim, side);
 	size_t count = 1;
 	for (unsigned d : dims) count *= d;
-	std::vector<double> points(count * ndim);
-	for (size_t i = 0; i < count; ++i) {
-		size_t rest = i;
-		for (unsigned d = 0; d < ndim; ++d) { points[i * ndim + d] = double(rest % dims[d]); rest /= dims[d]; }
-	}
+	const RegularGrid grid = RegularGrid::cells(ndim, dims.data()); // the grid path, as tb
 	// Integer lags of equal length 5 (and 10) in different directions.
 	std::vector<std::vector<int> > lags;
 	if (ndim == 2) lags = { { 5, 0 }, { 0, 5 }, { 3, 4 }, { 4, -3 }, { 10, 0 }, { 0, 10 }, { 6, 8 }, { 8, -6 } };
@@ -299,7 +357,7 @@ double isotropyDeviation(const std::string& text, unsigned ndim, unsigned lines,
 	std::vector<double> values(count);
 	double deviation = 0.0;
 	for (unsigned r = 0; r < realisations; ++r) {
-		simulateTurningBands(model, settings, points.data(), count, r, 1, values.data());
+		simulateTurningBandsGrid(model, settings, grid, r, 1, values.data());
 		for (size_t group = 0; group < 2; ++group) {
 			double lo = 1e300, hi = 0.0;
 			for (size_t j = group * perLength; j < (group + 1) * perLength; ++j) {
@@ -405,8 +463,93 @@ void testDeterminism() {
 	}
 }
 
+void testGridDeterminism() {
+	section("grid path: same seed, any thread count; batch = single realisation (bit for bit)");
+	// Grids with several column tiles and rows per block that do not divide the
+	// rows, all three line processes, steep dilution lines (range 3) included.
+	for (const char* text : { "0.1*nugget + 0.5*spherical(range=[30,12], angle=25) + 0.4*matern(range=40, nu=0.7)",
+	                          "0.3*cubic(range=[20,10,5], angle=[10,20,30]) + 0.7*stable(range=25, alpha=1.3) + 0.2*spherical(range=3)",
+	                          "0.5*cubic(range=3) + 0.5*exponential(range=7)" }) {
+		const std::string t(text);
+		const unsigned ndim = t.find("[20,10,5]") != std::string::npos ? 3 : t.find("[30,12]") != std::string::npos ? 2 : 1;
+		const ResolvedModel model = stationary(text, ndim);
+		const std::vector<unsigned> dims = ndim == 1 ? std::vector<unsigned>{ 3000 } : ndim == 2 ? std::vector<unsigned>{ 1100, 37 } : std::vector<unsigned>{ 530, 9, 7 };
+		const RegularGrid grid = RegularGrid::cells(ndim, dims.data());
+		const size_t count = grid.nodeCount();
+		TurningBandsSettings settings;
+		settings.seed = 77;
+		settings.mean = -1.5;
+		std::vector<double> reference(5 * count), other(5 * count), single(count);
+		settings.threads = 1;
+		simulateTurningBandsGrid(model, settings, grid, 0, 5, reference.data());
+		for (unsigned threads : { 2u, 3u, 8u, 13u }) {
+			settings.threads = threads;
+			simulateTurningBandsGrid(model, settings, grid, 0, 5, other.data());
+			CHECK_MSG(other == reference, t + ": grid path differs with " + std::to_string(threads) + " threads");
+		}
+		for (unsigned r = 0; r < 5; ++r) {
+			simulateTurningBandsGrid(model, settings, grid, r, 1, single.data());
+			CHECK_MSG(std::equal(single.begin(), single.end(), reference.begin() + size_t(r) * count), t + ": grid realisation " + std::to_string(r) + " differs from the batch");
+		}
+		// Every block computed alone, with a fresh scratch, gives the same values.
+		TurningBandsRealisation realisation(model, settings, 2);
+		realisation.attachGrid(grid);
+		GridScratch scratch;
+		std::vector<double> values;
+		bool same = true;
+		for (const GridBlock& block : planGridBlocks(grid)) {
+			values.assign(block.count(), 0.0);
+			realisation.evaluateGrid(block, values.data(), scratch);
+			for (size_t row = block.rowBegin; row < block.rowEnd; ++row)
+				for (size_t c = block.columnBegin; c < block.columnEnd; ++c)
+					same &= values[(row - block.rowBegin) * block.width() + (c - block.columnBegin)] == reference[2 * count + row * grid.size[0] + c];
+		}
+		CHECK_MSG(same, t + ": a block evaluated alone differs");
+	}
+}
+
+// The grid path and the meshless path compute the same field in different
+// ways (per-axis tables and running sums versus per-point evaluation): equal
+// up to a documented tolerance, |difference| <= 3e-6 sqrt(total sill)
+// (measured: 1.5e-6 at most on these cases).
+void testGridVersusMeshless() {
+	section("grid path = meshless path at the nodes, within 3e-6 sqrt(sill)");
+	struct Case { const char* model; unsigned ndim; std::vector<unsigned> dims; double origin, spacing; };
+	const Case cases[] = {
+		{ "0.4*spherical(range=17) + 0.4*cubic(range=9) + 0.5*exponential(range=12) + 0.3*gaussian(range=8)", 1, { 1300 }, 0.0, 1.0 },
+		{ "0.4*spherical(range=17) + 0.4*cubic(range=9) + 0.5*exponential(range=12) + 0.3*gaussian(range=8)", 2, { 1100, 23 }, 0.0, 1.0 },
+		{ "0.4*spherical(range=17) + 0.4*cubic(range=9) + 0.5*exponential(range=12) + 0.3*gaussian(range=8)", 3, { 70, 16, 12 }, 0.0, 1.0 },
+		// steep dilution lines (direct evaluation), high frequencies, far origin, non-unit spacing
+		{ "0.5*spherical(range=[3,2], angle=10) + 0.5*cubic(range=2.5) + 0.5*matern(range=2, nu=0.4) + 0.5*stable(range=4, alpha=0.6)", 2, { 600, 41 }, 12345.5, 0.7 },
+		{ "0.6*spherical(range=[40,25,12], angle=[30,20,10]) + 0.4*cubic(range=[30,15,8], angle=[0,30,0]) + 1*exponential(range=[40,20,10], angle=[10,0,0])", 3, { 530, 7, 5 }, -2.0e5, 1.3 },
+	};
+	for (const Case& c : cases) {
+		const ResolvedModel model = stationary(c.model, c.ndim);
+		double sill = 0.0;
+		for (const ResolvedStructure& s : model.structures) sill += s.sill;
+		RegularGrid grid = RegularGrid::cells(c.ndim, c.dims.data());
+		for (unsigned d = 0; d < c.ndim; ++d) { grid.origin[d] = c.origin * (d + 1); grid.spacing[d] = c.spacing; }
+		const size_t count = grid.nodeCount();
+		std::vector<double> points(count * c.ndim);
+		for (size_t id = 0; id < count; ++id) {
+			size_t rest = id;
+			for (unsigned d = 0; d < c.ndim; ++d) { points[id * c.ndim + d] = grid.origin[d] + grid.spacing[d] * double(rest % grid.size[d]); rest /= grid.size[d]; }
+		}
+		TurningBandsSettings settings;
+		settings.seed = 31;
+		settings.threads = hardwareThreads();
+		std::vector<double> onGrid(2 * count), meshless(2 * count);
+		simulateTurningBandsGrid(model, settings, grid, 0, 2, onGrid.data());
+		simulateTurningBands(model, settings, points.data(), count, 0, 2, meshless.data());
+		double worst = 0.0, sum2 = 0.0;
+		for (size_t i = 0; i < 2 * count; ++i) { worst = std::max(worst, std::fabs(onGrid[i] - meshless[i])); sum2 += meshless[i] * meshless[i]; }
+		printf("   %uD %-70.70s max |difference| %.2e (field sd %.2f)\n", c.ndim, c.model, worst, std::sqrt(sum2 / (2 * count)));
+		CHECK_MSG(worst <= 3e-6 * std::sqrt(sill), std::string(c.model) + ": grid and meshless differ by " + std::to_string(worst));
+	}
+}
+
 void testScattered() {
-	section("scattered points = grid at coinciding coordinates");
+	section("meshless path: scattered points = the same points in a grid order, exactly");
 	for (unsigned ndim : { 1u, 2u, 3u }) {
 		const std::string text = "0.2*nugget + 0.4*spherical(range=17) + 0.4*cubic(range=9) + 0.5*exponential(range=12) + 0.3*gaussian(range=8)";
 		const ResolvedModel model = stationary(text, ndim);
@@ -511,15 +654,19 @@ void testExecutable(const std::string& binary) {
 		TurningBandsSettings settings;
 		settings.seed = 11;
 		settings.mean = -2.5;
-		std::vector<double> values(3 * count);
-		simulateTurningBands(resolved, settings, points.data(), count, 0, 3, values.data());
+		std::vector<double> values(3 * count), meshless(3 * count);
+		simulateTurningBandsGrid(resolved, settings, RegularGrid::cells(2, dims.data()), 0, 3, values.data());
+		simulateTurningBands(resolved, settings, points.data(), count, 0, 3, meshless.data());
+		bool exact = true;
 		double worst = 0.0, sum = 0.0;
 		for (unsigned r = 0; r < 3; ++r)
 			for (size_t i = 0; i < count; ++i) {
-				worst = std::max(worst, std::fabs(double(a._data[i * 3 + r]) - values[r * count + i]));
+				exact &= a._data[i * 3 + r] == float(values[r * count + i]);
+				worst = std::max(worst, std::fabs(double(a._data[i * 3 + r]) - meshless[r * count + i]));
 				sum += a._data[i * 3 + r];
 			}
-		printf("   executable vs engine: max |difference| %.2e, mean %.3f\n", worst, sum / (3.0 * count));
+		printf("   executable = engine grid path: %s; vs meshless path: max |difference| %.2e, mean %.3f\n", exact ? "exact" : "DIFFERENT", worst, sum / (3.0 * count));
+		CHECK(exact);
 		CHECK(worst <= 1e-5);
 	}
 	CHECK(run("-nb 300", testId(702)) == 0);
@@ -595,10 +742,13 @@ int main(int argc, char** argv) {
 	if (quick) printf("quick mode: a subset of the statistical cases\n");
 	const auto begin = std::chrono::steady_clock::now();
 	testCos();
+	testKernelAccuracy();
 	testLineProfiles();
 	testRefusals();
 	testDeterminism();
+	testGridDeterminism();
 	testScattered();
+	testGridVersusMeshless();
 	testCovariances();
 	testGaussianity();
 	testBanding();

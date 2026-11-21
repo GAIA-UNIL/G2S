@@ -17,10 +17,12 @@
 
 // Unconditional Gaussian simulation by turning bands (Matheron 1973), in the
 // modern formulation of Emery & Lantuejoul (2006, TBSIM, Computers &
-// Geosciences 32:1615-1628). The engine is meshless: it works on an array of
-// point coordinates (N x ndim doubles, row-major, in the same units and axis
-// order as the covariance lags) and fills a caller-provided output. Nothing
-// here knows about grids or DataImage (src/tb.cpp is the grid front end).
+// Geosciences 32:1615-1628). Two evaluation paths share the same lines:
+//   * meshless: an array of point coordinates (N x ndim doubles, row-major,
+//     in the same units and axis order as the covariance lags);
+//   * regular grid: nodes origin_d + spacing_d i_d, evaluated by blocks of
+//     rows with per-axis tables (much faster; src/tb.cpp uses it).
+// Nothing here knows about DataImage.
 //
 // ------------------------------------------------------------------ method
 // Each nested structure s of the model (sill c_s, anisotropy transform A_s,
@@ -62,6 +64,12 @@
 //     of the 3D isotropic covariance to a plane or a line, and the restriction
 //     of a stationary isotropic 3D field to a plane has the restricted
 //     covariance.
+//     Signs: e_k = -1 when the top bit of mix32(uint32(k) * a_l + b_l) is
+//     set, +1 otherwise, with mix32 the MurmurHash3 finaliser (a bijection of
+//     the 32-bit integers with full avalanche) and (a_l odd, b_l) 64 random
+//     bits per line. Stateless, so no table and no branch: it vectorises.
+//     Different multipliers keep two lines from having shifted copies of the
+//     same sign sequence. The sequence repeats after 2^32 segments.
 //   * exponential, gaussian, matern, stable: continuous spectral method
 //     (Shinozuka 1971; Emery & Lantuejoul 2006, sec. 3.2; Lantuejoul 2002):
 //         Y(t) = sqrt(2) cos(w t + phi), phi ~ U(0, 2 pi),
@@ -83,6 +91,7 @@
 //     Check: E cos(<w u, h>) = E exp(-W |h|^2 / 2) gives back rho for each
 //     mixing variable W. Frequencies are capped at 1e9 per practical range
 //     (heavy-tailed draws beyond any grid resolution behave as white noise).
+//     The phase is kept in turns (t / 2 pi).
 //   * nugget: independent noise. map(...): refused (no line process).
 //
 // Random numbers are counter-based (random.hpp): every draw is a function of
@@ -90,32 +99,87 @@
 // of threads, on how the points are split into blocks, or on how realisations
 // are batched. Streams: 0 nugget (fastNormalByIndex, index = node id), 1 rotations (index =
 // structure), 2 + 8 s + k the k-th draw of structure s (index = line, or
-// line * 64 + attempt, or (line << 40) + segment).
+// line * 64 + attempt; k = 4 is the sign key of a dilution line).
+//
+// ------------------------------------------------------------------ precision
+// The outputs are meant for float images. Phases are computed and reduced in
+// double (t - round(t) in turns, valid for |t| < 2^51 turns or segments, far
+// beyond the point where a double phase means anything), the reduced value
+// (|.| <= 1/2) is then rounded to float, which costs at most 3e-8 turns,
+// independently of the size of the coordinates or of the frequency: there is
+// no loss of accuracy far from the origin or at high frequency. Cosines and
+// dilution profiles are evaluated in float (cosine: degree-9 odd minimax
+// polynomial, 3.4e-9 truncation, < 2.5e-7 total error per term); each line's
+// term is added in float over tiles of 64 lines (kLineTile), and the tiles in
+// double. Measured against a long-double reference (test/geostat_tb, 1000
+// lines): |error| <= 7e-7 sqrt(sill) on the meshless path (test bound 1.5e-6),
+// also with coordinates near 1e6 and frequencies of several turns per unit
+// (about 1 float ulp of a unit-variance value; the error is the float
+// rounding of each line's term, summed as a random walk). The grid path:
+//   * spectral: cos(2 pi (row phase + column phase)) = cos_r cos_c - sin_r sin_c
+//     with both factors evaluated directly (no rotation recurrence, so no error
+//     growth along a row: every table entry is a direct evaluation); same
+//     error level as the meshless path.
+//   * dilution: along a row, each line's profile is a polynomial in the column
+//     index between segment crossings; the polynomial coefficients of every
+//     line are added into difference arrays at the crossings and the row is
+//     rebuilt with running (prefix) sums in double. The running sums restart
+//     at every column tile of kGridColumnTile = 512 nodes (the periodic
+//     resynchronisation), with the polynomial variable centred on the tile, so
+//     |u| <= 256; lines steeper than 1/4 segment per node use the direct
+//     evaluation. Bound: each running sum adds at most L (1 + 128) terms of
+//     magnitude <= 4 c u^3 w^3 ~ 2e6 (cubic, |w| = 1/4) or <= 250 (spherical),
+//     i.e. an error below 1e-6 (cubic, worst case) and 1e-12 (spherical) per
+//     unit amplitude: in practice the dilution grid path is accurate to about
+//     1e-9 (double arithmetic throughout).
+// Grid and meshless paths therefore agree to within 3e-6 sqrt(sill) (test
+// bound; measured <= 1.5e-6),
+// but not bit for bit; each path is bit-for-bit deterministic on its own
+// (any thread count, any batching of realisations, any order of points).
 //
 // ----------------------------------------------------------------- usage
 //   const ResolvedModel& model = turningBandsModel(modelSet);   // throws Error
 //   TurningBandsSettings settings; settings.seed = 7; settings.threads = 8;
 //   simulateTurningBands(model, settings, points, count, 0, R, out);   // out[r * count + i]
-// or, for blocks of points generated on the fly (grid front end):
-//   TurningBandsRealisation realisation(model, settings, r, boxMin, boxMax);
+// or one realisation at a time, on points generated on the fly:
+//   TurningBandsRealisation realisation(model, settings, r);
 //   realisation.evaluate(blockPoints, blockCount, nullptr, firstNodeId, blockOut);
-// The innermost loop, sumLines(LineSet, points, count, out), has a plain array
-// interface (LineSet) so that other back ends (GPU) can replace it.
+// Regular grid (node id = i0 + n0 (i1 + n1 i2)):
+//   WorkerPool pool(threads);
+//   simulateTurningBandsGrid(model, settings, grid, 0, R, pool, store, progress);
+// where store(r, block, values) receives the values of every block of
+// planGridBlocks(grid) (called concurrently, for disjoint blocks).
+//
+// ----------------------------------------------------------------- kernels
+// The innermost loops have plain-array interfaces so that other back ends
+// (OpenCL, CUDA) can replace them:
+//   sumLines(LineSet, points, count, out)                       meshless
+//   sumLinesGrid(LineSet, GridLines, RegularGrid, GridBlock, out, scratch)   grid
+// Memory layouts are documented at LineSet, RegularGrid, GridBlock and
+// GridLines below. A GPU back end needs only LineSet, RegularGrid and
+// GridBlock (GridLines are CPU lookup tables derived from them).
 
 #ifndef G2S_GEOSTAT_TURNING_BANDS_HPP
 #define G2S_GEOSTAT_TURNING_BANDS_HPP
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
+#include <condition_variable>
 #include <cstdint>
+#include <exception>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 #include "geostat/covarianceModel.hpp"
 #include "geostat/random.hpp"
+#include "geostat/simdLanes.hpp"
 
 namespace g2s {
 namespace geostat {
@@ -179,139 +243,510 @@ struct TurningBandsSettings {
 	double mean = 0.0;
 };
 
-// ============================================================ inner loop
+inline void checkTurningBandsSettings(const TurningBandsSettings& settings) {
+	if (settings.lineCount < 1) throw Error("turning bands: the number of lines must be >= 1");
+	if (settings.lineCount >= (1u << 24)) throw Error("turning bands: too many lines (max 16777215)");
+}
 
-// Plain-array description of the lines of one structure in one realisation:
-// everything a back end needs to evaluate the sum over lines. Line l maps a
-// point x (ndim components) to
+// ============================================================ plain-array descriptions
+
+// The lines of one structure in one realisation: everything a back end needs
+// to evaluate the sum over lines. All arrays are plain, contiguous, indexed by
+// the line l < count. Line l maps a point x (ndim components) to
 //     t_l(x) = sum_d direction[d * count + l] x_d + shift[l]
-// (direction already contains A^T u_l, times the frequency for the spectral
-// process; shift is the phase or the segment origin), and contributes
-//     spectral: amplitude * cos(t_l)
-//     dilution: amplitude * e(l, k) * g(t_l - k - 1/2), k = floor(t_l),
-// where e(l, k) = signs[tableOffset[l] + k - tableFirst[l]] when
-// 0 <= k - tableFirst[l] < tableSize[l], else dilutionSign(seed,
-// realisation, signStream, l, k) (identical values; the table covers the
-// bounding box given at construction).
+// (direction: ndim x count doubles, structure of arrays; it contains
+// A^T u_l, times the frequency in turns per unit for the spectral process;
+// shift: count doubles, the phase in turns in [0, 1) or the segment origin
+// in [0, 1)), and contributes
+//     spectral: amplitude * cos(2 pi t_l)
+//     dilution: amplitude * e_l(k) * g(t_l - k - 1/2),  k = floor(t_l),
+//               e_l(k) = top bit of mix32(uint32(k) * signKey[l] + signKey[count + l]) ? -1 : +1
+// (signKey: 2 x count uint32, dilution only; signKey[l] is odd).
 struct LineSet {
 	LineProcess process = LineProcess::Spectral;
 	unsigned ndim = 0;
 	size_t count = 0;
 	double amplitude = 0.0;
-	const double* direction = nullptr; // ndim x count (structure of arrays)
-	const double* shift = nullptr;     // count
-	// dilution only
-	const int64_t* tableFirst = nullptr;
-	const uint32_t* tableSize = nullptr;
-	const size_t* tableOffset = nullptr;
-	const int8_t* signs = nullptr;
-	uint64_t seed = 0;
-	uint32_t realisation = 0;
-	uint32_t signStream = 0;
+	const double* direction = nullptr;  // ndim x count
+	const double* shift = nullptr;      // count
+	const uint32_t* signKey = nullptr;  // 2 x count (dilution only)
 };
+
+// A regular grid: node (i0, i1, i2), i_d < size[d], is at
+// x_d = origin[d] + spacing[d] i_d; unused axes have size 1. Node id
+// (row-major, axis 0 fastest, the DataImage order) = i0 + size[0] * row,
+// row = i1 + size[1] i2.
+struct RegularGrid {
+	unsigned ndim = 0;
+	size_t size[3] = { 1, 1, 1 };
+	double origin[3] = { 0, 0, 0 };
+	double spacing[3] = { 1, 1, 1 };
+
+	size_t rowCount() const { return size[1] * size[2]; }
+	size_t nodeCount() const { return size[0] * size[1] * size[2]; }
+	// Nodes at the cell indices (origin 0, spacing 1), as tb uses them.
+	static RegularGrid cells(unsigned ndim, const unsigned* dims) {
+		RegularGrid grid;
+		grid.ndim = ndim;
+		for (unsigned d = 0; d < ndim && d < 3; ++d) grid.size[d] = dims[d];
+		return grid;
+	}
+};
+
+// Grid path: values depend on the column tile (resynchronisation of the
+// dilution running sums), so blocks never straddle a tile boundary.
+constexpr size_t kGridColumnTile = 512;
+
+// A block of grid nodes: rows rowBegin .. rowEnd - 1, columns (i0)
+// columnBegin .. columnEnd - 1, inside one column tile
+// (columnBegin / kGridColumnTile == (columnEnd - 1) / kGridColumnTile).
+// Block values are stored row-major: out[(row - rowBegin) * width() + (i0 - columnBegin)].
+struct GridBlock {
+	size_t rowBegin = 0, rowEnd = 0, columnBegin = 0, columnEnd = 0;
+	size_t rows() const { return rowEnd - rowBegin; }
+	size_t width() const { return columnEnd - columnBegin; }
+	size_t count() const { return rows() * width(); }
+};
+
+// The lines of one LineSet on one grid (CPU lookup tables, built by
+// buildGridLines): t_l(node) = shift[l] + sum_d step[d * padded + l] i_d,
+// padded = count rounded up to simd::kLanes (padding lines are zero). For the
+// spectral process, shift is reduced to [-1/2, 1/2] turns and
+// columnCos / columnSin[l * stride + i0] = cos / sin(2 pi step[0][l] i0) for
+// i0 < stride (stride >= size[0] + 64).
+struct GridLines {
+	size_t count = 0, padded = 0, stride = 0;
+	std::vector<double> shift, step;
+	std::vector<float> columnCos, columnSin;
+};
+
+// Per-thread workspace of sumLinesGrid (grows on first use, then reused).
+struct GridScratch {
+	std::vector<float> rowCos, rowSin, partial, noise;
+	std::vector<double> accumulator, lineStart, coefficients, columns, values;
+	template <class T> static T* reserve(std::vector<T>& v, size_t n) { if (v.size() < n) v.resize(n); return v.data(); }
+};
+
+// ============================================================ scalar helpers
 
 constexpr double kTwoPi = 6.28318530717958647693;
 
-// cos(x) to ~1e-11, branch-free so that the point loop vectorises: reduce to
-// a whole number of turns, then cos(2 pi y) = sin(2 pi (1/4 - |y|)) with a
-// degree-15 Taylor polynomial on [-pi/2, pi/2].
-inline double turningBandsCos(double x) {
-	double y = x * (1.0 / kTwoPi);
-	y -= std::round(y);
-	const double a = kTwoPi * (0.25 - std::fabs(y));
-	const double a2 = a * a;
-	return a * (1.0 + a2 * (-1.0 / 6 + a2 * (1.0 / 120 + a2 * (-1.0 / 5040 + a2 * (1.0 / 362880 + a2 * (-1.0 / 39916800 +
-	       a2 * (1.0 / 6227020800.0 + a2 * (-1.0 / 1307674368000.0))))))));
+namespace detail {
+// sin(2 pi a) ~ a (c0 + c1 a^2 + ... + c4 a^8) on |a| <= 1/4 (minimax-like fit,
+// max error 3.4e-9).
+constexpr float kSinTurns0 = 6.283185158278849f, kSinTurns1 = -41.34165469233216f, kSinTurns2 = 81.60098593229426f,
+                kSinTurns3 = -76.54941360513733f, kSinTurns4 = 39.53417324387686f;
+constexpr float kSphericalFactor = 3.46410161513775459f;   // 2 sqrt(3)
+constexpr float kCubicFactor = 7.24568837309471540f;       // sqrt(105 / 2)
+constexpr size_t kLineTile = 64;    // lines added in float before the double accumulator
+constexpr size_t kPointBlock = 256; // meshless points per block (a multiple of every kLanes)
+constexpr double kDirectSlope = 0.25; // grid dilution: lines steeper than this (segments per node) are evaluated directly
+} // namespace detail
+
+// cos(2 pi y) in float, |error| < 2.5e-7 for any double y (|y| < 2^51).
+inline float turningBandsCosTurns(double y) {
+	y -= std::nearbyint(y);
+	const float a = float(0.25 - std::fabs(y));
+	const float x = a * a;
+	using namespace detail;
+	return a * ((((kSinTurns4 * x + kSinTurns3) * x + kSinTurns2) * x + kSinTurns1) * x + kSinTurns0);
 }
 
-// Sign of segment k of dilution line `line` (+1 or -1).
-inline int dilutionSign(uint64_t seed, uint32_t realisation, uint32_t stream, size_t line, int64_t k) {
-	const uint64_t segment = (uint64_t(k) + (uint64_t(1) << 39)) & ((uint64_t(1) << 40) - 1);
-	return uniform(seed, realisation, (uint64_t(line) << 40) | segment, stream) < 0.5 ? -1 : 1;
+// MurmurHash3 32-bit finaliser.
+inline uint32_t mixBits32(uint32_t h) {
+	h ^= h >> 16; h *= 0x85ebca6bu; h ^= h >> 13; h *= 0xc2b2ae35u; h ^= h >> 16;
+	return h;
 }
+
+// Sign e_l(k) of segment k of a dilution line with key (multiplier, offset).
+inline double dilutionSign(uint32_t multiplier, uint32_t offset, int64_t k) {
+	return (mixBits32(uint32_t(uint64_t(k)) * multiplier + offset) >> 31) ? -1.0 : 1.0;
+}
+
+// ============================================================ vector building blocks
 
 namespace detail {
 
-constexpr size_t kPointBlock = 256;
+// cos(2 pi y) from a = 1/4 - |y| (|y| <= 1/2), i.e. sin(2 pi a).
+inline simd::F sinTurnsQuarter(simd::F a) {
+	using namespace simd;
+	const F x = fMul(a, a);
+	F p = fMulAdd(fSet(kSinTurns4), x, fSet(kSinTurns3));
+	p = fMulAdd(p, x, fSet(kSinTurns2));
+	p = fMulAdd(p, x, fSet(kSinTurns1));
+	p = fMulAdd(p, x, fSet(kSinTurns0));
+	return fMul(a, p);
+}
 
-template <unsigned NDIM>
-inline void spectralBlock(const LineSet& lines, const double* const* coordinates, size_t count, double* accumulator) {
+// cos(2 pi t), t in turns (double), as float.
+inline simd::F cosTurns(simd::D t) {
+	using namespace simd;
+	const D y = dSub(t, dRound(t));
+	return sinTurnsQuarter(dToF(dSub(dSet(0.25), dAbs(y))));
+}
+
+// sin(2 pi t) = cos(2 pi (t - 1/4)).
+inline simd::F sinTurns(simd::D t) { return cosTurns(simd::dSub(t, simd::dSet(0.25))); }
+
+// e_l(k) g(t - k - 1/2), k = floor(t), for one dilution line.
+template <bool CUBIC>
+inline simd::F dilutionValue(simd::D t, simd::U multiplier, simd::U offset) {
+	using namespace simd;
+	const D k = dFloor(t);
+	const F s = dToF(dSub(dSub(t, k), dSet(0.5)));
+	U h = uAdd(uMul(dLow32(k), multiplier), offset);
+	h = uXor(h, uShr<16>(h));
+	h = uMul(h, uSet(0x85ebca6bu));
+	h = uXor(h, uShr<13>(h));
+	h = uMul(h, uSet(0xc2b2ae35u));
+	h = uXor(h, uShr<16>(h));
+	const U sign = uAnd(h, uSet(0x80000000u));
+	const F g = CUBIC ? fMul(s, fNegMulAdd(fMul(s, s), fSet(4.0f * kCubicFactor), fSet(kCubicFactor))) : fMul(s, fSet(kSphericalFactor));
+	return fXorBits(g, sign);
+}
+
+// acc[i] = sum over the lines of their (unit-amplitude) value at the points
+// x[d][i], i < n (n a multiple of kLanes). Points are the outer loop: the
+// coordinates and the accumulator stay in registers while the lines stream.
+template <unsigned NDIM, LineProcess P>
+inline void meshlessBlock(const LineSet& lines, const double* const* x, size_t n, double* acc) {
+	using namespace simd;
 	const size_t L = lines.count;
-	for (size_t l = 0; l < L; ++l) {
-		const double w0 = lines.direction[l];
-		const double w1 = NDIM > 1 ? lines.direction[L + l] : 0.0;
-		const double w2 = NDIM > 2 ? lines.direction[2 * L + l] : 0.0;
-		const double phase = lines.shift[l];
-		const double* x0 = coordinates[0];
-		const double* x1 = coordinates[NDIM > 1 ? 1 : 0];
-		const double* x2 = coordinates[NDIM > 2 ? 2 : 0];
-		for (size_t i = 0; i < count; ++i) {
-			double t = phase + w0 * x0[i];
-			if (NDIM > 1) t += w1 * x1[i];
-			if (NDIM > 2) t += w2 * x2[i];
-			accumulator[i] += turningBandsCos(t);
+	const double* w0 = lines.direction;
+	const double* w1 = lines.direction + (NDIM > 1 ? L : 0);
+	const double* w2 = lines.direction + (NDIM > 2 ? 2 * L : 0);
+	const double* shift = lines.shift;
+	const uint32_t* key = lines.signKey;
+	for (size_t i = 0; i < n; i += kLanes) {
+		const D x0 = dLoad(x[0] + i);
+		const D x1 = NDIM > 1 ? dLoad(x[1] + i) : x0;
+		const D x2 = NDIM > 2 ? dLoad(x[2] + i) : x0;
+		D total = dSet(0.0);
+		for (size_t l0 = 0; l0 < L; l0 += kLineTile) {
+			const size_t l1 = std::min(L, l0 + kLineTile);
+			F sum = fZero();
+			for (size_t l = l0; l < l1; ++l) {
+				D t = dMulAdd(dSet(w0[l]), x0, dSet(shift[l]));
+				if (NDIM > 1) t = dMulAdd(dSet(w1[l]), x1, t);
+				if (NDIM > 2) t = dMulAdd(dSet(w2[l]), x2, t);
+				if (P == LineProcess::Spectral) sum = fAdd(sum, cosTurns(t));
+				else sum = fAdd(sum, dilutionValue<P == LineProcess::DilutionCubic>(t, uSet(key[l]), uSet(key[L + l])));
+			}
+			total = dAdd(total, fToD(sum));
 		}
+		dStore(acc + i, total);
 	}
 }
 
 template <unsigned NDIM>
-inline void dilutionBlock(const LineSet& lines, const double* const* coordinates, size_t count, double* accumulator) {
-	const size_t L = lines.count;
-	const bool cubic = lines.process == LineProcess::DilutionCubic;
-	const double sphericalFactor = 2.0 * std::sqrt(3.0), cubicFactor = std::sqrt(52.5);
+inline void meshlessDispatch(const LineSet& lines, const double* const* x, size_t n, double* acc) {
+	switch (lines.process) {
+		case LineProcess::Spectral: meshlessBlock<NDIM, LineProcess::Spectral>(lines, x, n, acc); break;
+		case LineProcess::DilutionSpherical: meshlessBlock<NDIM, LineProcess::DilutionSpherical>(lines, x, n, acc); break;
+		case LineProcess::DilutionCubic: meshlessBlock<NDIM, LineProcess::DilutionCubic>(lines, x, n, acc); break;
+	}
+}
+
+} // namespace detail
+
+// ============================================================ meshless kernel
+
+// out[i] += sum over the lines of their value at points[i] (row-major
+// count x lines.ndim). Single-threaded; any count; a point's value does not
+// depend on the other points of the call (nor on its position in the array).
+inline void sumLines(const LineSet& lines, const double* points, size_t count, double* out) {
+	using detail::kPointBlock;
+	const unsigned ndim = lines.ndim;
+	alignas(64) double buffer[3][kPointBlock];
+	alignas(64) double accumulator[kPointBlock];
+	const double* coordinates[3] = { buffer[0], buffer[1], buffer[2] };
+	for (size_t begin = 0; begin < count; begin += kPointBlock) {
+		const size_t n = std::min(kPointBlock, count - begin);
+		const size_t padded = (n + simd::kLanes - 1) / simd::kLanes * simd::kLanes;
+		for (size_t i = 0; i < n; ++i)
+			for (unsigned d = 0; d < ndim; ++d) buffer[d][i] = points[(begin + i) * ndim + d];
+		for (size_t i = n; i < padded; ++i)
+			for (unsigned d = 0; d < ndim; ++d) buffer[d][i] = 0.0;
+		if (ndim == 1) detail::meshlessDispatch<1>(lines, coordinates, padded, accumulator);
+		else if (ndim == 2) detail::meshlessDispatch<2>(lines, coordinates, padded, accumulator);
+		else detail::meshlessDispatch<3>(lines, coordinates, padded, accumulator);
+		for (size_t i = 0; i < n; ++i) out[begin + i] += lines.amplitude * accumulator[i];
+	}
+}
+
+// ============================================================ grid kernel
+
+// The CPU tables of a line set on a grid (see GridLines), in two steps so
+// that the column tables can be filled in parallel: prepareGridLines (shift,
+// step, allocation), then fillGridColumns for every range of lines.
+inline void prepareGridLines(const LineSet& lines, const RegularGrid& grid, GridLines& table) {
+	const size_t L = lines.count, P = (L + simd::kLanes - 1) / simd::kLanes * simd::kLanes;
+	table.count = L;
+	table.padded = P;
+	table.shift.assign(P, 0.0);
+	table.step.assign(3 * P, 0.0);
+	const bool spectral = lines.process == LineProcess::Spectral;
 	for (size_t l = 0; l < L; ++l) {
-		const double w0 = lines.direction[l];
-		const double w1 = NDIM > 1 ? lines.direction[L + l] : 0.0;
-		const double w2 = NDIM > 2 ? lines.direction[2 * L + l] : 0.0;
-		const double origin = lines.shift[l];
-		const int64_t first = lines.tableFirst[l];
-		const uint64_t size = lines.tableSize[l];
-		const int8_t* signs = lines.signs + lines.tableOffset[l];
-		const double* x0 = coordinates[0];
-		const double* x1 = coordinates[NDIM > 1 ? 1 : 0];
-		const double* x2 = coordinates[NDIM > 2 ? 2 : 0];
-		for (size_t i = 0; i < count; ++i) {
-			double t = origin + w0 * x0[i];
-			if (NDIM > 1) t += w1 * x1[i];
-			if (NDIM > 2) t += w2 * x2[i];
-			const double k = std::floor(t);
-			const double s = t - k - 0.5;
-			const int64_t segment = int64_t(k);
-			const uint64_t index = uint64_t(segment - first);
-			const int sign = index < size ? signs[index] : dilutionSign(lines.seed, lines.realisation, lines.signStream, l, segment);
-			const double g = cubic ? cubicFactor * s * (1.0 - 4.0 * s * s) : sphericalFactor * s;
-			accumulator[i] += sign * g;
+		double shift = lines.shift[l];
+		for (unsigned d = 0; d < lines.ndim; ++d) {
+			const double w = lines.direction[d * L + l];
+			shift += w * grid.origin[d];
+			table.step[d * P + l] = w * grid.spacing[d];
+		}
+		table.shift[l] = spectral ? shift - std::nearbyint(shift) : shift;
+	}
+	table.stride = spectral ? (grid.size[0] + 63) / 64 * 64 + 64 : 0;
+	table.columnCos.resize(L * table.stride);
+	table.columnSin.resize(L * table.stride);
+}
+
+// Column tables of lines lineBegin .. lineEnd - 1 (spectral only; no-op otherwise).
+inline void fillGridColumns(GridLines& table, size_t lineBegin, size_t lineEnd) {
+	using namespace simd;
+	const size_t stride = table.stride;
+	if (stride == 0) return;
+	alignas(64) double columns[64];
+	for (size_t l = lineBegin; l < lineEnd; ++l) {
+		const D w = dSet(table.step[l]);
+		float* c = table.columnCos.data() + l * stride;
+		float* s = table.columnSin.data() + l * stride;
+		for (size_t begin = 0; begin < stride; begin += 64) {
+			for (size_t i = 0; i < 64; ++i) columns[i] = double(begin + i);
+			for (size_t i = 0; i < 64; i += kLanes) {
+				const D t = dMul(w, dLoad(columns + i));
+				fStore(c + begin + i, detail::cosTurns(t));
+				fStore(s + begin + i, detail::sinTurns(t));
+			}
+		}
+	}
+}
+
+inline void buildGridLines(const LineSet& lines, const RegularGrid& grid, GridLines& table) {
+	prepareGridLines(lines, grid, table);
+	fillGridColumns(table, 0, table.count);
+}
+
+namespace detail {
+
+#if G2S_GEOSTAT_SIMD_AVX2 || G2S_GEOSTAT_SIMD_SSE2
+constexpr unsigned kGridVectors = 2; // 16 registers: 4 x 2 accumulators + 4 table vectors + 2 broadcasts
+#else
+constexpr unsigned kGridVectors = 4; // 32 registers (NEON, AVX-512): 4 x 4 accumulators + 8 table vectors + 2 broadcasts
+#endif
+constexpr size_t kGridChunk = kGridVectors * simd::kLanes; // columns per micro-kernel step
+constexpr size_t kGridColumnGroup = 256;                   // columns whose table slice stays in L1 across row groups
+
+// acc[r * accStride + x] += sum_{l in [l0, l1)} rowCos[r][l] columnCos[l][x] - rowSin[r][l] columnSin[l][x]
+// for r < ROWS, x < width (a multiple of kGridChunk); the line sum is in float.
+template <unsigned ROWS>
+inline void gridSpectralRows(const float* columnCos, const float* columnSin, size_t stride, size_t l0, size_t l1, const float* rowCos,
+                             const float* rowSin, size_t rowStride, size_t width, double* acc, size_t accStride) {
+	using namespace simd;
+	for (size_t x = 0; x < width; x += kGridChunk) {
+		F a[ROWS][kGridVectors];
+		for (unsigned r = 0; r < ROWS; ++r)
+			for (unsigned j = 0; j < kGridVectors; ++j) a[r][j] = fZero();
+		for (size_t l = l0; l < l1; ++l) {
+			const float* ec = columnCos + l * stride + x;
+			const float* es = columnSin + l * stride + x;
+			F c[kGridVectors], s[kGridVectors];
+			for (unsigned j = 0; j < kGridVectors; ++j) { c[j] = fLoad(ec + j * kLanes); s[j] = fLoad(es + j * kLanes); }
+			for (unsigned r = 0; r < ROWS; ++r) {
+				const F fc = fSet(rowCos[r * rowStride + l]), fs = fSet(rowSin[r * rowStride + l]);
+				for (unsigned j = 0; j < kGridVectors; ++j) a[r][j] = fNegMulAdd(fs, s[j], fMulAdd(fc, c[j], a[r][j]));
+			}
+		}
+		for (unsigned r = 0; r < ROWS; ++r)
+			for (unsigned j = 0; j < kGridVectors; ++j) {
+				double* target = acc + r * accStride + x + j * kLanes;
+				dStore(target, dAdd(dLoad(target), fToD(a[r][j])));
+			}
+	}
+}
+
+inline void gridRowIndices(const RegularGrid& grid, size_t row, double& i1, double& i2) {
+	i1 = double(row % grid.size[1]);
+	i2 = double(row / grid.size[1]);
+}
+
+inline void sumLinesGridSpectral(const LineSet& lines, const GridLines& table, const RegularGrid& grid, const GridBlock& block, double* out, GridScratch& scratch) {
+	using namespace simd;
+	const size_t L = table.count, P = table.padded, rows = block.rows(), width = block.width();
+	const size_t widthPadded = (width + kGridChunk - 1) / kGridChunk * kGridChunk;
+	float* rowCos = GridScratch::reserve(scratch.rowCos, rows * P);
+	float* rowSin = GridScratch::reserve(scratch.rowSin, rows * P);
+	double* acc = GridScratch::reserve(scratch.accumulator, rows * widthPadded);
+	std::fill(acc, acc + rows * widthPadded, 0.0);
+	const double* step1 = table.step.data() + P;
+	const double* step2 = table.step.data() + 2 * P;
+	for (size_t r = 0; r < rows; ++r) {
+		double i1, i2;
+		gridRowIndices(grid, block.rowBegin + r, i1, i2);
+		const D v1 = dSet(i1), v2 = dSet(i2);
+		for (size_t l = 0; l < P; l += kLanes) {
+			const D t = dMulAdd(dLoad(step2 + l), v2, dMulAdd(dLoad(step1 + l), v1, dLoad(table.shift.data() + l)));
+			fStore(rowCos + r * P + l, cosTurns(t));
+			fStore(rowSin + r * P + l, sinTurns(t));
+		}
+	}
+	const float* columnCos = table.columnCos.data() + block.columnBegin;
+	const float* columnSin = table.columnSin.data() + block.columnBegin;
+	for (size_t x0 = 0; x0 < widthPadded; x0 += kGridColumnGroup) {
+		const size_t groupWidth = std::min(kGridColumnGroup, widthPadded - x0);
+		for (size_t l0 = 0; l0 < L; l0 += kLineTile) {
+			const size_t l1 = std::min(L, l0 + kLineTile);
+			size_t r = 0;
+			for (; r + 4 <= rows; r += 4)
+				gridSpectralRows<4>(columnCos + x0, columnSin + x0, table.stride, l0, l1, rowCos + r * P, rowSin + r * P, P, groupWidth, acc + r * widthPadded + x0, widthPadded);
+			for (; r < rows; ++r)
+				gridSpectralRows<1>(columnCos + x0, columnSin + x0, table.stride, l0, l1, rowCos + r * P, rowSin + r * P, P, groupWidth, acc + r * widthPadded + x0, widthPadded);
+		}
+	}
+	for (size_t r = 0; r < rows; ++r)
+		for (size_t x = 0; x < width; ++x) out[r * width + x] += lines.amplitude * acc[r * widthPadded + x];
+}
+
+// One dilution line along one row piece of n nodes, t(xi) = t0 + w xi
+// (0 < |w| <= kDirectSlope, or w == 0). Adds to the difference arrays the
+// coefficients of the profile (a polynomial in u = xi - centre) of the first
+// segment at node 0 and, at the first node of every later segment, the change
+// of coefficients. A node whose t lies within rounding of a segment boundary
+// may be given to either segment (its s is then +-1/2 within rounding).
+template <bool CUBIC>
+inline void dilutionCrossings(double t0, double w, uint32_t multiplier, uint32_t offset, size_t n, double centre, double* c0, double* c1, double* c2, double* c3) {
+	const double factor = CUBIC ? double(kCubicFactor) : double(kSphericalFactor);
+	const double base = (t0 - 0.5) + w * centre; // s at u = 0 is base - k
+	double a0, a1, a2 = 0, a3 = 0;               // coefficients of the current segment
+	auto coefficients = [&](double k, double& b0, double& b1, double& b2, double& b3) {
+		const double e = dilutionSign(multiplier, offset, int64_t(k)) * factor;
+		const double beta = base - k;
+		if (!CUBIC) {
+			b0 = e * beta;
+			b1 = e * w;
+		} else {
+			const double b = beta * beta;
+			b0 = e * (beta - 4.0 * b * beta);
+			b1 = e * w * (1.0 - 12.0 * b);
+			b2 = -12.0 * e * beta * w * w;
+			b3 = -4.0 * e * w * w * w;
+		}
+	};
+	double k = std::floor(t0);
+	coefficients(k, a0, a1, a2, a3);
+	c0[0] += a0; c1[0] += a1;
+	if (CUBIC) { c2[0] += a2; c3[0] += a3; }
+	if (w == 0.0) return;
+	const double inverse = 1.0 / w, direction = w > 0 ? 1.0 : -1.0, limit = double(n);
+	size_t xi = 0;
+	for (;;) {
+		// First node of the next segment: t >= k + 1 (w > 0) or t < k (w < 0).
+		const double crossing = ((w > 0 ? k + 1.0 : k) - t0) * inverse;
+		const double first = w > 0 ? std::ceil(crossing) : std::floor(crossing) + 1.0;
+		if (!(first < limit)) break;
+		const size_t next = first > double(xi) ? size_t(first) : xi + 1;
+		if (next >= n) break;
+		k += direction;
+		double b0, b1, b2 = 0, b3 = 0;
+		coefficients(k, b0, b1, b2, b3);
+		c0[next] += b0 - a0; c1[next] += b1 - a1;
+		if (CUBIC) { c2[next] += b2 - a2; c3[next] += b3 - a3; }
+		a0 = b0; a1 = b1; a2 = b2; a3 = b3;
+		xi = next;
+	}
+}
+
+template <bool CUBIC>
+inline void sumLinesGridDilution(const LineSet& lines, const GridLines& table, const RegularGrid& grid, const GridBlock& block, double* out, GridScratch& scratch) {
+	using namespace simd;
+	const size_t L = table.count, P = table.padded, rows = block.rows(), width = block.width();
+	const size_t widthPadded = (width + kLanes - 1) / kLanes * kLanes;
+	const size_t tileBegin = block.columnBegin / kGridColumnTile * kGridColumnTile;
+	const size_t tileEnd = std::min(grid.size[0], tileBegin + kGridColumnTile);
+	// The polynomial variable is centred on the column tile and the running
+	// sums start at the block's first column: blocks must start at a tile
+	// (planGridBlocks) for the values not to depend on the blocks.
+	const double centre = 0.5 * double(tileEnd - tileBegin - 1) - double(block.columnBegin - tileBegin);
+	double* lineStart = GridScratch::reserve(scratch.lineStart, P);
+	double* coefficients = GridScratch::reserve(scratch.coefficients, 4 * (width + 1));
+	double* columns = GridScratch::reserve(scratch.columns, widthPadded);
+	float* partial = GridScratch::reserve(scratch.partial, widthPadded);
+	double* c0 = coefficients, *c1 = c0 + width + 1, *c2 = c1 + width + 1, *c3 = c2 + width + 1;
+	for (size_t i = 0; i < widthPadded; ++i) columns[i] = double(i);
+	const double* step0 = table.step.data();
+	const double* step1 = table.step.data() + P;
+	const double* step2 = table.step.data() + 2 * P;
+	const uint32_t* key = lines.signKey;
+	for (size_t r = 0; r < rows; ++r) {
+		double i1, i2;
+		gridRowIndices(grid, block.rowBegin + r, i1, i2);
+		const D v0 = dSet(double(block.columnBegin)), v1 = dSet(i1), v2 = dSet(i2);
+		for (size_t l = 0; l < P; l += kLanes)
+			dStore(lineStart + l, dMulAdd(dLoad(step0 + l), v0, dMulAdd(dLoad(step2 + l), v2, dMulAdd(dLoad(step1 + l), v1, dLoad(table.shift.data() + l)))));
+		std::fill(coefficients, coefficients + 4 * (width + 1), 0.0);
+		std::fill(partial, partial + widthPadded, 0.0f);
+		double* row = out + r * width;
+		size_t direct = 0;
+		for (size_t l = 0; l < L; ++l) {
+			const double w = step0[l];
+			if (std::fabs(w) <= kDirectSlope) {
+				dilutionCrossings<CUBIC>(lineStart[l], w, key[l], key[L + l], width, centre, c0, c1, c2, c3);
+				continue;
+			}
+			const D t0 = dSet(lineStart[l]), vw = dSet(w);
+			const U multiplier = uSet(key[l]), offset = uSet(key[L + l]);
+			for (size_t i = 0; i < widthPadded; i += kLanes)
+				fStore(partial + i, fAdd(fLoad(partial + i), dilutionValue<CUBIC>(dMulAdd(vw, dLoad(columns + i), t0), multiplier, offset)));
+			if (++direct % kLineTile == 0) {
+				for (size_t i = 0; i < width; ++i) row[i] += lines.amplitude * double(partial[i]);
+				std::fill(partial, partial + widthPadded, 0.0f);
+			}
+		}
+		double a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+		for (size_t i = 0; i < width; ++i) {
+			a0 += c0[i]; a1 += c1[i];
+			if (CUBIC) { a2 += c2[i]; a3 += c3[i]; }
+			const double u = double(i) - centre;
+			const double value = CUBIC ? a0 + u * (a1 + u * (a2 + u * a3)) : a0 + u * a1;
+			row[i] += lines.amplitude * (value + double(partial[i]));
 		}
 	}
 }
 
 } // namespace detail
 
-// out[i] += sum over the lines of their value at points[i] (row-major
-// count x lines.ndim). Single-threaded; any count; for a given point the
-// result does not depend on the other points of the call.
-inline void sumLines(const LineSet& lines, const double* points, size_t count, double* out) {
-	const unsigned ndim = lines.ndim;
-	double buffer[3][detail::kPointBlock];
-	double accumulator[detail::kPointBlock];
-	const double* coordinates[3] = { buffer[0], buffer[1], buffer[2] };
-	for (size_t begin = 0; begin < count; begin += detail::kPointBlock) {
-		const size_t n = std::min(detail::kPointBlock, count - begin);
-		for (size_t i = 0; i < n; ++i) {
-			for (unsigned d = 0; d < ndim; ++d) buffer[d][i] = points[(begin + i) * ndim + d];
-			accumulator[i] = 0.0;
-		}
-		if (lines.process == LineProcess::Spectral) {
-			if (ndim == 1) detail::spectralBlock<1>(lines, coordinates, n, accumulator);
-			else if (ndim == 2) detail::spectralBlock<2>(lines, coordinates, n, accumulator);
-			else detail::spectralBlock<3>(lines, coordinates, n, accumulator);
-		} else {
-			if (ndim == 1) detail::dilutionBlock<1>(lines, coordinates, n, accumulator);
-			else if (ndim == 2) detail::dilutionBlock<2>(lines, coordinates, n, accumulator);
-			else detail::dilutionBlock<3>(lines, coordinates, n, accumulator);
-		}
-		for (size_t i = 0; i < n; ++i) out[begin + i] += lines.amplitude * accumulator[i];
+// out[(row - rowBegin) * width + (i0 - columnBegin)] += sum over the lines of
+// their value at the nodes of the block (layout: GridBlock). `table` comes
+// from buildGridLines(lines, grid). Single-threaded; the value of a node does
+// not depend on the block it is computed in, as long as the blocks start at
+// column tiles (planGridBlocks).
+inline void sumLinesGrid(const LineSet& lines, const GridLines& table, const RegularGrid& grid, const GridBlock& block, double* out, GridScratch& scratch) {
+	switch (lines.process) {
+		case LineProcess::Spectral: detail::sumLinesGridSpectral(lines, table, grid, block, out, scratch); break;
+		case LineProcess::DilutionSpherical: detail::sumLinesGridDilution<false>(lines, table, grid, block, out, scratch); break;
+		case LineProcess::DilutionCubic: detail::sumLinesGridDilution<true>(lines, table, grid, block, out, scratch); break;
 	}
+}
+
+// Blocks covering the grid: column tiles of kGridColumnTile nodes, rows grouped
+// so that a block has about 8192 nodes (4 to 64 rows). Depends on the grid
+// only.
+inline std::vector<GridBlock> planGridBlocks(const RegularGrid& grid) {
+	std::vector<GridBlock> blocks;
+	const size_t rows = grid.rowCount(), columns = grid.size[0];
+	if (rows == 0 || columns == 0) return blocks;
+	const size_t tileWidth = std::min(columns, kGridColumnTile);
+	size_t rowsPerBlock = std::max<size_t>(4, std::min<size_t>(64, 8192 / tileWidth / 4 * 4));
+	rowsPerBlock = std::min(rowsPerBlock, rows);
+	for (size_t row = 0; row < rows; row += rowsPerBlock)
+		for (size_t column = 0; column < columns; column += kGridColumnTile) {
+			GridBlock block;
+			block.rowBegin = row;
+			block.rowEnd = std::min(rows, row + rowsPerBlock);
+			block.columnBegin = column;
+			block.columnEnd = std::min(columns, column + kGridColumnTile);
+			blocks.push_back(block);
+		}
+	return blocks;
 }
 
 // ============================================================ random draws
@@ -381,7 +816,8 @@ inline void lineDirection(unsigned dim, size_t l, size_t L, double* u) {
 	u[0] = r * std::cos(kTwoPi * turns); u[1] = r * std::sin(kTwoPi * turns); u[2] = z;
 }
 
-// Runs f(block) for block < blockCount on `threads` threads.
+// Runs f(block) for block < blockCount on `threads` new threads (kept for
+// callers that need no pool; the engine uses WorkerPool).
 template <class F>
 inline void parallelBlocks(size_t blockCount, unsigned threads, F f) {
 	if (threads <= 1 || blockCount <= 1) {
@@ -398,23 +834,111 @@ inline void parallelBlocks(size_t blockCount, unsigned threads, F f) {
 
 } // namespace detail
 
+// ============================================================ thread pool
+
+// A persistent pool of size() - 1 worker threads plus the calling thread.
+// run(count, f) calls f(index, worker) for every index < count (dynamic
+// scheduling: each thread takes the next index when it is done, so slower
+// cores simply take fewer) and returns when all are done; worker < size()
+// identifies the thread (for per-thread scratch). The first exception thrown
+// by f is rethrown by run. Not reentrant; use from one thread at a time.
+class WorkerPool {
+public:
+	explicit WorkerPool(unsigned threads) : _size(std::max(1u, threads)) {
+		for (unsigned t = 1; t < _size; ++t) _threads.emplace_back([this, t]() { work(t); });
+	}
+	~WorkerPool() {
+		{
+			std::lock_guard<std::mutex> lock(_mutex);
+			_stop = true;
+		}
+		_wake.notify_all();
+		for (std::thread& thread : _threads) thread.join();
+	}
+	WorkerPool(const WorkerPool&) = delete;
+	WorkerPool& operator=(const WorkerPool&) = delete;
+
+	unsigned size() const { return _size; }
+
+	template <class F>
+	void run(size_t count, F&& f) {
+		if (count == 0) return;
+		if (_size == 1 || count == 1) {
+			for (size_t i = 0; i < count; ++i) f(i, 0u);
+			return;
+		}
+		using Function = typename std::remove_reference<F>::type;
+		{
+			std::lock_guard<std::mutex> lock(_mutex);
+			_invoke = [](void* context, size_t index, unsigned worker) { (*static_cast<Function*>(context))(index, worker); };
+			_context = static_cast<void*>(&f);
+			_count = count;
+			_next.store(0);
+			_busy = _size - 1;
+			_error = nullptr;
+			++_generation;
+		}
+		_wake.notify_all();
+		drain(0);
+		std::unique_lock<std::mutex> lock(_mutex);
+		_done.wait(lock, [this]() { return _busy == 0; });
+		if (_error) std::rethrow_exception(_error);
+	}
+
+private:
+	void drain(unsigned worker) {
+		for (size_t i = _next.fetch_add(1); i < _count; i = _next.fetch_add(1)) {
+			try {
+				_invoke(_context, i, worker);
+			} catch (...) {
+				std::lock_guard<std::mutex> lock(_mutex);
+				if (!_error) _error = std::current_exception();
+				_next.store(_count);
+			}
+		}
+	}
+	void work(unsigned worker) {
+		uint64_t seen = 0;
+		std::unique_lock<std::mutex> lock(_mutex);
+		for (;;) {
+			_wake.wait(lock, [&]() { return _stop || _generation != seen; });
+			if (_stop) return;
+			seen = _generation;
+			lock.unlock();
+			drain(worker);
+			lock.lock();
+			if (--_busy == 0) _done.notify_one();
+		}
+	}
+
+	unsigned _size;
+	std::vector<std::thread> _threads;
+	std::mutex _mutex;
+	std::condition_variable _wake, _done;
+	bool _stop = false;
+	uint64_t _generation = 0;
+	unsigned _busy = 0;
+	void (*_invoke)(void*, size_t, unsigned) = nullptr;
+	void* _context = nullptr;
+	size_t _count = 0;
+	std::atomic<size_t> _next{ 0 };
+	std::exception_ptr _error;
+};
+
 // ============================================================ one realisation
 
-// The lines of every structure for one realisation. boxMin / boxMax (ndim
-// values each, may be null) bound the points that will be evaluated; they
-// only size the dilution sign tables (points outside still get the correct
-// values, computed on the fly), never change the result.
+// The lines of every structure for one realisation.
 class TurningBandsRealisation {
 public:
-	// Dilution tables larger than this (segments per line) are not stored.
-	static constexpr uint64_t kMaxSegmentsPerLine = uint64_t(1) << 18;
-
+	// boxMin / boxMax are accepted for compatibility and unused (the dilution
+	// signs need no table).
 	TurningBandsRealisation(const ResolvedModel& model, const TurningBandsSettings& settings, uint32_t realisation,
 	                        const double* boxMin = nullptr, const double* boxMax = nullptr)
 		: _ndim(model.ndim), _seed(settings.seed), _realisation(realisation), _mean(settings.mean) {
+		(void)boxMin;
+		(void)boxMax;
 		checkTurningBandsModel(model);
-		if (settings.lineCount < 1) throw Error("turning bands: the number of lines must be >= 1");
-		if (settings.lineCount >= (1u << 24)) throw Error("turning bands: too many lines (max 16777215)");
+		checkTurningBandsSettings(settings);
 		const unsigned ndim = _ndim;
 		const size_t L = settings.lineCount;
 		for (size_t s = 0; s < model.structures.size(); ++s) {
@@ -426,7 +950,6 @@ public:
 			Structure st;
 			st.process = process;
 			st.structureIndex = s;
-			st.signStream = 2 + 8 * uint32_t(s) + 4;
 			st.amplitude = std::sqrt((process == LineProcess::Spectral ? 2.0 : 1.0) * rs.sill / double(L));
 			st.direction.assign(size_t(ndim) * L, 0.0);
 			st.shift.assign(L, 0.0);
@@ -434,6 +957,7 @@ public:
 			double R[9];
 			if (dim >= 2) detail::randomRotation(dim, _seed, realisation, s, R);
 			const uint32_t base = 2 + 8 * uint32_t(s);
+			if (process != LineProcess::Spectral) st.signKey.assign(2 * L, 0u);
 			for (size_t l = 0; l < L; ++l) {
 				double u0[3], u[3] = { 0, 0, 0 };
 				detail::lineDirection(dim, l, L, u0);
@@ -441,10 +965,13 @@ public:
 				else for (unsigned i = 0; i < dim; ++i) { u[i] = 0; for (unsigned j = 0; j < dim; ++j) u[i] += R[i * dim + j] * u0[j]; }
 				double frequency = 1.0;
 				if (process == LineProcess::Spectral) {
-					frequency = spectralModulus(rs, ndim, l, base);
-					st.shift[l] = kTwoPi * uniform(_seed, realisation, l, base);
+					frequency = spectralModulus(rs, ndim, l, base) / kTwoPi; // turns per unit
+					st.shift[l] = uniform(_seed, realisation, l, base);
 				} else {
 					st.shift[l] = uniform(_seed, realisation, l, base);
+					const std::array<uint32_t, 4> bits = randomBlock(_seed, realisation, l, base + 4);
+					st.signKey[l] = bits[0] | 1u;
+					st.signKey[L + l] = bits[1];
 				}
 				// t = <frequency u, A x> = <frequency A^T u, x> (u truncated to ndim: embedding in R^3).
 				for (unsigned d = 0; d < ndim; ++d) {
@@ -453,7 +980,6 @@ public:
 					st.direction[d * L + l] = frequency * w;
 				}
 			}
-			if (process != LineProcess::Spectral) buildSignTables(st, L, boxMin, boxMax);
 			_structures.push_back(std::move(st));
 		}
 	}
@@ -473,13 +999,7 @@ public:
 		set.amplitude = st.amplitude;
 		set.direction = st.direction.data();
 		set.shift = st.shift.data();
-		set.tableFirst = st.tableFirst.data();
-		set.tableSize = st.tableSize.data();
-		set.tableOffset = st.tableOffset.data();
-		set.signs = st.signs.data();
-		set.seed = _seed;
-		set.realisation = _realisation;
-		set.signStream = st.signStream;
+		set.signKey = st.signKey.empty() ? nullptr : st.signKey.data();
 		return set;
 	}
 
@@ -502,17 +1022,59 @@ public:
 		}
 	}
 
+	// Prepares the grid path (tables of every structure on `grid`, whose ndim
+	// must be the model's).
+	void attachGrid(const RegularGrid& grid) {
+		prepareGrid(grid);
+		for (size_t s = 0; s < _gridLines.size(); ++s) geostat::fillGridColumns(_gridLines[s], 0, _gridLines[s].count);
+	}
+	// attachGrid in two steps: prepareGrid, then fillGridColumns(i, ...) for
+	// every structure i < lineSetCount() and range of lines (may run in parallel).
+	void prepareGrid(const RegularGrid& grid) {
+		if (grid.ndim != _ndim) throw Error("turning bands: the grid has " + std::to_string(grid.ndim) + " dimensions, the model " + std::to_string(_ndim));
+		_grid = grid;
+		_gridLines.resize(_structures.size());
+		for (size_t s = 0; s < _structures.size(); ++s) prepareGridLines(lineSet(s), grid, _gridLines[s]);
+	}
+	void fillGridColumns(size_t i, size_t lineBegin, size_t lineEnd) { geostat::fillGridColumns(_gridLines[i], lineBegin, lineEnd); }
+	const GridLines& gridLines(size_t i) const { return _gridLines[i]; }
+
+	// out (block layout, see GridBlock) = values at the nodes of the block;
+	// node ids (i0 + size[0] * row) key the nugget. Needs attachGrid. Const and
+	// single-threaded: call it from several threads with their own scratch.
+	void evaluateGrid(const GridBlock& block, double* out, GridScratch& scratch) const {
+		const size_t width = block.width(), count = block.count();
+		std::fill(out, out + count, 0.0);
+		for (size_t s = 0; s < _structures.size(); ++s) sumLinesGrid(lineSet(s), _gridLines[s], _grid, block, out, scratch);
+		if (!(_nuggetDeviation > 0)) {
+			for (size_t i = 0; i < count; ++i) out[i] += _mean;
+			return;
+		}
+		float* noise = GridScratch::reserve(scratch.noise, width);
+		for (size_t r = 0; r < block.rows(); ++r) {
+			fillFastNormalsByIndex(_seed, _realisation, uint64_t(block.rowBegin + r) * _grid.size[0] + block.columnBegin, width, 0, noise);
+			double* row = out + r * width;
+			for (size_t i = 0; i < width; ++i) row[i] = _mean + row[i] + _nuggetDeviation * double(noise[i]);
+		}
+	}
+
+	// Bytes of the grid tables (attachGrid) of a realisation of this model.
+	static size_t gridTableBytes(const ResolvedModel& model, const TurningBandsSettings& settings, const RegularGrid& grid) {
+		size_t spectral = 0;
+		for (const ResolvedStructure& rs : model.structures) {
+			LineProcess process = LineProcess::DilutionSpherical;
+			if (rs.type != StructureType::Nugget && rs.sill > 0 && turningBandsLineProcess(rs, process) && process == LineProcess::Spectral) ++spectral;
+		}
+		return spectral * size_t(settings.lineCount) * ((grid.size[0] + 63) / 64 * 64 + 64) * 2 * sizeof(float);
+	}
+
 private:
 	struct Structure {
 		LineProcess process = LineProcess::Spectral;
 		size_t structureIndex = 0;
-		uint32_t signStream = 0;
 		double amplitude = 0.0;
 		std::vector<double> direction, shift;
-		std::vector<int64_t> tableFirst;
-		std::vector<uint32_t> tableSize;
-		std::vector<size_t> tableOffset;
-		std::vector<int8_t> signs;
+		std::vector<uint32_t> signKey;
 	};
 
 	unsigned _ndim = 0;
@@ -521,6 +1083,8 @@ private:
 	double _mean = 0.0;
 	double _nuggetDeviation = 0.0;
 	std::vector<Structure> _structures;
+	RegularGrid _grid;
+	std::vector<GridLines> _gridLines;
 
 	// |w| for line l (unit-practical-range space, see the header comment).
 	double spectralModulus(const ResolvedStructure& rs, unsigned ndim, size_t l, uint32_t base) const {
@@ -551,35 +1115,22 @@ private:
 		if (!(modulus < 1e9)) modulus = 1e9; // also catches NaN / inf
 		return modulus;
 	}
-
-	void buildSignTables(Structure& st, size_t L, const double* boxMin, const double* boxMax) const {
-		st.tableFirst.assign(L, 0);
-		st.tableSize.assign(L, 0);
-		st.tableOffset.assign(L, 0);
-		if (!boxMin || !boxMax) return;
-		size_t total = 0;
-		for (size_t l = 0; l < L; ++l) {
-			double lo = st.shift[l], hi = st.shift[l];
-			for (unsigned d = 0; d < _ndim; ++d) {
-				const double w = st.direction[d * L + l];
-				lo += std::min(w * boxMin[d], w * boxMax[d]);
-				hi += std::max(w * boxMin[d], w * boxMax[d]);
-			}
-			const double first = std::floor(lo), last = std::floor(hi);
-			if (!(last - first + 1 <= double(kMaxSegmentsPerLine))) continue; // on the fly
-			st.tableFirst[l] = int64_t(first);
-			st.tableSize[l] = uint32_t(last - first + 1);
-			st.tableOffset[l] = total;
-			total += st.tableSize[l];
-		}
-		st.signs.resize(total);
-		for (size_t l = 0; l < L; ++l)
-			for (uint32_t k = 0; k < st.tableSize[l]; ++k)
-				st.signs[st.tableOffset[l] + k] = int8_t(dilutionSign(_seed, _realisation, st.signStream, l, st.tableFirst[l] + int64_t(k)));
-	}
 };
 
-// ============================================================ batch entry point
+// ============================================================ batch entry points
+
+namespace detail {
+
+// Realisations prepared together: enough (block, realisation) tasks to keep
+// every thread busy, at least one per thread (their setup runs in parallel),
+// within a memory budget for the grid tables. Never changes the values.
+inline unsigned realisationBatch(unsigned realisationCount, unsigned threads, size_t blocks, size_t bytesPerRealisation) {
+	size_t batch = std::max<size_t>(threads, (4 * size_t(threads) + blocks - 1) / std::max<size_t>(blocks, 1));
+	if (bytesPerRealisation > 0) batch = std::min(batch, std::max<size_t>(1, (size_t(1) << 29) / bytesPerRealisation));
+	return unsigned(std::max<size_t>(1, std::min<size_t>(batch, realisationCount)));
+}
+
+} // namespace detail
 
 // Fills realisations firstRealisation .. firstRealisation + realisationCount - 1
 // at `count` points (row-major count x model.ndim) into out[r * count + i]
@@ -589,26 +1140,89 @@ private:
 inline void simulateTurningBands(const ResolvedModel& model, const TurningBandsSettings& settings, const double* points, size_t count,
                                  uint32_t firstRealisation, unsigned realisationCount, double* out, const uint64_t* nodeIds = nullptr) {
 	checkTurningBandsModel(model);
+	checkTurningBandsSettings(settings);
 	const unsigned ndim = model.ndim;
-	double boxMin[3] = { 0, 0, 0 }, boxMax[3] = { 0, 0, 0 };
-	if (count > 0) {
-		for (unsigned d = 0; d < ndim; ++d) boxMin[d] = boxMax[d] = points[d];
-		for (size_t i = 1; i < count; ++i)
-			for (unsigned d = 0; d < ndim; ++d) {
-				boxMin[d] = std::min(boxMin[d], points[i * ndim + d]);
-				boxMax[d] = std::max(boxMax[d], points[i * ndim + d]);
-			}
-	}
 	const size_t blockSize = 4096;
 	const size_t blocks = (count + blockSize - 1) / blockSize;
-	for (unsigned r = 0; r < realisationCount; ++r) {
-		const TurningBandsRealisation realisation(model, settings, firstRealisation + r, boxMin, boxMax);
-		double* target = out + size_t(r) * count;
-		detail::parallelBlocks(blocks, settings.threads, [&](size_t b) {
-			const size_t begin = b * blockSize, n = std::min(blockSize, count - begin);
-			realisation.evaluate(points + begin * ndim, n, nodeIds ? nodeIds + begin : nullptr, begin, target + begin);
+	if (blocks == 0 || realisationCount == 0) return;
+	WorkerPool pool(settings.threads);
+	const unsigned batch = detail::realisationBatch(realisationCount, pool.size(), blocks, 0);
+	std::vector<std::unique_ptr<TurningBandsRealisation> > slots(batch);
+	for (unsigned r0 = 0; r0 < realisationCount; r0 += batch) {
+		const unsigned n = std::min(batch, realisationCount - r0);
+		pool.run(n, [&](size_t i, unsigned) { slots[i].reset(new TurningBandsRealisation(model, settings, firstRealisation + r0 + unsigned(i))); });
+		// Realisation-major: concurrent tasks mostly write different blocks.
+		pool.run(size_t(n) * blocks, [&](size_t task, unsigned) {
+			const size_t i = task / blocks, b = task % blocks;
+			const size_t begin = b * blockSize, m = std::min(blockSize, count - begin);
+			slots[i]->evaluate(points + begin * ndim, m, nodeIds ? nodeIds + begin : nullptr, begin, out + (r0 + i) * count + begin);
 		});
 	}
+}
+
+// Grid path: realisations firstRealisation .. + realisationCount - 1 on
+// `grid` (grid.ndim == model.ndim), on `pool`. For every realisation r
+// (relative) and every block of planGridBlocks(grid), calls
+//     store(r, block, values)   values in block layout (GridBlock), valid during the call
+// from the pool's threads (concurrently, for different (r, block)), and
+// progress(done) after each batch of realisations (calling thread). Values
+// depend neither on the pool size nor on the batching.
+template <class Store, class Progress>
+inline void simulateTurningBandsGrid(const ResolvedModel& model, const TurningBandsSettings& settings, const RegularGrid& grid, uint32_t firstRealisation,
+                                     unsigned realisationCount, WorkerPool& pool, Store store, Progress progress) {
+	checkTurningBandsModel(model);
+	checkTurningBandsSettings(settings);
+	if (grid.ndim != model.ndim) throw Error("turning bands: the grid has " + std::to_string(grid.ndim) + " dimensions, the model " + std::to_string(model.ndim));
+	const std::vector<GridBlock> blocks = planGridBlocks(grid);
+	if (blocks.empty() || realisationCount == 0) return;
+	size_t largest = 0;
+	for (const GridBlock& block : blocks) largest = std::max(largest, block.count());
+	const unsigned batch = detail::realisationBatch(realisationCount, pool.size(), blocks.size(), TurningBandsRealisation::gridTableBytes(model, settings, grid));
+	std::vector<std::unique_ptr<TurningBandsRealisation> > slots(batch);
+	const size_t kTableChunk = 32;
+	std::vector<GridScratch> scratch(pool.size());
+	for (GridScratch& s : scratch) s.values.resize(largest);
+	for (unsigned r0 = 0; r0 < realisationCount; r0 += batch) {
+		const unsigned n = std::min(batch, realisationCount - r0);
+		pool.run(n, [&](size_t i, unsigned) {
+			slots[i].reset();
+			slots[i].reset(new TurningBandsRealisation(model, settings, firstRealisation + r0 + unsigned(i)));
+			slots[i]->prepareGrid(grid);
+		});
+		// Column tables by chunks of lines, so that one realisation's setup is parallel too.
+		std::vector<std::array<size_t, 3> > chunks; // (slot, structure, first line)
+		for (unsigned i = 0; i < n; ++i)
+			for (size_t s = 0; s < slots[i]->lineSetCount(); ++s)
+				if (slots[i]->gridLines(s).stride > 0)
+					for (size_t l = 0; l < slots[i]->gridLines(s).count; l += kTableChunk) chunks.push_back({ { size_t(i), s, l } });
+		pool.run(chunks.size(), [&](size_t c, unsigned) {
+			TurningBandsRealisation& realisation = *slots[chunks[c][0]];
+			const size_t s = chunks[c][1], l = chunks[c][2];
+			realisation.fillGridColumns(s, l, std::min(l + kTableChunk, realisation.gridLines(s).count));
+		});
+		pool.run(size_t(n) * blocks.size(), [&](size_t task, unsigned worker) {
+			const size_t i = task / blocks.size();
+			const GridBlock& block = blocks[task % blocks.size()];
+			GridScratch& own = scratch[worker];
+			slots[i]->evaluateGrid(block, own.values.data(), own);
+			store(r0 + unsigned(i), block, static_cast<const double*>(own.values.data()));
+		});
+		progress(r0 + n);
+	}
+}
+
+// Grid path into out[r * grid.nodeCount() + node id], on settings.threads threads.
+inline void simulateTurningBandsGrid(const ResolvedModel& model, const TurningBandsSettings& settings, const RegularGrid& grid, uint32_t firstRealisation,
+                                     unsigned realisationCount, double* out) {
+	WorkerPool pool(settings.threads);
+	const size_t nodes = grid.nodeCount(), columns = grid.size[0];
+	simulateTurningBandsGrid(model, settings, grid, firstRealisation, realisationCount, pool,
+		[&](unsigned r, const GridBlock& block, const double* values) {
+			for (size_t row = block.rowBegin; row < block.rowEnd; ++row)
+				std::copy(values + (row - block.rowBegin) * block.width(), values + (row - block.rowBegin + 1) * block.width(),
+				          out + size_t(r) * nodes + row * columns + block.columnBegin);
+		},
+		[](unsigned) {});
 }
 
 } // namespace geostat
