@@ -66,7 +66,7 @@ endif
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs covEval distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs covEval kriging distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -89,6 +89,9 @@ echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 covEval: covEval.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
+kriging: kriging.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
@@ -150,6 +153,7 @@ install:create_install_path all
 	@cp -f ./auto_qs $(INSTALL_DIR)/libexec || printf "\e[31error: 'auto_qs' is missing !!\e[0m\n"
 	@cp -f ./snesim $(INSTALL_DIR)/libexec || printf "\e[31error: 'snesim' is missing !!\e[0m\n"
 	@cp -f ./covEval $(INSTALL_DIR)/libexec || printf "\e[31error: 'covEval' is missing !!\e[0m\n"
+	@cp -f ./kriging $(INSTALL_DIR)/libexec || printf "\e[31error: 'kriging' is missing !!\e[0m\n"
 	@cp -f ./qs_prepare.sh $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_prepare.sh' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
