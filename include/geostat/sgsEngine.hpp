@@ -489,7 +489,8 @@ struct SgsReplayOptions {
 
 struct SgsReplayStats {
 	unsigned threads = 1;
-	size_t waits = 0; // neighbours not yet final when an entry needed them (parallel replay)
+	size_t waits = 0;  // neighbours being computed by another worker when an entry needed them
+	size_t stolen = 0; // pending neighbours computed by the worker that needed them
 	double noiseMs = 0, totalMs = 0; // noise pass, and both passes
 
 };
@@ -498,17 +499,15 @@ namespace detail {
 
 // The two passes of the replay. noise() writes sigma * eps (plus the mean of
 // isolated entries) into every target row; it depends on no value, so it runs
-// fully in parallel. apply() then adds the weighted neighbours, in level order;
-// with `ready` (parallel replay) it waits until every neighbour is final and
-// then publishes its own node. Both passes use the same float operations
-// whatever R, the batch or the thread count.
+// fully in parallel. compute() then adds the weighted neighbours, in level
+// order (serially, or through ParallelApply). Both passes use the same float
+// operations whatever R, the batch or the thread count.
 template <class Addressing>
 struct ReplayKernel {
 	const WeightTableView& table;
 	const Addressing& addressing;
 	const SgsReplayOptions& options;
 	float* values;
-	std::atomic<uint8_t>* ready;
 
 	void noise(uint64_t begin, uint64_t end) const {
 		const size_t R = options.realisations;
@@ -526,48 +525,93 @@ struct ReplayKernel {
 		}
 	}
 
-	// Returns the number of neighbours that had to be waited for.
-	size_t apply(uint64_t begin, uint64_t end, std::vector<size_t>& ids, std::vector<float>& acc) const {
+	// Weighted neighbours of entry e added to its row (neighbours final).
+	void compute(uint64_t e, const size_t* ids, size_t count, float* acc) const {
 		const size_t R = options.realisations;
-		size_t waits = 0;
-		for (uint64_t e = begin; e < end; ++e) {
-			const size_t target = size_t(table.entryTarget[e]);
-			const uint32_t s = table.entryStencil[e];
-			const uint64_t first = table.stencilStart[s];
-			const size_t count = size_t(table.stencilStart[s + 1] - first);
-			if (count > 0) {
-				if (ids.size() < count) ids.resize(count);
-				addressing.decode(target, table.neighborRef + first, count, ids.data());
-				if (ready) {
-					for (size_t j = 0; j < count; ++j) {
-						if (ready[ids[j]].load(std::memory_order_acquire)) continue;
-						++waits;
-						for (unsigned spin = 0; !ready[ids[j]].load(std::memory_order_acquire); ++spin) {
-							if (spin < 4096) cpuRelax();
-							else std::this_thread::yield();
-						}
-					}
-				}
-				const float* weight = table.neighborWeight + first;
-				float* out = values + target * R;
-				if (R == 1) {
-					float sum = 0.f;
-					for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
-					out[0] = sum + out[0];
-				} else {
-					float* a = acc.data();
-					for (size_t r = 0; r < R; ++r) a[r] = 0.f;
-					for (size_t j = 0; j < count; ++j) {
-						const float w = weight[j];
-						const float* v = values + ids[j] * R;
-						for (size_t r = 0; r < R; ++r) a[r] += w * v[r];
-					}
-					for (size_t r = 0; r < R; ++r) out[r] = a[r] + out[r];
-				}
-			}
-			if (ready) ready[target].store(1, std::memory_order_release);
+		const size_t target = size_t(table.entryTarget[e]);
+		const float* weight = table.neighborWeight + table.stencilStart[table.entryStencil[e]];
+		float* out = values + target * R;
+		if (count == 0) return;
+		if (R == 1) {
+			float sum = 0.f;
+			for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
+			out[0] = sum + out[0];
+			return;
 		}
-		return waits;
+		for (size_t r = 0; r < R; ++r) acc[r] = 0.f;
+		for (size_t j = 0; j < count; ++j) {
+			const float w = weight[j];
+			const float* v = values + ids[j] * R;
+			for (size_t r = 0; r < R; ++r) acc[r] += w * v[r];
+		}
+		for (size_t r = 0; r < R; ++r) out[r] = acc[r] + out[r];
+	}
+
+	size_t decode(uint64_t e, std::vector<size_t>& ids) const {
+		const uint32_t s = table.entryStencil[e];
+		const uint64_t first = table.stencilStart[s];
+		const size_t count = size_t(table.stencilStart[s + 1] - first);
+		if (ids.size() < count) ids.resize(count);
+		addressing.decode(size_t(table.entryTarget[e]), table.neighborRef + first, count, ids.data());
+		return count;
+	}
+
+	// Serial pass, in table order.
+	void applyAll(std::vector<size_t>& ids, std::vector<float>& acc) const {
+		for (uint64_t e = 0; e < table.entryCount; ++e) {
+			const size_t count = decode(e, ids); // resizes ids: before taking ids.data()
+			compute(e, ids.data(), count, acc.data());
+		}
+	}
+};
+
+// Parallel dependent pass. Node states: 0 pending, 1 being computed, 2 final
+// (nodes outside the table are final from the start). A worker claims an
+// entry (0 -> 1) before computing it; when a neighbour is still pending, the
+// worker claims and computes that neighbour itself (up to kMaxDepth nested
+// entries) instead of waiting for the worker whose chunk holds it. So a
+// worker that the system preempts delays others only through the one entry
+// it is computing. Waiting always terminates: neighbours come earlier in the
+// level order, which is the order in which entries are taken.
+template <class Addressing>
+struct ParallelApply {
+	static constexpr unsigned kMaxDepth = 32;
+	const ReplayKernel<Addressing>& kernel;
+	std::atomic<uint8_t>* state;
+	const uint64_t* entryOf; // node -> entry (valid for table targets)
+
+	struct Scratch {
+		std::vector<std::vector<size_t> > ids;
+		std::vector<std::vector<float> > acc;
+		size_t waits = 0, stolen = 0;
+		Scratch(size_t R) : ids(kMaxDepth + 1), acc(kMaxDepth + 1, std::vector<float>(R)) {}
+	};
+
+	// Computes entry e when it can be claimed.
+	void run(uint64_t e, unsigned depth, Scratch& scratch) const {
+		const size_t target = size_t(kernel.table.entryTarget[e]);
+		uint8_t expected = 0;
+		if (!state[target].compare_exchange_strong(expected, 1, std::memory_order_acquire)) return;
+		std::vector<size_t>& ids = scratch.ids[depth];
+		const size_t count = kernel.decode(e, ids);
+		for (size_t j = 0; j < count; ++j) {
+			const size_t id = ids[j];
+			uint8_t current = state[id].load(std::memory_order_acquire);
+			if (current == 2) continue;
+			if (current == 0 && depth < kMaxDepth) {
+				run(entryOf[id], depth + 1, scratch);
+				++scratch.stolen;
+				current = state[id].load(std::memory_order_acquire);
+				if (current == 2) continue;
+			}
+			++scratch.waits;
+			for (unsigned spin = 0; state[id].load(std::memory_order_acquire) != 2; ++spin) {
+				if (spin < 4096) cpuRelax();
+				else std::this_thread::yield();
+			}
+		}
+		kernel.compute(e, ids.data(), count, scratch.acc[depth].data());
+		state[target].store(2, std::memory_order_release);
 	}
 };
 
@@ -575,11 +619,8 @@ struct ReplayKernel {
 
 // Applies the table to `values` ([nodeCount x R] floats, see the top of the
 // file). The noise pass is split over the threads freely. In the dependent
-// pass, workers take consecutive chunks of the level-ordered entries; since a
-// node's neighbours belong to earlier levels, they come earlier in the table
-// and were taken before, so waiting on them always terminates. Within a level
-// nothing waits; a wait only happens around level boundaries, for the few
-// neighbours still being computed, instead of a barrier for the whole level.
+// pass, workers take consecutive chunks of the level-ordered entries and
+// synchronise per node (ParallelApply), without any barrier between levels.
 template <class Addressing>
 inline void replaySgs(const WeightTableView& table, const Addressing& addressing, float* values, const SgsReplayOptions& options,
                       SgsReplayStats* stats = nullptr) {
@@ -591,43 +632,48 @@ inline void replaySgs(const WeightTableView& table, const Addressing& addressing
 	SgsReplayStats result;
 	result.threads = threads;
 
+	const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values };
 	if (threads == 1) {
-		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, nullptr };
 		std::vector<size_t> ids;
 		std::vector<float> acc(R);
 		kernel.noise(0, table.entryCount);
 		result.noiseMs = millisecondsSince(start);
-		kernel.apply(0, table.entryCount, ids, acc);
+		kernel.applyAll(ids, acc);
 	} else {
-		std::vector<std::atomic<uint8_t> > ready(size_t(table.nodeCount));
-		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, ready.data() };
+		std::vector<std::atomic<uint8_t> > state(size_t(table.nodeCount));
+		std::vector<uint64_t> entryOf(size_t(table.nodeCount));
 		parallelFor(size_t(table.nodeCount), threads, size_t(1) << 16, [&](size_t b, size_t e, unsigned) {
-			for (size_t i = b; i < e; ++i) ready[i].store(1, std::memory_order_relaxed);
+			for (size_t i = b; i < e; ++i) state[i].store(2, std::memory_order_relaxed);
 		});
 		parallelFor(size_t(table.entryCount), threads, 512, [&](size_t b, size_t e, unsigned) {
-			for (size_t i = b; i < e; ++i) ready[size_t(table.entryTarget[i])].store(0, std::memory_order_relaxed);
+			for (size_t i = b; i < e; ++i) {
+				state[size_t(table.entryTarget[i])].store(0, std::memory_order_relaxed);
+				entryOf[size_t(table.entryTarget[i])] = i;
+			}
 			kernel.noise(b, e);
 		});
 		result.noiseMs = millisecondsSince(start);
+		const detail::ParallelApply<Addressing> apply{ kernel, state.data(), entryOf.data() };
 		const uint64_t grain = 16;
 		std::atomic<uint64_t> cursor(0);
-		std::atomic<size_t> waits(0);
+		std::atomic<size_t> waits(0), stolen(0);
 		auto work = [&](unsigned) {
-			std::vector<size_t> ids;
-			std::vector<float> acc(R);
-			size_t local = 0;
+			typename detail::ParallelApply<Addressing>::Scratch scratch(R);
 			for (;;) {
 				const uint64_t b = cursor.fetch_add(grain, std::memory_order_relaxed);
 				if (b >= table.entryCount) break;
-				local += kernel.apply(b, std::min<uint64_t>(table.entryCount, b + grain), ids, acc);
+				const uint64_t e = std::min<uint64_t>(table.entryCount, b + grain);
+				for (uint64_t i = b; i < e; ++i) apply.run(i, 0, scratch);
 			}
-			waits += local;
+			waits += scratch.waits;
+			stolen += scratch.stolen;
 		};
 		std::vector<std::thread> pool;
 		for (unsigned w = 1; w < threads; ++w) pool.emplace_back(work, w);
 		work(0);
 		for (std::thread& t : pool) t.join();
 		result.waits = waits;
+		result.stolen = stolen;
 	}
 	result.totalMs = millisecondsSince(start);
 	if (stats) *stats = result;
