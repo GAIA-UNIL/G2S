@@ -55,15 +55,45 @@ Output: `result["simulation"]` / `result.simulation`: the grid of `-di` with one
 | `-km` | Conditioning: kriging method, `direct`, `local` or `auto`. | `auto` | |
 | `-n` | Conditioning, local: number of neighbours. | 50 | |
 | `-ki` | Conditioning, local: kernel image (search window); cells with a zero or NaN weight are excluded. | unrestricted | |
-| `-ks` | Conditioning, local: kernel size (search window), in cells. | unrestricted | |
+| `-ks` | Conditioning, local: kernel size (search window), in cells, one value for every axis; an even size is increased by 1. | unrestricted | |
 | `-os` | Conditioning, local: at most `k` neighbours per quadrant (2D) or octant (3D). | off | |
 | `-maxmem` | Conditioning, direct: largest *n* × *n* matrix allowed, in GiB. | 2 | |
+| `-W_GPU` | `[n]`: run the sum over the lines on OpenCL device `n` (default: the first), where it is expected to be faster; see [GPU](#gpu). | CPU | |
+| `-W_CUDA` | `[n]`: the same on CUDA device `n` (default 0), through `g2s_cuda.so`; see [GPU](#gpu). | CPU | |
+| `-gpuforce` | Use the device even where the CPU is expected to be faster. | off | |
 
 `-csim` is refused: turning-bands fields are not periodic.
 
 ## Conditioning to hard data
 
 The non-NaN cells of `-di` are hard data. Each unconditional realisation *z*<sub>u</sub> is conditioned by kriging of its residuals at the data, *z*<sub>c</sub> = *z*<sub>u</sub> + *K*[*d* − *z*<sub>u</sub>], with the same covariance model; the result honours the data. With simple kriging (`-kt sk`, the default) the conditioned field follows the conditional distribution given the data, and far from the data it is the unconditional field; with ordinary kriging (`-kt ok`) its mean is replaced by the mean estimated from the data. The kriging methods (`-km direct | local | auto`) and their options are those of the [kriging]({{ site.baseurl }}/algorithms/Kriging.html) executable; `auto` takes `direct` up to 10000 data while the matrix fits in `-maxmem`, `local` beyond. The [FFT-MA page]({{ site.baseurl }}/algorithms/FFTMA.html#conditioning-to-hard-data) describes the same conditioning in more detail.
+
+## GPU
+
+With `-W_GPU` (OpenCL) or `-W_CUDA`, the sum over the lines, which is almost all the cost, runs on a GPU; the line parameters, the nugget, the mean and the conditioning stay on the CPU. The phases of the line processes are computed in 64-bit fixed point, so the device needs no double precision; the result matches the CPU run with the same seed within 2·10<sup>−5</sup> √sill (not bit for bit) and is reproducible on a given device.
+
+The device is used only where it is expected to be faster, and the job log says what was decided and why (lines starting with `gpu:`, parameter `device`):
+
+- on a device that shares the host memory (Apple silicon), models whose structures are mostly `spherical` or `cubic` (dilution lines) stay on the CPU, because the device is about twice slower for them;
+- opening the device and compiling its kernels takes about 0.3 s, so the device is used only from 10<sup>11</sup> node-lines (cells × lines per structure × non-nugget structures × realisations; for example 200 × 200 × 200 cells, 1000 lines, 16 realisations) on such a device, and from 10<sup>9</sup> on a device with its own memory (not measured);
+- `-gpuforce` uses the device in every case.
+
+Measured on an Apple M1 Pro (integrated GPU through OpenCL, against 8 CPU threads; simulation time, without the 0.3 s of the device start), 16 realisations, 1000 lines:
+
+| Model | Grid | 8 CPU threads | GPU (`-gpuforce`) |
+| --- | --- | --- | --- |
+| `exponential(range=30)` | 1000 × 1000 | 0.20 s | 0.15–0.25 s |
+| `exponential(range=30)` | 200 × 200 × 200 | 1.19–1.26 s | 1.06–1.14 s |
+| `gaussian(range=30)` | 1000 × 1000 | 0.18–0.20 s | 0.12–0.13 s |
+| `gaussian(range=30)` | 200 × 200 × 200 | 1.22–1.25 s | 1.05–1.15 s |
+| `spherical(range=30)` | 1000 × 1000 | 0.15 s | 0.29 s |
+| `spherical(range=30)` | 200 × 200 × 200 | 1.37–1.44 s | 2.5–2.7 s |
+
+(Two runs on 21 November 2026, with a 1-minute load average between 4 and 8 before the runs; in a third run, with other work raising the load above 20, the device was slower than the CPU on the 3D grid.) With the default thresholds, `-W_GPU` alone kept the 1000 × 1000 cases (1.6·10<sup>10</sup> node-lines) and the spherical model on the CPU and ran the 3D exponential and gaussian cases (1.3·10<sup>11</sup> node-lines) on the GPU.
+
+So on this machine the GPU is roughly at par with the CPU: worth it only for large jobs with the spectral line processes (`exponential`, `gaussian`, `matern`, `stable`).
+
+The CUDA back end (`-W_CUDA`, `g2s_cuda.so`, see the [installation page]({{ site.baseurl }}/installation/server.html)) has been written but **has not been compiled or run**: if you have an Nvidia GPU and try it, please report problems (or results) on the [issue tracker](https://github.com/GAIA-UNIL/G2S/issues). Without a device, without OpenCL in the build, or if the device fails, `tb` runs on the CPU and says so in the log.
 
 ## Reproducibility
 

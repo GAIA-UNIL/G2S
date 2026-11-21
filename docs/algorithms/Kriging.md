@@ -43,11 +43,12 @@ Outputs: `result["estimate"]` / `result.estimate`, and with `-var`, `result["var
 | `-var` | Also compute the kriging variance (output 2). | off | |
 | `-n` | Local: number of neighbours. Ignored (with a warning) by `direct`. | 50 | |
 | `-ki` | Local: kernel image; its size is the search window, and cells with a zero or NaN weight are excluded. | unrestricted | |
-| `-ks` | Local: kernel size (search window), in cells. | unrestricted | |
+| `-ks` | Local: kernel size (search window), in cells, one value for every axis; an even size is increased by 1. | unrestricted | |
 | `-os` | Local: at most `k` neighbours per quadrant (2D) or octant (3D). | off | |
 | `-csim` | Local: periodic (circular) grid. | off | |
 | `-maxmem` | Direct: largest *n* × *n* matrix allowed, in GiB. | 2 | |
 | `-j` | Number of threads; a fraction is a share of the cores. | 1 | |
+| `-W_GPU`, `-W_CUDA` | `[n]`: compute the variance of `-method direct -var` on a GPU with double precision; see [GPU](#gpu). | CPU | |
 
 `-ki`, `-ks`, `-os` and `-csim` are ignored, with a warning, by `direct`.
 

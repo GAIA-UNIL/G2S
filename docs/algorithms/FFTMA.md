@@ -54,9 +54,12 @@ Outputs: `result["simulation"]` / `result.simulation` and, with `-on`, `result["
 | `-km` | Conditioning: kriging method, `direct`, `local` or `auto`. | `auto` | |
 | `-n` | Conditioning, local: number of neighbours. | 50 | |
 | `-ki` | Conditioning, local: kernel image (search window); cells with a zero or NaN weight are excluded. | unrestricted | |
-| `-ks` | Conditioning, local: kernel size (search window), in cells. | unrestricted | |
+| `-ks` | Conditioning, local: kernel size (search window), in cells, one value for every axis; an even size is increased by 1. | unrestricted | |
 | `-os` | Conditioning, local: at most `k` neighbours per quadrant (2D) or octant (3D). | off | |
 | `-maxmem` | Conditioning, direct: largest *n* × *n* matrix allowed, in GiB. | 2 | |
+| `-W_GPU` | `[n]`: OpenCL device `n` (default: the first); with OpenCL, used only with `-gpuforce`, see [GPU](#gpu). | CPU | |
+| `-W_CUDA` | `[n]`: CUDA device `n` (default 0), through `g2s_cuda.so`; see [GPU](#gpu). | CPU | |
+| `-gpuforce` | Use the device even where the CPU is expected to be faster. | off | |
 
 ## Outputs
 
@@ -75,6 +78,23 @@ The non-NaN cells of `-di` are hard data. Each unconditional realisation *z*<sub
 where *K* is the kriging estimate from the residuals *d<sub>i</sub>* − *z*<sub>u</sub>(*x<sub>i</sub>*), with the same covariance model. The result honours the data. With simple kriging (`-kt sk`, the default) and the direct method, the conditioned field has the conditional distribution of the model given the data; far from the data it is the unconditional field. With ordinary kriging (`-kt ok`), the mean of the realisation is replaced by the mean estimated from the data (globally with `direct`, in each neighbourhood with `local`), and `-m` plays no role: use it when the mean is unknown or drifts slowly.
 
 The kriging methods are those of the [kriging]({{ site.baseurl }}/algorithms/Kriging.html) executable: `direct` uses every datum (exact; one factorisation shared by all realisations), `local` the `-n` nearest data of each cell (approximate where the neighbourhood leaves out data that matter), and `auto` takes `direct` up to 10000 data while the matrix fits in `-maxmem`, `local` beyond. The flag is `-km` here because `-method` already selects `fftma` or `spectral`, and the default kriging type is `sk` (it is `ok` for the `kriging` executable). With `-csim` the kriging uses the periodic covariance of the simulated field.
+
+## GPU
+
+With `-W_GPU` (OpenCL, transforms by clFFT) or `-W_CUDA` (cuFFT), the noise, the transforms, the product with the spectrum and the crop run on the device, one realisation at a time (the extended grid of one realisation must fit in its memory); the spectrum and the conditioning stay on the CPU. The device computes in single precision as the CPU path does; the result matches the CPU run with the same seed within 10<sup>−4</sup> √sill, and the white noise is the CPU's.
+
+On an Apple M1 Pro (integrated GPU through OpenCL), clFFT is not faster than FFTW on 8 CPU threads: these transforms are limited by memory bandwidth, which the CPU and the GPU share. OpenCL devices are therefore used only with `-gpuforce`; without it the job log says so (`gpu: clFFT on OpenCL was measured slower than the CPU FFTs`) and the CPU runs. A CUDA device would be used from 10<sup>6</sup> cells of the extended grid. Measured with 16 realisations of `spherical(range=30)` (computation time):
+
+| Method | Grid | 8 CPU threads (FFTW) | GPU (clFFT, `-gpuforce`) |
+| --- | --- | --- | --- |
+| `fftma` | 1000 × 1000 | 0.06 s | 0.15–0.19 s |
+| `fftma` | 200 × 200 × 200 | 0.61–0.79 s | 1.24–1.26 s |
+| `spectral` | 1000 × 1000 | 0.04–0.08 s | 0.15–0.19 s |
+| `spectral` | 200 × 200 × 200 | 0.46–0.59 s | 0.68–0.94 s |
+
+(Three runs on 21 November 2026 with a 1-minute load average between 4 and 26; the very first device run took 1.3 s and 3.9 s, while clFFT compiled its kernels.) With `-W_GPU` alone, the run stays on the CPU; opening the device to find that out costs about 0.05–0.07 s.
+
+The CUDA back end has been written but **has not been compiled or run**: if you have an Nvidia GPU and try it, please report problems (or results) on the [issue tracker](https://github.com/GAIA-UNIL/G2S/issues). Without a device or without GPU support in the build, `fftma` and `spectral` run on the CPU and say so in the log.
 
 ## Reproducibility
 

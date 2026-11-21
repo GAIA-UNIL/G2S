@@ -80,6 +80,12 @@ toc-depth: 3
    To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 8. Run: `make install`
 
+#### Optional: GPU back ends of the Gaussian algorithms
+
+`tb`, `fftma`/`spectral` and `kriging` accept `-W_GPU` (OpenCL) and `-W_CUDA` (see their pages for what runs on the device and when it pays off). The OpenCL back end needs OpenCL and clFFT at build time; most systems no longer package clFFT, so in the `build` folder run `make clfft` before `make`: it downloads clFFT 2.12.2 (checksum verified), builds it as a static library with cmake, and installs it only under `build/clfft/install` (ignored by git), which `make` then uses and enables OpenCL (`WITH_OPENCL`). It needs cmake and the OpenCL headers and library (on Ubuntu: `sudo apt install cmake ocl-icd-opencl-dev opencl-headers`, plus the OpenCL driver of the GPU). Without it, the executables are built without OpenCL and `-W_GPU` runs on the CPU with a message in the log. On an Apple M1 Pro the GPU is roughly at par with the CPU (see the [turning bands]({{ site.baseurl }}/algorithms/TurningBands.html#gpu) page), so this is optional.
+
+The CUDA back end is a separate library, `g2s_cuda.so`, built next to the executables (target `g2s_cuda.so` in `build/c++-build`, from `NvidiaGPUAcceleratorDevice.cu` and `geostatCuda.cu`) when `build/Makefile` detects `nvcc`, and copied by `make install`; the executables load it at run time with `-W_CUDA`. It has **not been compiled or run** so far, and the `nvcc` detection in `build/Makefile` compares the output of `command -v nvcc; echo $?` with `0`, which does not match when `nvcc` is found, so it may need adjusting. If you have an Nvidia GPU, please report what happens on the [issue tracker](https://github.com/GAIA-UNIL/G2S/issues).
+
 #### Optional: pyDev (Python prototyping)
 
 The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simulation algorithms written in Python, is an optional component. Install Python 3.14 or later with numpy (`python3.14t` recommended), then in the `build` folder run `make pydev` before `make install`.
@@ -100,6 +106,12 @@ The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simu
    Optional, recommended for QS and NDS speed: run `make fftw-simd` first. It builds a SIMD-optimized single-precision FFTW (NEON on ARM, SSE2/AVX/AVX2 on x86-64) that the following `make` links in place of the system FFTW (fftma/spectral still use the system double-precision FFTW). Homebrew's FFTW has no NEON kernels on Apple silicon, so this makes QS about 1.5× faster there.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). Obviously, Intel compiler is only for Intel CPUs 😁. To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 7. Run: `make install`
+
+#### Optional: GPU back ends of the Gaussian algorithms
+
+`tb`, `fftma`/`spectral` and `kriging` accept `-W_GPU` (OpenCL) and `-W_CUDA` (see their pages for what runs on the device and when it pays off). The OpenCL back end needs OpenCL and clFFT at build time; most systems no longer package clFFT, so in the `build` folder run `make clfft` before `make`: it downloads clFFT 2.12.2 (checksum verified), builds it as a static library with cmake, and installs it only under `build/clfft/install` (ignored by git), which `make` then uses and enables OpenCL (`WITH_OPENCL`). It needs cmake and the OpenCL headers and library (on macOS the OpenCL framework is part of the system: `brew install cmake` is enough). Without it, the executables are built without OpenCL and `-W_GPU` runs on the CPU with a message in the log. On an Apple M1 Pro the GPU is roughly at par with the CPU (see the [turning bands]({{ site.baseurl }}/algorithms/TurningBands.html#gpu) page), so this is optional.
+
+The CUDA back end is a separate library, `g2s_cuda.so`, built next to the executables (target `g2s_cuda.so` in `build/c++-build`, from `NvidiaGPUAcceleratorDevice.cu` and `geostatCuda.cu`) when `build/Makefile` detects `nvcc`, and copied by `make install`; the executables load it at run time with `-W_CUDA`. It has **not been compiled or run** so far, and the `nvcc` detection in `build/Makefile` compares the output of `command -v nvcc; echo $?` with `0`, which does not match when `nvcc` is found, so it may need adjusting. If you have an Nvidia GPU, please report what happens on the [issue tracker](https://github.com/GAIA-UNIL/G2S/issues).
 
 #### Optional: pyDev (Python prototyping)
 

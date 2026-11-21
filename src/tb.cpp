@@ -72,7 +72,7 @@ void printHelp() {
 	       "        mean and conditioning stay on the CPU. Phases are exact (64-bit fixed point), so no\n"
 	       "        double precision is needed; |gpu - cpu| <= 2e-5 sqrt(sill). On devices sharing the\n"
 	       "        host memory (Apple silicon) spectral lines (exponential, gaussian, matern, stable)\n"
-	       "        are about 1.2-2x faster than 8 CPU threads and dilution lines (spherical, cubic)\n"
+	       "        are about 1.1-1.5x faster than 8 CPU threads and dilution lines (spherical, cubic)\n"
 	       "        are not faster; with ~0.3 s to start the device, it is used from 1e11 node-lines\n"
 	       "        in total (e.g. 200x200x200, 1000 lines, 16 realisations); below, the CPU\n"
 	       "  -gpuforce  use the device even where the CPU is expected to be faster\n"
@@ -298,8 +298,8 @@ int main(int argc, char const* argv[]) {
 			if (!deviceKernel) fprintf(reportFile, "gpu: turning bands unavailable on the device (%s); running on the CPU\n", reason.c_str());
 		}
 		if (deviceKernel && !gpuForce) {
-			// Measured on an Apple M1 Pro (OpenCL) against 8 CPU threads: spectral lines 1.2-2x
-			// faster (about 3 ms saved per 1e9 node-lines), dilution lines slightly slower, and
+			// Measured on an Apple M1 Pro (OpenCL) against 8 CPU threads: spectral lines 1.1-1.5x
+			// faster (1-4 ms saved per 1e9 node-lines), dilution lines about 2x slower, and
 			// about 0.3 s to open the device and compile the kernels: worth it from 1e11
 			// node-lines in total. Devices with their own memory (discrete GPUs, CUDA; not
 			// measured here) are expected to win from 1e9.

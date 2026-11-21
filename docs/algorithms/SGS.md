@@ -70,6 +70,8 @@ All realisations of one path share the plan, so `-nr` adds little cost beyond th
 
 For a given seed and inputs, the result does not depend on the number of threads (`-j`), and realisation `r` of a run with `-ri 0` equals realisation 0 of a run with `-ri r`, so realisations can be computed in several runs. The seed defaults to the clock: give `-s` to reproduce a run.
 
+`sgs` runs on the CPU only: `-W_GPU` and `-W_CUDA` are not read (the log lists them as ignored).
+
 ## Plan files (`-wo`, `-wi`)
 
 `-wo file` writes the plan of the path to a binary file; `-wi file` replays it, which skips the neighbour search and every kriging system: only the replay is computed. The file is read and written by the server, so `file` is a path on the server machine. On replay, the seed still selects the noise: with the same `-s` and `-ri`, the realisations of the first run come back identical; with other values, new realisations of the same path are produced.
