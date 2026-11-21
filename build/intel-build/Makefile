@@ -94,6 +94,15 @@ covEval: covEval.o DataImage.o
 tb: tb.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
+# fftma and spectral: one executable, the method follows the name it runs under (MKL provides the single and double precision FFTW interfaces).
+all: fftma
+clean: clean-fftma
+fftma: fftma.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY)
+	ln -sf fftma spectral
+clean-fftma:
+	rm -f fftma spectral
+
 g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
 	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) --compiler-options -fuse-ld=lld
 
@@ -154,6 +163,7 @@ install:create_install_path all
 	@cp -f ./snesim $(INSTALL_DIR)/libexec || printf "\e[31error: 'snesim' is missing !!\e[0m\n"
 	@cp -f ./covEval $(INSTALL_DIR)/libexec || printf "\e[31error: 'covEval' is missing !!\e[0m\n"
 	@cp -f ./tb $(INSTALL_DIR)/libexec || printf "\e[31error: 'tb' is missing !!\e[0m\n"
+	@cp -f ./fftma ./spectral $(INSTALL_DIR)/libexec || printf "\e[31error: 'fftma' is missing !!\e[0m\n"
 	@cp -f ./qs_prepare.sh $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_prepare.sh' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
