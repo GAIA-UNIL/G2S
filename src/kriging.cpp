@@ -80,7 +80,7 @@ void printHelp() {
 	       "  -csim local: circular (periodic) grid\n"
 	       "  -maxmem GiB  direct: largest n x n matrix allowed (default %.0f)\n"
 	       "  -j    threads (a fraction = share of the cores)\n"
-	       "  -o    output name\n", kDefaultMaxMemoryGiB);
+	       "  -o / -oi  output names (estimate / variance)\n", kDefaultMaxMemoryGiB);
 }
 
 std::string number(double v) {
@@ -170,8 +170,11 @@ int main(int argc, char const* argv[]) {
 	arg.erase("-m");
 
 	std::string outputFilename = std::to_string(uniqueID);
+	std::string outputIndexFilename = std::string("id_") + std::to_string(uniqueID);
 	if (arg.count("-o") == 1) outputFilename = arg.find("-o")->second;
 	arg.erase("-o");
+	if (arg.count("-oi") == 1) outputIndexFilename = arg.find("-oi")->second;
+	arg.erase("-oi");
 
 	g2s::geostat::KrigingType krigingType = g2s::geostat::KrigingType::Ordinary;
 	if (arg.count("-kt") == 1) {
@@ -467,6 +470,7 @@ int main(int argc, char const* argv[]) {
 	if (withVariance) {
 		g2s::DataImage varianceImage = DI.emptyCopy(true);
 		for (size_t t = 0; t < targetCells.size(); ++t) varianceImage._data[targetCells[t]] = float(variance[t]);
+		varianceImage.write(outputIndexFilename);
 		varianceImage.write(std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::recordOutputDescriptor(reportFile, 2, "variance", std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::logOutput(reportFile, "variance_image_runtime", std::string("im_2_") + std::to_string(uniqueID), varianceImage);
