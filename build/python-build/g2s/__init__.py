@@ -25,6 +25,7 @@ if sys.platform == 'win32' and os.path.isdir(_extra_dll_dir):
 
 from .g2s import run
 from .g2s import run as g2s
+from . import cov
 
 
 def schema_to_legacy(result):
@@ -70,4 +71,4 @@ class _CallableModule(sys.modules[__name__].__class__):
 sys.modules[__name__].__class__ = _CallableModule
 
 # Optional: preserve both names in tab-completion
-__all__ = ["run", "g2s", "schema_to_legacy"]
+__all__ = ["run", "g2s", "schema_to_legacy", "cov"]
