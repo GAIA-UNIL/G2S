@@ -16,6 +16,12 @@ objcopy --strip-debug --strip-unneeded ./c++-build/ds /usr/bin/g2s_bin/ds
 objcopy --strip-debug --strip-unneeded ./c++-build/ds-l /usr/bin/g2s_bin/ds-l 
 objcopy --strip-debug --strip-unneeded ./c++-build/errorTest  /usr/bin/g2s_bin/errorTest 
 objcopy --strip-debug --strip-unneeded ./c++-build/auto_qs  /usr/bin/g2s_bin/auto_qs 
+objcopy --strip-debug --strip-unneeded ./c++-build/covEval  /usr/bin/g2s_bin/covEval
+objcopy --strip-debug --strip-unneeded ./c++-build/tb  /usr/bin/g2s_bin/tb
+objcopy --strip-debug --strip-unneeded ./c++-build/fftma  /usr/bin/g2s_bin/fftma
+objcopy --strip-debug --strip-unneeded ./c++-build/kriging  /usr/bin/g2s_bin/kriging
+objcopy --strip-debug --strip-unneeded ./c++-build/sgs  /usr/bin/g2s_bin/sgs
+ln -sf fftma /usr/bin/g2s_bin/spectral
 
 popd
 rm -rf /tmp/g2s-generic-src/

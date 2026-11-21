@@ -71,11 +71,11 @@ toc-depth: 3
 
 1. First clone the code from this GitHub: `git clone https://github.com/GAIA-UNIL/G2S.git`
 2. Basics for compiling are needed (e.g. on Ubuntu: build-essential).
-3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S; fftw3 for QS and NDS.
+3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S; fftw3 for QS and NDS (single precision) and for fftma/spectral (double precision; libfftw3-dev provides both).
 4. To install them on Ubuntu: `sudo apt install build-essential libzmq3-dev libjsoncpp-dev zlib1g-dev libfftw3-dev libcurl4-openssl-dev -y` (libcurl4-openssl-dev is optional).
 5. The C++ extension for ZMQ is required too, and can be installed via: `wget "https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp" -O ./include/zmq.hpp`
 6. Go to the build subfolder.
-   Optional, recommended for QS and NDS speed: run `make fftw-simd` first. It builds a SIMD-optimized single-precision FFTW (NEON on ARM, SSE2/AVX/AVX2 on x86-64) that the following `make` links in place of the system FFTW.
+   Optional, recommended for QS and NDS speed: run `make fftw-simd` first. It builds a SIMD-optimized single-precision FFTW (NEON on ARM, SSE2/AVX/AVX2 on x86-64) that the following `make` links in place of the system FFTW (fftma/spectral still use the system double-precision FFTW).
 7. Run: `make -j`, if the Intel C++ compiler is installed, the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software).
    To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 8. Run: `make install`
@@ -94,10 +94,10 @@ The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simu
 
 1. First clone the code from this GitHub: `git clone https://github.com/GAIA-UNIL/G2S.git`
 2. Install the package manager [Homebrew](https://brew.sh/) (if not already done)
-3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.
+3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS (single precision) and for fftma/spectral (double precision; Homebrew's fftw provides both).
 4. To install them with Homebrew: `brew install fftw zmq jsoncpp cppzmq curl` Note: curl is optional.
 5. Go to the `build` subfolder.
-   Optional, recommended for QS and NDS speed: run `make fftw-simd` first. It builds a SIMD-optimized single-precision FFTW (NEON on ARM, SSE2/AVX/AVX2 on x86-64) that the following `make` links in place of the system FFTW. Homebrew's FFTW has no NEON kernels on Apple silicon, so this makes QS about 1.5× faster there.
+   Optional, recommended for QS and NDS speed: run `make fftw-simd` first. It builds a SIMD-optimized single-precision FFTW (NEON on ARM, SSE2/AVX/AVX2 on x86-64) that the following `make` links in place of the system FFTW (fftma/spectral still use the system double-precision FFTW). Homebrew's FFTW has no NEON kernels on Apple silicon, so this makes QS about 1.5× faster there.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). Obviously, Intel compiler is only for Intel CPUs 😁. To manually select between GCC or Intel compiler use `make c++ -j` or `make intel -j`, respectively.
 7. Run: `make install`
 
@@ -109,7 +109,7 @@ The [pyDev]({{ site.baseurl }}/algorithms/PyDev.html) algorithm, which runs simu
 
 1. First clone the code from this GitHub: `git clone https://github.com/GAIA-UNIL/G2S.git`
 2. Install the package manager [MacPort](https://www.macports.org/install.php) (if not already done)
-3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS.
+3. The following packages are required: ZMQ, JsonnCpp and zlib for G2S. fftw3 for QS and NDS (single precision) and for fftma/spectral (double precision; Homebrew's fftw provides both).
 4. To install them with macPort: `sudo port install zmq-devel jsoncpp-devel zlib cppzmq-devel fftw-3 fftw-3-single curl` Note: curl is optional.
 5. Go to the `build` subfolder.
 6. Run: `make -j`, if the Intel C++ compiler is installed the adapted version will be compiled too. The Intel compiler can be downloaded freely in many cases: [here](https://software.intel.com/en-us/qualify-for-free-software). 

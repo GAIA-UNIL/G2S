@@ -10,6 +10,12 @@ objcopy --strip-debug --strip-unneeded ../intel-build/ds ./g2s-amd64/usr/bin/g2s
 objcopy --strip-debug --strip-unneeded ../intel-build/ds-l ./g2s-amd64/usr/bin/g2s_bin/ds-l 
 objcopy --strip-debug --strip-unneeded ../intel-build/errorTest  ./g2s-amd64/usr/bin/g2s_bin/errorTest 
 objcopy --strip-debug --strip-unneeded ../intel-build/auto_qs  ./g2s-amd64/usr/bin/g2s_bin/auto_qs 
+objcopy --strip-debug --strip-unneeded ../intel-build/covEval  ./g2s-amd64/usr/bin/g2s_bin/covEval
+objcopy --strip-debug --strip-unneeded ../intel-build/tb  ./g2s-amd64/usr/bin/g2s_bin/tb
+objcopy --strip-debug --strip-unneeded ../intel-build/fftma  ./g2s-amd64/usr/bin/g2s_bin/fftma
+objcopy --strip-debug --strip-unneeded ../intel-build/kriging  ./g2s-amd64/usr/bin/g2s_bin/kriging
+objcopy --strip-debug --strip-unneeded ../intel-build/sgs  ./g2s-amd64/usr/bin/g2s_bin/sgs
+ln -sf fftma ./g2s-amd64/usr/bin/g2s_bin/spectral
 
 # Read the version number from the version file
 version_number=$(cat ../../version)

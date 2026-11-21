@@ -66,7 +66,7 @@ endif
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs covEval tb kriging distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs nds ds ds-l snesim libg2s.a errorTest algoNames auto_qs covEval tb fftma kriging sgs distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -95,15 +95,14 @@ tb: tb.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 # fftma and spectral: one executable, the method follows the name it runs under (MKL provides the single and double precision FFTW interfaces).
-all: fftma
-clean: clean-fftma
 fftma: fftma.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY)
 	ln -sf fftma spectral
-clean-fftma:
-	rm -f fftma spectral
 
 kriging: kriging.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
+sgs: sgs.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
 g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
@@ -166,8 +165,10 @@ install:create_install_path all
 	@cp -f ./snesim $(INSTALL_DIR)/libexec || printf "\e[31error: 'snesim' is missing !!\e[0m\n"
 	@cp -f ./covEval $(INSTALL_DIR)/libexec || printf "\e[31error: 'covEval' is missing !!\e[0m\n"
 	@cp -f ./tb $(INSTALL_DIR)/libexec || printf "\e[31error: 'tb' is missing !!\e[0m\n"
-	@cp -f ./fftma ./spectral $(INSTALL_DIR)/libexec || printf "\e[31error: 'fftma' is missing !!\e[0m\n"
+	@cp -f ./fftma $(INSTALL_DIR)/libexec || printf "\e[31error: 'fftma' is missing !!\e[0m\n"
+	@ln -sf fftma $(INSTALL_DIR)/libexec/spectral
 	@cp -f ./kriging $(INSTALL_DIR)/libexec || printf "\e[31error: 'kriging' is missing !!\e[0m\n"
+	@cp -f ./sgs $(INSTALL_DIR)/libexec || printf "\e[31error: 'sgs' is missing !!\e[0m\n"
 	@cp -f ./qs_prepare.sh $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_prepare.sh' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
@@ -178,19 +179,7 @@ install:create_install_path all
 		
 clean:
 	rm -rf *.o *.so *.a
-	rm -rf g2s_server echo test qs nds ds ds-l errorTest auto_qs snesim covEval tb
+	rm -rf g2s_server echo test qs nds ds ds-l errorTest auto_qs snesim covEval tb fftma spectral kriging sgs
 	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend
-
-# sgs: sequential Gaussian simulation (geostat/sgsEngine.hpp)
-.PHONY: install-sgs clean-sgs
-all: sgs
-install: install-sgs
-clean: clean-sgs
-sgs: sgs.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
-install-sgs: create_install_path sgs
-	@cp -f ./sgs $(INSTALL_DIR)/libexec || printf "\e[31error: 'sgs' is missing !!\e[0m\n"
-clean-sgs:
-	rm -f sgs
