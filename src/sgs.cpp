@@ -500,10 +500,8 @@ int main(int argc, char const* argv[]) {
 	if (totalEntries > 0) g2s::reporting::recordMetric(reportFile, "systems_per_node", ratioText(double(totalStencils) / double(totalEntries)));
 	g2s::reporting::markFinished(reportFile, time);
 
-	indexImage.write(outputIndexFilename);
-	simulation.write(outputFilename);
-	indexImage.write(std::string("im_2_") + std::to_string(uniqueID));
-	simulation.write(std::string("im_1_") + std::to_string(uniqueID));
+	indexImage.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) });
+	simulation.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) });
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::recordOutputDescriptor(reportFile, 2, "indexmap", std::string("im_2_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), simulation);

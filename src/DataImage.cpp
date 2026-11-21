@@ -24,10 +24,20 @@
 #else
   #include <unistd.h>
   #include <sys/stat.h>
+  #include <sys/time.h>
 #endif
+#include <algorithm>
 #include <atomic>
+#include <cstdint>
 #ifndef _WIN32
 	#include "zlib.h"
+#endif
+#if defined(__APPLE__)
+	#include <CommonCrypto/CommonDigest.h>
+#endif
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+	#include <thread>
+	#define G2S_PARALLEL_GZIP 1
 #endif
 
 namespace {
@@ -108,6 +118,106 @@ bool isSymbolicLink(const char* path){
 }
 #endif
 
+namespace {
+// SHA-256 of the serialized image (its content address). CommonCrypto on Apple
+// platforms (hardware SHA, about 10x picosha2); picosha2 elsewhere. Same digest.
+void sha256(const char* data, size_t size, unsigned char* digest){
+	#if defined(__APPLE__)
+	CC_SHA256_CTX context;
+	CC_SHA256_Init(&context);
+	const size_t step=size_t(1)<<30; // CC_LONG is 32 bits
+	for(size_t offset=0; offset<size; offset+=step){
+		const size_t n=std::min(step, size-offset);
+		CC_SHA256_Update(&context, data+offset, CC_LONG(n));
+	}
+	CC_SHA256_Final(digest, &context);
+	#else
+	std::vector<unsigned char> hash(32);
+	picosha2::hash256((const unsigned char*)data, ((const unsigned char*)data)+size, hash.begin(), hash.end());
+	memcpy(digest, hash.data(), 32);
+	#endif
+}
+
+#ifndef _WIN32
+// True when the content file `path` already exists; its access and
+// modification times are then set to now, as rewriting it would (the server
+// removes data files by age), so that it can be reused instead of rewritten.
+bool reuseContentFile(const char* path){
+	struct stat info;
+	if(stat(path, &info)!=0 || !S_ISREG(info.st_mode)) return false;
+	return utimes(path, nullptr)==0;
+}
+#endif
+
+#ifdef G2S_PARALLEL_GZIP
+// Large images are compressed by chunks on several threads into ONE standard
+// gzip member (the pigz method): each chunk is raw-deflated at the default
+// level with the previous 32 KiB of input as its dictionary and ends with a
+// sync flush (the last one with a final block), so the concatenation of the
+// chunks is a single valid deflate stream; the CRC-32 of the chunks are
+// combined. Any gzip reader (zlib gzread, gzip, Python) reads it, the content
+// is the same and the compressed size within 0.1% of a serial gzopen("wb").
+const size_t ParallelGzipMinimum=size_t(8)<<20;
+const size_t ParallelGzipChunk=size_t(4)<<20;
+
+bool writeGzipParallel(const char* path, const char* data, size_t size){
+	const size_t chunks=(size+ParallelGzipChunk-1)/ParallelGzipChunk;
+	std::vector<std::vector<unsigned char> > compressed(chunks);
+	std::vector<uLong> crcs(chunks, 0);
+	std::vector<char> ok(chunks, 0);
+	std::atomic<size_t> next(0);
+	auto work=[&](){
+		for(size_t c=next++; c<chunks; c=next++){
+			const size_t begin=c*ParallelGzipChunk, length=std::min(ParallelGzipChunk, size-begin);
+			const bool last=(c+1==chunks);
+			z_stream stream;
+			memset(&stream, 0, sizeof(stream));
+			if(deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY)!=Z_OK) continue;
+			if(begin>0){
+				const size_t window=std::min<size_t>(32768, begin);
+				deflateSetDictionary(&stream, (const Bytef*)(data+begin-window), uInt(window));
+			}
+			std::vector<unsigned char>& out=compressed[c];
+			out.resize(deflateBound(&stream, uLong(length))+64);
+			stream.next_in=(Bytef*)(data+begin);
+			stream.avail_in=uInt(length);
+			stream.next_out=out.data();
+			stream.avail_out=uInt(out.size());
+			const int status=deflate(&stream, last ? Z_FINISH : Z_SYNC_FLUSH);
+			const bool done=last ? status==Z_STREAM_END : (status==Z_OK && stream.avail_in==0 && stream.avail_out>0);
+			out.resize(out.size()-stream.avail_out);
+			deflateEnd(&stream);
+			crcs[c]=crc32(crc32(0L, Z_NULL, 0), (const Bytef*)(data+begin), uInt(length));
+			ok[c]=done;
+		}
+	};
+	const unsigned threads=unsigned(std::max<size_t>(1, std::min<size_t>(chunks, std::max(1u, std::thread::hardware_concurrency()))));
+	std::vector<std::thread> pool;
+	for(unsigned t=1; t<threads; ++t) pool.emplace_back(work);
+	work();
+	for(std::thread& thread : pool) thread.join();
+	uLong crc=crc32(0L, Z_NULL, 0);
+	for(size_t c=0; c<chunks; ++c){
+		if(!ok[c]) return false;
+		const size_t length=std::min(ParallelGzipChunk, size-c*ParallelGzipChunk);
+		crc=crc32_combine(crc, crcs[c], z_off_t(length));
+	}
+	FILE* file=fopen(path, "wb");
+	if(!file) return false;
+	// gzip header as zlib's gzopen writes it: no name, no time, OS = Unix.
+	const unsigned char header[10]={0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3};
+	bool written=fwrite(header, 1, sizeof(header), file)==sizeof(header);
+	for(size_t c=0; c<chunks && written; ++c)
+		written=fwrite(compressed[c].data(), 1, compressed[c].size(), file)==compressed[c].size();
+	unsigned char trailer[8];
+	const uint32_t isize=uint32_t(size);
+	for(int i=0; i<4; ++i){ trailer[i]=(unsigned char)(crc>>(8*i)); trailer[4+i]=(unsigned char)(isize>>(8*i)); }
+	written=written && fwrite(trailer, 1, sizeof(trailer), file)==sizeof(trailer);
+	return (fclose(file)==0) && written;
+}
+#endif
+}
+
 // Links the name of an image (fullFilename, e.g. /tmp/G2S/data/im_1_<id>.bgrid.gz)
 // to its content-addressed file (outputFullFilename, named by the SHA-256 of
 // the content). Writing a name again replaces its link atomically: the new
@@ -168,7 +278,7 @@ char* writeRawData(char* data, bool compresed){
 	size_t fullSize=*((size_t*)data);
 	if(!g2s::DataImage::validateSerializedData(data, fullSize)) return nullptr;
 	std::vector<unsigned char> hash(32);
-	picosha2::hash256((unsigned char*)data, ((unsigned char*)data)+fullSize, hash.begin(), hash.end());
+	sha256(data, fullSize, hash.data());
 
 	char* hashInHexa=(char*)malloc(65);
 	memset(hashInHexa,0,65);
@@ -187,7 +297,19 @@ char* writeRawData(char* data, bool compresed){
 	char temporary[4096];
 	if(compresed) {
 		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid.gz",hashInHexa);
+		// The name is the hash of the content: an existing file already holds it.
+		if(reuseContentFile(filename)) return hashInHexa;
 		temporaryName(filename, temporary, sizeof(temporary));
+		#ifdef G2S_PARALLEL_GZIP
+		if(fullSize>=ParallelGzipMinimum) {
+			if(writeGzipParallel(temporary, data, fullSize)) {
+				if(rename(temporary, filename)!=0) unlink(temporary);
+			} else {
+				unlink(temporary);
+			}
+			return hashInHexa;
+		}
+		#endif
 		gzFile dataFile=gzopen(temporary,"wb");
 		if(dataFile) {
 			const bool written=gzwrite(dataFile, data, unsigned(fullSize))==int(fullSize);
@@ -200,6 +322,7 @@ char* writeRawData(char* data, bool compresed){
 	}
 	else {
 		snprintf(filename,4096,"/tmp/G2S/data/%s.bgrid",hashInHexa);
+		if(reuseContentFile(filename)) return hashInHexa;
 		temporaryName(filename, temporary, sizeof(temporary));
 		FILE* dataFile=fopen(temporary,"wb");
 		if(dataFile) {

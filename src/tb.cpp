@@ -298,8 +298,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
 	g2s::reporting::markFinished(reportFile, time);
 
-	output.write(outputFilename);
-	output.write(std::string("im_1_") + std::to_string(uniqueID));
+	output.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) });
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), output);
 	return 0;
