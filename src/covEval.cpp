@@ -50,7 +50,7 @@ namespace {
 void printHelp() {
 	printf("covEval: evaluate a covariance model at given lags.\n"
 	       "  -cov  covariance model(s), e.g. \"0.1*nugget + 0.9*spherical(range=[40,20], angle=30)\"\n"
-	       "  -cvar name value  binds a model variable (number, or image on the grid); repeat as needed\n"
+	       "  -cvar name value  binds a model variable (number, image on the grid, or map(name) table of any size); repeat as needed\n"
 	       "  -ii   model index image (0-based) when several -cov are given\n"
 	       "  -lag  N x ndim lags, column 0 = shift along the last array index (mandatory)\n"
 	       "  -pos  1 x ndim or N x ndim nodes where non-stationary parameters are resolved\n"
