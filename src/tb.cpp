@@ -224,38 +224,34 @@ int main(int argc, char const* argv[]) {
 		                             std::string(g2s::geostat::structureName(model.structures[s].type)) + ": " + (nugget ? "independent noise" : g2s::geostat::lineProcessName(process)));
 	}
 
-	// ---- simulation: realisation by realisation, blocks of cells in parallel;
-	// cell coordinates are generated per block (no coordinate array of the grid).
+	// ---- simulation: the grid path of the engine (blocks of rows evaluated with
+	// per-axis tables, see geostat/turningBands.hpp) on a persistent pool of -j
+	// threads; several realisations are prepared and evaluated together when the
+	// grid has few blocks. Values do not depend on -j.
 	unsigned outputDims[3] = { 0, 0, 0 };
 	for (unsigned d = 0; d < ndim; ++d) outputDims[d] = grid[d];
 	g2s::DataImage output(ndim, outputDims, nbRealisations);
 	output._types.assign(nbRealisations, g2s::DataImage::Continuous);
-	const size_t cellCount = output.dataSize() / nbRealisations;
-	double boxMin[3] = { 0, 0, 0 }, boxMax[3] = { 0, 0, 0 };
-	for (unsigned d = 0; d < ndim; ++d) boxMax[d] = double(grid[d]) - 1.0;
+	const g2s::geostat::RegularGrid regularGrid = g2s::geostat::RegularGrid::cells(ndim, grid.data());
 
 	const auto begin = std::chrono::high_resolution_clock::now();
-	const size_t blockSize = 4096;
-	const size_t blocks = (cellCount + blockSize - 1) / blockSize;
-	for (unsigned r = 0; r < nbRealisations; ++r) {
-		const g2s::geostat::TurningBandsRealisation realisation(model, settings, r, boxMin, boxMax);
-		g2s::geostat::detail::parallelBlocks(blocks, nbThreads, [&](size_t b) {
-			const size_t first = b * blockSize, n = std::min(blockSize, cellCount - first);
-			std::vector<double> points(n * ndim), values(n);
-			size_t position[3] = { 0, 0, 0 };
-			{
-				size_t rest = first;
-				for (unsigned d = 0; d < ndim; ++d) { position[d] = rest % grid[d]; rest /= grid[d]; }
-			}
-			for (size_t i = 0; i < n; ++i) {
-				for (unsigned d = 0; d < ndim; ++d) points[i * ndim + d] = double(position[d]);
-				for (unsigned d = 0; d < ndim; ++d) { if (++position[d] < grid[d]) break; position[d] = 0; }
-			}
-			realisation.evaluate(points.data(), n, nullptr, first, values.data());
-			for (size_t i = 0; i < n; ++i) output._data[(first + i) * nbRealisations + r] = float(values[i]);
-		});
-		g2s::reporting::setProgress(reportFile, 100.0 * double(r + 1) / double(nbRealisations), "simulation",
-		                            "realisation " + std::to_string(r + 1) + "/" + std::to_string(nbRealisations), r + 1, nbRealisations);
+	{
+		g2s::geostat::WorkerPool pool(nbThreads);
+		float* data = output._data;
+		const size_t columns = regularGrid.size[0];
+		g2s::geostat::simulateTurningBandsGrid(model, settings, regularGrid, 0, nbRealisations, pool,
+			[&](unsigned r, const g2s::geostat::GridBlock& block, const double* values) {
+				const size_t width = block.width();
+				for (size_t row = block.rowBegin; row < block.rowEnd; ++row) {
+					const double* source = values + (row - block.rowBegin) * width;
+					float* target = data + (row * columns + block.columnBegin) * nbRealisations + r;
+					for (size_t i = 0; i < width; ++i) target[i * nbRealisations] = float(source[i]);
+				}
+			},
+			[&](unsigned done) {
+				g2s::reporting::setProgress(reportFile, 100.0 * double(done) / double(nbRealisations), "simulation",
+				                            "realisation " + std::to_string(done) + "/" + std::to_string(nbRealisations), done, nbRealisations);
+			});
 	}
 	const auto end = std::chrono::high_resolution_clock::now();
 

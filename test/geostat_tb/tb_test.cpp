@@ -654,15 +654,19 @@ void testExecutable(const std::string& binary) {
 		TurningBandsSettings settings;
 		settings.seed = 11;
 		settings.mean = -2.5;
-		std::vector<double> values(3 * count);
-		simulateTurningBands(resolved, settings, points.data(), count, 0, 3, values.data());
+		std::vector<double> values(3 * count), meshless(3 * count);
+		simulateTurningBandsGrid(resolved, settings, RegularGrid::cells(2, dims.data()), 0, 3, values.data());
+		simulateTurningBands(resolved, settings, points.data(), count, 0, 3, meshless.data());
+		bool exact = true;
 		double worst = 0.0, sum = 0.0;
 		for (unsigned r = 0; r < 3; ++r)
 			for (size_t i = 0; i < count; ++i) {
-				worst = std::max(worst, std::fabs(double(a._data[i * 3 + r]) - values[r * count + i]));
+				exact &= a._data[i * 3 + r] == float(values[r * count + i]);
+				worst = std::max(worst, std::fabs(double(a._data[i * 3 + r]) - meshless[r * count + i]));
 				sum += a._data[i * 3 + r];
 			}
-		printf("   executable vs engine: max |difference| %.2e, mean %.3f\n", worst, sum / (3.0 * count));
+		printf("   executable = engine grid path: %s; vs meshless path: max |difference| %.2e, mean %.3f\n", exact ? "exact" : "DIFFERENT", worst, sum / (3.0 * count));
+		CHECK(exact);
 		CHECK(worst <= 1e-5);
 	}
 	CHECK(run("-nb 300", testId(702)) == 0);
