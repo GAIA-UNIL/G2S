@@ -177,3 +177,15 @@ clean:
 	rm -rf $(DISTRIBUTED_TOOLS)
 	rm -rf algosName.config
 	rm -rf .depend
+
+# sgs: sequential Gaussian simulation (geostat/sgsEngine.hpp)
+.PHONY: install-sgs clean-sgs
+all: sgs
+install: install-sgs
+clean: clean-sgs
+sgs: sgs.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+install-sgs: create_install_path sgs
+	@cp -f ./sgs $(INSTALL_DIR)/libexec || printf "\e[31error: 'sgs' is missing !!\e[0m\n"
+clean-sgs:
+	rm -f sgs
