@@ -152,7 +152,7 @@ bool reuseContentFile(const char* path){
 #ifdef G2S_PARALLEL_GZIP
 // Large images are compressed by chunks on several threads into ONE standard
 // gzip member (the pigz method): each chunk is raw-deflated at the default
-// level with the previous 32 KiB of input as its dictionary and ends with a
+// level (and strategy) with the previous 32 KiB of input as its dictionary and ends with a
 // sync flush (the last one with a final block), so the concatenation of the
 // chunks is a single valid deflate stream; the CRC-32 of the chunks are
 // combined. Any gzip reader (zlib gzread, gzip, Python) reads it, the content
@@ -160,7 +160,7 @@ bool reuseContentFile(const char* path){
 const size_t ParallelGzipMinimum=size_t(8)<<20;
 const size_t ParallelGzipChunk=size_t(4)<<20;
 
-bool writeGzipParallel(const char* path, const char* data, size_t size){
+bool writeGzipParallel(const char* path, const char* data, size_t size, int strategy){
 	const size_t chunks=(size+ParallelGzipChunk-1)/ParallelGzipChunk;
 	std::vector<std::vector<unsigned char> > compressed(chunks);
 	std::vector<uLong> crcs(chunks, 0);
@@ -172,7 +172,7 @@ bool writeGzipParallel(const char* path, const char* data, size_t size){
 			const bool last=(c+1==chunks);
 			z_stream stream;
 			memset(&stream, 0, sizeof(stream));
-			if(deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY)!=Z_OK) continue;
+			if(deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, strategy)!=Z_OK) continue;
 			if(begin>0){
 				const size_t window=std::min<size_t>(32768, begin);
 				deflateSetDictionary(&stream, (const Bytef*)(data+begin-window), uInt(window));
@@ -273,7 +273,7 @@ char* loadRawData(const char * hash, size_t* outSize){
 	return nullptr;
 }
 
-char* writeRawData(char* data, bool compresed){
+char* writeRawData(char* data, bool compresed, bool fieldContent){
 	if(!data) return nullptr;
 	size_t fullSize=*((size_t*)data);
 	if(!g2s::DataImage::validateSerializedData(data, fullSize)) return nullptr;
@@ -302,7 +302,7 @@ char* writeRawData(char* data, bool compresed){
 		temporaryName(filename, temporary, sizeof(temporary));
 		#ifdef G2S_PARALLEL_GZIP
 		if(fullSize>=ParallelGzipMinimum) {
-			if(writeGzipParallel(temporary, data, fullSize)) {
+			if(writeGzipParallel(temporary, data, fullSize, fieldContent ? Z_HUFFMAN_ONLY : Z_DEFAULT_STRATEGY)) {
 				if(rename(temporary, filename)!=0) unlink(temporary);
 			} else {
 				unlink(temporary);
@@ -310,7 +310,7 @@ char* writeRawData(char* data, bool compresed){
 			return hashInHexa;
 		}
 		#endif
-		gzFile dataFile=gzopen(temporary,"wb");
+		gzFile dataFile=gzopen(temporary,fieldContent ? "wbh" : "wb");
 		if(dataFile) {
 			const bool written=gzwrite(dataFile, data, unsigned(fullSize))==int(fullSize);
 			if(gzclose(dataFile)==Z_OK && written) {

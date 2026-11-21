@@ -463,13 +463,13 @@ int main(int argc, char const* argv[]) {
 	g2s::DataImage estimateImage = DI.emptyCopy(true);
 	memcpy(estimateImage._data, DI._data, sizeof(float) * cellCount);
 	for (size_t t = 0; t < targetCells.size(); ++t) estimateImage._data[targetCells[t]] = float(estimate[t]);
-	estimateImage.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) });
+	estimateImage.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) }, true, true);
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "estimate", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "estimate_image_runtime", std::string("im_1_") + std::to_string(uniqueID), estimateImage);
 	if (withVariance) {
 		g2s::DataImage varianceImage = DI.emptyCopy(true);
 		for (size_t t = 0; t < targetCells.size(); ++t) varianceImage._data[targetCells[t]] = float(variance[t]);
-		varianceImage.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) });
+		varianceImage.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) }, true, true);
 		g2s::reporting::recordOutputDescriptor(reportFile, 2, "variance", std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::logOutput(reportFile, "variance_image_runtime", std::string("im_2_") + std::to_string(uniqueID), varianceImage);
 	}

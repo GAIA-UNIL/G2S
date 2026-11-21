@@ -501,7 +501,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::markFinished(reportFile, time);
 
 	indexImage.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) });
-	simulation.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) });
+	simulation.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) }, true, true);
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::recordOutputDescriptor(reportFile, 2, "indexmap", std::string("im_2_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), simulation);
