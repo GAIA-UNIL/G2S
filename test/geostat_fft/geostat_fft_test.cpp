@@ -231,7 +231,9 @@ void testNoise() {
 	double sum = 0.0, sum2 = 0.0;
 	for (float v : noise) { sum += v; sum2 += double(v) * v; }
 	const double n = double(noise.size());
-	CHECK_MSG(std::fabs(sum / n) < 0.01 && std::fabs(sum2 / n - 1.0) < 0.01, "white noise mean " + formatNumber(sum / n) + " variance " + formatNumber(sum2 / n));
+	// 5 standard errors: 1/sqrt(n) for the mean, sqrt(2/n) for the variance.
+	CHECK_MSG(std::fabs(sum / n) < 5.0 / std::sqrt(n) && std::fabs(sum2 / n - 1.0) < 5.0 * std::sqrt(2.0 / n),
+	          "white noise mean " + formatNumber(sum / n) + " variance " + formatNumber(sum2 / n));
 
 	// Perturb one noise cell (60, 50): the field changes as the kernel g centred there.
 	std::vector<float> perturbed(noise.begin(), noise.begin() + long(L.cells));
