@@ -553,7 +553,7 @@ public:
 		{
 			if(mxIsChar(prhs[i])){
 				std::string str=mxArrayToString(prhs[i]);
-				if( str.size()>1 && str.at(0)=='-' ) listOfIndex.push_back(i);
+				if( isG2sFlag(str) ) listOfIndex.push_back(i);
 			}
 		}
 		listOfIndex.push_back(nrhs);

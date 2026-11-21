@@ -293,7 +293,7 @@ unsigned anyNativeToUnsigned(std::any val){
 		{
 			if(Rcpp::is<Rcpp::CharacterVector>(withoutKey[i])){
 				std::string str=Rcpp::as<std::string>(withoutKey[i]);
-				if( str.size()>1 && str.at(0)=='-' ) listOfIndex.push_back(i);
+				if( isG2sFlag(str) ) listOfIndex.push_back(i);
 			}
 		}
 		listOfIndex.push_back(withoutKey.size());

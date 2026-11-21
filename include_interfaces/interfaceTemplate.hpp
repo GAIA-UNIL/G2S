@@ -40,6 +40,17 @@
 typedef unsigned jobIdType;
 
 //template <class T>
+// A flag ('-a', '-cvar', ...) is a text of at least two characters that
+// starts with '-' and is not a number: "-30" or "-.5" given as text is a
+// (negative) value of the preceding flag, as it would be given as a number.
+inline bool isG2sFlag(const std::string& text){
+	if(text.size()<2 || text[0]!='-') return false;
+	const unsigned char next=static_cast<unsigned char>(text[1]);
+	if(std::isdigit(next)) return false;
+	if(next=='.' && text.size()>2 && std::isdigit(static_cast<unsigned char>(text[2]))) return false;
+	return true;
+}
+
 class InterfaceTemplate
 {
 public:

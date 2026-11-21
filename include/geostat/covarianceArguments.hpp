@@ -35,8 +35,16 @@
 // Negative constants: argumentReader() treats "-30" as a flag, so
 // readCovarianceArguments re-reads argv after each -cvar and accepts tokens
 // that are numbers even when they start with '-' (and removes the bogus "-30"
-// keys from the argument map). Clients can also write "theta=-30" or put the
-// value in the model text.
+// keys from the argument map). Through the Python, MATLAB and R interfaces
+// the server rebuilds argv grouped by flag, in the order the values were
+// given for that flag, so g2s('-cvar','theta',-30,'-cvar','L',40) reaches
+// the executable as "-cvar theta -30 L 40" and works. A value given as text
+// ('-30') works too: the interfaces treat a text that starts with '-' and a
+// digit (or '.' and a digit) as a value, not a flag (isG2sFlag in
+// include_interfaces/interfaceTemplate.hpp); clients built before that
+// change send '-30' as a separate flag, which the server moves away from
+// -cvar ("'theta' has no value"). "theta=-30" (one token) works everywhere,
+// as does putting the value in the model text.
 //
 // Usage in an executable (pyDev style):
 //   g2s::geostat::CovarianceArguments covarianceArguments;
@@ -119,7 +127,8 @@ inline bool readCovarianceArguments(std::multimap<std::string, std::string>& arg
 			out.variables.push_back({ values[i], values[i + 1] });
 			i += 2;
 		} else {
-			error = "-cvar expects name value pairs; '" + values[i] + "' has no value";
+			error = "-cvar expects name value pairs; '" + values[i] + "' has no value (a negative number given as text by an older client"
+			        " is taken for a flag: write -cvar " + values[i] + "=value instead)";
 			ok = false;
 			break;
 		}

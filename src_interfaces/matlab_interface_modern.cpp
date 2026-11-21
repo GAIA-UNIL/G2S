@@ -8,9 +8,9 @@ using matlab::mex::ArgumentList;
 
 namespace {
 
-// A flag is a char row vector or scalar string that starts with '-' and has at least two characters.
+// A flag is a char row vector or scalar string that isG2sFlag accepts ('-' and not a number).
 inline bool isFlag(const matlab::data::Array& a, std::string& out) {
-	return g2sMatlab::arrayToString(a, out) && out.size() > 1 && out[0] == '-';
+	return g2sMatlab::arrayToString(a, out) && isG2sFlag(out);
 }
 
 // Let MATLAB refresh figures; a pending Ctrl+C is left for MATLAB to handle after the MEX call returns.

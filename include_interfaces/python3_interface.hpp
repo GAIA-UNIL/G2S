@@ -503,7 +503,7 @@ public:
             {
                 if(PyUnicode_Check(PyTuple_GetItem(args,i))){
                     std::string str=std::string(PyUnicode_AsUTF8(PyTuple_GetItem(args,i)));
-                    if( str.size()>1 && str.at(0)=='-' ) listOfIndex.push_back(i);
+                    if( isG2sFlag(str) ) listOfIndex.push_back(i);
                 }
             }
             listOfIndex.push_back(PyTuple_Size(args));
