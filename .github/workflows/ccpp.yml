@@ -59,6 +59,25 @@ jobs:
           done
         fi
 
+    - name: Run geostat tests (covariance models, kriging, SGS, FFT-MA, turning bands)
+      run: |
+        make -C test/geostat
+        make -C test/geostat_kriging
+        make -C test/geostat_sgs
+        make -C test/geostat_fft
+        make -C test/geostat_tb quick
+
+    - name: Set up Python for the covariance helper test
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Run the Python covariance helper test (g2s.cov)
+      run: |
+        python -m pip install numpy
+        cd build/python-build
+        python -m unittest -v tests.test_cov
+
     - name: Build and test with SIMD FFTW
       if: startsWith(matrix.os, 'ubuntu')
       run: |

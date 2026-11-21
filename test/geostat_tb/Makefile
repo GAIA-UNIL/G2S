@@ -2,6 +2,8 @@
 #   make            build and run (tb is tested when build/c++-build/tb exists)
 #   make TB=/path/to/tb
 #   make timings    also time tb on 1000 x 1000 and 200 x 200 x 200 grids
+#   make quick      a subset of the statistical cases (every structure type, fewer
+#                   dimension / anisotropy combinations), for CI
 # Images are written to /tmp/G2S/data under names unique to the run, removed at exit
 # (test/geostat_common/testData.hpp).
 REPO_ROOT := $(abspath ../..)
@@ -12,7 +14,7 @@ BREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 EXTRA_INC := $(if $(BREW_PREFIX),-I$(BREW_PREFIX)/include) -I/usr/include/jsoncpp
 EXTRA_LIB := $(if $(BREW_PREFIX),-L$(BREW_PREFIX)/lib)
 
-.PHONY: all test timings clean
+.PHONY: all test timings quick clean
 
 all: test
 
@@ -21,6 +23,9 @@ test: $(OUT)
 
 timings: $(OUT)
 	cd $(CURDIR)/out && $(OUT) $(TB) timings
+
+quick: $(OUT)
+	cd $(CURDIR)/out && $(OUT) $(TB) quick
 
 $(OUT): tb_test.cpp $(wildcard $(REPO_ROOT)/include/geostat/*.hpp) $(REPO_ROOT)/test/geostat_common/testData.hpp $(REPO_ROOT)/src/DataImage.cpp
 	@mkdir -p $(dir $@)

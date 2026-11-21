@@ -37,6 +37,10 @@ using geostat_test::testIdText;
 
 namespace {
 
+// Quick mode (CI): every structure type is still checked, with the same
+// tolerances, but in fewer dimension and anisotropy combinations.
+bool quick = false;
+
 // Image names unique to this run (removed at exit with the outputs of testId()).
 std::string N(const std::string& stem) { return geostat_test::testName(stem); }
 
@@ -240,9 +244,13 @@ void testCovariances() {
 		"gaussian(range=[30,15,8], angle=[30,20,10])", "cubic(range=[30,15,8], angle=[30,20,10])",
 		"matern(range=[30,15,8], angle=[30,20,10], nu=0.8)", "stable(range=[30,15,8], angle=[30,20,10], alpha=0.7)",
 	};
-	for (unsigned ndim : { 1u, 2u, 3u }) for (const char* text : isotropic) checkModel(text, ndim);
-	for (const char* text : anisotropic2) checkModel(text, 2);
-	for (const char* text : anisotropic3) checkModel(text, 3);
+	size_t k = 0;
+	for (unsigned ndim : { 1u, 2u, 3u })
+		for (const char* text : isotropic) if (!quick || k++ % 3 == ndim - 1) checkModel(text, ndim);
+	k = 0;
+	for (const char* text : anisotropic2) if (!quick || k++ % 2 == 0) checkModel(text, 2);
+	k = 0;
+	for (const char* text : anisotropic3) if (!quick || k++ % 2 == 1) checkModel(text, 3);
 	section("nested model: nugget + two structures");
 	checkModel("0.2*nugget + 0.5*spherical(range=[30,12], angle=25) + 0.3*exponential(range=50)", 2);
 	checkModel("0.1*nugget + 0.6*cubic(range=[25,12,6], angle=[10,0,40]) + 0.3*gaussian(range=40)", 3);
@@ -251,8 +259,10 @@ void testCovariances() {
 
 void testGaussianity() {
 	section("marginal close to Gaussian at the default number of lines (|kurtosis - 3| <= 0.08, 2000 x 64 values)");
+	size_t k = 0;
 	for (unsigned ndim : { 2u, 3u }) {
 		for (const char* text : { "spherical(range=20)", "cubic(range=20)", "exponential(range=20)", "gaussian(range=20)", "matern(range=20, nu=1.5)", "stable(range=20, alpha=1)" }) {
+			if (quick && k++ % 2 != ndim - 2) continue;
 			const ResolvedModel model = stationary(text, ndim);
 			LagSet set;
 			set.lags.push_back(std::vector<double>(ndim, 0.0));
@@ -337,6 +347,7 @@ void testBanding() {
 		const std::vector<std::string> texts = ndim == 2 ? std::vector<std::string>{ "spherical(range=25)", "exponential(range=25)", "gaussian(range=25)" }
 		                                                 : std::vector<std::string>{ "spherical(range=12)", "exponential(range=12)", "gaussian(range=12)" };
 		for (const std::string& text : texts) {
+			if (quick && text.compare(0, 9, "spherical") != 0) continue;
 			const unsigned realisations = ndim == 2 ? 6 : 4;
 			const double good = isotropyDeviation(text, ndim, lines, realisations);
 			const double reference = isotropyDeviation(text, ndim, 8 * lines, realisations);
@@ -580,6 +591,8 @@ void timing(const std::string& binary) {
 int main(int argc, char** argv) {
 	const std::string binary = argc > 1 ? argv[1] : "../../build/c++-build/tb";
 	const bool withTimings = argc > 2 && std::string(argv[2]) == "timings";
+	quick = argc > 2 && std::string(argv[2]) == "quick";
+	if (quick) printf("quick mode: a subset of the statistical cases\n");
 	const auto begin = std::chrono::steady_clock::now();
 	testCos();
 	testLineProfiles();
