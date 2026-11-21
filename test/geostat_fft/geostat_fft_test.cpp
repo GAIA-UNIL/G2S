@@ -465,6 +465,16 @@ void testExecutable(const std::string& binary) {
 		for (int x = -10; x <= 10; ++x) table[size_t((y + 10) * 21 + x + 10)] = float(std::max(0.0, 1.0 - std::sqrt(double(x * x + y * y)) / 10.0));
 	CHECK(writeImage(N("geostat_fft_map"), { 21, 21 }, table));
 	CHECK(std::system((binary + " -di " + N("geostat_fft_di") + " -cov 'map(M)' -cvar M " + N("geostat_fft_map") + " -s 1 -id " + testIdText(510) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
+	// Several maps of different sizes, one larger than the grid along axis 0.
+	std::vector<float> wide(101 * 11, 0.f);
+	for (int y = -5; y <= 5; ++y)
+		for (int x = -50; x <= 50; ++x) wide[size_t((y + 5) * 101 + x + 50)] = float(std::max(0.0, 1.0 - std::fabs(x / 50.0) - std::fabs(y / 5.0)));
+	CHECK(writeImage(N("geostat_fft_map2"), { 101, 11 }, wide));
+	CHECK(std::system((binary + " -di " + N("geostat_fft_di") + " -cov 'map(M) + 0.5*map(K)' -cvar M " + N("geostat_fft_map") + " -cvar K " + N("geostat_fft_map2") + " -s 1 -id " + testIdText(516) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
+	{
+		g2s::DataImage one = load(1, testId(510)), two = load(1, testId(516));
+		CHECK(two._dims == (std::vector<unsigned>{ 70, 50 }) && !sameData(one, two));
+	}
 	// Errors: non-stationary model, noise with spectral, wrong noise size, bad method.
 	std::vector<float> ranges(70 * 50);
 	for (size_t i = 0; i < ranges.size(); ++i) ranges[i] = float(10 + i % 7);

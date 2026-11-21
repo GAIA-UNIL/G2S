@@ -233,18 +233,8 @@ int main(int argc, char const* argv[]) {
 			warn(std::to_string(informed) + " informed value(s) in -di are ignored: " + std::string(sp::methodName(method)) + " is unconditional");
 	}
 
-	// loadCovarianceModels checks every -cvar image against the grid, map
-	// tables included, although a lag table has its own size. Workaround: with
-	// a map(...) structure, let the images define the grid (a field image would
-	// make the model non-stationary, which is rejected below anyway).
-	std::vector<unsigned> modelGrid = grid;
-	try {
-		for (const std::string& text : covarianceArguments.models)
-			if (!gs::ModelSpec::parse(text).mapNames().empty()) modelGrid.clear();
-	} catch (const gs::Error&) {
-		// reported by loadCovarianceModels
-	}
 	gs::CovarianceModelSet models;
+	std::vector<unsigned> modelGrid = grid;
 	if (!gs::loadCovarianceModels(reportFile, covarianceArguments, modelGrid, ndim, models, error)) return failWith(error, 2);
 	if (!models.isStationary())
 		return failWith(std::string(sp::methodName(method)) + " needs a stationary covariance model: spatially varying -cvar images and several models with -ii are not supported", 2);

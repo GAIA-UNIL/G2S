@@ -954,6 +954,52 @@ void testArguments() {
 		CHECK(loadCovarianceModels(nullptr, stationaryArgs, dims, 2, models, error));
 		CHECK(models.isStationary() && dims.empty());
 
+		// Map tables have their own size (any size, lag 0 at the centre), and
+		// several maps of different sizes can be combined; per-node images
+		// still have to match the grid.
+		std::vector<float> wide(7 * 5, 0.f), tall(3 * 9, 0.f);
+		wide[2 * 7 + 3] = 4.f; // centre (3, 2)
+		wide[2 * 7 + 4] = 2.f; // lag (+1, 0)
+		tall[4 * 3 + 1] = 3.f; // centre (1, 4)
+		tall[5 * 3 + 1] = 1.f; // lag (0, +1)
+		CHECK(writeImage(N("geostat_test_wide"), { 7, 5 }, wide));
+		CHECK(writeImage(N("geostat_test_tall"), { 3, 9 }, tall));
+		CovarianceArguments maps;
+		maps.models = { "0.5*map(A) + map(B) + 0.1*exponential(range=L)" };
+		maps.variables = { { "A", N("geostat_test_wide") }, { "B", N("geostat_test_tall") }, { "L", N("geostat_test_range") } };
+		dims = grid;
+		CHECK_MSG(loadCovarianceModels(nullptr, maps, dims, 0, models, error), error);
+		CHECK(dims == grid && !models.isStationary());
+		{
+			const ResolvedModel& m = models.at(5, scratch); // L = 10
+			const double zero[2] = { 0, 0 }, right[2] = { 1, 0 }, up[2] = { 0, 1 }, far[2] = { 4, 0 };
+			CHECK_NEAR(m.covariance(zero), 0.5 * 4 + 3 + 0.1, 1e-12);
+			CHECK_NEAR(m.covariance(right), 0.5 * 2 + 0.1 * std::exp(-0.3), 1e-7);
+			CHECK_NEAR(m.covariance(up), 1 + 0.1 * std::exp(-0.3), 1e-7);
+			CHECK_NEAR(m.covariance(far), 0.1 * std::exp(-1.2), 1e-7); // outside both tables
+		}
+		// Without -di, maps do not define the grid; a field does.
+		CovarianceArguments mapsOnly;
+		mapsOnly.models = { "0.5*map(A) + map(B)" };
+		mapsOnly.variables = { { "A", N("geostat_test_wide") }, { "B", N("geostat_test_tall") } };
+		dims.clear();
+		CHECK_MSG(loadCovarianceModels(nullptr, mapsOnly, dims, 2, models, error), error);
+		CHECK(dims.empty() && models.isStationary());
+		CHECK_NEAR(models.stationaryModel().sill(), 5, 1e-12);
+		dims = { 30, 30 };
+		CHECK_MSG(loadCovarianceModels(nullptr, mapsOnly, dims, 0, models, error), error); // maps larger or smaller than the grid
+		dims.clear();
+		CHECK_MSG(loadCovarianceModels(nullptr, maps, dims, 0, models, error), error);
+		CHECK(dims == grid); // from the field
+		CovarianceArguments wrongField = maps;
+		wrongField.variables[2].second = N("geostat_test_small");
+		dims = grid;
+		CHECK(!loadCovarianceModels(nullptr, wrongField, dims, 0, models, error));
+		CHECK(error.find("has size 2x2 but the grid is 4x3") != std::string::npos);
+		CovarianceArguments wrongDims = mapsOnly;
+		dims.clear();
+		CHECK(!loadCovarianceModels(nullptr, wrongDims, dims, 3, models, error));
+		CHECK(error.find("has 2 dimensions, the lags have 3") != std::string::npos);
 	}
 }
 

@@ -22,10 +22,12 @@
 //                             values after one -cov); model i is index i
 //   -cvar name value          binds a variable; repeat for each variable.
 //                             value is a number (constant) or an image name
-//                             on the -di grid (one variable): a spatially
-//                             varying parameter, or the covariance map of
-//                             map(name). An image whose values are all equal
-//                             is bound as a constant (stationary fast path).
+//                             (one variable): a spatially varying parameter,
+//                             on the -di grid, or the covariance map of
+//                             map(name), of any size with one axis per lag
+//                             component and lag 0 at its centre (dims/2).
+//                             An image whose values are all equal is bound as
+//                             a constant (stationary fast path).
 //                             "-cvar name=value" (one token) is accepted too.
 //   -ii   image               model index per node (0-based, integers), same
 //                             grid as -di; model 0 everywhere when absent.
@@ -137,10 +139,11 @@ inline bool readCovarianceArguments(std::multimap<std::string, std::string>& arg
 	return ok;
 }
 
-// Loads the -cvar images and the -ii index, checks them against the grid and
-// builds the model set. gridDims: the -di grid (DataImage axis order); when
-// empty it is taken from the first image (and returned), which lets covEval
-// run without -di. ndim: number of lag components; 0 means gridDims.size().
+// Loads the -cvar images and the -ii index, checks the per-node images
+// (fields, -ii) against the grid and builds the model set. Map tables are not
+// checked against the grid. gridDims: the -di grid (DataImage axis order);
+// when empty it is taken from the first per-node image (and returned), which
+// lets covEval run without -di. ndim: number of lag components; 0 means gridDims.size().
 // Logs the inputs and the canonical models to reportFile (may be null).
 inline bool loadCovarianceModels(FILE* reportFile, const CovarianceArguments& args, std::vector<unsigned>& gridDims, unsigned ndim,
                                  CovarianceModelSet& models, std::string& error) {
@@ -153,11 +156,13 @@ inline bool loadCovarianceModels(FILE* reportFile, const CovarianceArguments& ar
 		}
 		auto isMap = [&](const std::string& name) { return std::find(mapNames.begin(), mapNames.end(), name) != mapNames.end(); };
 		auto gridText = [](const std::vector<unsigned>& dims) { return g2s::reporting::joinUnsignedVector(dims); };
-		auto loadImage = [&](const std::string& label, const std::string& file, g2s::DataImage& image) {
+		// onGrid: one value per node (fields, -ii); a map table has its own size.
+		auto loadImage = [&](const std::string& label, const std::string& file, g2s::DataImage& image, bool onGrid) {
 			image = g2s::DataImage::createFromFile(file);
 			g2s::reporting::logInput(reportFile, label, file, image);
 			if (image.isEmpty()) throw Error("failed to load " + label + " " + file);
 			if (image._nbVariable != 1) throw Error(label + " must have a single variable, " + file + " has " + std::to_string(image._nbVariable));
+			if (!onGrid) return;
 			if (gridDims.empty()) gridDims = image._dims;
 			else if (image._dims != gridDims)
 				throw Error(label + " (" + file + ") has size " + gridText(image._dims) + " but the grid is " + gridText(gridDims));
@@ -175,7 +180,7 @@ inline bool loadCovarianceModels(FILE* reportFile, const CovarianceArguments& ar
 				continue;
 			}
 			g2s::DataImage image;
-			loadImage(label, variable.second, image);
+			loadImage(label, variable.second, image, !isMap(name));
 			const size_t count = image.dataSize();
 			std::vector<float> data(image._data, image._data + count);
 			if (isMap(name)) {
@@ -195,7 +200,7 @@ inline bool loadCovarianceModels(FILE* reportFile, const CovarianceArguments& ar
 		std::vector<unsigned> modelIndex;
 		if (!args.indexFileName.empty()) {
 			g2s::DataImage index;
-			loadImage("-ii", args.indexFileName, index);
+			loadImage("-ii", args.indexFileName, index, true);
 			modelIndex.resize(index.dataSize());
 			for (size_t i = 0; i < modelIndex.size(); ++i) {
 				const float v = index._data[i];
