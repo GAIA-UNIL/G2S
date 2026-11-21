@@ -33,6 +33,18 @@
       url: /algorithms/SNESIM.html
     - title: AutoQS
       url: /algorithms/AutoQS.html
+    - title: Covariance models
+      url: /algorithms/CovarianceModels.html
+    - title: Sequential Gaussian simulation
+      url: /algorithms/SGS.html
+    - title: Kriging
+      url: /algorithms/Kriging.html
+    - title: FFT-MA and spectral
+      url: /algorithms/FFTMA.html
+    - title: Turning bands
+      url: /algorithms/TurningBands.html
+    - title: Choosing a Gaussian method
+      url: /algorithms/GaussianSimulation.html
     - title: pyDev (Python prototyping)
       url: /algorithms/PyDev.html
     - title: pyDev tutorial

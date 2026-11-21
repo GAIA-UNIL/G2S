@@ -140,7 +140,7 @@ How full batches can be depends on the path: early in a random path most nodes d
 
 ## Examples
 
-The PyDevAlgo folder contains three sequential Gaussian simulation (ordinary kriging) algorithms built on `pydev_kriging.py`:
+The PyDevAlgo folder contains three sequential Gaussian simulation (ordinary kriging) algorithms built on `pydev_kriging.py`. They are prototypes that show how pyDev works; for production, the native [sgs]({{ site.baseurl }}/algorithms/SGS.html) algorithm is much faster and accepts the full [covariance model syntax]({{ site.baseurl }}/algorithms/CovarianceModels.html):
 
 | `-pa` | Description |
 |---|---|

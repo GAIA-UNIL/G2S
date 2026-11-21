@@ -9,6 +9,12 @@ Some MATLAB schema examples use `[result, ~] = g2s(...)` when they read secondar
 - `python/ds` and `matlab/ds`: native Direct Sampling examples
 - `python/auto_qs` and `matlab/auto_qs`: AutoQS calibration examples
 - `python/snesim` and `matlab/snesim`: SNESIM examples
+- `python/cov` and `matlab/cov`: covariance models (helpers, covEval, spatially varying parameters, regions, covariance maps)
+- `python/sgs` and `matlab/sgs`: sequential Gaussian simulation examples
+- `python/kriging` and `matlab/kriging`: kriging examples
+- `python/fftma` and `matlab/fftma`: FFT-MA and spectral simulation examples
+- `python/tb` and `matlab/tb`: turning bands examples
+- `python/gaussian_comparison`: run time and covariance of sgs, fftma, spectral and tb on the same model (Python only)
 - `python/reporting` and `matlab/reporting`: reporting and error-propagation probes
 
 Run every Python example, including legacy examples, with:
