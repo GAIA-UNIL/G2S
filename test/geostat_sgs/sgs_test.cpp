@@ -207,9 +207,25 @@ void testEngine() {
 		CHECK(sameBits(a, b));
 	}
 
+	section("engine: tabulated covariance gives the same weights");
+	{
+		// A field bound to a constant map is not stationary for the model set,
+		// so it takes the general krige() path; the constant takes the table path.
+		GridCase f = c;
+		Bindings bindings;
+		bindings.setField("L", std::vector<float>(c.nodes(), 12.f));
+		f.models = buildModels({ "0.1*nugget + 0.9*spherical(range=[L,L/2], angle=30)" }, 2, bindings);
+		CHECK(!f.models.isStationary());
+		const Planned general = plan(f, path);
+		CHECK(sameVector(base.table.neighborWeight, general.table.neighborWeight));
+		CHECK(sameVector(base.table.stencilSigma, general.table.stencilSigma));
+		CHECK(sameVector(base.table.neighborRef, general.table.neighborRef));
+	}
+
 	section("engine: R realisations at once = R single runs");
 	{
-		const unsigned R = 7;
+		// 21 = 16 values in the vectorised body of the inner loop + 5 in its scalar tail.
+		const unsigned R = 21;
 		const std::vector<float> all = replay(c, base, hard, R, 1234, 10, 2);
 		bool same = true;
 		for (unsigned r = 0; r < R; ++r) {

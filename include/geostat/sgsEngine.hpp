@@ -33,6 +33,7 @@
 //   void     decode(size_t target, const uint32_t* refs, size_t count, size_t* ids) const;
 //   void     lag(size_t target, uint32_t ref, double* out) const; // neighbour - target
 //   bool     shareable() const;           // equal references mean equal lags
+//   bool     integerLags() const;         // every lag has integer components
 //   std::vector<int32_t> referenceTable() const; // stored in the weight file
 // GridAddressing (gridAddressing.hpp) uses kernel-offset ids, so that every
 // node with the same neighbour pattern and covariance shares one stencil;
@@ -45,12 +46,15 @@
 //   2. levels (sequential, O(L n)): level = 1 + max level of the simulated
 //      neighbours, 0 without any; entries are then counting-sorted by level
 //      (stable, so path order inside a level);
-//   3. sharing (sequential, hash map): an entry reuses the stencil of an
-//      earlier entry with the same references and the same resolved model
-//      (ResolvedModel::key() then sameParameters()); without sharing, one
-//      stencil per entry;
+//   3. sharing (parallel over signature shards, hash maps): an entry reuses
+//      the stencil of an earlier entry with the same references and the same
+//      resolved model (ResolvedModel::key() then sameParameters()); without
+//      sharing, one stencil per entry;
 //   4. solve (parallel over stencils): kriging (kriging.hpp) in double,
-//      stored as float32 weights and standard deviation.
+//      stored as float32 weights and standard deviation. With a stationary
+//      model and integer lags (grids), the covariance is tabulated once over
+//      the box of lag differences and the systems are assembled by lookup
+//      (same values as ResolvedModel::covarianceMatrix, bit for bit).
 // The result depends on the inputs only, not on the number of threads.
 //
 // Replay (replaySgs): values are float, [node x R] (realisation fastest),
@@ -58,7 +62,9 @@
 // and adds it back), raw values for ordinary kriging. Hard-data rows must be
 // filled; simulated rows are overwritten. For each entry,
 //   v[t, r] = sum_j w_j v[n_j, r] + sigma * standardNormal(seed, first + r, t)
-//             (+ the isolated mean when the entry has no neighbour)
+//             (the isolated mean instead of the sum when the entry has no
+//             neighbour); the noise term depends on no value and is written
+//             first, in a fully parallel pass
 // The weights of an entry are read once for all R realisations (the inner
 // loop over r is contiguous and vectorised). Threads take consecutive chunks
 // of the level-ordered entries and wait, per neighbour, only for nodes that
@@ -173,6 +179,7 @@ public:
 		for (unsigned d = 0; d < _ndim; ++d) out[d] = _coordinates[size_t(ref) * _ndim + d] - _coordinates[target * _ndim + d];
 	}
 	bool shareable() const { return false; }
+	bool integerLags() const { return false; }
 	std::vector<int32_t> referenceTable() const { return std::vector<int32_t>(); }
 private:
 	const double* _coordinates;
@@ -230,7 +237,7 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 	{
 		std::vector<NeighborSet> sets(threads);
 		std::vector<ResolvedModel> scratch(threads);
-		parallelFor(L, threads, 1024, [&](size_t begin, size_t end, unsigned worker) {
+		parallelFor(L, threads, 256, [&](size_t begin, size_t end, unsigned worker) {
 			NeighborSet& set = sets[worker];
 			for (size_t i = begin; i < end; ++i) {
 				const size_t node = size_t(path[i]);
@@ -253,9 +260,11 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 	if (unaddressable) { error = "a neighbour could not be expressed as a reference (kernel offset)"; return false; }
 	stats.searchMs = millisecondsSince(start);
 
-	// ---- 2. levels, and the level order of the entries
+	// ---- 2. levels (sequential: no thread ever waits for another, which
+	// keeps the plan fast on a busy machine), then the level order of the
+	// entries (counting sort, stable)
 	auto t1 = std::chrono::steady_clock::now();
-	std::vector<uint32_t> level(L);
+	std::vector<uint32_t> levelOf(L);
 	uint32_t maxLevel = 0;
 	{
 		std::vector<size_t> ids(stride);
@@ -264,16 +273,16 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 			uint32_t value = 0;
 			for (size_t j = 0; j < counts[i]; ++j) {
 				const int64_t rank = ranks[ids[j]];
-				if (rank >= 0) value = std::max(value, level[size_t(rank)] + 1);
+				if (rank >= 0) value = std::max(value, levelOf[size_t(rank)] + 1);
 			}
-			level[i] = value;
+			levelOf[i] = value;
 			maxLevel = std::max(maxLevel, value);
 			if (counts[i] == 0) ++stats.isolated;
 		}
 	}
 	const size_t levelCount = L ? size_t(maxLevel) + 1 : 0;
 	table.levelStart.assign(levelCount + 1, 0);
-	for (size_t i = 0; i < L; ++i) ++table.levelStart[level[i] + 1];
+	for (size_t i = 0; i < L; ++i) ++table.levelStart[levelOf[i] + 1];
 	for (size_t l = 0; l < levelCount; ++l) {
 		stats.largestLevel = std::max<size_t>(stats.largestLevel, table.levelStart[l + 1]);
 		table.levelStart[l + 1] += table.levelStart[l];
@@ -281,61 +290,84 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 	std::vector<uint64_t> order(L); // entry -> path position
 	{
 		std::vector<uint64_t> cursor(table.levelStart.begin(), table.levelStart.end() - 1);
-		for (size_t i = 0; i < L; ++i) order[cursor[level[i]]++] = i;
+		for (size_t i = 0; i < L; ++i) order[cursor[levelOf[i]]++] = i;
 	}
-	std::vector<uint32_t>().swap(level);
+	std::vector<uint32_t>().swap(levelOf);
 	stats.levelMs = millisecondsSince(t1);
 
-	// ---- 3. stencils: share identical systems
+	// ---- 3. stencils: share identical systems. Entries are split into
+	// shards by signature; inside a shard (in entry order) an entry adopts the
+	// first earlier entry with the same references and model. Stencil ids are
+	// then numbered in entry order, so the result does not depend on threads.
 	auto t2 = std::chrono::steady_clock::now();
 	table.entryTarget.resize(L);
 	table.entryStencil.resize(L);
 	std::vector<uint64_t> representative; // stencil -> path position solved for it
-	representative.reserve(share ? L / 4 : L);
+	for (size_t e = 0; e < L; ++e) table.entryTarget[e] = path[size_t(order[e])];
 	if (share) {
-		std::unordered_map<uint64_t, uint32_t> first; // signature -> first stencil with it
-		first.reserve(L);
-		std::vector<uint32_t> nextSame;                 // stencil -> next stencil with the same signature
-		ResolvedModel a, b;
-		for (size_t e = 0; e < L; ++e) {
-			const size_t i = size_t(order[e]);
-			const uint32_t* row = refs.data() + i * stride;
-			uint32_t found = kNoReference, last = kNoReference;
-			auto it = first.find(signature[i]);
-			if (it != first.end()) {
-				for (uint32_t c = it->second; c != kNoReference; c = nextSame[c]) {
-					last = c;
-					const size_t r = size_t(representative[c]);
-					if (counts[r] != counts[i] || std::memcmp(refs.data() + r * stride, row, counts[i] * sizeof(uint32_t)) != 0) continue;
-					if (!stationary) {
-						const ResolvedModel& ma = models.at(size_t(path[r]), a);
-						const ResolvedModel& mb = models.at(size_t(path[i]), b);
-						if (ma.key() != mb.key() || !ma.sameParameters(mb)) continue;
+		const size_t shardCount = size_t(threads) * 8;
+		std::vector<uint64_t> shardStart(shardCount + 1, 0), shardEntries(L);
+		auto shardOf = [&](size_t e) { return size_t((signature[size_t(order[e])] >> 32) % shardCount); };
+		for (size_t e = 0; e < L; ++e) ++shardStart[shardOf(e) + 1];
+		for (size_t k = 0; k < shardCount; ++k) shardStart[k + 1] += shardStart[k];
+		{
+			std::vector<uint64_t> cursor(shardStart.begin(), shardStart.end() - 1);
+			for (size_t e = 0; e < L; ++e) shardEntries[cursor[shardOf(e)]++] = e;
+		}
+		std::vector<uint64_t> owner(L); // entry -> first entry with the same system
+		std::vector<ResolvedModel> scratchA(threads), scratchB(threads);
+		parallelFor(shardCount, threads, 1, [&](size_t begin, size_t end, unsigned worker) {
+			for (size_t k = begin; k < end; ++k) {
+				std::unordered_map<uint64_t, uint32_t> first; // signature -> first candidate
+				std::vector<std::pair<uint64_t, uint32_t> > candidates; // (entry, next candidate with the signature)
+				first.reserve(size_t(shardStart[k + 1] - shardStart[k]));
+				for (uint64_t q = shardStart[k]; q < shardStart[k + 1]; ++q) {
+					const size_t e = size_t(shardEntries[q]);
+					const size_t i = size_t(order[e]);
+					const uint32_t* row = refs.data() + i * stride;
+					uint64_t found = e;
+					uint32_t last = kNoReference;
+					auto it = first.find(signature[i]);
+					if (it != first.end()) {
+						for (uint32_t c = it->second; c != kNoReference; c = candidates[c].second) {
+							last = c;
+							const size_t r = size_t(order[size_t(candidates[c].first)]);
+							if (counts[r] != counts[i] || std::memcmp(refs.data() + r * stride, row, counts[i] * sizeof(uint32_t)) != 0) continue;
+							if (!stationary) {
+								const ResolvedModel& ma = models.at(size_t(path[r]), scratchA[worker]);
+								const ResolvedModel& mb = models.at(size_t(path[i]), scratchB[worker]);
+								if (ma.key() != mb.key() || !ma.sameParameters(mb)) continue;
+							}
+							found = candidates[c].first;
+							break;
+						}
 					}
-					found = c;
-					break;
+					if (found == e) {
+						candidates.push_back({ e, kNoReference });
+						const uint32_t index = uint32_t(candidates.size() - 1);
+						if (last == kNoReference) first.emplace(signature[i], index);
+						else candidates[last].second = index;
+					}
+					owner[e] = found;
 				}
 			}
-			if (found == kNoReference) {
-				found = uint32_t(representative.size());
-				representative.push_back(i);
-				nextSame.push_back(kNoReference);
-				if (last == kNoReference) first.emplace(signature[i], found);
-				else nextSame[last] = found;
+		});
+		for (size_t e = 0; e < L; ++e) {
+			if (owner[e] == e) {
+				if (representative.size() >= size_t(kNoReference)) { error = "too many distinct stencils for 32-bit stencil ids"; return false; }
+				table.entryStencil[e] = uint32_t(representative.size());
+				representative.push_back(order[e]);
+			} else {
+				table.entryStencil[e] = table.entryStencil[size_t(owner[e])]; // owner[e] < e
 			}
-			table.entryTarget[e] = path[i];
-			table.entryStencil[e] = found;
 		}
 	} else {
-		for (size_t e = 0; e < L; ++e) {
-			representative.push_back(order[e]);
-			table.entryTarget[e] = path[size_t(order[e])];
-			table.entryStencil[e] = uint32_t(e);
-		}
+		if (L >= size_t(kNoReference)) { error = "too many nodes for 32-bit stencil ids"; return false; }
+		representative.assign(order.begin(), order.end());
+		for (size_t e = 0; e < L; ++e) table.entryStencil[e] = uint32_t(e);
 	}
 	std::vector<uint64_t>().swap(signature);
 	const size_t S = representative.size();
-	if (S >= size_t(kNoReference)) { error = "too many distinct stencils for 32-bit stencil ids"; return false; }
 	table.stencilStart.assign(S + 1, 0);
 	for (size_t s = 0; s < S; ++s) table.stencilStart[s + 1] = table.stencilStart[s] + counts[size_t(representative[s])];
 	stats.shareMs = millisecondsSince(t2);
@@ -347,11 +379,43 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 	table.neighborWeight.resize(N);
 	table.stencilSigma.resize(S);
 	std::vector<size_t> jittered(threads, 0), failed(threads, 0);
+	// Covariance table over the lag differences (stationary model, integer lags).
+	std::vector<double> covarianceTable;
+	std::vector<long> boxHalf(ndim, 0), boxStride(ndim, 0);
+	if (stationary && addressing.integerLags() && ndim <= kMaxDims && S > 0) {
+		std::vector<double> lag(ndim);
+		for (size_t r = 0; r < addressing.referenceLimit(); ++r) {
+			addressing.lag(0, uint32_t(r), lag.data());
+			for (unsigned d = 0; d < ndim; ++d) boxHalf[d] = std::max(boxHalf[d], 2 * long(std::lround(std::fabs(lag[d]))));
+		}
+		size_t size = 1;
+		for (unsigned d = 0; d < ndim; ++d) { boxStride[d] = long(size); size *= size_t(2 * boxHalf[d] + 1); }
+		if (size <= (size_t(1) << 24) && size < 8 * S * stride * stride) {
+			covarianceTable.resize(size);
+			const ResolvedModel& model = models.stationaryModel();
+			parallelFor(size, threads, 4096, [&](size_t begin, size_t end, unsigned) {
+				double l[kMaxDims];
+				for (size_t index = begin; index < end; ++index) {
+					size_t rest = index;
+					for (unsigned d = 0; d < ndim; ++d) {
+						const size_t extent = size_t(2 * boxHalf[d] + 1);
+						l[d] = double(long(rest % extent) - boxHalf[d]);
+						rest /= extent;
+					}
+					covarianceTable[index] = model.covariance(l);
+				}
+			});
+		}
+	}
+	const bool tabulated = !covarianceTable.empty();
+	long centre = 0;
+	for (unsigned d = 0; d < ndim && tabulated; ++d) centre += boxHalf[d] * boxStride[d];
 	{
 		std::vector<KrigingWorkspace> workspaces(threads);
 		std::vector<KrigingSolution> solutions(threads);
 		std::vector<ResolvedModel> scratch(threads);
 		std::vector<std::vector<double> > lags(threads, std::vector<double>(stride * ndim));
+		std::vector<std::vector<long> > cells(threads, std::vector<long>(stride));
 		parallelFor(S, threads, 64, [&](size_t begin, size_t end, unsigned worker) {
 			for (size_t s = begin; s < end; ++s) {
 				const size_t i = size_t(representative[s]);
@@ -360,9 +424,32 @@ inline bool planSgs(const NeighborSearch& search, const Addressing& addressing, 
 				const uint32_t* row = refs.data() + i * stride;
 				double* lag = lags[worker].data();
 				for (size_t j = 0; j < count; ++j) addressing.lag(node, row[j], lag + j * ndim);
-				const ResolvedModel& model = models.at(node, scratch[worker]);
 				KrigingSolution& solution = solutions[worker];
-				const unsigned status = krige(options.type, model, lag, count, workspaces[worker], solution);
+				KrigingWorkspace& workspace = workspaces[worker];
+				unsigned status;
+				if (tabulated) {
+					// Lag j as an offset in the table, so C(lag_i - lag_j) = table[centre + cell_i - cell_j].
+					long* cell = cells[worker].data();
+					for (size_t j = 0; j < count; ++j) {
+						long c = 0;
+						for (unsigned d = 0; d < ndim; ++d) c += long(std::lround(lag[j * ndim + d])) * boxStride[d];
+						cell[j] = c;
+					}
+					workspace.matrix.resize(count * count);
+					workspace.rhs.resize(count);
+					double* matrix = workspace.matrix.data();
+					for (size_t a = 0; a < count; ++a) {
+						workspace.rhs[a] = covarianceTable[size_t(centre + cell[a])];
+						for (size_t b = 0; b <= a; ++b) {
+							const double c = covarianceTable[size_t(centre + cell[a] - cell[b])];
+							matrix[a * count + b] = c;
+							matrix[b * count + a] = c;
+						}
+					}
+					status = solveKrigingSystem(options.type, matrix, count, workspace.rhs.data(), models.stationaryModel().sill(), count, workspace, solution);
+				} else {
+					status = krige(options.type, models.at(node, scratch[worker]), lag, count, workspace, solution);
+				}
 				if (status & KrigingJittered) ++jittered[worker];
 				if (status & KrigingFailed) ++failed[worker];
 				const size_t offset = size_t(table.stencilStart[s]);
@@ -403,13 +490,18 @@ struct SgsReplayOptions {
 struct SgsReplayStats {
 	unsigned threads = 1;
 	size_t waits = 0; // neighbours not yet final when an entry needed them (parallel replay)
-	double totalMs = 0;
+	double noiseMs = 0, totalMs = 0; // noise pass, and both passes
+
 };
 
 namespace detail {
 
-// One entry of the replay. With `ready` (parallel replay), waits until every
-// neighbour is final and then publishes its own node.
+// The two passes of the replay. noise() writes sigma * eps (plus the mean of
+// isolated entries) into every target row; it depends on no value, so it runs
+// fully in parallel. apply() then adds the weighted neighbours, in level order;
+// with `ready` (parallel replay) it waits until every neighbour is final and
+// then publishes its own node. Both passes use the same float operations
+// whatever R, the batch or the thread count.
 template <class Addressing>
 struct ReplayKernel {
 	const WeightTableView& table;
@@ -418,12 +510,24 @@ struct ReplayKernel {
 	float* values;
 	std::atomic<uint8_t>* ready;
 
-	float isolatedMean(size_t target) const {
-		return float(options.isolatedMeanMap ? double(options.isolatedMeanMap[target]) : options.isolatedMean);
+	void noise(uint64_t begin, uint64_t end) const {
+		const size_t R = options.realisations;
+		for (uint64_t e = begin; e < end; ++e) {
+			const size_t target = size_t(table.entryTarget[e]);
+			const uint32_t s = table.entryStencil[e];
+			const float sigma = table.stencilSigma[s];
+			const bool isolated = table.stencilStart[s + 1] == table.stencilStart[s];
+			const float mean = isolated ? float(options.isolatedMeanMap ? double(options.isolatedMeanMap[target]) : options.isolatedMean) : 0.f;
+			float* out = values + target * R;
+			for (size_t r = 0; r < R; ++r) {
+				const float deviation = sigma * float(standardNormal(options.seed, options.firstRealisation + uint32_t(r), target, 0));
+				out[r] = isolated ? mean + deviation : deviation;
+			}
+		}
 	}
 
 	// Returns the number of neighbours that had to be waited for.
-	size_t run(uint64_t begin, uint64_t end, std::vector<size_t>& ids, std::vector<float>& acc) const {
+	size_t apply(uint64_t begin, uint64_t end, std::vector<size_t>& ids, std::vector<float>& acc) const {
 		const size_t R = options.realisations;
 		size_t waits = 0;
 		for (uint64_t e = begin; e < end; ++e) {
@@ -431,40 +535,35 @@ struct ReplayKernel {
 			const uint32_t s = table.entryStencil[e];
 			const uint64_t first = table.stencilStart[s];
 			const size_t count = size_t(table.stencilStart[s + 1] - first);
-			if (ids.size() < count) ids.resize(count);
-			addressing.decode(target, table.neighborRef + first, count, ids.data());
-			if (ready) {
-				for (size_t j = 0; j < count; ++j) {
-					if (ready[ids[j]].load(std::memory_order_acquire)) continue;
-					++waits;
-					for (unsigned spin = 0; !ready[ids[j]].load(std::memory_order_acquire); ++spin) {
-						if (spin < 4096) cpuRelax();
-						else std::this_thread::yield();
+			if (count > 0) {
+				if (ids.size() < count) ids.resize(count);
+				addressing.decode(target, table.neighborRef + first, count, ids.data());
+				if (ready) {
+					for (size_t j = 0; j < count; ++j) {
+						if (ready[ids[j]].load(std::memory_order_acquire)) continue;
+						++waits;
+						for (unsigned spin = 0; !ready[ids[j]].load(std::memory_order_acquire); ++spin) {
+							if (spin < 4096) cpuRelax();
+							else std::this_thread::yield();
+						}
 					}
 				}
-			}
-			const float* weight = table.neighborWeight + first;
-			float* out = values + target * R;
-			const float sigma = table.stencilSigma[s];
-			if (R == 1) {
-				float sum = 0.f;
-				for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
-				if (count == 0) sum = isolatedMean(target);
-				out[0] = sum + sigma * float(standardNormal(options.seed, options.firstRealisation, target, 0));
-			} else {
-				float* a = acc.data();
-				for (size_t r = 0; r < R; ++r) a[r] = 0.f;
-				for (size_t j = 0; j < count; ++j) {
-					const float w = weight[j];
-					const float* v = values + ids[j] * R;
-					for (size_t r = 0; r < R; ++r) a[r] += w * v[r];
+				const float* weight = table.neighborWeight + first;
+				float* out = values + target * R;
+				if (R == 1) {
+					float sum = 0.f;
+					for (size_t j = 0; j < count; ++j) sum += weight[j] * values[ids[j]];
+					out[0] = sum + out[0];
+				} else {
+					float* a = acc.data();
+					for (size_t r = 0; r < R; ++r) a[r] = 0.f;
+					for (size_t j = 0; j < count; ++j) {
+						const float w = weight[j];
+						const float* v = values + ids[j] * R;
+						for (size_t r = 0; r < R; ++r) a[r] += w * v[r];
+					}
+					for (size_t r = 0; r < R; ++r) out[r] = a[r] + out[r];
 				}
-				if (count == 0) {
-					const float mean = isolatedMean(target);
-					for (size_t r = 0; r < R; ++r) a[r] = mean;
-				}
-				for (size_t r = 0; r < R; ++r)
-					out[r] = a[r] + sigma * float(standardNormal(options.seed, options.firstRealisation + uint32_t(r), target, 0));
 			}
 			if (ready) ready[target].store(1, std::memory_order_release);
 		}
@@ -475,12 +574,12 @@ struct ReplayKernel {
 } // namespace detail
 
 // Applies the table to `values` ([nodeCount x R] floats, see the top of the
-// file). In parallel, workers take consecutive chunks of the level-ordered
-// entries; since a node's neighbours belong to earlier levels, they come
-// earlier in the table and were taken before, so waiting on them always
-// terminates. Within a level nothing waits; a wait only happens at a level
-// boundary, for the few neighbours still being computed, instead of a barrier
-// for the whole level.
+// file). The noise pass is split over the threads freely. In the dependent
+// pass, workers take consecutive chunks of the level-ordered entries; since a
+// node's neighbours belong to earlier levels, they come earlier in the table
+// and were taken before, so waiting on them always terminates. Within a level
+// nothing waits; a wait only happens around level boundaries, for the few
+// neighbours still being computed, instead of a barrier for the whole level.
 template <class Addressing>
 inline void replaySgs(const WeightTableView& table, const Addressing& addressing, float* values, const SgsReplayOptions& options,
                       SgsReplayStats* stats = nullptr) {
@@ -496,16 +595,20 @@ inline void replaySgs(const WeightTableView& table, const Addressing& addressing
 		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, nullptr };
 		std::vector<size_t> ids;
 		std::vector<float> acc(R);
-		kernel.run(0, table.entryCount, ids, acc);
+		kernel.noise(0, table.entryCount);
+		result.noiseMs = millisecondsSince(start);
+		kernel.apply(0, table.entryCount, ids, acc);
 	} else {
 		std::vector<std::atomic<uint8_t> > ready(size_t(table.nodeCount));
+		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, ready.data() };
 		parallelFor(size_t(table.nodeCount), threads, size_t(1) << 16, [&](size_t b, size_t e, unsigned) {
 			for (size_t i = b; i < e; ++i) ready[i].store(1, std::memory_order_relaxed);
 		});
-		parallelFor(size_t(table.entryCount), threads, size_t(1) << 16, [&](size_t b, size_t e, unsigned) {
+		parallelFor(size_t(table.entryCount), threads, 512, [&](size_t b, size_t e, unsigned) {
 			for (size_t i = b; i < e; ++i) ready[size_t(table.entryTarget[i])].store(0, std::memory_order_relaxed);
+			kernel.noise(b, e);
 		});
-		const detail::ReplayKernel<Addressing> kernel{ table, addressing, local, values, ready.data() };
+		result.noiseMs = millisecondsSince(start);
 		const uint64_t grain = 16;
 		std::atomic<uint64_t> cursor(0);
 		std::atomic<size_t> waits(0);
@@ -516,7 +619,7 @@ inline void replaySgs(const WeightTableView& table, const Addressing& addressing
 			for (;;) {
 				const uint64_t b = cursor.fetch_add(grain, std::memory_order_relaxed);
 				if (b >= table.entryCount) break;
-				local += kernel.run(b, std::min<uint64_t>(table.entryCount, b + grain), ids, acc);
+				local += kernel.apply(b, std::min<uint64_t>(table.entryCount, b + grain), ids, acc);
 			}
 			waits += local;
 		};

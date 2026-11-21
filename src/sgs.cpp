@@ -471,7 +471,7 @@ int main(int argc, char const* argv[]) {
 		g2s::geostat::SgsReplayStats replayStats;
 		g2s::geostat::replaySgs(view, addressing, values.data(), replayOptions, &replayStats);
 		replayMs += replayStats.totalMs;
-		fprintf(reportFile, "replay (path %u): %u realisations, %u threads, %zu waits, %.0f ms\n", p, R, replayStats.threads, replayStats.waits, replayStats.totalMs);
+		fprintf(reportFile, "replay (path %u): %u realisations, %u threads, %zu waits, noise %.0f ms, total %.0f ms\n", p, R, replayStats.threads, replayStats.waits, replayStats.noiseMs, replayStats.totalMs);
 
 		// Simulated nodes from the table; hard data copied exactly.
 		const unsigned variables = P * R;

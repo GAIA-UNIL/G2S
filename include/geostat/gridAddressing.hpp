@@ -69,6 +69,7 @@ public:
 	unsigned ndim() const { return unsigned(_dims.size()); }
 	size_t referenceLimit() const { return _deltas.size(); }
 	bool shareable() const { return true; }
+	bool integerLags() const { return true; }
 	std::vector<int32_t> referenceTable() const { return std::vector<int32_t>(_offsets.begin(), _offsets.end()); }
 
 	uint32_t encode(size_t, size_t, const double* lag) const {
