@@ -26,6 +26,16 @@
 
 
 
+// Last-level threads (third -j value) split the candidate search of one TI. Enabled where the
+// OpenMP region is known to work; elsewhere the search is serial over the whole array.
+#ifndef G2S_QS_PARALLEL_LAST_LEVEL
+	#if defined(_OPENMP) && (!defined(__GNUC__) || defined(__INTEL_COMPILER))
+		#define G2S_QS_PARALLEL_LAST_LEVEL 1
+	#else
+		#define G2S_QS_PARALLEL_LAST_LEVEL 0
+	#endif
+#endif
+
 class QuantileSamplingModule: public SamplingModule {
 
 private:
@@ -527,31 +537,35 @@ private:
 							_cdmV[moduleID][i]->setValueInErrorArrayWithRadius(_cdmV[moduleID][i]->cvtPositionToIndex(verbatimRecord.index), -INFINITY, verbatimRadius);
 					}
 					
-			#if !defined( __GNUC__) || defined(__INTEL_COMPILER)  // remove OpenMP in this section for GCC compiler, some GCC compiler produce a code that crash without any reasons
-					#pragma omp parallel default(none) num_threads(_threadRatio) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errorsArray, extendK, localErrorPtr, localEncodedPositionPtr)
+					// The array is searched in nbChunks pieces, one per last-level thread, then merged.
+					// GCC-compatible compilers run this section serially (some GCC versions produced
+					// crashing code for the parallel region): there the whole array is a single chunk.
+					const unsigned nbChunks=G2S_QS_PARALLEL_LAST_LEVEL ? std::max(_threadRatio,1u) : 1u;
+					const unsigned chunkSize=unsigned(ceil(sizeArray/float(nbChunks)));
+			#if G2S_QS_PARALLEL_LAST_LEVEL
+					#pragma omp parallel for default(none) num_threads(nbChunks) schedule(static,1) /*proc_bind(close)*/ firstprivate(seed, sizeArray, errorsArray, extendK, localErrorPtr, localEncodedPositionPtr, nbChunks, chunkSize)
 			#endif
+					for (unsigned int k = 0; k < nbChunks; ++k)
 					{
-						unsigned k=0;
-						#if _OPENMP && (!defined( __GNUC__) || defined(__INTEL_COMPILER))
-						k=omp_get_thread_num();
-						#endif
 						std::mt19937 generator;// can be inprouved by only resetting the seed each time
 						generator.seed(seedFromUnitFloat(seed)+k);
 						std::uniform_real_distribution<float> distribution(0.0,1.0);
 
 						auto rng = std::bind(distribution, std::ref(generator));
-						unsigned chunkSize=unsigned(ceil(sizeArray/float(_threadRatio)));
-						fKst::findKBiggest(errorsArray+k*chunkSize,chunkSize,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
+						// the last chunk is shorter when the size is not a multiple of nbChunks
+						const unsigned chunkBegin=std::min(k*chunkSize,sizeArray);
+						const unsigned chunkLength=std::min(chunkSize,sizeArray-chunkBegin);
+						fKst::findKBiggest(errorsArray+chunkBegin,chunkLength,extendK, localErrorPtr+k*extendK, localEncodedPositionPtr+k*extendK, rng);
 						for (int j = 0; j < extendK; ++j)
 						{
-							localEncodedPositionPtr[k*extendK+j]+=k*chunkSize;
+							localEncodedPositionPtr[k*extendK+j]+=chunkBegin;
 						}
 					}
 
 					for (int j = 0; j <extendK ; ++j)
 					{
 						unsigned bestIndex=0;
-						for (unsigned int l = 1; l < _threadRatio*extendK; ++l)
+						for (unsigned int l = 1; l < nbChunks*extendK; ++l)
 						{
 							if(localError[l] > localError[bestIndex]) bestIndex=l;
 						}

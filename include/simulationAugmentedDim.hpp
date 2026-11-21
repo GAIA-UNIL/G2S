@@ -182,7 +182,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 								numberOfNaN=0;
 								for (unsigned int i = 0; i < di._nbVariable; ++i)
 								{
-									#pragma omp atomic read
+									#pragma omp atomic read seq_cst
 									val=di._data[dataIndex*di._nbVariable+i];
 									numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
 								}
@@ -196,7 +196,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 							{
 								if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
 								{
-									#pragma omp atomic read
+									#pragma omp atomic read seq_cst
 									val=di._data[dataIndex*di._nbVariable+i];
 									data[i]=val;
 									cpt++;
@@ -247,7 +247,9 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 				std::vector<int> vectorInDi=neighborArrayVector[1];
 				vectorInDi.resize(di._dims.size(),0);
 				di.indexWithDelta(dataIndex, currentCell, vectorInDi);
-				unsigned verbatimIndex=importDataIndex[dataIndex];
+				unsigned verbatimIndex;
+				#pragma omp atomic read seq_cst
+				verbatimIndex=importDataIndex[dataIndex];
 				SamplingModule::matchLocation verbatimRecord;
 				verbatimRecord.TI=verbatimIndex%TIs.size();
 				std::vector<int> reverseVector=neighborArrayVector[1];
@@ -321,7 +323,7 @@ void simulationAD(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> 
 		}
 
 		if(std::isnan(di._data[currentCell])||forceSimulation){
-			#pragma omp atomic write
+			#pragma omp atomic write seq_cst
 			di._data[currentCell]=categoriesValues[0][classIndex];
 			if(updateCallback){
 				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), 0, updateCallbackUserData);

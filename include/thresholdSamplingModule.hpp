@@ -35,13 +35,21 @@ private:
 	std::vector<std::vector<std::vector<conversionType> > > _conversionTypeVectorConstVector;
 	std::vector<std::vector<std::vector<float> > > _conversionCoefVectorConstVector;
 
-	std::mt19937 _randgen;
+	// one generator and one cached element count per thread (indexed by moduleID);
+	// both are sized once in the constructor and never reallocated afterwards
+	std::vector<std::mt19937> _randgen;
 	std::vector<unsigned> _maxNumberOfElement;
 public:
 	ThresholdSamplingModule(std::vector<ComputeDeviceModule *> *cdmV, g2s::DataImage* kernel, float threshold2, float f, std::vector<std::vector<conversionType> > conversionTypeVector,
 		std::vector<std::vector<std::vector<conversionType> > > conversionTypeVectorConstVector, std::vector<std::vector<std::vector<float> > > conversionCoefVectorConstVector,
-		bool noVerbatim, bool completeTIs):SamplingModule(cdmV,kernel)
+		bool noVerbatim, bool completeTIs, unsigned nbThread):SamplingModule(cdmV,kernel)
 	{
+		if(nbThread<1) nbThread=1;
+		_maxNumberOfElement.resize(nbThread,0);
+		_randgen.reserve(nbThread);
+		_randgen.emplace_back(); // generator 0: default seed, identical to the former single generator
+		for (unsigned i = 1; i < nbThread; ++i)
+			_randgen.emplace_back(std::mt19937::default_seed+i);
 		_completeTIs=completeTIs;
 		_threshold2=threshold2;
 		_f=f;
@@ -56,12 +64,9 @@ public:
 
 	inline matchLocation sample(std::vector<std::vector<int>> neighborArrayVector, std::vector<std::vector<float> > neighborValueArrayVector,float seed, matchLocation verbatimRecord, unsigned moduleID=0, bool fullStationary=false, unsigned variableOfInterest=0, float localk=0.f, int idTI4Sampling=-1, g2s::DataImage* localKernel=nullptr){
 
-		if(moduleID>=_maxNumberOfElement.size()){
-			#pragma omp critical  (increaseSize_maxNumberOfElement)
-			{
-			if(moduleID>=_maxNumberOfElement.size())
-				_maxNumberOfElement.resize(moduleID+1,0);
-			}
+		if(moduleID>=_maxNumberOfElement.size() || moduleID>=_randgen.size()){
+			fprintf(stderr, "ThresholdSamplingModule: moduleID %u out of range (module built for %zu threads)\n", moduleID, _maxNumberOfElement.size());
+			abort();
 		}
 		if(_maxNumberOfElement[moduleID]==0){
 			unsigned numberElement=0;
@@ -216,7 +221,7 @@ public:
 		if(_completeTIs){
 			while((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)){
 				cpt++;
-				unsigned index=uniformDis(_randgen);
+				unsigned index=uniformDis(_randgen[moduleID]);
 				unsigned imageID=0;
 				unsigned numberElementCumul=0;
 				for (imageID = 0; imageID < vectorSize; ++imageID)
@@ -237,7 +242,7 @@ public:
 		}else{
 			while(((bestValue>_threshold2) && (cpt<=_maxNumberOfElement[moduleID]*_f)) || (bestValue==INFINITY)){
 				cpt++;
-				unsigned index=uniformDis(_randgen);
+				unsigned index=uniformDis(_randgen[moduleID]);
 				unsigned imageID=0;
 				unsigned numberElementCumul=0;
 				for (imageID = 0; imageID < vectorSize; ++imageID)

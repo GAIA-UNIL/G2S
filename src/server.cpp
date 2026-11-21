@@ -24,6 +24,7 @@
 #include <sys/wait.h> /* for wait */
 #include <sys/stat.h>
 #include <thread>
+#include <atomic>
 #include <cstring>
 #if __has_include(<filesystem>)
   #include <filesystem>
@@ -288,7 +289,7 @@ int main(int argc, char const *argv[]) {
 	}
 	
 	// start soket reading
-	bool needToStop=false;
+	std::atomic<bool> needToStop(false);
 	jobArray jobIds;
 	// fill error array
 	for (int i = 0; i < 1000; ++i)
