@@ -464,7 +464,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 								numberOfNaN=0;
 								for (unsigned int i = 0; i < di._nbVariable; ++i)
 								{
-									#pragma omp atomic read
+									#pragma omp atomic read seq_cst
 									val=di._data[dataIndex*di._nbVariable+i];
 									numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]) && std::isnan(val);
 								}
@@ -478,7 +478,7 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 						{
 							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()]))
 							{
-								#pragma omp atomic read
+								#pragma omp atomic read seq_cst
 								val=di._data[dataIndex*di._nbVariable+i];
 								if(strictInformedNeighbors && std::isnan(val)){
 									data[i]=std::nanf("0");
@@ -568,7 +568,9 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 				std::vector<int> vectorInDi=simulationNeighborArrayVector[1];
 			vectorInDi.resize(di._dims.size(),0);
 			di.indexWithDelta(dataIndex, currentCell, vectorInDi, localExternalMemory4IndexComputation);
-			unsigned verbatimIndex=importDataIndex[dataIndex];
+			unsigned verbatimIndex;
+			#pragma omp atomic read seq_cst
+			verbatimIndex=importDataIndex[dataIndex];
 			SamplingModule::matchLocation verbatimRecord;
 			verbatimRecord.TI=verbatimIndex%TIs.size();
 			std::vector<int> reverseVector=neighborArrayVector[1];
@@ -655,12 +657,14 @@ void simulation(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage> &T
 		}
 		// import data
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		// written before the data: a thread that sees the value also sees its source index
+		#pragma omp atomic write seq_cst
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
 		for (unsigned int j = 0; j < TIs[importIndex.TI]._nbVariable; ++j)
 		{
 			if(std::isnan(di._data[currentCell*di._nbVariable+j]) || forceSimulation){
-				#pragma omp atomic write
+				#pragma omp atomic write seq_cst
 				di._data[currentCell*di._nbVariable+j]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+j];
 			}
 		}
@@ -847,7 +851,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 							numberOfNaN=0;
 							for (unsigned int i = 0; i < di._nbVariable; ++i)
 							{
-								#pragma omp atomic read
+								#pragma omp atomic read seq_cst
 								val=di._data[dataIndex*di._nbVariable+i];
 								numberOfNaN+=(numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder) && std::isnan(val);
 							}
@@ -861,7 +865,7 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 						{
 							if((numberOfNeighborsProVariable[i]<numberNeighbor[i%numberNeighbor.size()])&&(posteriorPath[dataIndex*di._nbVariable+i]<currentPathOrder))
 							{
-								#pragma omp atomic read
+								#pragma omp atomic read seq_cst
 								val=di._data[dataIndex*di._nbVariable+i];
 								if(strictInformedNeighbors && std::isnan(val)){
 									data[i]=std::nanf("0");
@@ -1015,11 +1019,13 @@ void simulationFull(FILE *logFile,g2s::DataImage &di, std::vector<g2s::DataImage
 		}
 		// import data
 		//memcpy(di._data+currentCell*di._nbVariable,TIs[importIndex.TI]._data+importIndex.index*TIs[importIndex.TI]._nbVariable,TIs[importIndex.TI]._nbVariable*sizeof(float));
+		// written before the data: a thread that sees the value also sees its source index
+		#pragma omp atomic write seq_cst
 		importDataIndex[currentCell]=importIndex.index*TIs.size()+importIndex.TI;
 		//fprintf(stderr, "write %d\n", importDataIndex[currentCell]);
 		
 		if(std::isnan(di._data[currentCell])|| forceSimulation){
-			#pragma omp atomic write
+			#pragma omp atomic write seq_cst
 			di._data[currentCell]=TIs[importIndex.TI]._data[importIndex.index*TIs[importIndex.TI]._nbVariable+currentVariable];
 			if(updateCallback){
 				updateCallback(g2s_simulation_update_kind::Full, static_cast<g2s_path_index_t>(currentCell), currentVariable, updateCallbackUserData);

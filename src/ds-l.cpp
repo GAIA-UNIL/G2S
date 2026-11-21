@@ -797,7 +797,7 @@ int main(int argc, char const *argv[]) {
 		sharedMemoryManagerVector.push_back(smm);
 	}
 	
-	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, noVerbatim, !needCrossMeasurement);
+	ThresholdSamplingModule TSM(computeDeviceModuleArray, &kernel, threshold*threshold, mer, conversionTypeVectorMainVector, conversionTypeVectorConstVector, conversionCoefVectorConstVector, noVerbatim, !needCrossMeasurement, nbThreads);
 	// run DS
 	std::vector<g2s::DataImage > kernels;
 	auto begin = std::chrono::high_resolution_clock::now();

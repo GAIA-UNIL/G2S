@@ -125,5 +125,11 @@ void SharedMemoryManager::removeSharedMemoryForDevice(ComputeDeviceModule *devic
 }
 
 std::vector<g2s::spaceFrequencyMemoryAddress> SharedMemoryManager::addressSharedMemory(int memID){
-	return _memoryAddress[memID];
+	// devices are created in parallel: another device may be growing the table right now
+	std::vector<g2s::spaceFrequencyMemoryAddress> address;
+	#pragma omp critical (updateSharedMemory)
+	{
+		address=_memoryAddress[memID];
+	}
+	return address;
 }

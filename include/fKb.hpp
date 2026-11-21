@@ -20,9 +20,13 @@
 
 #include <iostream>
 #include <cmath>
-#if __arm64__
+// __arm64__ is only defined by Apple compilers; Linux/Windows ARM64 use __aarch64__/_M_ARM64.
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+	#ifndef G2S_ARM64
+		#define G2S_ARM64 1
+	#endif
 	#include <arm_neon.h>
-#else
+#elif defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
 	#include <immintrin.h>
 #endif
 #include <limits>
@@ -92,47 +96,83 @@ template<typename T, typename urgT>
 	}
 
 
+// The scans below visit the values in order and only act on the ones that reach the
+// current threshold output[k-1]. That threshold never decreases during a scan, so a block
+// in which no value reaches it can be skipped as a whole: the result, and the sequence of
+// generator draws, are exactly those of the plain element-by-element loop.
+constexpr unsigned int kScanBlock=16;
+
+template<typename T>
+inline bool blockHasValueAbove(const T* data, const T threshold){
+	bool any=false;
+	for (unsigned int j = 0; j < kScanBlock; ++j) any|=(data[j]>threshold);
+	return any;
+}
+
+template<typename T>
+inline bool blockHasValueAtLeast(const T* data, const T threshold){
+	bool any=false;
+	for (unsigned int j = 0; j < kScanBlock; ++j) any|=(data[j]>=threshold);
+	return any;
+}
+
 template<typename T>
 	inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output){
-
-		for (unsigned int i = 0; i < N; ++i)
-		{
+	unsigned int i = 0;
+	for (; i + kScanBlock <= N; i += kScanBlock)
+	{
+		if(!blockHasValueAbove(data+i, output[k-1])) continue;
+		for (unsigned int j = i; j < i + kScanBlock; ++j)
+			if(data[j]>output[k-1]) addValueB(data, N, k, output, j);
+	}
+	for (; i < N; ++i)
+	{
 		if(data[i]>output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, i);
 		}
 	}
-
 }
 
 template<typename T>
 inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue){
-
-	for (unsigned int i = 0; i < N; ++i)
+	unsigned int i = 0;
+	for (; i + kScanBlock <= N; i += kScanBlock)
+	{
+		if(!blockHasValueAbove(data+i, output[k-1])) continue;
+		for (unsigned int j = i; j < i + kScanBlock; ++j)
+			if(data[j]>output[k-1]) addValueB(data, N, k, output, positionValue, j);
+	}
+	for (; i < N; ++i)
 	{
 		if(data[i]>output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, i);
 		}
 	}
-
 }
 
 template<typename T,typename urgT>
 inline void findKbiggest(const T* data,const unsigned int N,const unsigned short k, T* restrict output, unsigned int* restrict positionValue, urgT generator){
 	unsigned cpt=0;
-	for (unsigned int i = 0; i < N; ++i)
+	unsigned int i = 0;
+	for (; i + kScanBlock <= N; i += kScanBlock)
+	{
+		if(!blockHasValueAtLeast(data+i, output[k-1])) continue;
+		for (unsigned int j = i; j < i + kScanBlock; ++j)
+			if(data[j]>=output[k-1]) addValueB(data, N, k, output, positionValue, generator, cpt, j);
+	}
+	for (; i < N; ++i)
 	{
 		if(data[i]>=output[k-1]) //then change
 		{
 			addValueB(data, N, k, output, positionValue, generator, cpt, i);
 		}
 	}
-
 }
 
 
-#if __arm64__
+#if G2S_ARM64
 inline void findKbiggestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
@@ -841,7 +881,7 @@ inline void findKBiggest(const T* data,const unsigned int N,const unsigned short
 	}
 #endif
 
-// #if __arm64__
+// #if G2S_ARM64
 // 	{
 // 		if(std::is_same<T, float>::value){
 // 			findKbiggestARM(data, N, k, output);
@@ -890,7 +930,7 @@ inline void findKBiggest(const T* data,const unsigned int N,const unsigned short
 	}
 #endif
 
-// #if __arm64__
+// #if G2S_ARM64
 // 	{
 // 		if(std::is_same<T, float>::value){
 // 			findKbiggestARM(data, N, k, output, positionValue);
@@ -939,7 +979,7 @@ inline void findKBiggest(const T* data,const unsigned int N,const unsigned short
 	}
 #endif
 
-// #if __arm64__
+// #if G2S_ARM64
 // 	{
 // 		if(std::is_same<T, float>::value){
 // 			findKbiggestARM(data, N, k, output, positionValue, generator);

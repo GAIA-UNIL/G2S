@@ -20,9 +20,13 @@
 
 #include <iostream>
 #include <cmath>
-#if __arm64__
+// __arm64__ is only defined by Apple compilers; Linux/Windows ARM64 use __aarch64__/_M_ARM64.
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+	#ifndef G2S_ARM64
+		#define G2S_ARM64 1
+	#endif
 	#include <arm_neon.h>
-#else
+#elif defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
 	#include <immintrin.h>
 #endif
 #include <limits>
@@ -131,7 +135,7 @@ inline void findKsmallest(const T* data,const unsigned int N,const unsigned shor
 
 }
 
-#if __arm64__
+#if G2S_ARM64
 inline void findKsmallestARM(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 
 	unsigned char ratio=sizeof(float32x4_t)/sizeof(float);
@@ -823,7 +827,7 @@ inline void findKsmallest512(const double* data,const unsigned int N,const unsig
 #endif
 
 
-#if __arm64__
+#if G2S_ARM64
 inline void findKSmallest(const float* data,const unsigned int N,const unsigned short k, float* restrict output){
 	std::fill(output,output+k,INFINITY);
 	findKsmallestARM(data, N, k, output);

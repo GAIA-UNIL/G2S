@@ -21,7 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # x86-64 Linux, arm64 Linux and arm64 macOS
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -46,4 +47,22 @@ jobs:
 
     - name: Run unit tests
       run: |
+        ./build/c++-build/test -sampling 1D 2D 3D
+
+    - name: Run QS kernel tests
+      run: |
+        make -C test/qs_kernels
+        if [ "$(uname -m)" = "x86_64" ]; then
+          for flags in "-msse3" "-mavx2 -mfma"; do
+            make -C test/qs_kernels clean
+            make -C test/qs_kernels SIMD_FLAGS="$flags"
+          done
+        fi
+
+    - name: Build and test with SIMD FFTW
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        make -C build fftw-simd
+        rm -f build/c++-build/*.o
+        make -C build c++ -j
         ./build/c++-build/test -sampling 1D 2D 3D

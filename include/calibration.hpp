@@ -112,7 +112,14 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 
 				float nbSigmas=1/power;
 
-				if( (numberOfSampling[setupIndex*maxK+0]>minNumberOfIteration) && ((localErrorBefore-nbSigmas*localDevBefore) > (bestProDensity[densityIndex]+nbSigmas*devBestProDensity[densityIndex]) )){
+				float bestInDensityBefore;
+				float devBestInDensityBefore;
+				#pragma omp atomic read
+				bestInDensityBefore=bestProDensity[densityIndex];
+				#pragma omp atomic read
+				devBestInDensityBefore=devBestProDensity[densityIndex];
+
+				if( (numberOfSampling[setupIndex*maxK+0]>minNumberOfIteration) && ((localErrorBefore-nbSigmas*localDevBefore) > (bestInDensityBefore+nbSigmas*devBestInDensityBefore) )){
 					continue;
 				}
 
@@ -239,10 +246,19 @@ void calibration(FILE *logFile, g2s::DataImage &MeanErrorimage, g2s::DataImage &
 						#pragma omp atomic read
 						bestInDensity=bestProDensity[densityIndex];
 						if(bestInDensity>localErrorAfter){
+							float devAfter=sqrt(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorAfter*localErrorAfter);
 							#pragma omp critical (updateBestProDensity)
 							{
-								bestProDensity[densityIndex]=localErrorAfter;
-								devBestProDensity[densityIndex]=sqrt(cumulattedSquaredError[setupIndex*maxK+0]/numberOfSampling[setupIndex*maxK+0]-localErrorAfter*localErrorAfter);
+								// re-check under the lock: another thread may have stored a lower value since the pre-check
+								float bestInDensityLocked;
+								#pragma omp atomic read
+								bestInDensityLocked=bestProDensity[densityIndex];
+								if(bestInDensityLocked>localErrorAfter){
+									#pragma omp atomic write
+									bestProDensity[densityIndex]=localErrorAfter;
+									#pragma omp atomic write
+									devBestProDensity[densityIndex]=devAfter;
+								}
 							}
 
 						}

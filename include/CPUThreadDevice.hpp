@@ -108,6 +108,17 @@ private:
 		return finalValue;
 	}
 
+	// index() of the neighbor offset shifted by -_min, without materialising the shifted vector
+	inline unsigned shiftedIndex(const std::vector<int> &deltaVect){
+		unsigned finalValue=deltaVect.back()-_min.back();
+		for (int i = deltaVect.size()-2; i >=0; i--)
+		{
+			finalValue*=_fftSize[i];
+			finalValue+=deltaVect[i]-_min[i];
+		}
+		return finalValue;
+	}
+
 	bool _trueMismatch=true;
 	bool _crossMeasurement=false;
 	bool _circularTI=false;
