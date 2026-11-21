@@ -45,7 +45,7 @@ export DISTRIBUTED_TOOLS=qs_prepare.sh qs_decentralized.py qs_decentralized_slur
 
 .PHONY: all depend algoNames extension distributed-tools clean
 
-all: g2s_server echo qs as nds ds ds-l snesim libg2s.a errorTest test auto_qs covEval tb algoNames distributed-tools $(WITH_CUDA)
+all: g2s_server echo qs as nds ds ds-l snesim libg2s.a errorTest test auto_qs covEval tb kriging algoNames distributed-tools $(WITH_CUDA)
 
 depend: .depend Makefile
 
@@ -112,6 +112,9 @@ fftma: fftma.o DataImage.o
 clean-fftma:
 	rm -f fftma spectral
 
+kriging: kriging.o DataImage.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+
 test: test.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
 
@@ -168,6 +171,7 @@ install:create_install_path all
 	@cp -f ./covEval $(INSTALL_DIR)/libexec || printf "\e[31error: 'covEval' is missing !!\e[0m\n"
 	@cp -f ./tb $(INSTALL_DIR)/libexec || printf "\e[31error: 'tb' is missing !!\e[0m\n"
 	@cp -f ./fftma ./spectral $(INSTALL_DIR)/libexec || printf "\e[31error: 'fftma' is missing !!\e[0m\n"
+	@cp -f ./kriging $(INSTALL_DIR)/libexec || printf "\e[31error: 'kriging' is missing !!\e[0m\n"
 	@cp -f ./qs_prepare.sh $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_prepare.sh' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized.py' is missing !!\e[0m\n"
 	@cp -f ./qs_decentralized_slurm.py $(INSTALL_DIR)/libexec || printf "\e[31error: 'qs_decentralized_slurm.py' is missing !!\e[0m\n"
