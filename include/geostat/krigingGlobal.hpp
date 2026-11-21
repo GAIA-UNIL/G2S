@@ -307,6 +307,10 @@ public:
 
 	// The factor L (n x n, row-major, lower triangle) for callers that need more.
 	const double* factor() const { return _factor.data(); }
+	// w = L^-1 1 and 1'K^-1 1 = w.w (the OK terms of the variance), for back
+	// ends that compute the variance elsewhere (gpu/deviceEngines.hpp).
+	const double* forwardOnes() const { return _w.data(); }
+	double onesQuadraticForm() const { return _sumU; }
 
 private:
 	ResolvedModel _model;

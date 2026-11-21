@@ -91,21 +91,21 @@ echo: echo.o DataImage.o
 covEval: covEval.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-tb: tb.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+tb: tb.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) -ldl
 
 # fftma and spectral: one executable, the method follows the name it runs under (MKL provides the single and double precision FFTW interfaces).
-fftma: fftma.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY)
+fftma: fftma.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) $(OPENCL_LIB)
 	ln -sf fftma spectral
 
-kriging: kriging.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+kriging: kriging.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) -ldl
 
 sgs: sgs.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-g2s_cuda.so: NvidiaGPUAcceleratorDevice.o
+g2s_cuda.so: NvidiaGPUAcceleratorDevice.o geostatCuda.o
 	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) --compiler-options -fuse-ld=lld
 
 qs: qs.o qsCore.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)

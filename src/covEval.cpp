@@ -199,8 +199,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
 	g2s::reporting::markFinished(reportFile, time);
 
-	covarianceImage.write(outputFilename);
-	covarianceImage.write(std::string("im_1_") + std::to_string(uniqueID));
+	covarianceImage.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) });
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "covariance", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "covariance_runtime", std::string("im_1_") + std::to_string(uniqueID), covarianceImage);
 	if (withVariogram) {

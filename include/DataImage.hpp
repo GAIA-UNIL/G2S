@@ -30,7 +30,10 @@
 #include "OperationMatrix.hpp"
 
 char* loadRawData(const char * hash, size_t* outSize=nullptr);
-char* writeRawData(char* data, bool compresed=false);
+// fieldContent: the image is a continuous field (simulations, estimates):
+// its bytes rarely repeat, so deflate uses entropy coding only (Z_HUFFMAN_ONLY),
+// about 4x faster for the same size; still a standard gzip file.
+char* writeRawData(char* data, bool compresed=false, bool fieldContent=false);
 void createLink(char* outputFullFilename, char* fullFilename);
 
 namespace g2s{
@@ -279,46 +282,55 @@ class DataImage{
 	}
 
 	inline void write(std::string filename, bool compresed=true){
-		if(!isSafeDataImageName(filename)){
-			fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filename.c_str());
-			return;
+		writeUnderNames(std::vector<std::string>(1, filename), compresed);
+	}
+
+	// Writes the image once (serialisation, SHA-256 content address and
+	// compression are paid once) and links every name of `filenames` to it:
+	// the same files as one write(name) per name, at the cost of one.
+	// fieldContent: see writeRawData (continuous fields only; categorical or
+	// repetitive images compress much better with the default).
+	inline void writeUnderNames(const std::vector<std::string>& filenames, bool compresed=true, bool fieldContent=false){
+		for (size_t i = 0; i < filenames.size(); ++i) {
+			if(!isSafeDataImageName(filenames[i])){
+				fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filenames[i].c_str());
+				return;
+			}
 		}
+		if(filenames.empty()) return;
 #ifdef G2S_BROWSER_BUILD
 		// MEMFS is private to the Web Worker. Write an uncompressed temporary
 		// bgrid so repeated jobs can remove it instead of retaining hashed copies.
 		(void)compresed;
 		char* raw=serialize();
 		const size_t fullSize=*reinterpret_cast<size_t*>(raw);
-		char fullFilename[2048];
-		snprintf(fullFilename,sizeof(fullFilename),"/tmp/G2S/data/%s.bgrid",filename.c_str());
-		FILE* output=fopen(fullFilename,"wb");
-		if(output){
-			(void)fwrite(raw,1,fullSize,output);
-			fclose(output);
-		}else{
-			fprintf(stderr,"unable to write DataImage '%s'\n",fullFilename);
+		for (size_t i = 0; i < filenames.size(); ++i) {
+			char fullFilename[2048];
+			snprintf(fullFilename,sizeof(fullFilename),"/tmp/G2S/data/%s.bgrid",filenames[i].c_str());
+			FILE* output=fopen(fullFilename,"wb");
+			if(output){
+				(void)fwrite(raw,1,fullSize,output);
+				fclose(output);
+			}else{
+				fprintf(stderr,"unable to write DataImage '%s'\n",fullFilename);
+			}
 		}
 		free(raw);
 		return;
 #else
 		char* raw=serialize();
-		char* outputName=writeRawData(raw,compresed);
+		char* outputName=writeRawData(raw,compresed,fieldContent);
 		free(raw);
 		if(!outputName) return;
-		//fprintf(stderr, "save as %s\n",outputName );
-		//fprintf(stderr, "save as %s\n",filename.c_str() );
-		if(!isSafeDataImageName(filename)){
-			fprintf(stderr, "invalid DataImage name '%s': use only letters, digits, '_', '.', or '-'\n",filename.c_str());
-			free(outputName);
-			return;
-		}
-		char fullFilename[2048];
 		char outputFullFilename[2048];
 		char extra[16]={0};
 		if(compresed) strcpy(extra,".gz");
-		snprintf(fullFilename,2048,"/tmp/G2S/data/%s.bgrid%s",filename.c_str(),extra);
 		snprintf(outputFullFilename,2048,"/tmp/G2S/data/%s.bgrid%s",outputName,extra);
-		createLink(outputFullFilename, fullFilename);
+		for (size_t i = 0; i < filenames.size(); ++i) {
+			char fullFilename[2048];
+			snprintf(fullFilename,2048,"/tmp/G2S/data/%s.bgrid%s",filenames[i].c_str(),extra);
+			createLink(outputFullFilename, fullFilename);
+		}
 		free(outputName);
 #endif
 	}

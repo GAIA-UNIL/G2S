@@ -59,6 +59,17 @@ endif
 
 export OS
 
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# clFFT built by `make clfft` (static library): searched first, so that the
+# OpenCL back ends are enabled on systems that have OpenCL but no packaged clFFT
+# (macOS, recent Linux distributions).
+CLFFT_PREFIX := $(MAKEFILE_DIR)clfft/install
+ifneq ($(wildcard $(CLFFT_PREFIX)/lib/libclFFT.a),)
+	OPENCL_LIB := -L$(CLFFT_PREFIX)/lib -lclFFT $(OPENCL_LIB)
+	export INC := -I$(CLFFT_PREFIX)/include $(INC)
+endif
+
 dosentSupportOpenCL:= $(shell echo 'int main(){}' | c++ -xc - -o /dev/null ${OPENCL_LIB} 2>/dev/null && echo 1 || echo 0 )
 ifeq ($(dosentSupportOpenCL),1)
 	export OPENCL_INC+=-DWITH_OPENCL=1
@@ -66,8 +77,6 @@ ifeq ($(dosentSupportOpenCL),1)
 else
 	export OPENCL_LIB=
 endif
-
-MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # SIMD FFTW built by `make fftw-simd` (static libraries only, so searching it first makes
 # -lfftw3f/-lfftw3f_threads resolve to it rather than to the system copy)
@@ -142,7 +151,7 @@ DEFAULT_JOB := $(sort $(DEFAULT_JOB))
 
 .DEFAULT_GOAL=default
 
-.PHONY: pydev c++ fftw-simd intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
+.PHONY: pydev c++ fftw-simd clfft intel wasm wasm-single wasm-threaded update-extension c++-extension intel-extension extension python python-extension-module r r-build r-clean r-prep r-source r-binary r-test
 
 .DEFAULT:
 	$(foreach JOB,$(DEFAULT_JOB),$(MAKE) -C $(JOB)-build $(MAKECMDGOALS);)
@@ -152,6 +161,9 @@ c++:
 
 fftw-simd:
 	sh fftw-simd/build_fftw_simd.sh
+
+clfft:
+	sh clfft/build_clfft.sh
 
 intel:
 	$(MAKE) -C intel-build

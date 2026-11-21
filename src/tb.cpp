@@ -32,6 +32,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -43,6 +44,8 @@
 #include "geostat/conditioningArguments.hpp"
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/turningBands.hpp"
+#include "geostat/gpu/deviceEngines.hpp"
+#include "geostat/gpu/deviceSelection.hpp"
 
 namespace {
 
@@ -61,7 +64,16 @@ void printHelp() {
 	       "  -s    seed; -j threads (a fraction = share of the cores; the result does not depend on -j)\n"
 	       "  -csim is refused: turning bands fields are not periodic\n"
 	       "%s"
-	       "  -o    output name\n", g2s::geostat::conditioningHelp());
+	       "%s"
+	       "        tb: the sum over the lines (grid path) runs on the device; line parameters, nugget,\n"
+	       "        mean and conditioning stay on the CPU. Phases are exact (64-bit fixed point), so no\n"
+	       "        double precision is needed; |gpu - cpu| <= 2e-5 sqrt(sill). On devices sharing the\n"
+	       "        host memory (Apple silicon) spectral lines (exponential, gaussian, matern, stable)\n"
+	       "        are about 1.2-2x faster than 8 CPU threads and dilution lines (spherical, cubic)\n"
+	       "        are not faster; with ~0.3 s to start the device, it is used from 1e11 node-lines\n"
+	       "        in total (e.g. 200x200x200, 1000 lines, 16 realisations); below, the CPU\n"
+	       "  -gpuforce  use the device even where the CPU is expected to be faster\n"
+	       "  -o    output name\n", g2s::geostat::conditioningHelp(), g2s::geostat::gpu::gpuHelp());
 }
 
 // Reads "-flag value" from argv when value may be a negative number
@@ -197,6 +209,14 @@ int main(int argc, char const* argv[]) {
 	}
 	arg.erase("-csim");
 
+	g2s::geostat::gpu::GpuRequest gpuRequest;
+	{
+		std::string gpuError;
+		if (!g2s::geostat::gpu::readGpuArguments(arg, gpuRequest, gpuError)) { error = gpuError; fprintf(reportFile, "error: %s\n", error.c_str()); run = false; }
+	}
+	const bool gpuForce = arg.count("-gpuforce") > 0;
+	arg.erase("-gpuforce");
+
 	std::string outputFilename = std::to_string(uniqueID);
 	if (arg.count("-o") == 1) outputFilename = arg.find("-o")->second;
 	arg.erase("-o");
@@ -265,8 +285,66 @@ int main(int argc, char const* argv[]) {
 		return failWith("not enough memory to prepare the conditioning", 5);
 	}
 
+	// ---- optional device (-W_GPU / -W_CUDA): the sum over the lines on the GPU
+	g2s::geostat::gpu::SelectedDevice device;
+	std::unique_ptr<g2s::geostat::gpu::TurningBandsKernel> deviceKernel;
+	if (gpuRequest.any()) {
+		device = g2s::geostat::gpu::openDevice(gpuRequest, argv[0], reportFile);
+		if (device) {
+			std::string reason;
+			deviceKernel.reset(device.get()->turningBands(reason));
+			if (!deviceKernel) fprintf(reportFile, "gpu: turning bands unavailable on the device (%s); running on the CPU\n", reason.c_str());
+		}
+		if (deviceKernel && !gpuForce) {
+			// Measured on an Apple M1 Pro (OpenCL) against 8 CPU threads: spectral lines 1.2-2x
+			// faster (about 3 ms saved per 1e9 node-lines), dilution lines slightly slower, and
+			// about 0.3 s to open the device and compile the kernels: worth it from 1e11
+			// node-lines in total. Devices with their own memory (discrete GPUs, CUDA; not
+			// measured here) are expected to win from 1e9.
+			size_t spectral = 0, dilution = 0;
+			for (const g2s::geostat::ResolvedStructure& structure : model.structures) {
+				g2s::geostat::LineProcess process = g2s::geostat::LineProcess::Spectral;
+				if (structure.type == g2s::geostat::StructureType::Nugget || !(structure.sill > 0)) continue;
+				g2s::geostat::turningBandsLineProcess(structure, process);
+				(process == g2s::geostat::LineProcess::Spectral ? spectral : dilution) += 1;
+			}
+			const double work = double(regularGrid.nodeCount()) * double(lineCount) * double(spectral + dilution) * double(nbRealisations);
+			std::string reason;
+			if (spectral + dilution == 0) reason = "the model is a pure nugget";
+			else if (device.get()->info().unifiedMemory && dilution > spectral) reason = "dilution lines (spherical, cubic) are not faster on a device sharing the host memory";
+			else if (work < (device.get()->info().unifiedMemory ? 1e11 : 1e9)) reason = "the work (nodes x lines x realisations) is too small for the device to pay off";
+			if (!reason.empty()) {
+				fprintf(reportFile, "gpu: %s; running on the CPU (-gpuforce to override)\n", reason.c_str());
+				deviceKernel.reset();
+			}
+		}
+	}
+	g2s::reporting::logParameter(reportFile, "device", deviceKernel ? g2s::geostat::gpu::describe(device.get()->info()) : std::string("cpu"));
+
 	const auto begin = std::chrono::high_resolution_clock::now();
-	{
+	bool simulatedOnDevice = false;
+	if (deviceKernel) {
+		g2s::geostat::WorkerPool pool(nbThreads);
+		float* data = output._data;
+		const size_t columns = regularGrid.size[0];
+		std::string deviceError;
+		simulatedOnDevice = g2s::geostat::gpu::simulateTurningBandsGridDevice(model, settings, regularGrid, firstRealisation, nbRealisations, *deviceKernel, pool,
+			[&](unsigned r, size_t rowBegin, size_t rowEnd, const float* values) {
+				const size_t count = (rowEnd - rowBegin) * columns;
+				float* target = data + rowBegin * columns * nbRealisations + r;
+				for (size_t i = 0; i < count; ++i) target[i * nbRealisations] = values[i];
+			},
+			[&](unsigned done) {
+				g2s::reporting::setProgress(reportFile, 100.0 * double(done) / double(nbRealisations), "simulation",
+				                            "realisation " + std::to_string(done) + "/" + std::to_string(nbRealisations), done, nbRealisations);
+			}, deviceError);
+		if (!simulatedOnDevice) fprintf(reportFile, "gpu: the device failed (%s); simulating on the CPU\n", deviceError.c_str());
+		else {
+			const g2s::geostat::gpu::DeviceTimes times = deviceKernel->times();
+			fprintf(reportFile, "gpu: device time %.0f ms (upload %.0f, kernels %.0f, download %.0f)\n", 1e3 * times.total(), 1e3 * times.upload, 1e3 * times.compute, 1e3 * times.download);
+		}
+	}
+	if (!simulatedOnDevice) {
 		g2s::geostat::WorkerPool pool(nbThreads);
 		float* data = output._data;
 		const size_t columns = regularGrid.size[0];
@@ -298,8 +376,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));
 	g2s::reporting::markFinished(reportFile, time);
 
-	output.write(outputFilename);
-	output.write(std::string("im_1_") + std::to_string(uniqueID));
+	output.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) }, true, true);
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), output);
 	return 0;

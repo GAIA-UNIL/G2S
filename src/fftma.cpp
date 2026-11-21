@@ -37,6 +37,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -48,6 +49,8 @@
 #include "geostat/conditioningArguments.hpp"
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/spectralEngine.hpp"
+#include "geostat/gpu/deviceEngines.hpp"
+#include "geostat/gpu/deviceSelection.hpp"
 
 namespace {
 
@@ -71,7 +74,15 @@ void printHelp() {
 	       "        (its size sets the extended grid)\n"
 	       "  -on   fftma only: also output the white noise of the unconditional field (output 2, extended grid)\n"
 	       "%s"
-	       "  -o / -oi  output names (simulation / noise)\n", g2s::geostat::conditioningHelp());
+	       "%s"
+	       "        fftma/spectral: noise, transforms (clFFT / cuFFT), amplitude and crop run on the\n"
+	       "        device, one realisation at a time (the extended grid of one realisation must fit);\n"
+	       "        the spectrum and the conditioning stay on the CPU. Float, as the CPU path;\n"
+	       "        |gpu - cpu| <= 1e-4 sqrt(sill), the white noise is the CPU's. Measured on Apple\n"
+	       "        silicon (OpenCL, clFFT) the device is not faster than the CPU (memory-bound\n"
+	       "        transforms on shared memory): OpenCL devices are used only with -gpuforce\n"
+	       "  -gpuforce  use the device even where the CPU is expected to be faster\n"
+	       "  -o / -oi  output names (simulation / noise)\n", g2s::geostat::conditioningHelp(), g2s::geostat::gpu::gpuHelp());
 }
 
 std::string baseName(const char* path) {
@@ -236,6 +247,14 @@ int main(int argc, char const* argv[]) {
 	arg.erase("-buf");
 	arg.erase("-dt");
 
+	g2s::geostat::gpu::GpuRequest gpuRequest;
+	{
+		std::string gpuError;
+		if (!g2s::geostat::gpu::readGpuArguments(arg, gpuRequest, gpuError)) { fprintf(reportFile, "error: %s\n", gpuError.c_str()); run = false; }
+	}
+	const bool gpuForce = arg.count("-gpuforce") > 0;
+	arg.erase("-gpuforce");
+
 	for (auto it = arg.begin(); it != arg.end(); ++it)
 		fprintf(reportFile, "%s %s <== ignored !\n", it->first.c_str(), it->second.c_str());
 
@@ -369,7 +388,36 @@ int main(int argc, char const* argv[]) {
 		if (!noiseImage.isEmpty()) noiseIn = { noiseImage._data, noiseImage._nbVariable, 1 };
 		sp::FieldView noiseOut;
 		if (outputNoise) noiseOut = { noiseOutput._data, nbRealisations, 1 };
-		simulator.simulate(seed, firstRealisation, nbRealisations, mean, { simulation._data, nbRealisations, 1 }, noiseIn, noiseOut);
+		// Optional device (-W_GPU / -W_CUDA). Measured on Apple silicon (OpenCL, clFFT): not faster
+		// than FFTW on 8 threads, so OpenCL devices are used only with -gpuforce; CUDA (cuFFT on a
+		// discrete GPU) is used from 1e6 cells.
+		bool simulatedOnDevice = false;
+		if (gpuRequest.any()) {
+			g2s::geostat::gpu::SelectedDevice device = g2s::geostat::gpu::openDevice(gpuRequest, argv[0], reportFile);
+			std::unique_ptr<g2s::geostat::gpu::SpectralKernel> kernel;
+			if (device) {
+				std::string reason;
+				if (!gpuForce && device.get()->info().api == "OpenCL") reason = "clFFT on OpenCL was measured slower than the CPU FFTs (use -gpuforce to override)";
+				else if (!gpuForce && simulator.layout().cells < 1000000) reason = "the grid is too small for the device to pay off (use -gpuforce to override)";
+				else kernel.reset(device.get()->spectral(reason));
+				g2s::geostat::gpu::SpectralLayout layout;
+				if (kernel && !g2s::geostat::gpu::toDeviceLayout(simulator.layout(), layout)) { reason = "the device kernels handle 1 to 3 dimensions"; kernel.reset(); }
+				if (kernel && !kernel->prepare(layout, simulator.amplitude().data(), method == sp::Method::FftMovingAverage, reason)) kernel.reset();
+				if (!kernel) fprintf(reportFile, "gpu: %s; running on the CPU\n", reason.c_str());
+			}
+			if (kernel) {
+				std::string deviceError;
+				simulatedOnDevice = g2s::geostat::gpu::simulateSpectralDevice(simulator, *kernel, seed, firstRealisation, nbRealisations, mean,
+				                                                              { simulation._data, nbRealisations, 1 }, noiseIn, noiseOut, nbThreads, deviceError);
+				if (!simulatedOnDevice) fprintf(reportFile, "gpu: the device failed (%s); simulating on the CPU\n", deviceError.c_str());
+				else {
+					const g2s::geostat::gpu::DeviceTimes times = kernel->times();
+					fprintf(reportFile, "gpu: device time %.0f ms (upload %.0f, kernels %.0f, download %.0f)\n", 1e3 * times.total(), 1e3 * times.upload, 1e3 * times.compute, 1e3 * times.download);
+				}
+			}
+			g2s::reporting::logParameter(reportFile, "device", simulatedOnDevice ? g2s::geostat::gpu::describe(device.get()->info()) : std::string("cpu"));
+		}
+		if (!simulatedOnDevice) simulator.simulate(seed, firstRealisation, nbRealisations, mean, { simulation._data, nbRealisations, 1 }, noiseIn, noiseOut);
 		conditioner.condition({ simulation._data, nbRealisations, 1 }, nbRealisations);
 	} catch (const gs::Error& e) {
 		return failWith(e.what(), 5);
@@ -385,13 +433,11 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::recordMetric(reportFile, "spectrum_ms", std::to_string((long long)spectrumTime));
 	g2s::reporting::markFinished(reportFile, time);
 
-	simulation.write(outputFilename);
-	simulation.write(std::string("im_1_") + std::to_string(uniqueID));
+	simulation.writeUnderNames({ outputFilename, std::string("im_1_") + std::to_string(uniqueID) }, true, true);
 	g2s::reporting::recordOutputDescriptor(reportFile, 1, "simulation", std::string("im_1_") + std::to_string(uniqueID));
 	g2s::reporting::logOutput(reportFile, "simulation_image_runtime", std::string("im_1_") + std::to_string(uniqueID), simulation);
 	if (outputNoise) {
-		noiseOutput.write(outputIndexFilename);
-		noiseOutput.write(std::string("im_2_") + std::to_string(uniqueID));
+		noiseOutput.writeUnderNames({ outputIndexFilename, std::string("im_2_") + std::to_string(uniqueID) }, true, true);
 		g2s::reporting::recordOutputDescriptor(reportFile, 2, "noise", std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::logOutput(reportFile, "noise_image_runtime", std::string("im_2_") + std::to_string(uniqueID), noiseOutput);
 	}

@@ -67,7 +67,7 @@ g2s_server: server.o dataManagement.o jobManager.o jobTasking.o status.o
 echo: echo.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-g2s_cuda.so:  NvidiaGPUAcceleratorDevice.o
+g2s_cuda.so: NvidiaGPUAcceleratorDevice.o geostatCuda.o
 	$(NVCC) -ccbin=$(CXX) -shared -o $@ $^ $(NVLIB) 
 
 qs: qs.o qsCore.o DataImage.o sharedMemoryManager.o CPUThreadDevice.o OpenCLGPUDevice.o $(ExtraDevice)
@@ -100,16 +100,16 @@ errorTest: errorTest.o
 covEval: covEval.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
 
-tb: tb.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+tb: tb.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) -ldl
 
 # fftma and spectral: one executable, the method follows the name it runs under.
-fftma: fftma.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) -lfftw3_threads -lfftw3
+fftma: fftma.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(LDFLAGS_NO_SERVER_ONLY) -lfftw3_threads -lfftw3 $(OPENCL_LIB)
 	ln -sf fftma spectral
 
-kriging: kriging.o DataImage.o
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
+kriging: kriging.o DataImage.o geostatGpu.o geostatOpenCL.o
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS) $(OPENCL_LIB) -ldl
 
 sgs: sgs.o DataImage.o
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LDFLAGS)
