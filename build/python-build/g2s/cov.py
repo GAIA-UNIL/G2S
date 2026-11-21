@@ -668,7 +668,7 @@ class Model:
            LAST numpy axis (the columns), column 1 along the axis before it.
         pos: where a spatially varying model is resolved, in the same component
            order: one node (length ndim) for every lag, or one per lag (N x ndim).
-           Integer cell coordinates; column 0 indexes the last numpy axis.
+           Integer 0-based cell coordinates; column 0 indexes the last numpy axis.
         Returns a 1-D array of N values.
         """
         return _cov_eval([self], None, h, pos, False, g2s_options)
