@@ -329,7 +329,7 @@ int main(int argc, char const* argv[]) {
 		}
 	}
 	const std::vector<std::vector<int> > offsets = g2s::geostat::kernelOffsets(kernelDims, kernelWeights.empty() ? nullptr : kernelWeights.data(), kernelVariables, byWeight);
-	if (offsets.empty()) return failWith("the neighbourhood kernel is empty", 2);
+	if (offsets.empty()) g2s::reporting::recordWarning(reportFile, "the neighbourhood kernel is empty: every node is drawn from the unconditional distribution");
 	const g2s::geostat::GridAddressing addressing(grid, offsets, circularSimulation);
 
 	// Everything the weights depend on, except the path.

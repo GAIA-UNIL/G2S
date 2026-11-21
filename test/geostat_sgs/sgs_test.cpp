@@ -734,6 +734,30 @@ void testExecutable(const std::string& binary) {
 		CHECK(writeImage("sgstest_index", dims, index));
 		CHECK(runSgs(binary, "-di sgstest_di -cov 'exponential(range=4)' -cov 'cubic(range=25)' -ii sgstest_index -ks 31 -n 20 -s 3 -nr 2 -j 4 -id 770080 -o sgstest_ii") == 0);
 		CHECK(!output(770080).isEmpty());
+		// 1D and 3D grids, a grid without unknown cells, a single cell.
+		CHECK(writeImage("sgstest_1d", { 500 }, std::vector<float>(500, std::numeric_limits<float>::quiet_NaN())));
+		CHECK(runSgs(binary, "-di sgstest_1d -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 3 -wo sgstest_1d.w -id 770090 -o sgstest_1d_out") == 0);
+		CHECK(runSgs(binary, "-di sgstest_1d -cov 'exponential(range=20)' -n 8 -s 1 -nr 2 -j 2 -wi sgstest_1d.w -id 770091 -o sgstest_1d_out2") == 0);
+		CHECK(sameImage(output(770090), output(770091)));
+		CHECK(writeImage("sgstest_3d", { 20, 16, 12 }, std::vector<float>(20 * 16 * 12, std::numeric_limits<float>::quiet_NaN())));
+		CHECK(runSgs(binary, "-di sgstest_3d -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 4 -id 770092 -o sgstest_3d_out") == 0);
+		CHECK(runSgs(binary, "-di sgstest_3d -cov 'spherical(range=[8,6,4], angle=[30,10,5])' -n 24 -os 3 -s 1 -nr 2 -j 1 -id 770093 -o sgstest_3d_out2") == 0);
+		CHECK(sameImage(output(770092), output(770093)));
+		CHECK(writeImage("sgstest_full", { 7, 5 }, std::vector<float>(35, 1.25f)));
+		CHECK(runSgs(binary, "-di sgstest_full -cov 'spherical(range=3)' -s 1 -nr 2 -wo sgstest_full.w -id 770094 -o sgstest_full_out") == 0);
+		CHECK(runSgs(binary, "-di sgstest_full -cov 'spherical(range=3)' -s 1 -nr 2 -wi sgstest_full.w -id 770095 -o sgstest_full_out2") == 0);
+		{
+			g2s::DataImage full = output(770095);
+			bool ok = !full.isEmpty();
+			for (size_t i = 0; ok && i < 70; ++i) ok &= full._data[i] == 1.25f;
+			CHECK(ok);
+		}
+		CHECK(writeImage("sgstest_one", { 1 }, { std::numeric_limits<float>::quiet_NaN() }));
+		CHECK(runSgs(binary, "-di sgstest_one -cov 'spherical(range=3)' -s 1 -nr 3 -j 4 -id 770096 -o sgstest_one_out") == 0);
+		{
+			g2s::DataImage one = output(770096);
+			CHECK(!one.isEmpty() && one._nbVariable == 3 && std::isfinite(one._data[0]));
+		}
 		// Errors: missing -cov, bad -kt, -wo with -np 2.
 		CHECK(runSgs(binary, "-di sgstest_di -n 20 -id 770081 -o sgstest_x") != 0);
 		CHECK(runSgs(binary, "-di sgstest_di " + model + " -kt uk -id 770082 -o sgstest_x") != 0);
