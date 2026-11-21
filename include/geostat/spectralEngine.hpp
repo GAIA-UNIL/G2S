@@ -51,20 +51,24 @@
 // A "row" is one line along axis 0; rows are numbered over axes 1..ndim-1
 // (axis 1 fastest). Random numbers are indexed by the unpadded flat index of
 // the extended grid (white noise) or of the full spectrum (spectral), with
-// geostat/random.hpp, so results do not depend on the number of threads, the
-// way realisations are batched, or on the back end.
+// geostat/random.hpp, so the random numbers do not depend on the number of
+// threads, the way realisations are batched, or on the back end.
 //
 // ---------------------------------------------------------------- back ends
 // The hot loops are free functions on plain arrays (sampleCovariance,
 // amplitudeFromSpectrum, fillWhiteNoise, importNoise, exportNoise,
 // multiplyAmplitude, fillSpectralNoise, cropToGrid) and the transforms sit in
-// FftwBackend (forward r2c / backward c2r on one buffer). A GPU back end
+// SeparableFft (forward r2c / backward c2r, see "FFTW back end"). A GPU back end
 // replaces these with device kernels and cuFFT / clFFT plans with the same
 // layout; SpectralSimulator only sequences them.
 //
-// FFTW plans are made with FFTW_ESTIMATE, which picks the same algorithm for a
-// given size whatever the number of threads; checked bitwise in
-// test/geostat_fft (FFTW does not formally promise it).
+// The transforms never use threaded FFTW plans (which may round differently
+// from single-threaded ones): they are separable passes of single-threaded
+// one-dimensional plans over units fixed by the layout, spread over the
+// threads (see "FFTW back end"). For one FFTW library on one machine, a
+// realisation is bit-identical whatever the thread count, the number of
+// realisation workers, the batch it belongs to and -ri; checked bitwise in
+// test/geostat_fft over 1 to 8 threads and 1 to R workers in 1, 2 and 3D.
 
 #ifndef G2S_GEOSTAT_SPECTRAL_ENGINE_HPP
 #define G2S_GEOSTAT_SPECTRAL_ENGINE_HPP
@@ -74,8 +78,11 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <mutex>
+#include <new>
 #include <string>
 #include <thread>
 #include <vector>
@@ -424,67 +431,270 @@ inline void cropToGrid(const float* padded, const GridLayout& L, double mean, fl
 }
 
 // ============================================================ FFTW back end
+//
+// Threaded FFTW plans are not the single-threaded algorithm run in parallel:
+// with fftw_plan_with_nthreads(n > 1) the planner, FFTW_ESTIMATE included,
+// may pick another Cooley-Tukey factorisation or a threaded solver, which
+// rounds differently. (FFTW 3.3.11 built with NEON: a 640-point c2r uses radix
+// 10 with one thread and radix 20 with two; the 108-point columns of a
+// 108 x 192 r2c use radices 2, 3, 6, 3 with one thread and 9, 12 with six.)
+// So the engine never makes a plan with more than one thread. A transform of
+// the extended grid is computed as separable one-dimensional passes:
+//   forward:  r2c along axis 0 of every row, then c2c along axes 1, 2, ...;
+//   backward: c2c along axes ..., 2, 1, then c2r along axis 0.
+// Each pass is cut into units that depend on the layout only: a block of
+// whole rows (axis 0), or a block of adjacent columns of one slab (axis d).
+// A unit is run, by whichever thread takes it, with FFTW's new-array execute
+// functions and a single-threaded plan made for its exact shape, strides and
+// address modulo kFftAlignment (buffers are aligned to kFftAlignment bytes,
+// which covers every SIMD alignment FFTW checks). The threads only decide who
+// runs a unit, never what it computes.
+// Guarantee: with one FFTW library on one machine, the transforms (and so the
+// simulations) are bit-identical for any thread count, any number of
+// realisation workers and any buffer, in any run. This relies on documented
+// FFTW behaviour only: FFTW_ESTIMATE picks a plan by a heuristic, without
+// timing measurements (from the problem, alignment included, and the flags),
+// a plan is reusable on new arrays of the same layout and alignment, and
+// execution is thread-safe. Wisdom
+// imported, or created with more rigorous flags, for the same one-dimensional
+// problems before a simulator is made can change its plans and so the
+// results; fftma does neither. Not guaranteed: equality across FFTW builds
+// (system, Homebrew, SIMD, MKL) or machines, or with FFTW's own
+// multi-dimensional plans (they agree to rounding).
+// A one-dimensional grid is one row: its transform runs on one thread.
+
+constexpr size_t kFftAlignment = 64;
+
+// Buffer of T aligned to kFftAlignment bytes (malloc and manual alignment:
+// aligned operator new needs a recent macOS deployment target).
+template <class T>
+class AlignedBuffer {
+public:
+	AlignedBuffer() = default;
+	explicit AlignedBuffer(size_t count) { allocate(count); }
+	AlignedBuffer(const AlignedBuffer&) = delete;
+	AlignedBuffer& operator=(const AlignedBuffer&) = delete;
+	AlignedBuffer(AlignedBuffer&& other) noexcept : _raw(other._raw), _data(other._data) { other._raw = nullptr; other._data = nullptr; }
+	~AlignedBuffer() { std::free(_raw); }
+	void allocate(size_t count) {
+		std::free(_raw);
+		_raw = nullptr; _data = nullptr;
+		if (count > (SIZE_MAX - kFftAlignment) / sizeof(T)) throw std::bad_alloc();
+		_raw = std::malloc(sizeof(T) * std::max<size_t>(1, count) + kFftAlignment);
+		if (!_raw) throw std::bad_alloc();
+		const uintptr_t address = (reinterpret_cast<uintptr_t>(_raw) + kFftAlignment - 1) / kFftAlignment * kFftAlignment;
+		_data = reinterpret_cast<T*>(address);
+	}
+	T* data() const { return _data; }
+
+private:
+	void* _raw = nullptr;
+	T* _data = nullptr;
+};
+
+// Single- and double-precision FFTW calls used by SeparableFft.
+template <class Real> struct FftwApi;
+template <> struct FftwApi<float> {
+	using Plan = fftwf_plan;
+	using Complex = fftwf_complex;
+	static void singleThreadedPlanning() { fftwf_plan_with_nthreads(1); }
+	static Plan r2c(int n, int count, float* data, int realDistance, int complexDistance) {
+		return fftwf_plan_many_dft_r2c(1, &n, count, data, nullptr, 1, realDistance, reinterpret_cast<Complex*>(data), nullptr, 1, complexDistance, FFTW_ESTIMATE);
+	}
+	static Plan c2r(int n, int count, float* data, int realDistance, int complexDistance) {
+		return fftwf_plan_many_dft_c2r(1, &n, count, reinterpret_cast<Complex*>(data), nullptr, 1, complexDistance, data, nullptr, 1, realDistance, FFTW_ESTIMATE);
+	}
+	static Plan c2c(int n, int count, float* data, int stride, int sign) {
+		Complex* c = reinterpret_cast<Complex*>(data);
+		return fftwf_plan_many_dft(1, &n, count, c, nullptr, stride, 1, c, nullptr, stride, 1, sign, FFTW_ESTIMATE);
+	}
+	static void executeR2c(Plan p, float* data) { fftwf_execute_dft_r2c(p, data, reinterpret_cast<Complex*>(data)); }
+	static void executeC2r(Plan p, float* data) { fftwf_execute_dft_c2r(p, reinterpret_cast<Complex*>(data), data); }
+	static void executeC2c(Plan p, float* data) { Complex* c = reinterpret_cast<Complex*>(data); fftwf_execute_dft(p, c, c); }
+	static void destroy(Plan p) { fftwf_destroy_plan(p); }
+};
+template <> struct FftwApi<double> {
+	using Plan = fftw_plan;
+	using Complex = fftw_complex;
+	static void singleThreadedPlanning() { fftw_plan_with_nthreads(1); }
+	static Plan r2c(int n, int count, double* data, int realDistance, int complexDistance) {
+		return fftw_plan_many_dft_r2c(1, &n, count, data, nullptr, 1, realDistance, reinterpret_cast<Complex*>(data), nullptr, 1, complexDistance, FFTW_ESTIMATE);
+	}
+	static Plan c2r(int n, int count, double* data, int realDistance, int complexDistance) {
+		return fftw_plan_many_dft_c2r(1, &n, count, reinterpret_cast<Complex*>(data), nullptr, 1, complexDistance, data, nullptr, 1, realDistance, FFTW_ESTIMATE);
+	}
+	static Plan c2c(int n, int count, double* data, int stride, int sign) {
+		Complex* c = reinterpret_cast<Complex*>(data);
+		return fftw_plan_many_dft(1, &n, count, c, nullptr, stride, 1, c, nullptr, stride, 1, sign, FFTW_ESTIMATE);
+	}
+	static void executeR2c(Plan p, double* data) { fftw_execute_dft_r2c(p, data, reinterpret_cast<Complex*>(data)); }
+	static void executeC2r(Plan p, double* data) { fftw_execute_dft_c2r(p, reinterpret_cast<Complex*>(data), data); }
+	static void executeC2c(Plan p, double* data) { Complex* c = reinterpret_cast<Complex*>(data); fftw_execute_dft(p, c, c); }
+	static void destroy(Plan p) { fftw_destroy_plan(p); }
+};
 
 inline void initFftwThreads() {
 	static std::once_flag once;
 	std::call_once(once, []() { fftwf_init_threads(); fftw_init_threads(); });
 }
 
-// The amplitude sqrt(max(S, 0)) of `model` on the extended grid; the spectrum
-// is computed in double with FFTW.
-inline SpectrumReport computeAmplitude(const ResolvedModel& model, const GridLayout& L, std::vector<float>& amplitude, unsigned threads) {
-	initFftwThreads();
-	double* buffer = static_cast<double*>(fftw_malloc(sizeof(double) * L.realCount));
-	if (!buffer) throw Error("not enough memory for the covariance spectrum (" + std::to_string(L.realCount * sizeof(double) >> 20) + " MiB)");
-	const std::vector<int> n = L.fftwDims();
-	fftw_plan_with_nthreads(int(std::max(1u, threads)));
-	fftw_plan plan = fftw_plan_dft_r2c(int(L.ndim), n.data(), buffer, reinterpret_cast<fftw_complex*>(buffer), FFTW_ESTIMATE);
-	if (!plan) { fftw_free(buffer); throw Error("FFTW could not plan the covariance transform"); }
-	sampleCovariance(model, L, buffer, threads);
-	fftw_execute(plan);
-	fftw_destroy_plan(plan);
-	amplitude.assign(L.halfCount, 0.f);
-	const SpectrumReport report = amplitudeFromSpectrum(buffer, L, amplitude.data(), threads);
-	fftw_free(buffer);
-	return report;
-}
+// In-place r2c / c2r transforms of the extended grid (layout L) as separable
+// passes of single-threaded one-dimensional plans (see above). The plans are
+// made once and run on any kFftAlignment-aligned buffer of L.realCount values.
+template <class Real>
+class SeparableFft {
+	using Api = FftwApi<Real>;
+	using Plan = typename Api::Plan;
 
-// In-place single-precision r2c / c2r transforms of one buffer.
-class FftwBackend {
 public:
-	FftwBackend() = default;
-	FftwBackend(const FftwBackend&) = delete;
-	FftwBackend& operator=(const FftwBackend&) = delete;
-	~FftwBackend() { release(); }
-
-	// Plans the transforms (not thread-safe: call from one thread at a time).
-	void create(const GridLayout& L, bool withForward, unsigned threads) {
-		release();
+	// Plans the transforms on `planningBuffer` (not read or written; any
+	// aligned buffer of the layout). Not thread-safe (FFTW planning).
+	SeparableFft(const GridLayout& L, bool withForward, bool withBackward, Real* planningBuffer) : _base(planningBuffer) {
 		initFftwThreads();
-		_buffer = static_cast<float*>(fftwf_malloc(sizeof(float) * L.realCount));
-		if (!_buffer) throw Error("not enough memory for the FFT buffer (" + std::to_string(L.realCount * sizeof(float) >> 20) + " MiB)");
-		const std::vector<int> n = L.fftwDims();
-		fftwf_plan_with_nthreads(int(std::max(1u, threads)));
-		fftwf_complex* complexBuffer = reinterpret_cast<fftwf_complex*>(_buffer);
-		if (withForward) _forward = fftwf_plan_dft_r2c(int(L.ndim), n.data(), _buffer, complexBuffer, FFTW_ESTIMATE);
-		_backward = fftwf_plan_dft_c2r(int(L.ndim), n.data(), complexBuffer, _buffer, FFTW_ESTIMATE);
-		if ((withForward && !_forward) || !_backward) { release(); throw Error("FFTW could not plan the transforms"); }
+		Api::singleThreadedPlanning();
+		try {
+			if (withForward) {
+				_forward.push_back(rowPass(L, Kind::R2c));
+				for (unsigned d = 1; d < L.ndim; ++d)
+					if (L.extended[d] > 1) _forward.push_back(columnPass(L, d, Kind::C2cForward));
+			}
+			if (withBackward) {
+				for (unsigned d = L.ndim; d-- > 1;)
+					if (L.extended[d] > 1) _backward.push_back(columnPass(L, d, Kind::C2cBackward));
+				_backward.push_back(rowPass(L, Kind::C2r));
+			}
+		} catch (...) {
+			release();
+			throw;
+		}
+		_base = nullptr;
 	}
-	float* buffer() const { return _buffer; }
-	void forward() const { fftwf_execute(_forward); }
-	void backward() const { fftwf_execute(_backward); }
+	SeparableFft(const SeparableFft&) = delete;
+	SeparableFft& operator=(const SeparableFft&) = delete;
+	~SeparableFft() { release(); }
+
+	void forward(Real* buffer, unsigned threads) const { run(_forward, buffer, threads); }
+	void backward(Real* buffer, unsigned threads) const { run(_backward, buffer, threads); }
 
 private:
-	float* _buffer = nullptr;
-	fftwf_plan _forward = nullptr, _backward = nullptr;
+	enum class Kind { R2c, C2r, C2cForward, C2cBackward };
+	struct Unit { size_t offset; uint32_t plan; };  // offset in Real values from the buffer start
+	struct Pass { Kind kind; std::vector<Unit> units; };
+	struct PlanKey {
+		Kind kind; size_t count, alignment;
+		bool operator==(const PlanKey& o) const { return kind == o.kind && count == o.count && alignment == o.alignment; }
+	};
+
+	std::vector<Plan> _plans;
+	std::vector<Pass> _forward, _backward;
+	Real* _base = nullptr;
+
+	static int toInt(size_t value, const char* what) {
+		if (value > 2147483647u) throw Error(std::string("the extended grid is too large for FFTW (") + what + ")");
+		return int(value);
+	}
+
+	// Plan for `count` transforms of a pass at `offset`, shared by the units of
+	// the same pass, count and address modulo kFftAlignment.
+	uint32_t planFor(std::vector<std::pair<PlanKey, uint32_t> >& known, Kind kind, size_t offset, size_t count,
+	                 int n, int strideOrRealDistance, int complexDistance) {
+		const PlanKey key = { kind, count, (offset * sizeof(Real)) % kFftAlignment };
+		for (const auto& entry : known) if (entry.first == key) return entry.second;
+		Real* data = _base + offset;
+		const int howMany = toInt(count, "transforms per block");
+		Plan plan = nullptr;
+		switch (kind) {
+			case Kind::R2c: plan = Api::r2c(n, howMany, data, strideOrRealDistance, complexDistance); break;
+			case Kind::C2r: plan = Api::c2r(n, howMany, data, strideOrRealDistance, complexDistance); break;
+			case Kind::C2cForward: plan = Api::c2c(n, howMany, data, strideOrRealDistance, FFTW_FORWARD); break;
+			case Kind::C2cBackward: plan = Api::c2c(n, howMany, data, strideOrRealDistance, FFTW_BACKWARD); break;
+		}
+		if (!plan) throw Error("FFTW could not plan the transforms");
+		_plans.push_back(plan);
+		known.push_back({ key, uint32_t(_plans.size() - 1) });
+		return known.back().second;
+	}
+
+	static size_t roundUp(size_t value, size_t multiple) { return (value + multiple - 1) / multiple * multiple; }
+
+	// r2c or c2r along axis 0: blocks of whole rows (a multiple of 8 rows, so
+	// that full blocks start at the same alignment).
+	Pass rowPass(const GridLayout& L, Kind kind) {
+		Pass pass{ kind, {} };
+		std::vector<std::pair<PlanKey, uint32_t> > known;
+		const int n = toInt(L.extended[0], "axis 0");
+		const int realDistance = toInt(L.rowPitch, "row pitch"), complexDistance = toInt(L.halfRow, "row pitch");
+		const size_t block = roundUp(std::max<size_t>(1, 32768 / L.rowPitch), 8);
+		for (size_t row = 0; row < L.rows; row += block) {
+			const size_t count = std::min(block, L.rows - row), offset = row * L.rowPitch;
+			pass.units.push_back({ offset, planFor(known, kind, offset, count, n, realDistance, complexDistance) });
+		}
+		return pass;
+	}
+
+	// c2c along axis d >= 1 of the half spectrum: complex values are indexed
+	// (k0, k1, ...) with k0 fastest; along axis d the stride is
+	// inner = halfRow * N1 * ... * N(d-1). Units: blocks of adjacent columns
+	// (a multiple of 8) of one slab of inner * Nd values.
+	Pass columnPass(const GridLayout& L, unsigned d, Kind kind) {
+		Pass pass{ kind, {} };
+		std::vector<std::pair<PlanKey, uint32_t> > known;
+		size_t inner = L.halfRow, outer = 1;
+		for (unsigned e = 1; e < d; ++e) inner *= L.extended[e];
+		for (unsigned e = d + 1; e < L.ndim; ++e) outer *= L.extended[e];
+		const size_t n = L.extended[d];
+		const int stride = toInt(inner, "column stride");
+		const size_t block = std::min(roundUp(std::max<size_t>(8, 16384 / n), 8), roundUp(inner, 8));
+		for (size_t slab = 0; slab < outer; ++slab) {
+			for (size_t column = 0; column < inner; column += block) {
+				const size_t count = std::min(block, inner - column), offset = 2 * (slab * inner * n + column);
+				pass.units.push_back({ offset, planFor(known, kind, offset, count, toInt(n, "axis length"), stride, 0) });
+			}
+		}
+		return pass;
+	}
+
+	void run(const std::vector<Pass>& passes, Real* buffer, unsigned threads) const {
+		// The plans were made for this alignment (new-array execute requires it).
+		if (reinterpret_cast<uintptr_t>(buffer) % kFftAlignment != 0) throw Error("FFT buffer not aligned to " + std::to_string(kFftAlignment) + " bytes");
+		for (const Pass& pass : passes) {
+			parallelFor(pass.units.size(), threads, [&](size_t begin, size_t end) {
+				for (size_t u = begin; u < end; ++u) {
+					const Unit& unit = pass.units[u];
+					Real* data = buffer + unit.offset;
+					switch (pass.kind) {
+						case Kind::R2c: Api::executeR2c(_plans[unit.plan], data); break;
+						case Kind::C2r: Api::executeC2r(_plans[unit.plan], data); break;
+						default: Api::executeC2c(_plans[unit.plan], data); break;
+					}
+				}
+			});
+		}
+	}
+
 	void release() {
-		if (_forward) fftwf_destroy_plan(_forward);
-		if (_backward) fftwf_destroy_plan(_backward);
-		if (_buffer) fftwf_free(_buffer);
-		_forward = _backward = nullptr;
-		_buffer = nullptr;
+		for (Plan plan : _plans) Api::destroy(plan);
+		_plans.clear();
 	}
 };
+
+// The amplitude sqrt(max(S, 0)) of `model` on the extended grid; the spectrum
+// is computed in double (SeparableFft<double>: independent of `threads`).
+inline SpectrumReport computeAmplitude(const ResolvedModel& model, const GridLayout& L, std::vector<float>& amplitude, unsigned threads) {
+	AlignedBuffer<double> buffer;
+	try {
+		buffer.allocate(L.realCount);
+	} catch (const std::bad_alloc&) {
+		throw Error("not enough memory for the covariance spectrum (" + std::to_string(L.realCount * sizeof(double) >> 20) + " MiB)");
+	}
+	{
+		const SeparableFft<double> fft(L, true, false, buffer.data());
+		sampleCovariance(model, L, buffer.data(), threads);
+		fft.forward(buffer.data(), threads);
+	}
+	amplitude.assign(L.halfCount, 0.f);
+	return amplitudeFromSpectrum(buffer.data(), L, amplitude.data(), threads);
+}
 
 // ============================================================ simulator
 
@@ -522,8 +732,8 @@ public:
 	const std::vector<float>& amplitude() const { return _amplitude; }
 
 	// Number of realisations computed concurrently (each with its own buffer
-	// and threads / workers FFT threads); 0 = automatic: min(threads, count),
-	// within memoryBudget bytes of FFT buffers.
+	// and threads / workers threads); 0 = automatic: min(threads, count),
+	// within memoryBudget bytes of FFT buffers. The results do not depend on it.
 	unsigned realisationWorkers = 0;
 	size_t memoryBudget = size_t(4) << 30;
 
@@ -537,11 +747,18 @@ public:
 			throw Error("noise input and output are only available with fftma");
 		const unsigned workers = workerCount(count);
 		const unsigned inner = std::max(1u, _threads / workers);
-		std::vector<FftwBackend> backends(workers);
-		for (FftwBackend& backend : backends) backend.create(_layout, _method == Method::FftMovingAverage, inner);
+		std::vector<AlignedBuffer<float> > buffers;
+		try {
+			for (unsigned w = 0; w < workers; ++w) buffers.emplace_back(_layout.realCount);
+		} catch (const std::bad_alloc&) {
+			throw Error("not enough memory for the FFT buffers (" + std::to_string(workers) + " x " +
+			            std::to_string(_layout.realCount * sizeof(float) >> 20) + " MiB)");
+		}
+		// One set of plans, made once and shared by the workers.
+		if (!_fft) _fft.reset(new SeparableFft<float>(_layout, _method == Method::FftMovingAverage, true, buffers[0].data()));
 		std::atomic<unsigned> next(0);
 		auto work = [&](unsigned w) {
-			for (unsigned i = next++; i < count; i = next++) one(backends[w], inner, seed, first + i, mean, out, noiseIn, noiseOut, i);
+			for (unsigned i = next++; i < count; i = next++) one(buffers[w].data(), inner, seed, first + i, mean, out, noiseIn, noiseOut, i);
 		};
 		if (workers == 1) { work(0); return; }
 		std::vector<std::thread> pool;
@@ -556,6 +773,7 @@ private:
 	unsigned _threads;
 	std::vector<float> _amplitude;
 	SpectrumReport _report;
+	std::unique_ptr<SeparableFft<float> > _fft;
 
 	unsigned workerCount(unsigned count) const {
 		unsigned workers = realisationWorkers > 0 ? realisationWorkers : std::min(_threads, count);
@@ -565,20 +783,19 @@ private:
 		return std::max(1u, std::min(workers, count));
 	}
 
-	void one(const FftwBackend& fft, unsigned threads, uint64_t seed, uint32_t realisation, double mean, FieldView out,
+	void one(float* buffer, unsigned threads, uint64_t seed, uint32_t realisation, double mean, FieldView out,
 	         ConstFieldView noiseIn, FieldView noiseOut, unsigned i) const {
-		float* buffer = fft.buffer();
 		const double M = double(_layout.cells);
 		if (_method == Method::FftMovingAverage) {
 			if (noiseIn.data) importNoise(noiseIn.data + i * noiseIn.realisationStride, noiseIn.cellStride, _layout, buffer, threads);
 			else fillWhiteNoise(seed, realisation, _layout, buffer, threads);
 			if (noiseOut.data) exportNoise(buffer, _layout, noiseOut.data + i * noiseOut.realisationStride, noiseOut.cellStride, threads);
-			fft.forward();
+			_fft->forward(buffer, threads);
 			multiplyAmplitude(_amplitude.data(), float(1.0 / M), buffer, _layout.halfCount, threads);
 		} else {
 			fillSpectralNoise(seed, realisation, _layout, _amplitude.data(), float(1.0 / std::sqrt(M)), buffer, threads);
 		}
-		fft.backward();
+		_fft->backward(buffer, threads);
 		cropToGrid(buffer, _layout, mean, out.data + i * out.realisationStride, out.cellStride, threads);
 	}
 };

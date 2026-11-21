@@ -289,43 +289,169 @@ void testNoise() {
 	}
 }
 
+// One determinism case: extended grid (odd, prime and non-power-of-two sizes
+// included) and output grid.
+struct DeterminismCase { std::string model; std::vector<unsigned> grid, extended; };
+
+std::vector<DeterminismCase> determinismCases() {
+	return {
+		{ "0.1*nugget + 0.9*exponential(range=40)", { 600 }, { 640 } },
+		{ "1*spherical(range=30)", { 900 }, { 1009 } },                              // prime
+		{ "1*gaussian(range=80)", { 3000 }, { 3150 } },
+		{ "0.1*nugget + 0.9*spherical(range=[40,15], angle=25)", { 150, 90 }, { 192, 108 } },
+		{ "1*exponential(range=[20,8], angle=35)", { 60, 40 }, { 63, 45 } },          // odd
+		{ "1*gaussian(range=[12,30], angle=-20)", { 101, 97 }, { 101, 97 } },          // primes (-csim)
+		{ "1*spherical(range=[10,7,5], angle=[30,15,10])", { 30, 26, 22 }, { 45, 40, 30 } },
+		{ "1*exponential(range=[6,9,4])", { 17, 13, 11 }, { 17, 13, 11 } },           // primes (-csim)
+		{ "1*gaussian(range=[8,6,7])", { 40, 1, 21 }, { 48, 1, 25 } },                // axis of size 1
+	};
+}
+
 void testDeterminism() {
-	section("determinism: thread count, batches, -ri");
-	const std::vector<unsigned> grid = { 150, 90 };
-	const ResolvedModel model = stationary("0.1*nugget + 0.9*spherical(range=[40,15], angle=25)", 2);
-	const std::vector<unsigned> extended = defaultExtended(model, grid, false);
+	section("determinism: threads 1..8, workers 1..R, single runs, batches, -ri (1D, 2D, 3D)");
+	const unsigned R = 5;
+	for (const DeterminismCase& c : determinismCases()) {
+		const ResolvedModel model = stationary(c.model, unsigned(c.grid.size()));
+		size_t cells = 1;
+		for (unsigned g : c.grid) cells *= g;
+		// The amplitude (double-precision spectrum) does not depend on the threads.
+		std::vector<float> amplitude;
+		for (unsigned threads = 1; threads <= 8; ++threads) {
+			SpectralSimulator simulator(model, c.grid, c.extended, Method::Spectral, threads);
+			if (threads == 1) amplitude = simulator.amplitude();
+			CHECK_MSG(simulator.amplitude() == amplitude, "amplitude on " + joinDims(c.extended) + " differs with " + std::to_string(threads) + " threads");
+		}
+		for (Method method : { Method::FftMovingAverage, Method::Spectral }) {
+			const std::string what = std::string(methodName(method)) + " on " + joinDims(c.extended) + " ";
+			// Reference: one thread, one realisation at a time.
+			const std::vector<float> reference = simulateMany(model, c.grid, c.extended, method, R, 42, 1);
+			int mismatches = 0;
+			std::string first;
+			auto expect = [&](bool same, const std::string& configuration) {
+				if (same) return;
+				if (mismatches++ == 0) first = configuration;
+			};
+			for (unsigned threads = 1; threads <= 8; ++threads) {
+				SpectralSimulator simulator(model, c.grid, c.extended, method, threads);
+				// Every worker count: workers = 1 is one realisation at a time with
+				// all the threads in its transforms, workers = R one thread each.
+				for (unsigned workers = 0; workers <= R; ++workers) {
+					std::vector<float> out(cells * R);
+					simulator.realisationWorkers = workers;
+					simulator.simulate(42, 0, R, 0.0, { out.data(), 1, cells });
+					expect(out == reference, std::to_string(threads) + " threads, " + (workers ? std::to_string(workers) : std::string("auto")) + " workers");
+				}
+				// Each realisation alone (-nr 1 -ri r) and a batch starting at r = 2.
+				simulator.realisationWorkers = 0;
+				for (unsigned r = 0; r < R; ++r) {
+					std::vector<float> single(cells);
+					simulator.simulate(42, r, 1, 0.0, { single.data(), 1, cells });
+					expect(std::equal(single.begin(), single.end(), reference.begin() + long(r * cells)),
+					       "realisation " + std::to_string(r) + " alone with " + std::to_string(threads) + " threads");
+				}
+				std::vector<float> tail(cells * (R - 2));
+				simulator.simulate(42, 2, R - 2, 0.0, { tail.data(), 1, cells });
+				expect(std::equal(tail.begin(), tail.end(), reference.begin() + long(2 * cells)), "batch from realisation 2 with " + std::to_string(threads) + " threads");
+			}
+			CHECK_MSG(mismatches == 0, what + "differs from 1 thread in " + std::to_string(mismatches) + " configurations, first: " + first);
+		}
+	}
+	// Interleaved output (DataImage layout) holds the same values; different seeds differ.
+	const DeterminismCase c = determinismCases()[3];
+	const ResolvedModel model = stationary(c.model, 2);
 	const size_t cells = 150 * 90;
 	for (Method method : { Method::FftMovingAverage, Method::Spectral }) {
-		const std::vector<float> reference = simulateMany(model, grid, extended, method, 5, 42, 1);
-		for (unsigned threads : { 2u, 3u, 8u }) {
-			CHECK_MSG(simulateMany(model, grid, extended, method, 5, 42, threads) == reference,
-			          std::string(methodName(method)) + " differs with " + std::to_string(threads) + " threads");
-		}
-		// Explicit worker counts (threaded FFT vs one realisation per worker).
-		for (unsigned workers : { 1u, 2u, 5u }) {
-			std::vector<float> out(cells * 5);
-			SpectralSimulator simulator(model, grid, extended, method, 6);
-			simulator.realisationWorkers = workers;
-			simulator.simulate(42, 0, 5, 0.0, { out.data(), 1, cells });
-			CHECK_MSG(out == reference, std::string(methodName(method)) + " differs with " + std::to_string(workers) + " workers");
-		}
-		// Realisation r of the batch = a run of realisation r alone.
-		SpectralSimulator simulator(model, grid, extended, method, 4);
-		for (unsigned r = 0; r < 5; ++r) {
-			std::vector<float> single(cells);
-			simulator.simulate(42, r, 1, 0.0, { single.data(), 1, cells });
-			CHECK_MSG(std::equal(single.begin(), single.end(), reference.begin() + long(r * cells)),
-			          std::string(methodName(method)) + " realisation " + std::to_string(r) + " alone differs from the batch");
-		}
-		// Interleaved output (DataImage layout) holds the same values.
-		std::vector<float> interleaved(cells * 5);
-		simulator.simulate(42, 0, 5, 0.0, { interleaved.data(), 5, 1 });
+		const std::vector<float> reference = simulateMany(model, c.grid, c.extended, method, R, 42, 1);
+		SpectralSimulator simulator(model, c.grid, c.extended, method, 4);
+		std::vector<float> interleaved(cells * R);
+		simulator.simulate(42, 0, R, 0.0, { interleaved.data(), R, 1 });
 		bool same = true;
 		for (size_t i = 0; i < cells; ++i)
-			for (unsigned r = 0; r < 5; ++r) same &= interleaved[i * 5 + r] == reference[r * cells + i];
+			for (unsigned r = 0; r < R; ++r) same &= interleaved[i * R + r] == reference[r * cells + i];
 		CHECK(same);
-		// Different seeds differ.
-		CHECK(simulateMany(model, grid, extended, method, 1, 43, 1) != std::vector<float>(reference.begin(), reference.begin() + long(cells)));
+		CHECK(simulateMany(model, c.grid, c.extended, method, 1, 43, 1) != std::vector<float>(reference.begin(), reference.begin() + long(cells)));
+	}
+}
+
+// The separable transforms against FFTW's multi-dimensional plans (accuracy)
+// and against themselves over 1 to 8 threads (bitwise).
+template <class Real, class Plan, class MakePlan, class Execute, class Destroy>
+void checkSeparable(const std::vector<unsigned>& extended, MakePlan makePlan, Execute execute, Destroy destroy, double tolerance) {
+	const GridLayout L(extended, extended);
+	const std::vector<int> n = L.fftwDims();
+	AlignedBuffer<Real> input(L.realCount), buffer(L.realCount), direct(L.realCount), first(L.realCount);
+	uint64_t state = 12345;
+	for (size_t row = 0; row < L.rows; ++row)
+		for (size_t k = 0; k < L.rowPitch; ++k) {
+			state = state * 6364136223846793005ull + 1442695040888963407ull;
+			input.data()[row * L.rowPitch + k] = k < L.extended[0] ? Real(double(state >> 11) / 9007199254740992.0 - 0.5) : Real(0);
+		}
+	const std::string what = std::string(sizeof(Real) == 4 ? "float" : "double") + " " + joinDims(extended);
+	const SeparableFft<Real> fft(L, true, true, buffer.data());
+	// Forward.
+	std::memcpy(direct.data(), input.data(), sizeof(Real) * L.realCount);
+	Plan plan = makePlan(int(L.ndim), n.data(), direct.data(), true);
+	execute(plan);
+	destroy(plan);
+	double worst = 0.0, scale = 0.0;
+	for (unsigned threads = 1; threads <= 8; ++threads) {
+		std::memcpy(buffer.data(), input.data(), sizeof(Real) * L.realCount);
+		fft.forward(buffer.data(), threads);
+		if (threads == 1) {
+			std::memcpy(first.data(), buffer.data(), sizeof(Real) * L.realCount);
+			for (size_t i = 0; i < 2 * L.halfCount; ++i) {
+				worst = std::max(worst, std::fabs(double(buffer.data()[i]) - double(direct.data()[i])));
+				scale = std::max(scale, std::fabs(double(direct.data()[i])));
+			}
+		}
+		CHECK_MSG(std::memcmp(buffer.data(), first.data(), sizeof(Real) * 2 * L.halfCount) == 0, what + " forward differs with " + std::to_string(threads) + " threads");
+	}
+	CHECK_MSG(worst <= tolerance * scale, what + " forward: largest difference with FFTW " + formatNumber(worst) + " (scale " + formatNumber(scale) + ")");
+	// Backward (from the forward result).
+	std::memcpy(direct.data(), first.data(), sizeof(Real) * L.realCount);
+	plan = makePlan(int(L.ndim), n.data(), direct.data(), false);
+	execute(plan);
+	destroy(plan);
+	AlignedBuffer<Real> backwardFirst(L.realCount);
+	worst = 0.0; scale = 0.0;
+	for (unsigned threads = 1; threads <= 8; ++threads) {
+		std::memcpy(buffer.data(), first.data(), sizeof(Real) * L.realCount);
+		fft.backward(buffer.data(), threads);
+		bool same = true;
+		for (size_t row = 0; row < L.rows; ++row)
+			for (size_t k = 0; k < L.extended[0]; ++k) {
+				const size_t i = row * L.rowPitch + k;
+				if (threads == 1) {
+					backwardFirst.data()[i] = buffer.data()[i];
+					worst = std::max(worst, std::fabs(double(buffer.data()[i]) - double(direct.data()[i])));
+					scale = std::max(scale, std::fabs(double(direct.data()[i])));
+				}
+				same &= std::memcmp(&buffer.data()[i], &backwardFirst.data()[i], sizeof(Real)) == 0;
+			}
+		CHECK_MSG(same, what + " backward differs with " + std::to_string(threads) + " threads");
+	}
+	CHECK_MSG(worst <= tolerance * scale, what + " backward: largest difference with FFTW " + formatNumber(worst) + " (scale " + formatNumber(scale) + ")");
+}
+
+void testSeparableFft() {
+	section("separable transforms: = FFTW multi-dimensional plans, bitwise over 1..8 threads");
+	const std::vector<std::vector<unsigned> > sizes = { { 1 }, { 2 }, { 640 }, { 1009 }, { 192, 108 }, { 63, 45 }, { 64, 1 }, { 1, 50 },
+	                                                    { 101, 97 }, { 45, 40, 30 }, { 17, 13, 11 }, { 48, 1, 25 }, { 32, 36, 40 } };
+	for (const std::vector<unsigned>& extended : sizes) {
+		checkSeparable<float, fftwf_plan>(extended,
+			[](int rank, const int* n, float* data, bool forward) {
+				fftwf_plan_with_nthreads(1);
+				return forward ? fftwf_plan_dft_r2c(rank, n, data, reinterpret_cast<fftwf_complex*>(data), FFTW_ESTIMATE)
+				               : fftwf_plan_dft_c2r(rank, n, reinterpret_cast<fftwf_complex*>(data), data, FFTW_ESTIMATE);
+			},
+			[](fftwf_plan p) { fftwf_execute(p); }, [](fftwf_plan p) { fftwf_destroy_plan(p); }, 2e-5);
+		checkSeparable<double, fftw_plan>(extended,
+			[](int rank, const int* n, double* data, bool forward) {
+				fftw_plan_with_nthreads(1);
+				return forward ? fftw_plan_dft_r2c(rank, n, data, reinterpret_cast<fftw_complex*>(data), FFTW_ESTIMATE)
+				               : fftw_plan_dft_c2r(rank, n, reinterpret_cast<fftw_complex*>(data), data, FFTW_ESTIMATE);
+			},
+			[](fftw_plan p) { fftw_execute(p); }, [](fftw_plan p) { fftw_destroy_plan(p); }, 1e-13);
 	}
 }
 
@@ -434,6 +560,40 @@ void testExecutable(const std::string& binary) {
 	CHECK(same);
 	CHECK(run(binary, "-nr 1 -s 11 -fr 2 -j 3", testId(517)) == 0);
 	{ g2s::DataImage alias = load(1, testId(517)); CHECK(sameData(third, alias)); }
+	// -j 1..8 with -nr 3 (batch) and -nr 1 -ri 1 (one realisation, all threads in its
+	// transforms), on sizes where threaded FFTW plans round differently (-csim: the
+	// grid is the extended grid).
+	{
+		int id = 520;
+		const std::vector<std::vector<unsigned> > grids = { { 640 }, { 192, 108 }, { 17, 13, 11 } };
+		for (const std::vector<unsigned>& grid : grids) {
+			size_t cells = 1;
+			for (unsigned g : grid) cells *= g;
+			const std::string name = N("geostat_fft_dj" + std::to_string(grid.size()));
+			CHECK(writeImage(name, grid, std::vector<float>(cells, std::nanf(""))));
+			const std::string cov = grid.size() == 1 ? "'0.1*nugget + 0.9*exponential(range=60)'" : "'1*spherical(range=" + std::to_string(grid[0] / 3) + ")'";
+			for (const std::string method : { "fftma", "spectral" }) {
+				auto runJ = [&](const std::string& args, int runId) {
+					const std::string command = binary + " -di " + name + " -cov " + cov + " -csim -method " + method + " -s 3 " + args +
+					                            " -id " + std::to_string(runId) + " -o " + N("geostat_fft_out") + " 2>/dev/null";
+					return std::system(command.c_str());
+				};
+				const int reference = testId(id++);
+				CHECK(runJ("-nr 3 -j 1", reference) == 0);
+				g2s::DataImage batchRef = load(1, reference);
+				int mismatches = 0;
+				for (unsigned j = 2; j <= 8; ++j) {
+					const int batchId = testId(id++), singleId = testId(id++);
+					const bool ran = runJ("-nr 3 -j " + std::to_string(j), batchId) == 0 && runJ("-nr 1 -ri 1 -j " + std::to_string(j), singleId) == 0;
+					g2s::DataImage batchJ = load(1, batchId), singleJ = load(1, singleId);
+					bool same = ran && sameData(batchRef, batchJ) && !singleJ.isEmpty() && singleJ.dataSize() == cells;
+					for (size_t i = 0; same && i < cells; ++i) same = std::memcmp(&singleJ._data[i], &batchRef._data[i * 3 + 1], sizeof(float)) == 0;
+					mismatches += same ? 0 : 1;
+				}
+				CHECK_MSG(mismatches == 0, method + " on " + joinDims(grid) + ": -j 2..8 differs from -j 1 for " + std::to_string(mismatches) + " thread counts");
+			}
+		}
+	}
 	// Given noise: same result, noise returned unchanged; -nr taken from -ni.
 	CHECK(run(binary, "-ni im_2_" + testIdText(500) + " -s 999 -on -j 4", testId(503)) == 0);
 	{ g2s::DataImage other = load(1, testId(503)); CHECK(sameData(batch, other)); }
@@ -534,6 +694,7 @@ int main(int argc, char** argv) {
 	const auto begin = std::chrono::steady_clock::now();
 	testSizes();
 	testClipping();
+	testSeparableFft();
 	testDeterminism();
 	testNoise();
 	testPeriodicity();
