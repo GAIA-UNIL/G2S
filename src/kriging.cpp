@@ -55,15 +55,14 @@
 
 namespace {
 
-// -method auto: direct up to this many data (8 n^2 bytes = 763 MiB). Measured on an
-// Apple M1 Pro (8 threads, 1000 x 1000 grid): direct 0.8 s for 4000 data and 3.5 s for
-// 10000, local (-n 50) about 6.5 s whatever the data count.
-constexpr size_t kAutoDirectMaxData = 10000;
+// -method auto: direct up to g2s::geostat::kAutoDirectMaxData data (krigingGlobal.hpp,
+// the rule the conditioning of simulations shares) ...
+using g2s::geostat::kAutoDirectMaxData;
 // ... and, with -var, while n^2 x targets stays below this: the variance costs n^2 per
 // target (1000 data on 1000 x 1000 cells: 7.9 s, about the cost of local kriging).
 constexpr double kAutoDirectVarianceWork = 1.0e12;
 // Default -maxmem (GiB): direct refuses larger n x n matrices.
-constexpr double kDefaultMaxMemoryGiB = 2.0;
+constexpr double kDefaultMaxMemoryGiB = g2s::geostat::kDefaultDirectMaxMemoryGiB;
 // Grid search is used when it walks at most this many kernel offsets per target, the k-d tree otherwise.
 constexpr double kGridSearchMaxWalk = 4096.0;
 
@@ -81,7 +80,7 @@ void printHelp() {
 	       "  -csim local: circular (periodic) grid\n"
 	       "  -maxmem GiB  direct: largest n x n matrix allowed (default %.0f)\n"
 	       "  -j    threads (a fraction = share of the cores)\n"
-	       "  -o    output name\n", kDefaultMaxMemoryGiB);
+	       "  -o / -oi  output names (estimate / variance)\n", kDefaultMaxMemoryGiB);
 }
 
 std::string number(double v) {
@@ -171,8 +170,11 @@ int main(int argc, char const* argv[]) {
 	arg.erase("-m");
 
 	std::string outputFilename = std::to_string(uniqueID);
+	std::string outputIndexFilename = std::string("id_") + std::to_string(uniqueID);
 	if (arg.count("-o") == 1) outputFilename = arg.find("-o")->second;
 	arg.erase("-o");
+	if (arg.count("-oi") == 1) outputIndexFilename = arg.find("-oi")->second;
+	arg.erase("-oi");
 
 	g2s::geostat::KrigingType krigingType = g2s::geostat::KrigingType::Ordinary;
 	if (arg.count("-kt") == 1) {
@@ -468,6 +470,7 @@ int main(int argc, char const* argv[]) {
 	if (withVariance) {
 		g2s::DataImage varianceImage = DI.emptyCopy(true);
 		for (size_t t = 0; t < targetCells.size(); ++t) varianceImage._data[targetCells[t]] = float(variance[t]);
+		varianceImage.write(outputIndexFilename);
 		varianceImage.write(std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::recordOutputDescriptor(reportFile, 2, "variance", std::string("im_2_") + std::to_string(uniqueID));
 		g2s::reporting::logOutput(reportFile, "variance_image_runtime", std::string("im_2_") + std::to_string(uniqueID), varianceImage);

@@ -20,7 +20,7 @@
 // in parallel, then replayed for R realisations at once. The values are
 // simulated as given: transform to normal scores beforehand if needed.
 //
-//   g2s('-a','sgs','-di',grid,'-cov','spherical(range=[40,20], angle=30)','-n',32,'-nr',8,'-j',8)
+//   g2s('-a','sgs','-di',grid,'-cov','spherical(range=[40,20], angle=30)','-n',50,'-nr',8,'-j',8)
 //
 // Outputs: 1 the simulations, P*R variables in (path, realisation) order;
 //          2 the number of neighbours used per node, one variable per path
@@ -55,7 +55,7 @@ void printHelp() {
 	       "  -cov  covariance model(s); -cvar name value binds a variable; -ii model index image\n"
 	       "  -kt   kriging type: sk (simple, default) or ok (ordinary)\n"
 	       "  -m    simple-kriging mean: a number or an image on the grid (default 0)\n"
-	       "  -n    maximum number of neighbours (default 32)\n"
+	       "  -n    maximum number of neighbours (default 50)\n"
 	       "  -ki   kernel image (neighbourhood); -ks kernel size when -ki is omitted\n"
 	       "        (default: twice the largest practical range of the model, + 1)\n"
 	       "  -wd   order the kernel by weight instead of Euclidean distance\n"
@@ -63,7 +63,7 @@ void printHelp() {
 	       "  -csim circular simulation (the grid wraps around)\n"
 	       "  -nr R realisations per path (default 1); -np P paths (default 1); -ri first realisation index (default 0)\n"
 	       "  -sp   simulation path image (fixed path); -pt random|multigrid|regular path type (default random)\n"
-	       "  -s    seed; -j threads\n"
+	       "  -s    seed; -j threads (a fraction = share of the cores)\n"
 	       "  -wo file  write the plan (weights) of the path; -wi file  replay a written plan\n"
 	       "  -noshare  solve every node, without sharing identical systems\n"
 	       "  -o / -oi  output names (simulation / neighbour count)\n");
@@ -238,7 +238,7 @@ int main(int argc, char const* argv[]) {
 	single("-o", outputFilename);
 	single("-oi", outputIndexFilename);
 
-	long nbNeighbors = 32, kernelSize = -1, maxPerSector = 0, realisations = 1, paths = 1, firstRealisation = 0;
+	long nbNeighbors = 50, kernelSize = -1, maxPerSector = 0, realisations = 1, paths = 1, firstRealisation = 0;
 	positive("-n", nbNeighbors, 1);
 	positive("-ks", kernelSize, 1);
 	positive("-os", maxPerSector, 1);

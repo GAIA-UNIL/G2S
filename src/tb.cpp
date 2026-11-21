@@ -18,11 +18,14 @@
 // tb: grid front end of the turning-bands engine (geostat/turningBands.hpp).
 //
 //   g2s('-a','tb','-di',nan(200,300),'-cov','0.1*nugget + 0.9*spherical(range=[40,20], angle=30)','-nr',10,'-s',7)
+//   g2s('-a','tb','-di',data,'-cov',model,'-nr',16,'-km','local','-n',30)   % conditional
 //
-// The grid is the -di image (its values are ignored: unconditional
-// simulation); node coordinates are cell indices in DataImage axis order, the
-// same units as the covariance ranges. Output 1 has the grid of -di and one
-// variable per realisation.
+// The grid is the -di image; node coordinates are cell indices in DataImage
+// axis order, the same units as the covariance ranges. Its informed (non-NaN)
+// cells are hard data: each realisation is conditioned by kriging of its
+// residuals (geostat/conditioning.hpp, flags in
+// geostat/conditioningArguments.hpp); an all-NaN -di gives the unconditional
+// simulation. Output 1 has the grid of -di and one variable per realisation.
 
 #include <algorithm>
 #include <chrono>
@@ -37,22 +40,28 @@
 #include "DataImage.hpp"
 #include "jobManager.hpp"
 #include "jobReporting.hpp"
+#include "geostat/conditioningArguments.hpp"
 #include "geostat/covarianceArguments.hpp"
 #include "geostat/turningBands.hpp"
 
 namespace {
 
 void printHelp() {
-	printf("tb: unconditional Gaussian simulation by turning bands.\n"
-	       "  -di   destination image: gives the grid (1D, 2D or 3D); its values are ignored (mandatory)\n"
+	printf("tb: Gaussian simulation by turning bands, conditioned to the informed cells of -di.\n"
+	       "  -di   destination image: gives the grid (1D, 2D or 3D) (mandatory); non-NaN cells are hard data\n"
+	       "        (all NaN: unconditional)\n"
 	       "  -cov  covariance model, e.g. \"0.1*nugget + 0.9*spherical(range=[40,20], angle=30)\" (mandatory)\n"
 	       "        supported: nugget, spherical, exponential, gaussian, cubic, matern, stable (not map)\n"
 	       "  -cvar name value  binds a model variable (constant; spatially varying values are not supported)\n"
 	       "  -nb   number of lines per structure (default 1000)\n"
 	       "  -nr   number of realisations, output as variables (default 1)\n"
+	       "  -ri   index of the first realisation (default 0): realisation r of a run with -ri 0\n"
+	       "        equals realisation 0 of a run with -ri r\n"
 	       "  -m    mean (default 0)\n"
-	       "  -s    seed; -j threads (the result does not depend on -j)\n"
-	       "  -csim is refused: turning bands fields are not periodic\n");
+	       "  -s    seed; -j threads (a fraction = share of the cores; the result does not depend on -j)\n"
+	       "  -csim is refused: turning bands fields are not periodic\n"
+	       "%s"
+	       "  -o    output name\n", g2s::geostat::conditioningHelp());
 }
 
 // Reads "-flag value" from argv when value may be a negative number
@@ -112,11 +121,20 @@ int main(int argc, char const* argv[]) {
 		run = false;
 	}
 	if (covarianceArguments.models.empty()) { fprintf(reportFile, "error: -cov is mandatory\n"); run = false; }
+	g2s::geostat::ConditioningArguments conditioning;
+	{
+		std::string conditioningError;
+		if (!g2s::geostat::readConditioningArguments(arg, conditioning, conditioningError)) {
+			fprintf(reportFile, "error: %s\n", conditioningError.c_str());
+			if (error.empty()) error = conditioningError;
+			run = false;
+		}
+	}
 
 	double mean = 0.0;
 	bool meanGiven = false;
 	if (!readSignedNumber(arg, argc, argv, "-m", mean, meanGiven)) {
-		error = "-m expects a number (the mean)";
+		error = "-m expects one number";
 		fprintf(reportFile, "error: %s\n", error.c_str());
 		run = false;
 	}
@@ -137,7 +155,7 @@ int main(int argc, char const* argv[]) {
 
 	std::string targetFileName;
 	if (arg.count("-di") == 1) targetFileName = arg.find("-di")->second;
-	else { fprintf(reportFile, "error: -di (the grid) is mandatory\n"); run = false; }
+	else { fprintf(reportFile, "error: -di is mandatory\n"); run = false; }
 	arg.erase("-di");
 
 	unsigned lineCount = 1000;
@@ -155,6 +173,18 @@ int main(int argc, char const* argv[]) {
 		else nbRealisations = unsigned(value);
 	}
 	arg.erase("-nr");
+
+	unsigned firstRealisation = 0;
+	if (arg.count("-ri") == 1) {
+		const std::string text = arg.find("-ri")->second;
+		double value = -1.0;
+		if (!g2s::geostat::parseNumberText(text, &value) || !(value >= 0 && value <= 4294967295.0 - double(nbRealisations) && value == std::floor(value))) {
+			error = "-ri expects an integer >= 0";
+			fprintf(reportFile, "error: %s\n", error.c_str());
+			run = false;
+		} else firstRealisation = unsigned(value);
+	} else if (arg.count("-ri") > 1) { error = "-ri expects an integer >= 0"; fprintf(reportFile, "error: %s\n", error.c_str()); run = false; }
+	arg.erase("-ri");
 
 	unsigned seed = unsigned(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 	if (arg.count("-s") == 1) seed = unsigned(atol(arg.find("-s")->second.c_str()));
@@ -184,15 +214,6 @@ int main(int argc, char const* argv[]) {
 	std::vector<unsigned> grid = DI._dims;
 	const unsigned ndim = unsigned(grid.size());
 	if (ndim < 1 || ndim > 3) return failWith("tb simulates 1D, 2D or 3D grids; -di has " + std::to_string(ndim) + " dimensions", 2);
-	{
-		const size_t values = DI.dataSize();
-		for (size_t i = 0; i < values; ++i) {
-			if (!std::isnan(DI._data[i])) {
-				g2s::reporting::recordWarning(reportFile, "tb is unconditional: the values of -di are ignored (only its grid is used)");
-				break;
-			}
-		}
-	}
 
 	g2s::geostat::CovarianceModelSet models;
 	if (!g2s::geostat::loadCovarianceModels(reportFile, covarianceArguments, grid, ndim, models, error)) return failWith(error, 2);
@@ -215,6 +236,7 @@ int main(int argc, char const* argv[]) {
 	g2s::reporting::logParameter(reportFile, "threads", std::to_string(nbThreads));
 	g2s::reporting::logParameter(reportFile, "lines_per_structure", std::to_string(lineCount));
 	g2s::reporting::logParameter(reportFile, "realisations", std::to_string(nbRealisations));
+	g2s::reporting::logParameter(reportFile, "first_realisation", std::to_string(firstRealisation));
 	g2s::reporting::logParameter(reportFile, "mean", g2s::geostat::formatNumber(mean));
 	for (size_t s = 0; s < model.structures.size(); ++s) {
 		g2s::geostat::LineProcess process = g2s::geostat::LineProcess::Spectral;
@@ -234,11 +256,20 @@ int main(int argc, char const* argv[]) {
 	double boxMin[3] = { 0, 0, 0 }, boxMax[3] = { 0, 0, 0 };
 	for (unsigned d = 0; d < ndim; ++d) boxMax[d] = double(grid[d]) - 1.0;
 
+	// ---- conditioning to the informed cells of -di (factorisation or neighbour search)
+	const auto start = std::chrono::high_resolution_clock::now();
+	g2s::geostat::Conditioner conditioner;
+	try {
+		if (!g2s::geostat::prepareGridConditioning(reportFile, DI, model, false, conditioning, nbThreads, conditioner, error)) return failWith(error, 2);
+	} catch (const std::bad_alloc&) {
+		return failWith("not enough memory to prepare the conditioning", 5);
+	}
+
 	const auto begin = std::chrono::high_resolution_clock::now();
 	const size_t blockSize = 4096;
 	const size_t blocks = (cellCount + blockSize - 1) / blockSize;
 	for (unsigned r = 0; r < nbRealisations; ++r) {
-		const g2s::geostat::TurningBandsRealisation realisation(model, settings, r, boxMin, boxMax);
+		const g2s::geostat::TurningBandsRealisation realisation(model, settings, firstRealisation + r, boxMin, boxMax);
 		g2s::geostat::detail::parallelBlocks(blocks, nbThreads, [&](size_t b) {
 			const size_t first = b * blockSize, n = std::min(blockSize, cellCount - first);
 			std::vector<double> points(n * ndim), values(n);
@@ -257,9 +288,15 @@ int main(int argc, char const* argv[]) {
 		g2s::reporting::setProgress(reportFile, 100.0 * double(r + 1) / double(nbRealisations), "simulation",
 		                            "realisation " + std::to_string(r + 1) + "/" + std::to_string(nbRealisations), r + 1, nbRealisations);
 	}
+	const auto simulated = std::chrono::high_resolution_clock::now();
+	conditioner.condition({ output._data, nbRealisations, 1 }, nbRealisations);
 	const auto end = std::chrono::high_resolution_clock::now();
+	g2s::geostat::reportConditioning(reportFile, conditioner);
+	const double simulationTime = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(simulated - begin).count());
+	fprintf(reportFile, "simulation time: %.0f ms\n", simulationTime);
+	g2s::reporting::recordMetric(reportFile, "simulation_ms", std::to_string((long long)simulationTime));
 
-	const double time = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+	const double time = 1.0e-6 * double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 	fprintf(reportFile, "computation time: %7.2f s\n", time / 1000);
 	fprintf(reportFile, "computation time: %.0f ms\n", time);
 	g2s::reporting::recordMetric(reportFile, "duration_ms", std::to_string((long long)time));

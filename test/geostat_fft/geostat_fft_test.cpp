@@ -290,7 +290,7 @@ void testNoise() {
 }
 
 void testDeterminism() {
-	section("determinism: thread count, batches, -fr");
+	section("determinism: thread count, batches, -ri");
 	const std::vector<unsigned> grid = { 150, 90 };
 	const ResolvedModel model = stationary("0.1*nugget + 0.9*spherical(range=[40,15], angle=25)", 2);
 	const std::vector<unsigned> extended = defaultExtended(model, grid, false);
@@ -420,18 +420,20 @@ void testExecutable(const std::string& binary) {
 	};
 	auto load = [](int output, int id) { return g2s::DataImage::createFromFile("im_" + std::to_string(output) + "_" + std::to_string(id)); };
 
-	// R realisations as R variables; thread count and -fr invariance.
+	// R realisations as R variables; thread count and -ri invariance (-fr: its former name, an alias).
 	CHECK(run(binary, "-nr 4 -s 11 -j 1 -on", testId(500)) == 0);
 	g2s::DataImage batch = load(1, testId(500)), batchNoise = load(2, testId(500));
 	CHECK(!batch.isEmpty() && batch._dims == (std::vector<unsigned>{ 70, 50 }) && batch._nbVariable == 4);
 	CHECK(!batchNoise.isEmpty() && batchNoise._nbVariable == 4 && batchNoise._dims[0] >= 70 + 29 && batchNoise._dims[1] >= 50 + 16);
 	CHECK(run(binary, "-nr 4 -s 11 -j 8", testId(501)) == 0);
 	{ g2s::DataImage other = load(1, testId(501)); CHECK(sameData(batch, other)); }
-	CHECK(run(binary, "-nr 1 -s 11 -fr 2 -j 3", testId(502)) == 0);
+	CHECK(run(binary, "-nr 1 -s 11 -ri 2 -j 3", testId(502)) == 0);
 	g2s::DataImage third = load(1, testId(502));
 	bool same = !third.isEmpty() && !batch.isEmpty();
 	for (size_t i = 0; same && i < 70 * 50; ++i) same = third._data[i] == batch._data[i * 4 + 2];
 	CHECK(same);
+	CHECK(run(binary, "-nr 1 -s 11 -fr 2 -j 3", testId(517)) == 0);
+	{ g2s::DataImage alias = load(1, testId(517)); CHECK(sameData(third, alias)); }
 	// Given noise: same result, noise returned unchanged; -nr taken from -ni.
 	CHECK(run(binary, "-ni im_2_" + testIdText(500) + " -s 999 -on -j 4", testId(503)) == 0);
 	{ g2s::DataImage other = load(1, testId(503)); CHECK(sameData(batch, other)); }
@@ -456,7 +458,7 @@ void testExecutable(const std::string& binary) {
 	CHECK(writeImage(N("geostat_fft_di1"), { 500 }, std::vector<float>(500, std::nanf(""))));
 	CHECK(std::system((binary + " -di " + N("geostat_fft_di1") + " -cov 'exponential(range=30)' -nr 3 -s 1 -id " + testIdText(508) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
 	CHECK(load(1, testId(508))._nbVariable == 3);
-	CHECK(writeImage(N("geostat_fft_di3"), { 20, 18, 16 }, std::vector<float>(20 * 18 * 16, 0.f)));
+	CHECK(writeImage(N("geostat_fft_di3"), { 20, 18, 16 }, std::vector<float>(20 * 18 * 16, std::nanf(""))));
 	CHECK(std::system((spectralBinary + " -di " + N("geostat_fft_di3") + " -cov 'gaussian(range=[8,6,4], angle=[10,20,30])' -s 1 -id " + testIdText(509) + " -o " + N("geostat_fft_out") + " 2>/dev/null").c_str()) == 0);
 	CHECK(load(1, testId(509))._dims == (std::vector<unsigned>{ 20, 18, 16 }));
 	// A stationary map(...) model works.
